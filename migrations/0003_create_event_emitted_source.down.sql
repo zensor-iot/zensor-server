@@ -1,0 +1,1 @@
+DROP SOURCE event_emitted;

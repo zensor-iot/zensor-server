@@ -1,0 +1,8 @@
+mqtt:
+  broker: "localhost:1883"
+  topic: my-super-topic
+database:
+  url: "postgresql://materialize@localhost:6875/materialize"
+kafka:
+  brokers:
+    - "localhost:9092"

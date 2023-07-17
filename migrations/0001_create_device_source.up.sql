@@ -1,0 +1,3 @@
+CREATE SOURCE IF NOT EXISTS device_registered
+FROM KAFKA BROKER '10.0.100.198:9092' TOPIC 'device_registered'
+FORMAT BYTES;
