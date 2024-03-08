@@ -2,6 +2,7 @@ package logger
 
 import (
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -62,4 +63,36 @@ func Warn(msg string, keysAndValues ...interface{}) {
 
 func Error(msg string, keysAndValues ...interface{}) {
 	getDefaultLogger().Errorw(msg, keysAndValues...)
+}
+
+func String(key string, val string) zap.Field {
+	return zap.String(key, val)
+}
+
+func Err(err error) zap.Field {
+	return zap.Error(err)
+}
+
+func Reflect(key string, val interface{}) zap.Field {
+	return zap.Reflect(key, val)
+}
+
+func Time(key string, val time.Time) zap.Field {
+	return zap.Time(key, val)
+}
+
+func Int(key string, val int) zap.Field {
+	return zap.Int(key, val)
+}
+
+func Int64(key string, val int64) zap.Field {
+	return zap.Int64(key, val)
+}
+
+func Bool(key string, val bool) zap.Field {
+	return zap.Bool(key, val)
+}
+
+func Duration(key string, val time.Duration) zap.Field {
+	return zap.Duration(key, val)
 }

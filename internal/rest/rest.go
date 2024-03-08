@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+
+	// _ "net/http/pprof"
 )
 
 type RestServer interface {

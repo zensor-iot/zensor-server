@@ -42,7 +42,7 @@ func (d *DatabaseWrapper) Open() error {
 		conn, err := pgx.Connect(context.Background(), d.URL)
 
 		if err != nil {
-			logger.Info("error connecting to database: %s", err)
+			logger.Info("error connecting to database", logger.Err(err))
 			logger.Info("retrying... ")
 			time.Sleep(5 * time.Second)
 		} else {
