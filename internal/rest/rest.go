@@ -11,7 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 
-	// _ "net/http/pprof"
+	_ "net/http/pprof"
 )
 
 type RestServer interface {

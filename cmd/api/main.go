@@ -76,7 +76,7 @@ func temperatureFlow(c kafka.KafkaConsumer) {
 }
 
 func dbMigration(db persistence.Database) {
-	db.Up("server/migrations")
+	db.Up("migrations")
 
 }
 
