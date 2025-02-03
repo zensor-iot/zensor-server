@@ -72,3 +72,22 @@ func (s *SimpleDeviceRepository) GetDeviceByName(ctx context.Context, name strin
 
 	return entity.ToDomain(), nil
 }
+
+func (s *SimpleDeviceRepository) FindAll(ctx context.Context) ([]domain.Device, error) {
+	var entities []internal.Device
+	err := s.orm.
+		WithContext(ctx).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	result := make([]domain.Device, len(entities))
+	for i, entity := range entities {
+		result[i] = entity.ToDomain()
+	}
+
+	return result, nil
+}

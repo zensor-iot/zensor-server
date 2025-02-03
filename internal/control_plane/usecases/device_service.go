@@ -13,6 +13,7 @@ var (
 
 type DeviceService interface {
 	CreateDevice(context.Context, domain.Device) error
+	AllDevices(context.Context) ([]domain.Device, error)
 }
 
 func NewDeviceService(repository DeviceRepository) *SimpleDeviceService {
@@ -35,4 +36,14 @@ func (s *SimpleDeviceService) CreateDevice(ctx context.Context, device domain.De
 	}
 
 	return nil
+}
+
+func (s *SimpleDeviceService) AllDevices(ctx context.Context) ([]domain.Device, error) {
+	devices, err := s.repository.FindAll(ctx)
+	if err != nil {
+		slog.Error("getting all devices", slog.String("error", err.Error()))
+		return nil, errUnknown
+	}
+
+	return devices, nil
 }

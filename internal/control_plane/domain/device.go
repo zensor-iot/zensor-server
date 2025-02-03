@@ -31,9 +31,9 @@ func (b *deviceBuilder) WithName(value string) *deviceBuilder {
 func (b *deviceBuilder) Build() (Device, error) {
 	result := Device{
 		ID:     utils.GenerateUUID(),
-		DevEUI: utils.GenerateHEX(16),
-		AppEUI: utils.GenerateHEX(16),
-		AppKey: utils.GenerateHEX(32),
+		DevEUI: utils.GenerateHEX(8),
+		AppEUI: utils.GenerateHEX(8),
+		AppKey: utils.GenerateHEX(16),
 	}
 	for _, a := range b.actions {
 		if err := a(&result); err != nil {

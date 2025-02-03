@@ -43,8 +43,10 @@ func (d DB) Error() error {
 	switch {
 	case errors.Is(d.DB.Error, gorm.ErrRecordNotFound):
 		return ErrRecordNotFound
-	default:
+	case d.DB.Error != nil:
 		return fmt.Errorf("database error: %w", d.DB.Error)
+	default:
+		return nil
 	}
 }
 

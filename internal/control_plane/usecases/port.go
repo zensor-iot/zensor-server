@@ -7,4 +7,5 @@ import (
 
 type DeviceRepository interface {
 	CreateDevice(context.Context, domain.Device) error
+	FindAll(context.Context) ([]domain.Device, error)
 }

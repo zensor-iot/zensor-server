@@ -31,10 +31,10 @@ func (c *DeviceController) AddRoutes(router *http.ServeMux) {
 
 func (c *DeviceController) listDevices() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result := internal.DeviceListResponse{
-			Data: []internal.DeviceResponse{
-				{ID: "130f8e0d-3a48-4741-a280-f2d21266c562"},
-			},
+		result, err := c.service.AllDevices(r.Context())
+		if err != nil {
+			http.Error(w, "failed to list devices", http.StatusInternalServerError)
+			return
 		}
 
 		httpserver.ReplyJSONResponse(w, http.StatusOK, result)
