@@ -1,11 +1,8 @@
 package temperature
 
-import (
-	"zensor-server/internal/logger"
-)
+import "log/slog"
 
 type temperatureHandler struct {
-	l               logger.Logger
 	lowLevelCounter uint
 }
 
@@ -16,10 +13,10 @@ func CreateHandler() *temperatureHandler {
 }
 
 func (h *temperatureHandler) Push(msg string) {
-	logger.Info("message receive in temperature analyzer", "msg", msg)
+	slog.Info("message receive in temperature analyzer", "msg", msg)
 
 	if h.isCold() {
-		logger.Info("is cold")
+		slog.Info("is cold")
 	}
 }
 

@@ -3,9 +3,8 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
-
-	"zensor-server/internal/logger"
 
 	"github.com/lovoo/goka"
 	"github.com/lovoo/goka/codec"
@@ -16,10 +15,10 @@ const (
 )
 
 type KafkaPublisher interface {
-	Publish(string, string) error
+	Publish(context.Context, string, any) error
 }
 
-type kafkaPublisherWrapper struct {
+type SimpleKafkaPublisher struct {
 	emitter *goka.Emitter
 }
 
@@ -33,20 +32,20 @@ type kafkaConsumerWrapper struct {
 	group   string
 }
 
-func (p *kafkaPublisherWrapper) Publish(key, message string) error {
+func (p *SimpleKafkaPublisher) Publish(_ context.Context, key string, message any) error {
 	err := p.emitter.EmitSync(key, message)
 	if err != nil {
-		logger.Info("error emitting message", "err", err)
+		slog.Info("error emitting message", "err", err)
 		return err
 	} else {
-		logger.Info("emit sync done")
+		slog.Info("emit sync done")
 		return nil
 	}
 }
 
 func (c *kafkaConsumerWrapper) Consume(fn func(string)) {
 	cb := func(ctx goka.Context, msg interface{}) {
-		logger.Info("message received", "msg", msg)
+		slog.Info("message received", "msg", msg)
 		fn(fmt.Sprintf("%v", msg))
 	}
 
@@ -58,19 +57,19 @@ func (c *kafkaConsumerWrapper) Consume(fn func(string)) {
 
 	p, err := goka.NewProcessor(c.brokers, g)
 	if err != nil {
-		logger.Info("error creating processor", "err", err)
+		slog.Info("error creating processor", "err", err)
 	}
 	p.Run(context.Background())
 }
 
-func NewKafkaPublisher(brokers []string, topic string) (KafkaPublisher, error) {
+func NewKafkaPublisher(brokers []string, topic string, prototype any) (*SimpleKafkaPublisher, error) {
 	for try := 0; try < maxRetries; try++ {
-		e, err := goka.NewEmitter(brokers, goka.Stream(topic), new(codec.String))
+		e, err := goka.NewEmitter(brokers, goka.Stream(topic), newJSONCodec(prototype))
 
 		if err != nil {
 			time.Sleep(5 * time.Second)
 		} else {
-			return &kafkaPublisherWrapper{e}, nil
+			return &SimpleKafkaPublisher{e}, nil
 		}
 	}
 

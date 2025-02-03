@@ -1,11 +1,10 @@
 package mqtt
 
 import (
+	"log/slog"
 	"time"
 
-	"zensor-server/internal/logger"
-
-	MQTT "github.com/eclipse/paho.mqtt.golang"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
 )
 
@@ -27,7 +26,7 @@ type Event struct {
 
 type mqttPeer struct {
 	id              string
-	client          MQTT.Client
+	client          mqtt.Client
 	topic           string
 	outboundChannel chan Event
 }
@@ -46,38 +45,38 @@ func Run(broker string, topic string, outboundChannel chan Event) {
 	peer.subscribe()
 }
 
-func connect(broker, id string) MQTT.Client {
-	opts := MQTT.NewClientOptions()
+func connect(broker, id string) mqtt.Client {
+	opts := mqtt.NewClientOptions()
 	opts.AddBroker(broker)
 	opts.SetClientID(id)
 	opts.SetUsername(username)
 	for try := 0; try < maxRetries; try++ {
-		client := MQTT.NewClient(opts)
+		client := mqtt.NewClient(opts)
 		token := client.Connect()
 
 		if token.Wait() && token.Error() != nil {
-			logger.Info("error connecting to mqtt broker: %s", token.Error())
-			logger.Info("retrying... ")
+			slog.Info("error connecting to mqtt broker: %s", token.Error())
+			slog.Info("retrying... ")
 			time.Sleep(5 * time.Second)
 		} else {
 			return client
 		}
 	}
 
-	logger.Info("imposible to connect to mqtt broker after %d retries", maxRetries)
+	slog.Info("imposible to connect to mqtt broker after %d retries", maxRetries)
 	return nil
 }
 
 func (p *mqttPeer) subscribe() {
-	logger.Info("subscribing to channel", "topic", p.topic)
+	slog.Info("subscribing to channel", "topic", p.topic)
 	p.client.Subscribe(p.topic, qos_level, p.onMessageReceive)
 }
 
-func (p *mqttPeer) onMessageReceive(c MQTT.Client, msg MQTT.Message) {
-	logger.Info("message received", "msg", msg.Payload())
+func (p *mqttPeer) onMessageReceive(c mqtt.Client, msg mqtt.Message) {
+	slog.Info("message received", "msg", msg.Payload())
 	p.outboundChannel <- Event{p.id, EventTypeMessage, msg.Payload()}
 }
 
 func (p *mqttPeer) publish(message string) {
-	logger.Info("not implemented yet")
+	slog.Info("not implemented yet")
 }

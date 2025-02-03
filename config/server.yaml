@@ -1,8 +1,10 @@
 mqtt:
   broker: "localhost:1883"
-  topic: my-super-topic
 database:
   url: "postgresql://materialize@localhost:6875/materialize"
+  dsn: "host=localhost user=materialize dbname=materialize port=6875 sslmode=disable"
 kafka:
   brokers:
-    - "localhost:9092"
+    - "localhost:19092"
+  topics:
+    devices: "devices"

@@ -1,15 +1,15 @@
 package sages
 
 import (
+	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
-
-	"zensor-server/internal/logger"
 
 	"github.com/google/uuid"
 
-	"zensor-server/internal/kafka"
-	"zensor-server/internal/mqtt"
+	"zensor-server/internal/infra/kafka"
+	"zensor-server/internal/infra/mqtt"
 )
 
 const (
@@ -35,7 +35,7 @@ type DeviceEvent struct {
 
 func EvaluateThingToServer(events chan mqtt.Event, publisher kafka.KafkaPublisher, eventPublisher kafka.KafkaPublisher) {
 	for event := range events {
-		logger.Info("message received", "event", event)
+		slog.Info("message received", slog.Any("event", event))
 		switch event.Type {
 		case mqtt.EventTypeMyself:
 			myID = event.DeviceID
@@ -44,14 +44,14 @@ func EvaluateThingToServer(events chan mqtt.Event, publisher kafka.KafkaPublishe
 		case mqtt.EventTypeMessage:
 			evaluateEvent(event, eventPublisher)
 		default:
-			logger.Info("event type %s not supported", event.Type)
+			slog.Info("event type not supported", slog.String("type", event.Type))
 		}
 	}
 }
 
 func evaluatePresence(e mqtt.Event, p kafka.KafkaPublisher) {
 	if e.DeviceID == myID {
-		logger.Info("event discarded given comes from myself")
+		slog.Info("event discarded given comes from myself")
 		return
 	}
 
@@ -59,7 +59,7 @@ func evaluatePresence(e mqtt.Event, p kafka.KafkaPublisher) {
 		e.DeviceID,
 		time.Now(),
 	})
-	p.Publish(e.DeviceID, string(val))
+	p.Publish(context.Background(), e.DeviceID, string(val))
 }
 
 func evaluateEvent(e mqtt.Event, p kafka.KafkaPublisher) {
@@ -70,5 +70,5 @@ func evaluateEvent(e mqtt.Event, p kafka.KafkaPublisher) {
 		Kind:     eventKindGeneric,
 		Data:     string(e.Value),
 	})
-	p.Publish(e.DeviceID, string(val))
+	p.Publish(context.Background(), e.DeviceID, string(val))
 }

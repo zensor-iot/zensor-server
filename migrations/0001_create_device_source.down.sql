@@ -1,1 +1,0 @@
-DROP SOURCE device_registered;

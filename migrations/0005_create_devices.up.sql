@@ -1,0 +1,3 @@
+CREATE SOURCE IF NOT EXISTS devices
+FROM KAFKA CONNECTION kafka_connection (TOPIC 'devices')
+FORMAT JSON;

@@ -1,8 +1,10 @@
 package persistence
 
 import (
+	"context"
 	"encoding/json"
 	"time"
+	"zensor-server/internal/infra/sql"
 )
 
 const (
@@ -22,16 +24,16 @@ type EventRecord struct {
 }
 
 type eventRepositoryDefault struct {
-	database Database
+	database sql.Database
 }
 
-func NewEventRepository(d Database) EventRepository {
+func NewEventRepository(d sql.Database) EventRepository {
 	return &eventRepositoryDefault{d}
 }
 
 func (r *eventRepositoryDefault) GetEvents() []*EventRecord {
 	query := "SELECT * FROM events LIMIT $1"
-	result := r.database.Query(query, defaultRowLimit)
+	result, _ := r.database.Query(context.Background(), query, defaultRowLimit)
 	events := unmarshalEventRecordArray(result)
 	return events
 }
