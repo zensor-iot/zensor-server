@@ -15,15 +15,22 @@ type Client interface {
 
 var _ Client = &SimpleClient{}
 
-func NewSimpleClient() *SimpleClient {
-	opts := paho.NewClientOptions().
-		AddBroker("nam1.cloud.thethings.network:1883").
-		SetClientID("local_client").
-		SetUsername("my-new-application-2021@ttn").
-		SetPassword("NNSXS.CJWYCNW4FRNQKDDCXM27ZPKMQ6UBFR2RWBHFSUA.V7O6N6WUUIBXJUZ7LZCRW5SISWUIP4KIZOZHA2OJ4QBQVFSPAJQQ").
+type SimpleClientOpts struct {
+	Broker   string
+	ClientID string
+	Username string
+	Password string
+}
+
+func NewSimpleClient(opts SimpleClientOpts) *SimpleClient {
+	pahoOpts := paho.NewClientOptions().
+		AddBroker(opts.Broker).
+		SetClientID(opts.ClientID).
+		SetUsername(opts.Username).
+		SetPassword(opts.Password).
 		SetOnConnectHandler(onConnectHandler)
 
-	client := paho.NewClient(opts)
+	client := paho.NewClient(pahoOpts)
 	token := client.Connect()
 	token.WaitTimeout(5 * time.Second)
 	if token.Error() != nil {

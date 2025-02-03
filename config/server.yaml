@@ -1,5 +1,6 @@
 mqtt:
   broker: "localhost:1883"
+
 database:
   url: "postgresql://materialize@localhost:6875/materialize"
   dsn: "host=localhost user=materialize dbname=materialize port=6875 sslmode=disable"
@@ -8,3 +9,6 @@ kafka:
     - "localhost:19092"
   topics:
     devices: "devices"
+mqtt_client:
+  broker: nam1.cloud.thethings.network:1883
+  client_id: zensor_server_local

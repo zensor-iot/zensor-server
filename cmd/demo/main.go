@@ -26,8 +26,13 @@ func main() {
 
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
-
-	mqttClient := mqtt.NewSimpleClient()
+	simpleClientOpts := mqtt.SimpleClientOpts{
+		Broker:   "dummy",
+		ClientID: "dummy",
+		Username: "dummy",
+		Password: "dummy", //pragma: allowlist secret
+	}
+	mqttClient := mqtt.NewSimpleClient(simpleClientOpts)
 	var (
 		topicBase           = "v3/my-new-application-2021@ttn/devices/wireless-stick-seba"
 		qos            byte = 0

@@ -55,7 +55,7 @@ func connect(broker, id string) mqtt.Client {
 		token := client.Connect()
 
 		if token.Wait() && token.Error() != nil {
-			slog.Info("error connecting to mqtt broker: %s", token.Error())
+			slog.Info("error connecting to mqtt broker: %s", slog.String("error", token.Error().Error()))
 			slog.Info("retrying... ")
 			time.Sleep(5 * time.Second)
 		} else {
@@ -63,7 +63,7 @@ func connect(broker, id string) mqtt.Client {
 		}
 	}
 
-	slog.Info("imposible to connect to mqtt broker after %d retries", maxRetries)
+	slog.Info("imposible to connect to mqtt broker after many retries", slog.Int("retries", maxRetries))
 	return nil
 }
 
@@ -77,6 +77,6 @@ func (p *mqttPeer) onMessageReceive(c mqtt.Client, msg mqtt.Message) {
 	p.outboundChannel <- Event{p.id, EventTypeMessage, msg.Payload()}
 }
 
-func (p *mqttPeer) publish(message string) {
+func (p *mqttPeer) publish(_ string) {
 	slog.Info("not implemented yet")
 }
