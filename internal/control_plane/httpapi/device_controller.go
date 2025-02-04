@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"log/slog"
 	"net/http"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/httpapi/internal"
@@ -27,13 +28,14 @@ type DeviceController struct {
 func (c *DeviceController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /devices", c.listDevices())
 	router.Handle("POST /devices", c.createDevice())
+	router.Handle("POST /devices/{id}/commands", c.sendCommand())
 }
 
 func (c *DeviceController) listDevices() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result, err := c.service.AllDevices(r.Context())
 		if err != nil {
-			http.Error(w, "failed to list devices", http.StatusInternalServerError)
+			http.Error(w, "service all devices", http.StatusInternalServerError)
 			return
 		}
 
@@ -61,6 +63,34 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 		err = c.service.CreateDevice(r.Context(), device)
 		if err != nil {
 			http.Error(w, createDeviceErrMessage, http.StatusInternalServerError)
+			return
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusCreated, nil)
+	}
+}
+
+func (c *DeviceController) sendCommand() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		var body internal.CommandSendRequest
+		err := httpserver.DecodeJSONBody(r, &body)
+		if err != nil {
+			http.Error(w, createDeviceErrMessage, http.StatusBadRequest)
+			return
+		}
+
+		cmd := domain.Command{
+			Device:     domain.Device{ID: id},
+			RawPayload: body.RawPayload,
+			Port:       body.Port,
+			Priority:   body.Priority,
+		}
+
+		err = c.service.QueueCommand(r.Context(), cmd)
+		if err != nil {
+			slog.Error("queue command failed", slog.String("error", err.Error()))
+			http.Error(w, "queue command failed", http.StatusInternalServerError)
 			return
 		}
 

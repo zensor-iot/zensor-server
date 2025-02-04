@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-
-	"github.com/gorilla/mux"
 )
 
 type ErrorResponse struct {
@@ -40,16 +38,6 @@ func DecodeJSONBody(r *http.Request, placeholder any) error {
 	}
 
 	return nil
-}
-
-func GetPathParam(r *http.Request, name string) string {
-	vars := mux.Vars(r)
-	return vars[name]
-}
-
-func GetQueryParam(r *http.Request, name string) string {
-	val := r.URL.Query().Get(name)
-	return val
 }
 
 func GetQueryParamMapKeyValue(r *http.Request, name string) (string, string) {

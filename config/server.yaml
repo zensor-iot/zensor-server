@@ -1,6 +1,5 @@
 mqtt:
   broker: "localhost:1883"
-
 database:
   url: "postgresql://materialize@localhost:6875/materialize"
   dsn: "host=localhost user=materialize dbname=materialize port=6875 sslmode=disable"

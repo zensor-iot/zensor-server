@@ -7,7 +7,6 @@ toolchain go1.22.9
 require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/google/uuid v1.2.0
-	github.com/gorilla/mux v1.8.0
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/lovoo/goka v1.0.6
 	github.com/prometheus/client_golang v1.20.5

@@ -2,12 +2,14 @@ package workers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
 )
@@ -82,8 +84,10 @@ var (
 		slog.Info("message received",
 			slog.String("topic", msg.Topic()),
 			slog.Uint64("message_id", uint64(msg.MessageID())),
-			slog.String("payload", string(msg.Payload())),
 		)
+		var envelop dto.Envelop
+		json.Unmarshal(msg.Payload(), &envelop)
+		slog.Debug("envelop", slog.Any("envelop", envelop))
 	}
 )
 

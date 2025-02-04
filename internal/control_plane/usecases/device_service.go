@@ -14,6 +14,7 @@ var (
 type DeviceService interface {
 	CreateDevice(context.Context, domain.Device) error
 	AllDevices(context.Context) ([]domain.Device, error)
+	QueueCommand(context.Context, domain.Command) error
 }
 
 func NewDeviceService(repository DeviceRepository) *SimpleDeviceService {
@@ -46,4 +47,8 @@ func (s *SimpleDeviceService) AllDevices(ctx context.Context) ([]domain.Device, 
 	}
 
 	return devices, nil
+}
+
+func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Command) error {
+	return errors.New("not implemented")
 }

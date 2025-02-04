@@ -20,7 +20,6 @@ import (
 	"zensor-server/internal/infra/kafka"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/sages"
 
 	"github.com/spf13/viper"
 )
@@ -38,22 +37,22 @@ func main() {
 	slog.Debug("config loaded", "data", config)
 
 	kafkaPublisherFactory := kafka.NewKafkaPublisherFactory(config.kafka.brokers)
-	kafkaPublisherDevices, err := kafka.NewKafkaPublisher(config.kafka.brokers, config.kafka.topics["devices"], "")
-	if err != nil {
-		panic(err)
-	}
-	kafkaPublisherEventEmitted, err := kafka.NewKafkaPublisher(config.kafka.brokers, kafka_topic_event_emitted, "")
-	if err != nil {
-		panic(err)
-	}
+	// kafkaPublisherDevices, err := kafka.NewKafkaPublisher(config.kafka.brokers, config.kafka.topics["devices"], "")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// kafkaPublisherEventEmitted, err := kafka.NewKafkaPublisher(config.kafka.brokers, kafka_topic_event_emitted, "")
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	c := make(chan mqtt.Event)
-	go mqtt.Run(config.mqtt.broker, "dummy", c)
-	go sages.EvaluateThingToServer(
-		c,
-		kafkaPublisherDevices,
-		kafkaPublisherEventEmitted,
-	)
+	// c := make(chan mqtt.Event)
+	//go mqtt.Run(config.mqtt.broker, "dummy", c)
+	// go sages.EvaluateThingToServer(
+	// 	c,
+	// 	kafkaPublisherDevices,
+	// 	kafkaPublisherEventEmitted,
+	// )
 
 	orm := initDatabase(config)
 	deviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
