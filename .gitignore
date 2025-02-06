@@ -1,3 +1,8 @@
 server
 .env
 .envrc
+
+#OTel Collector
+otelcol_output.json
+otelcol.log
+otelcol

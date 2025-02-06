@@ -6,8 +6,7 @@ database:
 kafka:
   brokers:
     - "localhost:19092"
-  topics:
-    devices: "devices"
+  group: "zensor-server"
 mqtt_client:
   broker: nam1.cloud.thethings.network:1883
   client_id: zensor_server_local

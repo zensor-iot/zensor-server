@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"zensor-server/internal/control_plane/domain"
 )
@@ -17,9 +18,13 @@ type DeviceService interface {
 	QueueCommand(context.Context, domain.Command) error
 }
 
-func NewDeviceService(repository DeviceRepository) *SimpleDeviceService {
+func NewDeviceService(
+	repository DeviceRepository,
+	publisher CommandPublisher,
+) *SimpleDeviceService {
 	return &SimpleDeviceService{
 		repository,
+		publisher,
 	}
 }
 
@@ -27,6 +32,7 @@ var _ DeviceService = &SimpleDeviceService{}
 
 type SimpleDeviceService struct {
 	repository DeviceRepository
+	publisher  CommandPublisher
 }
 
 func (s *SimpleDeviceService) CreateDevice(ctx context.Context, device domain.Device) error {
@@ -50,5 +56,19 @@ func (s *SimpleDeviceService) AllDevices(ctx context.Context) ([]domain.Device, 
 }
 
 func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Command) error {
-	return errors.New("not implemented")
+	device, err := s.repository.Get(ctx, cmd.Device.ID)
+	if errors.Is(err, ErrDeviceNotFound) {
+		return ErrDeviceNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get device: %w", err)
+	}
+
+	cmd.Device = device
+	err = s.publisher.Dispatch(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("dispatch event: %w", err)
+	}
+
+	return nil
 }

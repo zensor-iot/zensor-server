@@ -7,17 +7,12 @@ import (
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/infra/kafka"
+	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 )
 
-var (
-	ErrDeviceNotFound   = errors.New("device not found")
-	ErrDeviceDuplicated = errors.New("device already exists")
-)
-
-func NewDeviceRepository(publisherFactory *kafka.KafkaPublisherFactory, orm sql.ORM) (*SimpleDeviceRepository, error) {
-	publisher, err := publisherFactory.CreatePublisher("devices", internal.Device{})
+func NewDeviceRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleDeviceRepository, error) {
+	publisher, err := publisherFactory.New("devices", internal.Device{})
 	if err != nil {
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
@@ -28,25 +23,25 @@ func NewDeviceRepository(publisherFactory *kafka.KafkaPublisherFactory, orm sql.
 	}, nil
 }
 
-var _ usecases.DeviceRepository = &SimpleDeviceRepository{}
+var _ usecases.DeviceRepository = (*SimpleDeviceRepository)(nil)
 
 type SimpleDeviceRepository struct {
-	publisher kafka.KafkaPublisher
+	publisher pubsub.Publisher
 	orm       sql.ORM
 }
 
 func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain.Device) error {
 	data := internal.FromDevice(device)
-	currentDevice, err := s.GetDeviceByName(ctx, device.Name)
-	if err != nil && err != ErrDeviceNotFound {
+	currentDevice, err := s.GetByName(ctx, device.Name)
+	if err != nil && err != usecases.ErrDeviceNotFound {
 		return fmt.Errorf("getting device: %w", err)
 	}
 
 	if currentDevice != (domain.Device{}) {
-		return ErrDeviceDuplicated
+		return usecases.ErrDeviceDuplicated
 	}
 
-	err = s.publisher.Publish(ctx, device.ID, data)
+	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), data)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
@@ -54,7 +49,7 @@ func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain
 	return nil
 }
 
-func (s *SimpleDeviceRepository) GetDeviceByName(ctx context.Context, name string) (domain.Device, error) {
+func (s *SimpleDeviceRepository) GetByName(ctx context.Context, name string) (domain.Device, error) {
 	var entity internal.Device
 	err := s.orm.
 		WithContext(ctx).
@@ -63,7 +58,25 @@ func (s *SimpleDeviceRepository) GetDeviceByName(ctx context.Context, name strin
 		Error()
 
 	if errors.Is(err, sql.ErrRecordNotFound) {
-		return domain.Device{}, ErrDeviceNotFound
+		return domain.Device{}, usecases.ErrDeviceNotFound
+	}
+
+	if err != nil {
+		return domain.Device{}, fmt.Errorf("database query: %w", err)
+	}
+
+	return entity.ToDomain(), nil
+}
+
+func (s *SimpleDeviceRepository) Get(ctx context.Context, id string) (domain.Device, error) {
+	var entity internal.Device
+	err := s.orm.
+		WithContext(ctx).
+		First(&entity, "id = ?", id).
+		Error()
+
+	if errors.Is(err, sql.ErrRecordNotFound) {
+		return domain.Device{}, usecases.ErrDeviceNotFound
 	}
 
 	if err != nil {

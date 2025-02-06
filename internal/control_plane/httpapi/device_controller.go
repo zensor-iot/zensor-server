@@ -72,10 +72,11 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 
 func (c *DeviceController) sendCommand() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
+		id := r.PathValue("id")
 		var body internal.CommandSendRequest
 		err := httpserver.DecodeJSONBody(r, &body)
 		if err != nil {
+			slog.Error("decoding json body", slog.String("error", err.Error()))
 			http.Error(w, createDeviceErrMessage, http.StatusBadRequest)
 			return
 		}

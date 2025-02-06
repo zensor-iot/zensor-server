@@ -1,0 +1,24 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+
+processors:
+  batch:
+    timeout: 0ms
+
+exporters:
+  file:
+    path: ./otelcol_output.json
+  debug:
+    verbosity: detailed
+  prometheus:
+    endpoint: localhost:20000
+    namespace: default
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file, prometheus]

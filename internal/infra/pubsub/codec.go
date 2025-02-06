@@ -1,8 +1,9 @@
-package kafka
+package pubsub
 
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type Codec interface {
@@ -11,9 +12,7 @@ type Codec interface {
 }
 
 func newJSONCodec(prototype any) *JSONCodec {
-	return &JSONCodec{
-		prototype,
-	}
+	return &JSONCodec{prototype}
 }
 
 var _ Codec = &JSONCodec{}
@@ -22,7 +21,7 @@ type JSONCodec struct {
 	prototype any
 }
 
-func (c *JSONCodec) Encode(value interface{}) ([]byte, error) {
+func (c *JSONCodec) Encode(value any) ([]byte, error) {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling data: %w", err)
@@ -32,10 +31,12 @@ func (c *JSONCodec) Encode(value interface{}) ([]byte, error) {
 }
 
 func (c *JSONCodec) Decode(data []byte) (any, error) {
-	instance := c.prototype
+	pt := reflect.TypeOf(c.prototype)
+	instance := reflect.New(pt).Interface()
 	err := json.Unmarshal(data, &instance)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshaling data: %w", err)
 	}
+
 	return instance, nil
 }

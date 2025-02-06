@@ -12,7 +12,7 @@ func (c *CommandSendRequest) UnmarshalJSON(data []byte) error {
 	type Alias CommandSendRequest
 	defaults := &Alias{
 		Priority: "NORMAL",
-		Port:     0,
+		Port:     1,
 	}
 
 	if err := json.Unmarshal(data, defaults); err != nil {
