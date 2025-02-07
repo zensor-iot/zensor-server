@@ -14,6 +14,11 @@ import (
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 const (
@@ -34,6 +39,7 @@ func NewLoraIntegrationWorker(
 		mqttClient:     mqttClient,
 		broker:         broker,
 		pubsubConsumer: pubsubConsumerFactory.New(),
+		metricCounters: make(map[string]metric.Float64Gauge),
 	}
 }
 
@@ -46,6 +52,7 @@ type LoraIntegrationWorker struct {
 	broker         async.InternalBroker
 	pubsubConsumer pubsub.Consumer
 	devices        sync.Map
+	metricCounters map[string]metric.Float64Gauge
 }
 
 func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
@@ -53,6 +60,7 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 	defer done()
 	var wg sync.WaitGroup
 	commandsChannel := w.consumeCommandsToChannel()
+	w.setupOtelCounters()
 	for {
 		select {
 		case <-ctx.Done():
@@ -68,6 +76,20 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 			go w.deviceCommandHandler(msg, wg.Done)
 		}
 	}
+}
+
+const (
+	_metricKeyTemperature = "temperature"
+	_metricKeyHumidity    = "humidity"
+)
+
+func (w *LoraIntegrationWorker) setupOtelCounters() {
+	meter := otel.Meter("zensor_server")
+	temperatureCounter, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.temperature"), metric.WithDescription("zensor_server temperature metric counter"))
+	humidityCounter, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.humidity"), metric.WithDescription("zensor_server humidity metric counter"))
+
+	w.metricCounters[_metricKeyTemperature] = temperatureCounter
+	w.metricCounters[_metricKeyHumidity] = humidityCounter
 }
 
 func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototype {
@@ -158,6 +180,17 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	}
 	w.broker.Publish(ctx, BrokerTopicUplinkMessage, brokerMsg)
 	slog.Debug("envelop", slog.Any("envelop", envelop))
+
+	temperature := envelop.UplinkMessage.DecodedPayload[_metricKeyTemperature].(float64)
+	humidity := envelop.UplinkMessage.DecodedPayload[_metricKeyHumidity].(float64)
+
+	attributes := []attribute.KeyValue{
+		semconv.ServiceNameKey.String("zensor_server"),
+		attribute.String("device_name", envelop.EndDeviceIDs.DeviceID),
+		attribute.String("app_id", envelop.EndDeviceIDs.ApplicationIDs["application_id"]),
+	}
+	w.metricCounters[_metricKeyTemperature].Record(ctx, temperature, metric.WithAttributes(attributes...))
+	w.metricCounters[_metricKeyHumidity].Record(ctx, humidity, metric.WithAttributes(attributes...))
 }
 
 func (w *LoraIntegrationWorker) deviceCommandHandler(msg pubsub.Prototype, done func()) {

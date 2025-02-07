@@ -31,6 +31,12 @@ setup:
     while ! nc -z localhost 6875; do
         sleep 0.5
     done
+    echo "🚀 launching prometheus..."
+    docker start prometheus || docker container run --name prometheus --network zensor -p 9090:9090 -d bitnami/prometheus:2.55.1 --config.file=/opt/bitnami/prometheus/conf/prometheus.yml --storage.tsdb.path=/opt/bitnami/prometheus/data --web.console.libraries=/opt/bitnami/prometheus/conf/console_libraries --web.console.templates=/opt/bitnami/prometheus/conf/consoles --web.enable-remote-write-receiver
+    while ! nc -z localhost 9090; do
+        sleep 0.5
+    done
+    docker start grafana || docker container run --name grafana --network zensor -p 3001:3000 -d grafana/grafana:11.5.1
 
 run: build setup
     #!/bin/bash
