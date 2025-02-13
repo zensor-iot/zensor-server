@@ -8,6 +8,7 @@ type Device struct {
 	AppEUI string
 	DevEUI string
 	AppKey string
+	Sector *Sector
 }
 
 func NewDeviceBuilder() *deviceBuilder {
