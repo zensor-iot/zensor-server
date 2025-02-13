@@ -56,7 +56,7 @@ func (s *SimpleDeviceService) AllDevices(ctx context.Context) ([]domain.Device, 
 }
 
 func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Command) error {
-	device, err := s.repository.Get(ctx, cmd.Device.ID)
+	device, err := s.repository.Get(ctx, cmd.Device.ID.String())
 	if errors.Is(err, ErrDeviceNotFound) {
 		return ErrDeviceNotFound
 	}

@@ -3,7 +3,7 @@ package domain
 import "zensor-server/internal/infra/utils"
 
 type Device struct {
-	ID     string
+	ID     ID
 	Name   string
 	AppEUI string
 	DevEUI string
@@ -31,7 +31,7 @@ func (b *deviceBuilder) WithName(value string) *deviceBuilder {
 
 func (b *deviceBuilder) Build() (Device, error) {
 	result := Device{
-		ID:     utils.GenerateUUID(),
+		ID:     ID(utils.GenerateUUID()),
 		DevEUI: utils.GenerateHEX(8),
 		AppEUI: utils.GenerateHEX(8),
 		AppKey: utils.GenerateHEX(16),

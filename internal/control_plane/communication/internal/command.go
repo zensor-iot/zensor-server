@@ -16,7 +16,7 @@ type Command struct {
 
 func FromCommand(cmd domain.Command) Command {
 	return Command{
-		DeviceID:   cmd.Device.ID,
+		DeviceID:   cmd.Device.ID.String(),
 		DeviceName: cmd.Device.Name,
 		RawPayload: cmd.RawPayload,
 		Port:       cmd.Port,

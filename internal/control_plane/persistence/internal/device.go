@@ -22,7 +22,7 @@ func (Device) TableName() string {
 
 func (s Device) ToDomain() domain.Device {
 	return domain.Device{
-		ID:     s.ID,
+		ID:     domain.ID(s.ID),
 		Name:   s.Name,
 		AppEUI: s.AppEUI,
 		DevEUI: s.DevEUI,
@@ -32,7 +32,7 @@ func (s Device) ToDomain() domain.Device {
 
 func FromDevice(value domain.Device) Device {
 	return Device{
-		ID:         value.ID,
+		ID:         value.ID.String(),
 		Version:    1,
 		Name:       value.Name,
 		AppEUI:     value.AppEUI,

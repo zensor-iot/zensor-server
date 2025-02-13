@@ -82,7 +82,7 @@ func (c *DeviceController) sendCommand() http.HandlerFunc {
 		}
 
 		cmd := domain.Command{
-			Device:     domain.Device{ID: id},
+			Device:     domain.Device{ID: domain.ID(id)},
 			RawPayload: body.RawPayload,
 			Port:       body.Port,
 			Priority:   body.Priority,
