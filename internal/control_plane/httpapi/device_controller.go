@@ -82,10 +82,12 @@ func (c *DeviceController) sendCommand() http.HandlerFunc {
 		}
 
 		cmd := domain.Command{
-			Device:     domain.Device{ID: domain.ID(id)},
-			RawPayload: body.RawPayload,
-			Port:       body.Port,
-			Priority:   body.Priority,
+			Device: domain.Device{ID: domain.ID(id)},
+			Payload: domain.CommandPayload{
+				Index: domain.Index(body.Payload.Index),
+				Value: domain.CommandValue(body.Payload.Value),
+			},
+			Priority: domain.CommandPriority(body.Priority),
 		}
 
 		err = c.service.QueueCommand(r.Context(), cmd)

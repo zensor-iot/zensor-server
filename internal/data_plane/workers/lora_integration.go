@@ -201,12 +201,22 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(msg pubsub.Prototype, done 
 		return
 	}
 	topic := fmt.Sprintf("%s/%s/%s", topicBase, command.DeviceName, "down/push")
+	rawPayload, err := command.Payload.ToMessagePack()
+	if err != nil {
+		slog.Error("converting to message pack failed",
+			slog.String("error", err.Error()),
+		)
+		return
+	}
 	ttnMsg := dto.TTNMessage{
 		Downlinks: []dto.TTNMessageDownlink{
-			{FPort: command.Port, Priority: command.Priority, FrmPayload: []byte(command.RawPayload)},
+			{FPort: command.Port, Priority: command.Priority, FrmPayload: rawPayload},
 		},
 	}
-	err := w.mqttClient.Publish(topic, ttnMsg)
+	slog.Debug("ttn message",
+		slog.Any("msg", ttnMsg),
+	)
+	err = w.mqttClient.Publish(topic, ttnMsg)
 	if err != nil {
 		slog.Error("publishing command", slog.String("device_id", command.DeviceID), slog.String("error", err.Error()))
 		return

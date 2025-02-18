@@ -3,16 +3,19 @@ package internal
 import "encoding/json"
 
 type CommandSendRequest struct {
-	Port       uint8  `json:"port"`
-	RawPayload string `json:"raw_payload"`
-	Priority   string `json:"priority"`
+	Priority string                    `json:"priority"`
+	Payload  CommandSendPayloadRequest `json:"payload"`
+}
+
+type CommandSendPayloadRequest struct {
+	Index uint8 `json:"index"`
+	Value uint8 `json:"value"`
 }
 
 func (c *CommandSendRequest) UnmarshalJSON(data []byte) error {
 	type Alias CommandSendRequest
 	defaults := &Alias{
 		Priority: "NORMAL",
-		Port:     1,
 	}
 
 	if err := json.Unmarshal(data, defaults); err != nil {
