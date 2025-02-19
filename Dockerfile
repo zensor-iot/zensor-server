@@ -10,5 +10,6 @@ FROM scratch
 # FROM ubuntu:20.04
 COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /app/server /server
+COPY /migrations /migrations
 USER 1000
 ENTRYPOINT [ "/server" ]
