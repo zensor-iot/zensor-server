@@ -2,6 +2,8 @@ package dto
 
 import (
 	"time"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Envelop struct {
@@ -21,6 +23,25 @@ type EndDeviceIDs struct {
 
 type UplinkMessage struct {
 	Port           uint8          `json:"port"`
-	RawPayload     string         `json:"frm_payload"`
+	RawPayload     []byte         `json:"frm_payload"`
 	DecodedPayload map[string]any `json:"decoded_payload"`
 }
+
+var (
+	codeToNameMapping = map[string]string{
+		"t": "temperature",
+		"h": "humidity",
+	}
+)
+
+func (m *UplinkMessage) FromMessagePack() any {
+	temp := make(map[string][]byte)
+	msgpack.Unmarshal(m.RawPayload, &temp)
+	m.DecodedPayload = make(map[string]any)
+	for k, v := range temp {
+		m.DecodedPayload[codeToNameMapping[k]] = float64(v[1]) + float64(v[2])/100
+	}
+	return m.DecodedPayload
+}
+
+// 129 161 116 196 3 1 28 248 132 247

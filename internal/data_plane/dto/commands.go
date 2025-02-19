@@ -26,6 +26,3 @@ func (p CommandPayload) ToMessagePack() ([]byte, error) {
 	}
 	return data, nil
 }
-
-// 130 165 73 110 100 101 120 204 1 165 86 97 108 117 101 204 1
-// 130 161 105 204 1 161 118 204 1

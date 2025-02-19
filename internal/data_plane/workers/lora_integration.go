@@ -174,6 +174,8 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mqtt.Message) {
 	var envelop dto.Envelop
 	json.Unmarshal(msg.Payload(), &envelop)
+	decodedPayload := envelop.UplinkMessage.FromMessagePack()
+	fmt.Printf("*** %+v\n", decodedPayload)
 	brokerMsg := async.BrokerMessage{
 		Event: "uplink",
 		Value: envelop,
