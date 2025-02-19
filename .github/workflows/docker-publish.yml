@@ -63,9 +63,10 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }},latest
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=My multi-arch image
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
