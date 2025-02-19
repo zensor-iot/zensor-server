@@ -1,4 +1,6 @@
 FROM --platform=$BUILDPLATFORM golang:alpine AS build
+ARG TARGETOS
+ARG TARGETARCH
 RUN adduser -D -u 1000 zensor
 WORKDIR /app
 COPY . .
