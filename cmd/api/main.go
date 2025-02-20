@@ -257,9 +257,14 @@ func startMetricsProvider(ctx context.Context) (ShutdownFunc, error) {
 }
 
 func newMetricExporter(ctx context.Context) (metric.Exporter, error) {
+	endpoint := _defautlEndpoint
+	if value, ok := os.LookupEnv("ZENSOR_SERVER_OTELCOL_ENDPOINT"); ok {
+		endpoint = value
+	}
+
 	return otlpmetricgrpc.New(
 		ctx,
-		otlpmetricgrpc.WithEndpoint(_defautlEndpoint),
+		otlpmetricgrpc.WithEndpoint(endpoint),
 		otlpmetricgrpc.WithInsecure(),
 	)
 }
