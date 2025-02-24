@@ -7,6 +7,7 @@ toolchain go1.22.9
 require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/google/uuid v1.6.0
+	github.com/google/wire v0.6.0
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/lovoo/goka v1.0.6
 	github.com/onsi/ginkgo/v2 v2.22.2
@@ -21,6 +22,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.34.0
 	go.opentelemetry.io/otel/sdk/metric v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
+	go.uber.org/mock v0.5.0
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
 )

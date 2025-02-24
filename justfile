@@ -48,3 +48,21 @@ build:
 
 docker-build: build
     docker build -t zensor/server .
+
+wire:
+  cd cmd/api/wire && wire
+
+mock:
+  go generate ./internal/...
+
+lint:
+  golangci-lint run --max-issues-per-linter=0 --max-same-issues=0 --config=./build/ci/golangci.yml --timeout 7m
+
+arch args="":
+    arch-go {{args}}
+
+tdd path="internal":
+  ginkgo watch --race {{path}}
+
+unit path="internal":
+  ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}

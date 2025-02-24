@@ -12,12 +12,6 @@ var (
 	errUnknown = errors.New("unknown error")
 )
 
-type DeviceService interface {
-	CreateDevice(context.Context, domain.Device) error
-	AllDevices(context.Context) ([]domain.Device, error)
-	QueueCommand(context.Context, domain.Command) error
-}
-
 func NewDeviceService(
 	repository DeviceRepository,
 	publisher CommandPublisher,

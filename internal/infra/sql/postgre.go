@@ -78,7 +78,7 @@ func (d *PostgreDatabase) Query(ctx context.Context, sql string, args ...any) ([
 	return values, nil
 }
 
-func (d *PostgreDatabase) Up(path string) {
+func (d *PostgreDatabase) Up(path string, replacements map[string]string) {
 	files, err := os.ReadDir(path)
 	if err != nil {
 		panic(err)
@@ -91,8 +91,15 @@ func (d *PostgreDatabase) Up(path string) {
 				panic(err)
 			}
 
-			slog.Info("applying migration", slog.String("file", file.Name()))
 			statement := string(content)
+			for k, v := range replacements {
+				statement = strings.ReplaceAll(statement, fmt.Sprintf("${%s}", k), v)
+			}
+
+			slog.Debug("applying migration",
+				slog.String("file", file.Name()),
+				slog.String("statement", statement),
+			)
 
 			err = d.Command(statement)
 			if err != nil {

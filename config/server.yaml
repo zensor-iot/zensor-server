@@ -3,6 +3,8 @@ mqtt:
 database:
   url: "postgresql://materialize@localhost:6875/materialize"
   dsn: "host=localhost user=materialize dbname=materialize port=6875 sslmode=disable"
+  migration_replacements:
+    kafka_broker: redpanda:9092
 kafka:
   brokers:
     - "localhost:19092"

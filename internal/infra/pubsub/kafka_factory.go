@@ -4,9 +4,13 @@ import "fmt"
 
 var _ PublisherFactory = (*KafkaPublisherFactory)(nil)
 
-func NewKafkaPublisherFactory(brokers []string) *KafkaPublisherFactory {
+type KafkaPublisherFactoryOptions struct {
+	Brokers []string
+}
+
+func NewKafkaPublisherFactory(opts KafkaPublisherFactoryOptions) *KafkaPublisherFactory {
 	return &KafkaPublisherFactory{
-		brokers,
+		brokers: opts.Brokers,
 	}
 }
 

@@ -2,28 +2,22 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"zensor-server/internal/control_plane/communication"
-	"zensor-server/internal/control_plane/httpapi"
-	"zensor-server/internal/control_plane/persistence"
-	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/cmd/api/wire"
+	"zensor-server/cmd/config"
 	"zensor-server/internal/data_plane/workers"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
-	"zensor-server/internal/infra/sql"
 
-	"github.com/spf13/viper"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
@@ -39,44 +33,14 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug, ReplaceAttr: slogReplaceSource})))
 	slog.Info("🚀 zensor is initializing")
 
-	config := loadConfig()
+	config := config.LoadConfig()
 	slog.Debug("config loaded", "data", config)
 
 	shutdownOtel := startOTel()
 
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(config.kafka.brokers)
-	// kafkaPublisherDevices, err := kafka.NewKafkaPublisher(config.kafka.brokers, config.kafka.topics["devices"], "")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// kafkaPublisherEventEmitted, err := kafka.NewKafkaPublisher(config.kafka.brokers, kafka_topic_event_emitted, "")
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// c := make(chan mqtt.Event)
-	//go mqtt.Run(config.mqtt.broker, "dummy", c)
-	// go sages.EvaluateThingToServer(
-	// 	c,
-	// 	kafkaPublisherDevices,
-	// 	kafkaPublisherEventEmitted,
-	// )
-
-	orm := initDatabase(config)
-	deviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
-	if err != nil {
-		panic(err)
-	}
-
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
-	if err != nil {
-		panic(err)
-	}
-
-	deviceService := usecases.NewDeviceService(deviceRepository, commandPublisher)
-	deviceController := httpapi.NewDeviceController(deviceService)
 	httpServer := httpserver.NewServer(
-		deviceController,
+		handleWireInjector(wire.InitializeDeviceController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
 	)
 
 	appCtx, cancelFn := context.WithCancel(context.Background())
@@ -86,14 +50,18 @@ func main() {
 	var wg sync.WaitGroup
 	ticker := time.NewTicker(30 * time.Second)
 	simpleClientOpts := mqtt.SimpleClientOpts{
-		Broker:   config.mqttClient.broker,
-		ClientID: config.mqttClient.clientID,
-		Username: config.mqttClient.username,
-		Password: config.mqttClient.password, //pragma: allowlist secret
+		Broker:   config.MQTTClient.Broker,
+		ClientID: config.MQTTClient.ClientID,
+		Username: config.MQTTClient.Username,
+		Password: config.MQTTClient.Password, //pragma: allowlist secret
 	}
 	mqttClient := mqtt.NewSimpleClient(simpleClientOpts)
 	internalBroker := async.NewLocalBroker()
-	consumerFactory := pubsub.NewKafkaConsumerFactory(config.kafka.brokers, config.kafka.group)
+	consumerFactory := pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group)
+	deviceService, err := wire.InitializeDeviceService()
+	if err != nil {
+		panic(err)
+	}
 	wg.Add(1)
 	workers.NewLoraIntegrationWorker(ticker, deviceService, mqttClient, internalBroker, consumerFactory).Run(appCtx, wg.Done)
 
@@ -106,86 +74,6 @@ func main() {
 	wg.Wait()
 	slog.Info("good bye!!!")
 	os.Exit(0)
-}
-
-func initDatabase(config appConfig) sql.ORM {
-	db := sql.NewPosgreDatabase(config.postgresql.url)
-	if err := db.Open(); err != nil {
-		panic(err)
-	}
-	defer db.Close()
-	dbMigration(db)
-
-	orm, err := sql.NewPosgreORM(config.postgresql.dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	return orm
-}
-
-func dbMigration(db sql.Database) {
-	db.Up("migrations")
-
-}
-
-func loadConfig() appConfig {
-	viper.SetEnvPrefix("zensor_server")
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.SetConfigName("server")
-	viper.AddConfigPath("config")
-	viper.AddConfigPath("/config")
-	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("fatal error config file: %w", err))
-	}
-	return appConfig{
-		mqtt: mqttConfig{
-			broker: viper.GetString("mqtt.broker"),
-		},
-		mqttClient: mqttClientConfig{
-			broker:   viper.GetString("mqtt_client.broker"),
-			clientID: viper.GetString("mqtt_client.client_id"),
-			username: viper.GetString("mqtt_client.username"),
-			password: viper.GetString("mqtt_client.password"),
-		},
-		postgresql: postgresqlConfig{
-			url: viper.GetString("database.url"),
-			dsn: viper.GetString("database.dsn"),
-		},
-		kafka: kafkaConfig{
-			brokers: viper.GetStringSlice("kafka.brokers"),
-			group:   viper.GetString("kafka.group"),
-		},
-	}
-}
-
-type appConfig struct {
-	mqtt       mqttConfig
-	mqttClient mqttClientConfig
-	kafka      kafkaConfig
-	postgresql postgresqlConfig
-}
-
-type mqttConfig struct {
-	broker string
-}
-
-type mqttClientConfig struct {
-	broker   string
-	clientID string
-	username string
-	password string
-}
-
-type kafkaConfig struct {
-	brokers []string
-	group   string
-}
-
-type postgresqlConfig struct {
-	url string
-	dsn string
 }
 
 func slogReplaceSource(groups []string, a slog.Attr) slog.Attr {
@@ -288,4 +176,12 @@ func newMeterProvider(metricExporter metric.Exporter) *metric.MeterProvider {
 			},
 		)),
 	)
+}
+
+func handleWireInjector(value any, err error) any {
+	if err != nil {
+		panic(err)
+	}
+
+	return value
 }
