@@ -30,3 +30,7 @@ func (s *SimpleEvaluationRuleService) Delete(ctx context.Context, id domain.ID) 
 func (s *SimpleEvaluationRuleService) Get(ctx context.Context, id domain.ID) (domain.EvaluationRule, error) {
 	return domain.EvaluationRule{}, errors.New("not implemented")
 }
+
+func (s *SimpleEvaluationRuleService) FindAllByDevice(ctx context.Context, device domain.Device) ([]domain.EvaluationRule, error) {
+	return nil, errors.New("not implemented")
+}

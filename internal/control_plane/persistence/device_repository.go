@@ -37,6 +37,25 @@ func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain
 		return fmt.Errorf("getting device: %w", err)
 	}
 
+	if currentDevice.ID != "" {
+		return usecases.ErrDeviceDuplicated
+	}
+
+	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), data)
+	if err != nil {
+		return fmt.Errorf("publishing to kafka: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain.Device) error {
+	data := internal.FromDevice(device)
+	currentDevice, err := s.GetByName(ctx, device.Name)
+	if err != nil && err != usecases.ErrDeviceNotFound {
+		return fmt.Errorf("getting device: %w", err)
+	}
+
 	if currentDevice != (domain.Device{}) {
 		return usecases.ErrDeviceDuplicated
 	}

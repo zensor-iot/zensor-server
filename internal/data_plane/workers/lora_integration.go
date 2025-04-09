@@ -183,9 +183,19 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	w.broker.Publish(ctx, BrokerTopicUplinkMessage, brokerMsg)
 	slog.Debug("envelop", slog.Any("envelop", envelop))
 
-	temperature := envelop.UplinkMessage.DecodedPayload[_metricKeyTemperature].(float64)
-	humidity := envelop.UplinkMessage.DecodedPayload[_metricKeyHumidity].(float64)
+	var (
+		temperature float64 = -1
+		humidity    float64 = -1
+	)
 
+	if val, ok := envelop.UplinkMessage.DecodedPayload[_metricKeyTemperature].(float64); ok {
+		temperature = val
+	}
+
+	if val, ok := envelop.UplinkMessage.DecodedPayload[_metricKeyHumidity].(float64); ok {
+		humidity = val
+	}
+	
 	attributes := []attribute.KeyValue{
 		semconv.ServiceNameKey.String("zensor_server"),
 		attribute.String("device_name", envelop.EndDeviceIDs.DeviceID),

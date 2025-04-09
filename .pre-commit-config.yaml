@@ -3,12 +3,12 @@ repos:
   rev: v0.6.6
   hooks:
   - id: clevercsv-standardize
-    stages: [commit]
+    stages: [pre-commit]
 - repo: git@github.com:Yelp/detect-secrets
   rev: v1.1.0
   hooks:
   - id: detect-secrets
-    stages: [commit]
+    stages: [pre-commit]
     args:
       - "--exclude-files"
       - "go.sum"

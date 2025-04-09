@@ -9,6 +9,7 @@ import (
 
 type DeviceService interface {
 	CreateDevice(context.Context, domain.Device) error
+	GetDevice(context.Context, domain.ID) (domain.Device, error)
 	AllDevices(context.Context) ([]domain.Device, error)
 	QueueCommand(context.Context, domain.Command) error
 }
@@ -16,6 +17,7 @@ type DeviceService interface {
 type EvaluationRuleService interface {
 	Create(context.Context, domain.EvaluationRule) error
 	Get(context.Context, domain.ID) (domain.EvaluationRule, error)
+	FindAllByDevice(context.Context, domain.Device) ([]domain.EvaluationRule, error)
 	Update(context.Context, domain.EvaluationRule) error
 	Delete(context.Context, domain.ID) error
 }

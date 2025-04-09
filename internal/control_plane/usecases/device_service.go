@@ -39,6 +39,16 @@ func (s *SimpleDeviceService) CreateDevice(ctx context.Context, device domain.De
 	return nil
 }
 
+func (s *SimpleDeviceService) GetDevice(ctx context.Context, id domain.ID) (domain.Device, error) {
+	devices, err := s.repository.Get(ctx, string(id))
+	if err != nil {
+		slog.Error("getting device", slog.String("error", err.Error()))
+		return domain.Device{}, errUnknown
+	}
+
+	return devices, nil
+}
+
 func (s *SimpleDeviceService) AllDevices(ctx context.Context) ([]domain.Device, error) {
 	devices, err := s.repository.FindAll(ctx)
 	if err != nil {

@@ -26,9 +26,9 @@ type DeviceController struct {
 }
 
 func (c *DeviceController) AddRoutes(router *http.ServeMux) {
-	router.Handle("GET /devices", c.listDevices())
-	router.Handle("POST /devices", c.createDevice())
-	router.Handle("POST /devices/{id}/commands", c.sendCommand())
+	router.Handle("GET /v1/devices", c.listDevices())
+	router.Handle("POST /v1/devices", c.createDevice())
+	router.Handle("POST /v1/devices/{id}/commands", c.sendCommand())
 }
 
 func (c *DeviceController) listDevices() http.HandlerFunc {
