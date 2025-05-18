@@ -1,15 +1,19 @@
 package internal
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"zensor-server/internal/infra/utils"
+)
 
 type CommandSendRequest struct {
-	Priority string                    `json:"priority"`
-	Payload  CommandSendPayloadRequest `json:"payload"`
+	Priority string                      `json:"priority"`
+	Sequence []CommandSendPayloadRequest `json:"sequence"`
 }
 
 type CommandSendPayloadRequest struct {
-	Index uint8 `json:"index"`
-	Value uint8 `json:"value"`
+	WaitFor utils.Duration `json:"wait_for"`
+	Index   uint8          `json:"index"`
+	Value   uint8          `json:"value"`
 }
 
 func (c *CommandSendRequest) UnmarshalJSON(data []byte) error {

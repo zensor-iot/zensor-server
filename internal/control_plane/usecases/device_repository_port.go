@@ -16,4 +16,10 @@ type DeviceRepository interface {
 	UpdateDevice(context.Context, domain.Device) error
 	Get(context.Context, string) (domain.Device, error)
 	FindAll(context.Context) ([]domain.Device, error)
+	AddEvaluationRule(context.Context, domain.Device, domain.EvaluationRule) error
+	FindAllEvaluationRules(context.Context, domain.Device) ([]domain.EvaluationRule, error)
+}
+
+type CommandRepository interface {
+	FindAllPending(context.Context) ([]domain.Command, error)
 }

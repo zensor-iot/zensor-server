@@ -195,7 +195,7 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	if val, ok := envelop.UplinkMessage.DecodedPayload[_metricKeyHumidity].(float64); ok {
 		humidity = val
 	}
-	
+
 	attributes := []attribute.KeyValue{
 		semconv.ServiceNameKey.String("zensor_server"),
 		attribute.String("device_name", envelop.EndDeviceIDs.DeviceID),
@@ -212,6 +212,11 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(msg pubsub.Prototype, done 
 		slog.Error("parsing message type", slog.String("error", "msg is not dto.Command"), slog.Any("message", msg))
 		return
 	}
+	if !command.Ready {
+		slog.Warn("command not sent because is not ready")
+		return
+	}
+
 	topic := fmt.Sprintf("%s/%s/%s", topicBase, command.DeviceName, "down/push")
 	rawPayload, err := command.Payload.ToMessagePack()
 	if err != nil {

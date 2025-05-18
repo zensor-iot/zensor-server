@@ -1,7 +1,7 @@
 package httpapi
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/httpapi/internal"
@@ -15,9 +15,11 @@ const (
 
 func NewEvaluationRuleController(
 	evaluationRuleService usecases.EvaluationRuleService,
+	deviceService usecases.DeviceService,
 ) *EvaluationRuleController {
 	return &EvaluationRuleController{
 		evaluationRuleService: evaluationRuleService,
+		deviceService:         deviceService,
 	}
 }
 
@@ -63,20 +65,24 @@ func (c *EvaluationRuleController) craeteEvaluationRule() http.HandlerFunc {
 			return
 		}
 
+		params := make([]domain.EvaluetionRuleParameter, len(body.Parameters))
+		for i, p := range body.Parameters {
+			params[i] = domain.EvaluetionRuleParameter{Key: p.Key, Value: p.Value}
+		}
+
 		evaluationRule, err := domain.NewEvaluationRuleBuilder().
 			WithDescription(body.Description).
-			WithMetric(body.Metric).
-			WithLowerThreshold(body.LowerThreshold).
-			WithUpperThreshold(body.UpperThreshold).
+			WithKind(body.Kind).
+			WithParameters(params...).
 			Build()
+
 		if err != nil {
+			slog.Warn(createEvaluationRuleErrMessage, slog.String("error", err.Error()))
 			http.Error(w, createEvaluationRuleErrMessage, http.StatusBadRequest)
 			return
 		}
 
 		device.AddEvaluationRule(evaluationRule)
-
-		fmt.Printf("*** %+v\n", device)
 
 		httpserver.ReplyJSONResponse(w, http.StatusNotImplemented, nil)
 	}

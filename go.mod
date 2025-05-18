@@ -1,8 +1,6 @@
 module zensor-server
 
-go 1.22.0
-
-toolchain go1.22.9
+go 1.23.6
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0

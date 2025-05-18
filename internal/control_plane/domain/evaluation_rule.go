@@ -6,12 +6,20 @@ import (
 )
 
 type EvaluationRule struct {
-	ID             ID
-	Description    string
-	Metric         string
-	LowerThreshold float64
-	UpperThreshold float64
-	Enabled        bool
+	ID          ID
+	Description string
+	Kind        string
+	Parameters  []EvaluetionRuleParameter
+	Enabled     bool
+}
+
+func (er *EvaluationRule) AddParameters(params ...EvaluetionRuleParameter) {
+	er.Parameters = append(er.Parameters, params...)
+}
+
+type EvaluetionRuleParameter struct {
+	Key   string
+	Value any
 }
 
 func NewEvaluationRuleBuilder() *evaluationRuleBuilder {
@@ -32,25 +40,17 @@ func (b *evaluationRuleBuilder) WithDescription(value string) *evaluationRuleBui
 	return b
 }
 
-func (b *evaluationRuleBuilder) WithMetric(value string) *evaluationRuleBuilder {
+func (b *evaluationRuleBuilder) WithKind(value string) *evaluationRuleBuilder {
 	b.actions = append(b.actions, func(d *EvaluationRule) error {
-		d.Metric = value
+		d.Kind = value
 		return nil
 	})
 	return b
 }
 
-func (b *evaluationRuleBuilder) WithLowerThreshold(value float64) *evaluationRuleBuilder {
+func (b *evaluationRuleBuilder) WithParameters(value ...EvaluetionRuleParameter) *evaluationRuleBuilder {
 	b.actions = append(b.actions, func(d *EvaluationRule) error {
-		d.LowerThreshold = value
-		return nil
-	})
-	return b
-}
-
-func (b *evaluationRuleBuilder) WithUpperThreshold(value float64) *evaluationRuleBuilder {
-	b.actions = append(b.actions, func(d *EvaluationRule) error {
-		d.UpperThreshold = value
+		d.Parameters = value
 		return nil
 	})
 	return b
@@ -58,12 +58,14 @@ func (b *evaluationRuleBuilder) WithUpperThreshold(value float64) *evaluationRul
 
 var (
 	ErrInvalidThresholds = errors.New("invalid thresholds")
+	ErrInvalidParameters = errors.New("invalid parameters")
 )
 
 func (b *evaluationRuleBuilder) Build() (EvaluationRule, error) {
 	result := EvaluationRule{
-		ID:      ID(utils.GenerateUUID()),
-		Enabled: true,
+		ID:         ID(utils.GenerateUUID()),
+		Parameters: make([]EvaluetionRuleParameter, 0),
+		Enabled:    true,
 	}
 	for _, a := range b.actions {
 		if err := a(&result); err != nil {
@@ -71,9 +73,20 @@ func (b *evaluationRuleBuilder) Build() (EvaluationRule, error) {
 		}
 	}
 
-	if result.LowerThreshold >= result.UpperThreshold {
-		return EvaluationRule{}, ErrInvalidThresholds
+	if !validatorByKind[result.Kind](result.Parameters) {
+		return EvaluationRule{}, ErrInvalidParameters
 	}
 
 	return result, nil
+}
+
+var validatorByKind = map[string]func([]EvaluetionRuleParameter) bool{
+	"time": func(params []EvaluetionRuleParameter) bool { return false },
+	"threshold": func(params []EvaluetionRuleParameter) bool {
+		return utils.AllTrue(
+			utils.SomeHasFieldWithValue(params, "Key", "metric"),
+			utils.SomeHasFieldWithValue(params, "Key", "lower_threshold"),
+			utils.SomeHasFieldWithValue(params, "Key", "upper_threshold"),
+		)
+	},
 }

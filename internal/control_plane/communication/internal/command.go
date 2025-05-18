@@ -3,15 +3,21 @@ package internal
 import (
 	"time"
 	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/infra/utils"
 )
 
 type Command struct {
-	DeviceName string         `json:"device_name"`
-	DeviceID   string         `json:"device_id"`
-	Payload    CommandPayload `json:"payload"`
-	Port       uint8          `json:"port"`
-	Priority   string         `json:"priority"`
-	CreatedAt  time.Time      `json:"created_at"`
+	ID            string         `json:"id"`
+	DeviceName    string         `json:"device_name"`
+	DeviceID      string         `json:"device_id"`
+	Payload       CommandPayload `json:"payload"`
+	DispatchAfter utils.Time     `json:"dispatch_after"`
+	Port          uint8          `json:"port"`
+	Priority      string         `json:"priority"`
+	CreatedAt     utils.Time     `json:"created_at"`
+	Ready         bool           `json:"ready"`
+	Sent          bool           `json:"sent"`
+	SentAt        utils.Time     `json:"sent_at"`
 }
 
 type CommandPayload struct {
@@ -21,14 +27,19 @@ type CommandPayload struct {
 
 func FromCommand(cmd domain.Command) Command {
 	return Command{
+		ID:         cmd.ID.String(),
 		DeviceID:   cmd.Device.ID.String(),
 		DeviceName: cmd.Device.Name,
 		Payload: CommandPayload{
 			Index: uint8(cmd.Payload.Index),
 			Value: uint8(cmd.Payload.Value),
 		},
-		Port:      uint8(cmd.Port),
-		Priority:  string(cmd.Priority),
-		CreatedAt: time.Now(),
+		DispatchAfter: cmd.DispatchAfter,
+		Port:          uint8(cmd.Port),
+		Priority:      string(cmd.Priority),
+		CreatedAt:     utils.Time{Time: time.Now()},
+		Ready:         cmd.Ready,
+		Sent:          cmd.Sent,
+		SentAt:        cmd.SentAt,
 	}
 }

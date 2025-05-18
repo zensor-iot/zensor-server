@@ -6,3 +6,7 @@ server
 otelcol_output.json
 otelcol.log
 otelcol
+
+# c4
+.structurizr
+c4model.json

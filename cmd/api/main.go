@@ -63,7 +63,9 @@ func main() {
 		panic(err)
 	}
 	wg.Add(1)
-	workers.NewLoraIntegrationWorker(ticker, deviceService, mqttClient, internalBroker, consumerFactory).Run(appCtx, wg.Done)
+	go workers.NewLoraIntegrationWorker(ticker, deviceService, mqttClient, internalBroker, consumerFactory).Run(appCtx, wg.Done)
+	wg.Add(1)
+	go handleWireInjector(wire.InitializeCommandWorker()).(async.Worker).Run(appCtx, wg.Done)
 
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)

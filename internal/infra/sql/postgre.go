@@ -13,6 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	_queryTimeout = 5 * time.Second
+)
+
 type PostgreDatabase struct {
 	url  string
 	Conn *pgxpool.Pool
@@ -37,7 +41,7 @@ func NewPosgreDatabase(url string) *PostgreDatabase {
 }
 
 func (d *PostgreDatabase) Open() error {
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for range maxRetries {
 		conn, err1 := pgxpool.New(context.Background(), d.url)
 
 		if err1 != nil {
@@ -65,7 +69,10 @@ func (d *PostgreDatabase) Command(sql string) error {
 }
 
 func (d *PostgreDatabase) Query(ctx context.Context, sql string, args ...any) ([][]byte, error) {
-	rows, err := d.Conn.Query(context.Background(), sql, args)
+	queryCtx, cancelFn := context.WithTimeout(ctx, _queryTimeout)
+	defer cancelFn()
+
+	rows, err := d.Conn.Query(queryCtx, sql, args)
 	if err != nil {
 		return nil, fmt.Errorf("postgre query: %w", err)
 	}

@@ -31,6 +31,11 @@ type SimpleDeviceService struct {
 
 func (s *SimpleDeviceService) CreateDevice(ctx context.Context, device domain.Device) error {
 	err := s.repository.CreateDevice(ctx, device)
+	if errors.Is(ErrDeviceDuplicated, err) {
+		slog.Warn("device duplicated", slog.String("name", device.Name))
+		return ErrDeviceDuplicated
+	}
+
 	if err != nil {
 		slog.Error("creating device", slog.String("error", err.Error()))
 		return errUnknown
@@ -76,6 +81,17 @@ func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Comma
 	err = s.publisher.Dispatch(ctx, cmd)
 	if err != nil {
 		return fmt.Errorf("dispatch event: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SimpleDeviceService) QueueCommandSequence(ctx context.Context, cmd domain.CommandSequence) error {
+	for _, command := range cmd.Commands {
+		err := s.QueueCommand(ctx, command)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

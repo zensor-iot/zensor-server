@@ -1,16 +1,20 @@
 package httpapi
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
+	"zensor-server/internal/infra/utils"
 )
 
 const (
-	createDeviceErrMessage = "failed to create device"
+	createDeviceErrMessage           = "failed to create device"
+	createDeviceDuplicatedErrMessage = "the device already exists"
 )
 
 func NewDeviceController(service usecases.DeviceService) *DeviceController {
@@ -61,6 +65,11 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 		}
 
 		err = c.service.CreateDevice(r.Context(), device)
+		if errors.Is(usecases.ErrDeviceDuplicated, err) {
+			http.Error(w, createDeviceDuplicatedErrMessage, http.StatusConflict)
+			return
+		}
+
 		if err != nil {
 			http.Error(w, createDeviceErrMessage, http.StatusInternalServerError)
 			return
@@ -81,19 +90,33 @@ func (c *DeviceController) sendCommand() http.HandlerFunc {
 			return
 		}
 
-		cmd := domain.Command{
-			Device: domain.Device{ID: domain.ID(id)},
-			Payload: domain.CommandPayload{
-				Index: domain.Index(body.Payload.Index),
-				Value: domain.CommandValue(body.Payload.Value),
-			},
-			Priority: domain.CommandPriority(body.Priority),
+		builder := domain.NewCommandBuilder()
+
+		cmdSequence := domain.CommandSequence{
+			Commands: make([]domain.Command, len(body.Sequence)),
+		}
+		for i, item := range body.Sequence {
+			cmd, err := builder.
+				WithDevice(domain.Device{ID: domain.ID(id)}).
+				WithPayload(domain.CommandPayload{
+					Index: domain.Index(item.Index),
+					Value: domain.CommandValue(item.Value),
+				}).
+				WithPriority(domain.CommandPriority(body.Priority)).
+				WithDispatchAfter(utils.Time{Time: time.Now().Add(time.Duration(item.WaitFor))}).
+				Build()
+			if err != nil {
+				slog.Error("build command", slog.String("error", err.Error()))
+				http.Error(w, "queue command failed", http.StatusInternalServerError)
+				return
+			}
+			cmdSequence.Commands[i] = cmd
 		}
 
-		err = c.service.QueueCommand(r.Context(), cmd)
+		err = c.service.QueueCommandSequence(r.Context(), cmdSequence)
 		if err != nil {
-			slog.Error("queue command failed", slog.String("error", err.Error()))
-			http.Error(w, "queue command failed", http.StatusInternalServerError)
+			slog.Error("queue command sequence", slog.String("error", err.Error()))
+			http.Error(w, "queue command sequence failed", http.StatusInternalServerError)
 			return
 		}
 

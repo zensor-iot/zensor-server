@@ -4,6 +4,7 @@
 package wire
 
 import (
+	"time"
 	"zensor-server/cmd/config"
 	"zensor-server/internal/control_plane/communication"
 	"zensor-server/internal/control_plane/httpapi"
@@ -17,6 +18,9 @@ import (
 
 func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, error) {
 	wire.Build(
+		provideAppConfig,
+		DeviceServiceSet,
+		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		usecases.NewEvaluationRuleService,
 		wire.Bind(new(usecases.EvaluationRuleService), new(*usecases.SimpleEvaluationRuleService)),
 		httpapi.NewEvaluationRuleController,
@@ -77,4 +81,26 @@ func provideDatabase(config config.AppConfig) sql.ORM {
 	}
 
 	return orm
+}
+
+func InitializeCommandWorker() (*usecases.CommandWorker, error) {
+	wire.Build(
+		provideAppConfig,
+		provideTicker,
+		provideDatabase,
+		provideKafkaPublisherFactoryOptions,
+		pubsub.NewKafkaPublisherFactory,
+		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
+		communication.NewCommandPublisher,
+		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
+		persistence.NewDeviceRepository,
+		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleDeviceRepository)),
+		usecases.NewCommandWorker,
+	)
+	return nil, nil
+}
+
+func provideTicker() *time.Ticker {
+	ticker := time.NewTicker(30 * time.Second)
+	return ticker
 }

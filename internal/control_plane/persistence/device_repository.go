@@ -56,7 +56,7 @@ func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain
 		return fmt.Errorf("getting device: %w", err)
 	}
 
-	if currentDevice != (domain.Device{}) {
+	if currentDevice.ID != "" {
 		return usecases.ErrDeviceDuplicated
 	}
 
@@ -64,6 +64,26 @@ func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
+
+	return nil
+}
+
+func (s *SimpleDeviceRepository) AddEvaluationRule(ctx context.Context, device domain.Device, rule domain.EvaluationRule) error {
+	// deviceData := internal.FromDevice(device)
+	// evaluationRuleData := internal.FromEvaluationRule(rule)
+	// currentDevice, err := s.GetByName(ctx, device.Name)
+	// if err != nil && err != usecases.ErrDeviceNotFound {
+	// 	return fmt.Errorf("getting device: %w", err)
+	// }
+
+	// if currentDevice.ID != "" {
+	// 	return usecases.ErrDeviceDuplicated
+	// }
+
+	// err = s.publisher.Publish(ctx, pubsub.Key(device.ID), data)
+	// if err != nil {
+	// 	return fmt.Errorf("publishing to kafka: %w", err)
+	// }
 
 	return nil
 }
@@ -122,4 +142,41 @@ func (s *SimpleDeviceRepository) FindAll(ctx context.Context) ([]domain.Device, 
 	}
 
 	return result, nil
+}
+
+func (s *SimpleDeviceRepository) FindAllEvaluationRules(ctx context.Context, device domain.Device) ([]domain.EvaluationRule, error) {
+	var entities []internal.EvaluationRule
+	err := s.orm.
+		WithContext(ctx).
+		Where("device_id = ?", device.ID).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	result := make([]domain.EvaluationRule, len(entities))
+	// for i, entity := range entities {
+	// 	result[i] = entity.ToDomain()
+	// }
+
+	return result, nil
+}
+
+var _ usecases.CommandRepository = (*SimpleDeviceRepository)(nil)
+
+func (r *SimpleDeviceRepository) FindAllPending(ctx context.Context) ([]domain.Command, error) {
+	var entities internal.CommandSet
+	err := r.orm.
+		WithContext(ctx).
+		Where("ready = ?", false).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	return entities.ToDomain(), nil
 }

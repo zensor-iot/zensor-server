@@ -12,6 +12,7 @@ type DeviceService interface {
 	GetDevice(context.Context, domain.ID) (domain.Device, error)
 	AllDevices(context.Context) ([]domain.Device, error)
 	QueueCommand(context.Context, domain.Command) error
+	QueueCommandSequence(context.Context, domain.CommandSequence) error
 }
 
 type EvaluationRuleService interface {

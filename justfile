@@ -38,31 +38,48 @@ setup:
     done
     docker start grafana || docker container run --name grafana --network zensor -p 3001:3000 -d grafana/grafana:11.5.1
 
+build:
+    go build -o server cmd/api/main.go
+
 run: build setup
     #!/bin/bash
     ./otelcol --config otelcol_config.yaml > otelcol.log 2>&1 &
-    ./server
+    find cmd internal -type f -name '*.go' | entr ./server
 
-build:
-    go build -o server cmd/api/main.go
+destroy:
+    #!/bin/bash
+    docker stop redpanda | xargs docker rm
+    docker stop materialize | xargs docker rm
+    docker stop prometheus | xargs docker rm
+    docker stop grafana | xargs docker rm
+
 
 docker-build: build
     docker build -t zensor/server .
 
 wire:
-  cd cmd/api/wire && wire
+    cd cmd/api/wire && wire
 
 mock:
-  go generate ./internal/...
+    go generate ./internal/...
 
 lint:
-  golangci-lint run --max-issues-per-linter=0 --max-same-issues=0 --config=./build/ci/golangci.yml --timeout 7m
+    golangci-lint run --max-issues-per-linter=0 --max-same-issues=0 --config=./build/ci/golangci.yml --timeout 7m
 
 arch args="":
     arch-go {{args}}
 
 tdd path="internal":
-  ginkgo watch --race {{path}}
+    ginkgo watch --race {{path}}
 
 unit path="internal":
-  ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
+    ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
+
+c4:
+    docker run -it \
+        --rm \
+        -p 8080:8080 \
+        -v "$(pwd)/docs":/usr/local/structurizr \
+        -e STRUCTURIZR_WORKSPACE_PATH=. \
+        -e STRUCTURIZR_WORKSPACE_FILENAME=c4model \
+        structurizr/lite
