@@ -14,6 +14,7 @@ import (
 	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 )
@@ -74,7 +75,7 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 	return simpleDeviceService, nil
 }
 
-func InitializeCommandWorker() (*usecases.CommandWorker, error) {
+func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWorker, error) {
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
 	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
@@ -88,7 +89,7 @@ func InitializeCommandWorker() (*usecases.CommandWorker, error) {
 	if err != nil {
 		return nil, err
 	}
-	commandWorker := usecases.NewCommandWorker(ticker, simpleDeviceRepository, commandPublisher)
+	commandWorker := usecases.NewCommandWorker(ticker, simpleDeviceRepository, commandPublisher, broker)
 	return commandWorker, nil
 }
 

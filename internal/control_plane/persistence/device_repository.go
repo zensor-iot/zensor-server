@@ -170,7 +170,7 @@ func (r *SimpleDeviceRepository) FindAllPending(ctx context.Context) ([]domain.C
 	var entities internal.CommandSet
 	err := r.orm.
 		WithContext(ctx).
-		Where("ready = ?", false).
+		Where("sent = ?", false).
 		Find(&entities).
 		Error()
 

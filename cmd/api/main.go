@@ -24,11 +24,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 )
 
-const (
-	kafka_topic_device_registered string = "device_registered"
-	kafka_topic_event_emitted     string = "event_emitted"
-)
-
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug, ReplaceAttr: slogReplaceSource})))
 	slog.Info("🚀 zensor is initializing")
@@ -62,10 +57,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// TODO: capture workers into a variable to shutdown them later
 	wg.Add(1)
 	go workers.NewLoraIntegrationWorker(ticker, deviceService, mqttClient, internalBroker, consumerFactory).Run(appCtx, wg.Done)
 	wg.Add(1)
-	go handleWireInjector(wire.InitializeCommandWorker()).(async.Worker).Run(appCtx, wg.Done)
+	go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)

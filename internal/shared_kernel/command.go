@@ -1,4 +1,4 @@
-package dto
+package shared_kernel
 
 import (
 	"fmt"

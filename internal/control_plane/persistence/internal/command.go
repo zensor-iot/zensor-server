@@ -1,12 +1,13 @@
 package internal
 
 import (
+	"errors"
 	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/utils"
 
-	"encoding/json"
 	"database/sql/driver"
+	"encoding/json"
 )
 
 type CommandSet []Command
@@ -48,7 +49,15 @@ type CommandPayload struct {
 }
 
 func (v CommandPayload) Value() (driver.Value, error) {
-    return json.Marshal(v)
+	return json.Marshal(v)
+}
+
+func (v *CommandPayload) Scan(value interface{}) error {
+	data, ok := value.(string)
+	if !ok {
+		return errors.New("type assertion to string failed")
+	}
+	return json.Unmarshal([]byte(data), &v)
 }
 
 func (c Command) ToDomain() domain.Command {

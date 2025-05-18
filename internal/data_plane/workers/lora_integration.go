@@ -14,6 +14,7 @@ import (
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/shared_kernel"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -73,7 +74,8 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 			go w.reconciliation(tickCtx, wg.Done)
 		case msg := <-commandsChannel:
 			wg.Add(1)
-			go w.deviceCommandHandler(msg, wg.Done)
+			procCtx := context.Background()
+			go w.deviceCommandHandler(procCtx, msg, wg.Done)
 		}
 	}
 }
@@ -99,7 +101,7 @@ func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototy
 		return nil
 	}
 
-	go w.pubsubConsumer.Consume(PubSubTopicDeviceCommands, handler, dto.Command{})
+	go w.pubsubConsumer.Consume(PubSubTopicDeviceCommands, handler, shared_kernel.Command{})
 	return out
 }
 
@@ -205,15 +207,19 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	w.metricCounters[_metricKeyHumidity].Record(ctx, humidity, metric.WithAttributes(attributes...))
 }
 
-func (w *LoraIntegrationWorker) deviceCommandHandler(msg pubsub.Prototype, done func()) {
+func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pubsub.Prototype, done func()) {
 	defer done()
-	command, ok := msg.(*dto.Command)
+	command, ok := msg.(*shared_kernel.Command)
 	if !ok {
 		slog.Error("parsing message type", slog.String("error", "msg is not dto.Command"), slog.Any("message", msg))
 		return
 	}
 	if !command.Ready {
-		slog.Warn("command not sent because is not ready")
+		slog.Warn("command won't be send because is not ready")
+		return
+	}
+	if command.Sent {
+		slog.Warn("command won't be send because is was already sent")
 		return
 	}
 
@@ -242,6 +248,15 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(msg pubsub.Prototype, done 
 	slog.Debug("message published",
 		slog.String("device_id", command.DeviceID),
 		slog.String("topic", topic),
+	)
+
+	w.broker.Publish(
+		ctx,
+		BrokerTopicUplinkMessage,
+		async.BrokerMessage{
+			Event: "command_sent",
+			Value: *command,
+		},
 	)
 }
 

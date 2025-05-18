@@ -7,6 +7,9 @@ import (
 	"sync"
 	"time"
 	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -22,11 +25,13 @@ func NewCommandWorker(
 	ticker *time.Ticker,
 	commandRepository CommandRepository,
 	publisher CommandPublisher,
+	broker async.InternalBroker,
 ) *CommandWorker {
 	return &CommandWorker{
 		ticker:            ticker,
 		commandRepository: commandRepository,
 		publisher:         publisher,
+		broker:            broker,
 		metricCounters:    make(map[string]metric.Float64Counter),
 	}
 }
@@ -35,12 +40,18 @@ type CommandWorker struct {
 	ticker            *time.Ticker
 	commandRepository CommandRepository
 	publisher         CommandPublisher
+	broker            async.InternalBroker
 	metricCounters    map[string]metric.Float64Counter
 }
 
 func (w *CommandWorker) Run(ctx context.Context, done func()) {
 	slog.Debug("run with context initialized")
 	defer done()
+	subscription, err := w.broker.Subscribe(async.BrokerTopicName("device_messages"))
+	if err != nil {
+		slog.Error("subscribing to topic", slog.Any("error", err))
+		return
+	}
 	var wg sync.WaitGroup
 	w.setupOtelCounters()
 	for {
@@ -49,6 +60,14 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 			slog.Info("command worker cancelled")
 			wg.Wait()
 			return
+		case msg := <-subscription.Receiver:
+			if msg.Event != "command_sent" {
+				slog.Warn("event not supported", slog.String("event", msg.Event))
+				return
+			}
+			wg.Add(1)
+			procCtx := context.Background()
+			w.handleCommandSent(procCtx, msg.Value.(shared_kernel.Command), wg.Done)
 		case <-w.ticker.C:
 			wg.Add(1)
 			tickCtx := context.Background()
@@ -83,7 +102,7 @@ func (w *CommandWorker) reconciliation(ctx context.Context, done func()) {
 }
 
 func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
-	if cmd.DispatchAfter.Before(time.Now()) {
+	if cmd.DispatchAfter.After(time.Now()) {
 		slog.Warn("command is not ready to be sent", slog.Time("dispatch_after", cmd.DispatchAfter.Time))
 		return
 	}
@@ -91,9 +110,39 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 	cmd.Ready = true
 	w.publisher.Dispatch(ctx, cmd)
 
+	slog.Debug("new message ready to be sent", slog.String("id", cmd.ID.String()))
+
 	attributes := []attribute.KeyValue{
 		semconv.ServiceNameKey.String("zensor_server"),
 		attribute.String("device_name", cmd.Device.Name),
+	}
+	w.metricCounters[_metricKeyCommands].Add(ctx, 1, metric.WithAttributes(attributes...))
+}
+
+func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd shared_kernel.Command, done func()) {
+	defer done()
+	domainCmd := domain.Command{
+		ID: domain.ID(cmd.ID),
+		Device: domain.Device{
+			ID:   domain.ID(cmd.DeviceID),
+			Name: cmd.DeviceName,
+		},
+		Port:     domain.Port(cmd.Port),
+		Priority: domain.CommandPriority(cmd.Priority),
+		Payload: domain.CommandPayload{
+			Index: domain.Index(cmd.Payload.Index),
+			Value: domain.CommandValue(cmd.Payload.Value),
+		},
+		DispatchAfter: cmd.DispatchAfter,
+		Ready:         cmd.Ready,
+		Sent:          true,
+		SentAt:        utils.Time{Time: time.Now()},
+	}
+	w.publisher.Dispatch(ctx, domainCmd)
+
+	attributes := []attribute.KeyValue{
+		semconv.ServiceNameKey.String("zensor_server"),
+		attribute.String("device_name", cmd.DeviceName),
 	}
 	w.metricCounters[_metricKeyCommands].Add(ctx, 1, metric.WithAttributes(attributes...))
 }
