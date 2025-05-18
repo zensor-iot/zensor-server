@@ -20,6 +20,8 @@ import (
 func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, error) {
 	wire.Build(
 		provideAppConfig,
+		persistence.NewEvaluationRuleRepository,
+		wire.Bind(new(usecases.EvaluationRuleRepository), new(*persistence.EvaluationRuleRepository)),
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		usecases.NewEvaluationRuleService,

@@ -3,32 +3,33 @@ package usecases
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"zensor-server/internal/control_plane/domain"
 )
 
-func NewEvaluationRuleService() *SimpleEvaluationRuleService {
-	return &SimpleEvaluationRuleService{}
+func NewEvaluationRuleService(
+	evaluationRuleRepository EvaluationRuleRepository,
+) *SimpleEvaluationRuleService {
+	return &SimpleEvaluationRuleService{
+		evaluationRuleRepository: evaluationRuleRepository,
+	}
 }
 
 var _ EvaluationRuleService = (*SimpleEvaluationRuleService)(nil)
 
 type SimpleEvaluationRuleService struct {
+	evaluationRuleRepository EvaluationRuleRepository
 }
 
-func (s *SimpleEvaluationRuleService) Create(ctx context.Context, evaluationRule domain.EvaluationRule) error {
-	return errors.New("not implemented")
-}
+func (s *SimpleEvaluationRuleService) AddToDevice(ctx context.Context, device domain.Device, evaluationRule domain.EvaluationRule) error {
+	err := s.evaluationRuleRepository.AddToDevice(ctx, device, evaluationRule)
+	if err != nil {
+		slog.Error("adding evaluation rule to device failed", slog.String("error", err.Error()))
+		return fmt.Errorf("adding evaluation rule to device: %w", err)
+	}
 
-func (s *SimpleEvaluationRuleService) Update(ctx context.Context, evaluationRule domain.EvaluationRule) error {
-	return errors.New("not implemented")
-}
-
-func (s *SimpleEvaluationRuleService) Delete(ctx context.Context, id domain.ID) error {
-	return errors.New("not implemented")
-}
-
-func (s *SimpleEvaluationRuleService) Get(ctx context.Context, id domain.ID) (domain.EvaluationRule, error) {
-	return domain.EvaluationRule{}, errors.New("not implemented")
+	return nil
 }
 
 func (s *SimpleEvaluationRuleService) FindAllByDevice(ctx context.Context, device domain.Device) ([]domain.EvaluationRule, error) {

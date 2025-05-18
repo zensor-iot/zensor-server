@@ -23,3 +23,7 @@ type DeviceRepository interface {
 type CommandRepository interface {
 	FindAllPending(context.Context) ([]domain.Command, error)
 }
+
+type EvaluationRuleRepository interface {
+	AddToDevice(context.Context, domain.Device, domain.EvaluationRule) error
+}

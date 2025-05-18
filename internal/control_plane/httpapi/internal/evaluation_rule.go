@@ -10,3 +10,7 @@ type EvaluationRuleParametersCreateRequest struct {
 	Key   string `json:"key"`
 	Value any    `json:"value"`
 }
+
+type EvaluationRuleResponse struct {
+	Device string `json:"device"`
+}

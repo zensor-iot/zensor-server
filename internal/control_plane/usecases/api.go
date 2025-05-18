@@ -16,9 +16,6 @@ type DeviceService interface {
 }
 
 type EvaluationRuleService interface {
-	Create(context.Context, domain.EvaluationRule) error
-	Get(context.Context, domain.ID) (domain.EvaluationRule, error)
+	AddToDevice(context.Context, domain.Device, domain.EvaluationRule) error
 	FindAllByDevice(context.Context, domain.Device) ([]domain.EvaluationRule, error)
-	Update(context.Context, domain.EvaluationRule) error
-	Delete(context.Context, domain.ID) error
 }

@@ -22,11 +22,15 @@ import (
 // Injectors from control_plane.go:
 
 func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, error) {
-	simpleEvaluationRuleService := usecases.NewEvaluationRuleService()
 	appConfig := provideAppConfig()
 	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
 	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
 	orm := provideDatabase(appConfig)
+	evaluationRuleRepository, err := persistence.NewEvaluationRuleRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleEvaluationRuleService := usecases.NewEvaluationRuleService(evaluationRuleRepository)
 	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
 	if err != nil {
 		return nil, err

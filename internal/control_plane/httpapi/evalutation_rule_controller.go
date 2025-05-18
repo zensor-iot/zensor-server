@@ -61,13 +61,14 @@ func (c *EvaluationRuleController) craeteEvaluationRule() http.HandlerFunc {
 
 		var body internal.EvaluationRuleCreateRequest
 		if err := httpserver.DecodeJSONBody(r, &body); err != nil {
-			http.Error(w, createDeviceErrMessage, http.StatusBadRequest)
+			slog.Debug("decoding body failed", slog.String("error", err.Error()))
+			http.Error(w, createEvaluationRuleErrMessage, http.StatusBadRequest)
 			return
 		}
 
-		params := make([]domain.EvaluetionRuleParameter, len(body.Parameters))
+		params := make([]domain.EvaluationRuleParameter, len(body.Parameters))
 		for i, p := range body.Parameters {
-			params[i] = domain.EvaluetionRuleParameter{Key: p.Key, Value: p.Value}
+			params[i] = domain.EvaluationRuleParameter{Key: p.Key, Value: p.Value}
 		}
 
 		evaluationRule, err := domain.NewEvaluationRuleBuilder().
@@ -82,8 +83,12 @@ func (c *EvaluationRuleController) craeteEvaluationRule() http.HandlerFunc {
 			return
 		}
 
-		device.AddEvaluationRule(evaluationRule)
+		err = c.evaluationRuleService.AddToDevice(r.Context(), device, evaluationRule)
+		if err != nil {
+			http.Error(w, createEvaluationRuleErrMessage, http.StatusInternalServerError)
+			return
+		}
 
-		httpserver.ReplyJSONResponse(w, http.StatusNotImplemented, nil)
+		httpserver.ReplyJSONResponse(w, http.StatusCreated, evaluationRule)
 	}
 }

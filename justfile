@@ -25,6 +25,7 @@ setup:
         sleep 0.5
     done
     rpk topic --brokers "localhost:19092" describe devices || rpk topic --brokers "localhost:19092" create devices
+    rpk topic --brokers "localhost:19092" describe evaluation_rules || rpk topic --brokers "localhost:19092" create evaluation_rules
     rpk topic --brokers "localhost:19092" describe device_commands || rpk topic --brokers "localhost:19092" create device_commands
     echo "🚀 launching materialize..."
     docker start materialize || docker container run --name materialize --network zensor -p 6875:6875 -d materialize/materialized:v0.133.0-dev.0--main.gd098b5f47028a4eccd4b3bc4ce6f8cd33c1895cf
