@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"time"
 )
@@ -27,4 +28,13 @@ type Time struct {
 func (t Time) MarshalJSON() ([]byte, error) {
 	formatted := t.UTC().Format("2006-01-02T15:04:05.000Z07:00")
 	return []byte(`"` + formatted + `"`), nil
+}
+
+func (p Time) Value() (driver.Value, error) {
+	return p.Time, nil
+}
+
+func (p *Time) Scan(src interface{}) error {
+	p.Time = src.(time.Time)
+	return nil
 }

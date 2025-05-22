@@ -35,10 +35,10 @@ func AllTrue(results ...bool) bool {
 	return true
 }
 
-func Map[T any, K any](items map[string]T, fn func(T) K) map[string]K {
-	result := make(map[string]K)
-	for k, v := range items {
-		result[k] = fn(v)
+func Map[T any, K any](items []T, fn func(T) K) []K {
+	result := make([]K, len(items))
+	for i, v := range items {
+		result[i] = fn(v)
 	}
 	return result
 }

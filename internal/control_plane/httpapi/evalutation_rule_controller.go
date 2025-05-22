@@ -7,6 +7,7 @@ import (
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
+	"zensor-server/internal/infra/utils"
 )
 
 const (
@@ -44,6 +45,25 @@ func (c *EvaluationRuleController) listEvaluationRules() http.HandlerFunc {
 		if err != nil {
 			http.Error(w, "list evaluation rules failed", http.StatusInternalServerError)
 			return
+		}
+
+		response := internal.EvaluationRuleSetResponse{
+			EvaluationRules: make([]internal.EvaluationRuleResponse, len(items)),
+		}
+
+		for i, item := range items {
+			response.EvaluationRules[i] = internal.EvaluationRuleResponse{
+				Device:      device.ID.String(),
+				Description: item.Description,
+				Kind:        item.Kind,
+				Parameters: utils.Map(item.Parameters, func(inputParam domain.EvaluationRuleParameter) internal.EvaluationRuleParametersResponse {
+					return internal.EvaluationRuleParametersResponse{
+						Key:   inputParam.Key,
+						Value: inputParam.Value,
+					}
+				}),
+				Enabled: item.Enabled,
+			}
 		}
 
 		httpserver.ReplyJSONResponse(w, http.StatusOK, items)
@@ -89,6 +109,19 @@ func (c *EvaluationRuleController) craeteEvaluationRule() http.HandlerFunc {
 			return
 		}
 
-		httpserver.ReplyJSONResponse(w, http.StatusCreated, evaluationRule)
+		response := internal.EvaluationRuleResponse{
+			Device:      device.ID.String(),
+			Description: evaluationRule.Description,
+			Kind:        evaluationRule.Kind,
+			Parameters: utils.Map(evaluationRule.Parameters, func(inputParam domain.EvaluationRuleParameter) internal.EvaluationRuleParametersResponse {
+				return internal.EvaluationRuleParametersResponse{
+					Key:   inputParam.Key,
+					Value: inputParam.Value,
+				}
+			}),
+			Enabled: evaluationRule.Enabled,
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
 	}
 }

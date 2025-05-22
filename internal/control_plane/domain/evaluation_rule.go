@@ -7,6 +7,7 @@ import (
 
 type EvaluationRule struct {
 	ID          ID
+	Version     Version
 	Description string
 	Kind        string
 	Parameters  []EvaluationRuleParameter

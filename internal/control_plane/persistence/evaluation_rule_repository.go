@@ -31,11 +31,31 @@ type EvaluationRuleRepository struct {
 
 func (e *EvaluationRuleRepository) AddToDevice(ctx context.Context, device domain.Device, evaluationRule domain.EvaluationRule) error {
 	data := internal.FromEvaluationRule(evaluationRule)
-	data.Device = internal.Device{ID: string(device.ID)}
+	data.DeviceID = string(device.ID)
 	err := e.publisher.Publish(ctx, pubsub.Key(device.ID), data)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
 
 	return nil
+}
+
+func (e *EvaluationRuleRepository) FindAllByDeviceID(ctx context.Context, deviceID string) ([]domain.EvaluationRule, error) {
+	var rules []internal.EvaluationRule
+	err := e.
+		orm.
+		WithContext(ctx).
+		Where("device_id = ?", deviceID).
+		Find(&rules).
+		Error()
+	if err != nil {
+		return nil, fmt.Errorf("query evaluation rules: %w", err)
+	}
+
+	domainRules := make([]domain.EvaluationRule, len(rules))
+	for i, r := range rules {
+		domainRules[i] = r.ToDomain()
+	}
+
+	return domainRules, nil
 }

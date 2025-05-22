@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"zensor-server/internal/control_plane/domain"
@@ -33,5 +32,10 @@ func (s *SimpleEvaluationRuleService) AddToDevice(ctx context.Context, device do
 }
 
 func (s *SimpleEvaluationRuleService) FindAllByDevice(ctx context.Context, device domain.Device) ([]domain.EvaluationRule, error) {
-	return nil, errors.New("not implemented")
+	rules, err := s.evaluationRuleRepository.FindAllByDeviceID(ctx, string(device.ID))
+	if err != nil {
+		return nil, fmt.Errorf("finding all rules by device id: %w", err)
+	}
+
+	return rules, nil
 }

@@ -26,4 +26,5 @@ type CommandRepository interface {
 
 type EvaluationRuleRepository interface {
 	AddToDevice(context.Context, domain.Device, domain.EvaluationRule) error
+	FindAllByDeviceID(ctx context.Context, deviceID string) ([]domain.EvaluationRule, error)
 }
