@@ -110,6 +110,7 @@ func (c *EvaluationRuleController) craeteEvaluationRule() http.HandlerFunc {
 		}
 
 		response := internal.EvaluationRuleResponse{
+			ID:          evaluationRule.ID.String(),
 			Device:      device.ID.String(),
 			Description: evaluationRule.Description,
 			Kind:        evaluationRule.Kind,

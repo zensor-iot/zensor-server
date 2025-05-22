@@ -1,7 +1,9 @@
 CREATE MATERIALIZED VIEW IF NOT EXISTS device_commands_final AS
   SELECT
-    data->>'id' AS id,
-    data->>'device_id' AS device_id,
+    (data->>'id')::uuid AS id,
+    (data->>'version')::integer AS version,
+    (data->>'device_id')::uuid AS device_id,
+    (data->>'task_id')::uuid AS task_id,
     data->>'device_name' AS device_name,
     (data->>'port')::integer AS port,
     data->>'priority' AS priority,

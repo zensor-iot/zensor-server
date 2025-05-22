@@ -31,6 +31,7 @@ type CommandPublisher struct {
 
 func (p *CommandPublisher) Dispatch(ctx context.Context, cmd domain.Command) error {
 	internalCmd := internal.FromCommand(cmd)
+	internalCmd.Version++
 	err := p.publisher.Publish(ctx, pubsub.Key(cmd.ID), internalCmd)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)

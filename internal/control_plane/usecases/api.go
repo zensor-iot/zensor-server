@@ -19,3 +19,8 @@ type EvaluationRuleService interface {
 	AddToDevice(context.Context, domain.Device, domain.EvaluationRule) error
 	FindAllByDevice(context.Context, domain.Device) ([]domain.EvaluationRule, error)
 }
+
+type TaskService interface {
+	Create(context.Context, domain.Task) error
+	Run(context.Context, domain.Task) error
+}

@@ -14,7 +14,9 @@ type CommandSequence struct {
 
 type Command struct {
 	ID            ID
+	Version       Version
 	Device        Device
+	Task          Task
 	Port          Port
 	Priority      CommandPriority
 	Payload       CommandPayload
@@ -81,9 +83,10 @@ func (b *commandBuilder) WithDispatchAfter(value utils.Time) *commandBuilder {
 
 func (b *commandBuilder) Build() (Command, error) {
 	result := Command{
-		ID:    ID(utils.GenerateUUID()),
-		Ready: false,
-		Sent:  false,
+		ID:      ID(utils.GenerateUUID()),
+		Version: 1,
+		Ready:   false,
+		Sent:    false,
 	}
 	for _, a := range b.actions {
 		if err := a(&result); err != nil {

@@ -63,7 +63,7 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 		case msg := <-subscription.Receiver:
 			if msg.Event != "command_sent" {
 				slog.Warn("event not supported", slog.String("event", msg.Event))
-				return
+				break
 			}
 			wg.Add(1)
 			procCtx := context.Background()
@@ -126,6 +126,9 @@ func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd shared_kernel
 		Device: domain.Device{
 			ID:   domain.ID(cmd.DeviceID),
 			Name: cmd.DeviceName,
+		},
+		Task: domain.Task{
+			ID: domain.ID(cmd.TaskID),
 		},
 		Port:     domain.Port(cmd.Port),
 		Priority: domain.CommandPriority(cmd.Priority),

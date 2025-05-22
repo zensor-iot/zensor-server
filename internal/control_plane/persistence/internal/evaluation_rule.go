@@ -11,7 +11,7 @@ import (
 
 type EvaluationRule struct {
 	ID          string     `json:"id" gorm:"primaryKey"`
-	DeviceID    string     `json:"device" gorm:"foreignKey:device_id"`
+	DeviceID    string     `json:"device_id" gorm:"foreignKey:device_id"`
 	Version     int        `json:"version"`
 	Description string     `json:"description"`
 	Kind        string     `json:"kind"`

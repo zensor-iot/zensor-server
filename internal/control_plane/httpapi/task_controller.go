@@ -1,0 +1,102 @@
+package httpapi
+
+import (
+	"log/slog"
+	"net/http"
+	"time"
+	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/control_plane/httpapi/internal"
+	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/infra/httpserver"
+	"zensor-server/internal/infra/utils"
+)
+
+const (
+	createTaskErrMessage = "failed to create task"
+)
+
+func NewTaskController(
+	service usecases.TaskService,
+	deviceService usecases.DeviceService,
+) *TaskController {
+	return &TaskController{
+		service:       service,
+		deviceService: deviceService,
+	}
+}
+
+var _ httpserver.Controller = &TaskController{}
+
+type TaskController struct {
+	service       usecases.TaskService
+	deviceService usecases.DeviceService
+}
+
+func (c *TaskController) AddRoutes(router *http.ServeMux) {
+	router.Handle("POST /v1/devices/{id}/tasks", c.create())
+}
+
+func (c *TaskController) create() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		device, err := c.deviceService.GetDevice(r.Context(), domain.ID(id))
+		if err != nil {
+			slog.Error("get device failed", slog.String("error", err.Error()))
+			http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
+			return
+
+		}
+
+		var body internal.TaskCreateRequest
+		err = httpserver.DecodeJSONBody(r, &body)
+		if err != nil {
+			slog.Error("decoding json body", slog.String("error", err.Error()))
+			http.Error(w, createTaskErrMessage, http.StatusBadRequest)
+			return
+		}
+
+		cmds := make([]domain.Command, len(body.Commands))
+		for i, item := range body.Commands {
+			cmdBuilder := domain.NewCommandBuilder()
+			cmd, err := cmdBuilder.
+				WithDevice(device).
+				WithPayload(domain.CommandPayload{
+					Index: domain.Index(item.Index),
+					Value: domain.CommandValue(item.Value),
+				}).
+				WithPriority(domain.CommandPriority(item.Priority)).
+				WithDispatchAfter(utils.Time{Time: time.Now().Add(time.Duration(item.WaitFor))}).
+				Build()
+			if err != nil {
+				slog.Error("build command", slog.String("error", err.Error()))
+				http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
+				return
+			}
+
+			cmds[i] = cmd
+		}
+
+		task, err := domain.NewTaskBuilder().
+			WithDevice(device).
+			WithCommands(cmds).
+			Build()
+		if err != nil {
+			slog.Error("build task", slog.String("error", err.Error()))
+			http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
+			return
+		}
+
+		err = c.service.Create(r.Context(), task)
+		if err != nil {
+			slog.Error("create task failed", slog.String("error", err.Error()))
+			http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
+			return
+		}
+
+		response := internal.TaskResponse{
+			ID: task.ID.String(),
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
+	}
+}

@@ -16,6 +16,7 @@ type EvaluationRuleSetResponse struct {
 }
 
 type EvaluationRuleResponse struct {
+	ID          string                             `json:"id"`
 	Device      string                             `json:"device"`
 	Description string                             `json:"description"`
 	Kind        string                             `json:"kind"`

@@ -36,6 +36,7 @@ func main() {
 	httpServer := httpserver.NewServer(
 		handleWireInjector(wire.InitializeDeviceController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializeTaskController()).(httpserver.Controller),
 	)
 
 	appCtx, cancelFn := context.WithCancel(context.Background())

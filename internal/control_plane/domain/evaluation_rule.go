@@ -82,7 +82,12 @@ func (b *evaluationRuleBuilder) Build() (EvaluationRule, error) {
 }
 
 var validatorByKind = map[string]func([]EvaluationRuleParameter) bool{
-	"time": func(params []EvaluationRuleParameter) bool { return false },
+	"time": func(params []EvaluationRuleParameter) bool {
+		return utils.AllTrue(
+			utils.SomeHasFieldWithValue(params, "Key", "start"),
+			utils.SomeHasFieldWithValue(params, "Key", "task"),
+		)
+	},
 	"threshold": func(params []EvaluationRuleParameter) bool {
 		return utils.AllTrue(
 			utils.SomeHasFieldWithValue(params, "Key", "metric"),

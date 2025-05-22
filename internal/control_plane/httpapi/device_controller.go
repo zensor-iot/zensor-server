@@ -65,7 +65,7 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 		}
 
 		err = c.service.CreateDevice(r.Context(), device)
-		if errors.Is(usecases.ErrDeviceDuplicated, err) {
+		if errors.Is(err, usecases.ErrDeviceDuplicated) {
 			http.Error(w, createDeviceDuplicatedErrMessage, http.StatusConflict)
 			return
 		}
@@ -75,7 +75,15 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 			return
 		}
 
-		httpserver.ReplyJSONResponse(w, http.StatusCreated, nil)
+		response := internal.DeviceResponse{
+			ID:     device.ID.String(),
+			Name:   device.Name,
+			AppEUI: device.AppEUI,
+			DevEUI: device.DevEUI,
+			AppKey: device.AppKey,
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
 	}
 }
 

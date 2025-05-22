@@ -10,8 +10,10 @@ import (
 
 type Command struct {
 	ID            string         `json:"id"`
+	Version       int            `json:"version"`
 	DeviceID      string         `json:"device_id"`
 	DeviceName    string         `json:"device_name"`
+	TaskID        string         `json:"task_id"`
 	Payload       CommandPayload `json:"payload"`
 	DispatchAfter utils.Time     `json:"dispatch_after"`
 	Port          uint8          `json:"port"`

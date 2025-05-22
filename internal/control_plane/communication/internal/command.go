@@ -8,8 +8,10 @@ import (
 
 type Command struct {
 	ID            string         `json:"id"`
+	Version       int            `json:"version"`
 	DeviceName    string         `json:"device_name"`
 	DeviceID      string         `json:"device_id"`
+	TaskID        string         `json:"task_id"`
 	Payload       CommandPayload `json:"payload"`
 	DispatchAfter utils.Time     `json:"dispatch_after"`
 	Port          uint8          `json:"port"`
@@ -28,7 +30,9 @@ type CommandPayload struct {
 func FromCommand(cmd domain.Command) Command {
 	return Command{
 		ID:         cmd.ID.String(),
+		Version:    int(cmd.Version),
 		DeviceID:   cmd.Device.ID.String(),
+		TaskID:     cmd.Task.ID.String(),
 		DeviceName: cmd.Device.Name,
 		Payload: CommandPayload{
 			Index: uint8(cmd.Payload.Index),

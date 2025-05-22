@@ -11,9 +11,10 @@ type CommandSendRequest struct {
 }
 
 type CommandSendPayloadRequest struct {
-	WaitFor utils.Duration `json:"wait_for"`
-	Index   uint8          `json:"index"`
-	Value   uint8          `json:"value"`
+	WaitFor  utils.Duration `json:"wait_for"`
+	Priority string         `json:"priority"`
+	Index    uint8          `json:"index"`
+	Value    uint8          `json:"value"`
 }
 
 func (c *CommandSendRequest) UnmarshalJSON(data []byte) error {
@@ -28,4 +29,9 @@ func (c *CommandSendRequest) UnmarshalJSON(data []byte) error {
 
 	*c = CommandSendRequest(*defaults)
 	return nil
+}
+
+type CommandResponse struct {
+	ID       string `json:"id"`
+	Priority string `json:"priority"`
 }

@@ -27,16 +27,18 @@ func (s CommandSet) ToDomain() []domain.Command {
 
 type Command struct {
 	ID            string         `json:"id" gorm:"primaryKey"`
+	Version       int            `json:"version"`
 	DeviceName    string         `json:"device_name"`
 	DeviceID      string         `json:"device_id"`
+	TaskID        string         `json:"task_id" gorm:"foreignKey:task_id"`
 	Payload       CommandPayload `json:"payload" gorm:"type:json"`
-	DispatchAfter time.Time      `json:"dispatch_after"`
+	DispatchAfter utils.Time     `json:"dispatch_after"`
 	Port          uint8          `json:"port"`
 	Priority      string         `json:"priority"`
-	CreatedAt     time.Time      `json:"created_at"`
+	CreatedAt     utils.Time     `json:"created_at"`
 	Ready         bool           `json:"ready"`
 	Sent          bool           `json:"sent"`
-	SentAt        time.Time      `json:"sent_at"`
+	SentAt        utils.Time     `json:"sent_at"`
 }
 
 func (Command) TableName() string {
@@ -63,16 +65,38 @@ func (v *CommandPayload) Scan(value interface{}) error {
 func (c Command) ToDomain() domain.Command {
 	return domain.Command{
 		ID:       domain.ID(c.ID),
+		Version:  domain.Version(c.Version),
 		Device:   domain.Device{ID: domain.ID(c.DeviceID), Name: c.DeviceName},
+		Task:     domain.Task{ID: domain.ID(c.TaskID)},
 		Port:     domain.Port(c.Port),
 		Priority: domain.CommandPriority(c.Priority),
 		Payload: domain.CommandPayload{
 			Index: domain.Index(c.Payload.Index),
 			Value: domain.CommandValue(c.Payload.Data),
 		},
-		DispatchAfter: utils.Time{Time: c.DispatchAfter},
+		DispatchAfter: c.DispatchAfter,
 		Ready:         c.Ready,
 		Sent:          c.Sent,
-		SentAt:        utils.Time{Time: c.SentAt},
+		SentAt:        c.SentAt,
+	}
+}
+
+func FromCommand(cmd domain.Command) Command {
+	return Command{
+		ID:         cmd.ID.String(),
+		Version:    int(cmd.Version),
+		DeviceID:   cmd.Device.ID.String(),
+		DeviceName: cmd.Device.Name,
+		Payload: CommandPayload{
+			Index: uint8(cmd.Payload.Index),
+			Data:  uint8(cmd.Payload.Value),
+		},
+		DispatchAfter: cmd.DispatchAfter,
+		Port:          uint8(cmd.Port),
+		Priority:      string(cmd.Priority),
+		CreatedAt:     utils.Time{Time: time.Now()},
+		Ready:         cmd.Ready,
+		Sent:          cmd.Sent,
+		SentAt:        cmd.SentAt,
 	}
 }

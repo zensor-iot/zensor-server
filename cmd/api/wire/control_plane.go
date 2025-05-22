@@ -42,6 +42,29 @@ func InitializeDeviceController() (*httpapi.DeviceController, error) {
 	return nil, nil
 }
 
+func InitializeTaskController() (*httpapi.TaskController, error) {
+	wire.Build(
+		provideAppConfig,
+		provideKafkaPublisherFactoryOptions,
+		pubsub.NewKafkaPublisherFactory,
+		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
+		persistence.NewTaskRepository,
+		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
+		usecases.NewTaskService,
+		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
+		provideDatabase,
+		communication.NewCommandPublisher,
+		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
+		persistence.NewDeviceRepository,
+		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
+		usecases.NewDeviceService,
+		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		httpapi.NewTaskController,
+	)
+
+	return nil, nil
+}
+
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	wire.Build(
 		provideAppConfig,

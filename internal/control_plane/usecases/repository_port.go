@@ -28,3 +28,8 @@ type EvaluationRuleRepository interface {
 	AddToDevice(context.Context, domain.Device, domain.EvaluationRule) error
 	FindAllByDeviceID(ctx context.Context, deviceID string) ([]domain.EvaluationRule, error)
 }
+
+type TaskRepository interface {
+	Create(context.Context, domain.Task) error
+	FindAllByDevice(context.Context, domain.Device) ([]domain.Task, error)
+}

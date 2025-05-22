@@ -32,7 +32,7 @@ type EvaluationRuleRepository struct {
 func (e *EvaluationRuleRepository) AddToDevice(ctx context.Context, device domain.Device, evaluationRule domain.EvaluationRule) error {
 	data := internal.FromEvaluationRule(evaluationRule)
 	data.DeviceID = string(device.ID)
-	err := e.publisher.Publish(ctx, pubsub.Key(device.ID), data)
+	err := e.publisher.Publish(ctx, pubsub.Key(evaluationRule.ID), data)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
