@@ -31,6 +31,7 @@ var (
 	codeToNameMapping = map[string]string{
 		"t": "temperature",
 		"h": "humidity",
+		"w": "waterFlow",
 	}
 )
 

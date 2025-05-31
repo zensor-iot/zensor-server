@@ -4,6 +4,10 @@ import (
 	"zensor-server/internal/infra/utils"
 )
 
+const (
+	_defaultPort Port = 15
+)
+
 type Port uint8
 type CommandPriority string
 type CommandValue uint8
@@ -87,6 +91,7 @@ func (b *commandBuilder) Build() (Command, error) {
 		Version: 1,
 		Ready:   false,
 		Sent:    false,
+		Port:    _defaultPort,
 	}
 	for _, a := range b.actions {
 		if err := a(&result); err != nil {
