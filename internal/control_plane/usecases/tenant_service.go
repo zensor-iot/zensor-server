@@ -24,6 +24,7 @@ type TenantService interface {
 	ActivateTenant(ctx context.Context, id domain.ID) error
 	DeactivateTenant(ctx context.Context, id domain.ID) error
 	AdoptDevice(ctx context.Context, tenantID, deviceID domain.ID) error
+	ListTenantDevices(ctx context.Context, tenantID domain.ID) ([]domain.Device, error)
 }
 
 type TenantRepository interface {
@@ -246,4 +247,31 @@ func (s *SimpleTenantService) AdoptDevice(ctx context.Context, tenantID, deviceI
 		slog.String("device_id", deviceID.String()))
 
 	return nil
+}
+
+func (s *SimpleTenantService) ListTenantDevices(ctx context.Context, tenantID domain.ID) ([]domain.Device, error) {
+	// First verify that the tenant exists and is not soft deleted
+	tenant, err := s.repository.GetByID(ctx, tenantID)
+	if err != nil {
+		if errors.Is(err, ErrTenantNotFound) {
+			return nil, ErrTenantNotFound
+		}
+		return nil, fmt.Errorf("getting tenant: %w", err)
+	}
+
+	if tenant.IsDeleted() {
+		return nil, ErrTenantSoftDeleted
+	}
+
+	// Get devices belonging to this tenant
+	devices, err := s.deviceService.DevicesByTenant(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("getting devices for tenant: %w", err)
+	}
+
+	slog.Info("retrieved devices for tenant",
+		slog.String("tenant_id", tenantID.String()),
+		slog.Int("device_count", len(devices)))
+
+	return devices, nil
 }

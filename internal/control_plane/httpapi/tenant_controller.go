@@ -42,6 +42,7 @@ func (c *TenantController) AddRoutes(router *http.ServeMux) {
 	router.Handle("POST /v1/tenants/{id}/activate", c.activateTenant())
 	router.Handle("POST /v1/tenants/{id}/deactivate", c.deactivateTenant())
 	router.Handle("POST /v1/tenants/{id}/adopt", c.adoptDevice())
+	router.Handle("GET /v1/tenants/{id}/devices", c.listTenantDevices())
 }
 
 func (c *TenantController) listTenants() http.HandlerFunc {
@@ -295,5 +296,33 @@ func (c *TenantController) adoptDevice() http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (c *TenantController) listTenantDevices() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := r.PathValue("id")
+		if tenantID == "" {
+			http.Error(w, "tenant id is required", http.StatusBadRequest)
+			return
+		}
+
+		devices, err := c.service.ListTenantDevices(r.Context(), domain.ID(tenantID))
+		if errors.Is(err, usecases.ErrTenantNotFound) {
+			http.Error(w, tenantNotFoundErrMessage, http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, usecases.ErrTenantSoftDeleted) {
+			http.Error(w, tenantSoftDeletedErrMessage, http.StatusConflict)
+			return
+		}
+		if err != nil {
+			slog.Error("listing tenant devices", slog.String("error", err.Error()))
+			http.Error(w, "failed to list tenant devices", http.StatusInternalServerError)
+			return
+		}
+
+		response := internal.ToDeviceListResponse(devices)
+		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
 	}
 }

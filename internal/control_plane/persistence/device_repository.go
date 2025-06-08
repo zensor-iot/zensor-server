@@ -144,6 +144,26 @@ func (s *SimpleDeviceRepository) FindAll(ctx context.Context) ([]domain.Device, 
 	return result, nil
 }
 
+func (s *SimpleDeviceRepository) FindByTenant(ctx context.Context, tenantID string) ([]domain.Device, error) {
+	var entities []internal.Device
+	err := s.orm.
+		WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	result := make([]domain.Device, len(entities))
+	for i, entity := range entities {
+		result[i] = entity.ToDomain()
+	}
+
+	return result, nil
+}
+
 func (s *SimpleDeviceRepository) FindAllEvaluationRules(ctx context.Context, device domain.Device) ([]domain.EvaluationRule, error) {
 	var entities []internal.EvaluationRule
 	err := s.orm.

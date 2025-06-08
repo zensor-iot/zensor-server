@@ -64,6 +64,18 @@ func (s *SimpleDeviceService) AllDevices(ctx context.Context) ([]domain.Device, 
 	return devices, nil
 }
 
+func (s *SimpleDeviceService) DevicesByTenant(ctx context.Context, tenantID domain.ID) ([]domain.Device, error) {
+	devices, err := s.repository.FindByTenant(ctx, tenantID.String())
+	if err != nil {
+		slog.Error("getting devices by tenant",
+			slog.String("tenant_id", tenantID.String()),
+			slog.String("error", err.Error()))
+		return nil, errUnknown
+	}
+
+	return devices, nil
+}
+
 func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Command) error {
 	if cmd.Port == 0 {
 		cmd.Port = 1
