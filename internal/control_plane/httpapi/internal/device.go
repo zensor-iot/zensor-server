@@ -7,26 +7,33 @@ type DeviceListResponse struct {
 }
 
 type DeviceResponse struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	AppEUI   string  `json:"app_eui"`
-	DevEUI   string  `json:"dev_eui"`
-	AppKey   string  `json:"app_key"`
-	TenantID *string `json:"tenant_id,omitempty"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	DisplayName string  `json:"display_name"`
+	AppEUI      string  `json:"app_eui"`
+	DevEUI      string  `json:"dev_eui"`
+	AppKey      string  `json:"app_key"`
+	TenantID    *string `json:"tenant_id,omitempty"`
 }
 
 type DeviceCreateRequest struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+}
+
+type DeviceUpdateRequest struct {
+	DisplayName string `json:"display_name" validate:"required,min=1,max=100"`
 }
 
 // ToDeviceResponse converts a domain Device to DeviceResponse
 func ToDeviceResponse(device domain.Device) DeviceResponse {
 	response := DeviceResponse{
-		ID:     device.ID.String(),
-		Name:   device.Name,
-		AppEUI: device.AppEUI,
-		DevEUI: device.DevEUI,
-		AppKey: device.AppKey,
+		ID:          device.ID.String(),
+		Name:        device.Name,
+		DisplayName: device.DisplayName,
+		AppEUI:      device.AppEUI,
+		DevEUI:      device.DevEUI,
+		AppKey:      device.AppKey,
 	}
 
 	if device.TenantID != nil {

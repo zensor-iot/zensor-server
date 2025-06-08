@@ -31,10 +31,39 @@ func (s *StandardServer) Shutdown() {
 
 func NewServer(controllers ...Controller) *StandardServer {
 	router := http.NewServeMux()
+
+	// Configure CORS for development
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{
+			"http://localhost:5173", // Vite dev server
+			"http://localhost:3000", // Alternative dev port
+			"http://127.0.0.1:5173",
+			"http://127.0.0.1:3000",
+		},
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
+		AllowedHeaders: []string{
+			"Accept",
+			"Authorization",
+			"Content-Type",
+			"X-CSRF-Token",
+		},
+		ExposedHeaders: []string{
+			"Link",
+		},
+		AllowCredentials: false,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	})
+
 	server := &StandardServer{
 		&http.Server{
 			Addr:    ":3000",
-			Handler: cors.Default().Handler(router),
+			Handler: c.Handler(router),
 		},
 	}
 

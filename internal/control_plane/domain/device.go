@@ -5,6 +5,7 @@ import "zensor-server/internal/infra/utils"
 type Device struct {
 	ID              ID
 	Name            string
+	DisplayName     string // User-friendly name that can be edited in tenant portal
 	AppEUI          string
 	DevEUI          string
 	AppKey          string
@@ -29,6 +30,10 @@ func (d *Device) BelongsToTenant(tenantID ID) bool {
 	return d.TenantID != nil && *d.TenantID == tenantID
 }
 
+func (d *Device) UpdateDisplayName(displayName string) {
+	d.DisplayName = displayName
+}
+
 func NewDeviceBuilder() *deviceBuilder {
 	return &deviceBuilder{}
 }
@@ -42,6 +47,14 @@ type deviceHandler func(v *Device) error
 func (b *deviceBuilder) WithName(value string) *deviceBuilder {
 	b.actions = append(b.actions, func(d *Device) error {
 		d.Name = value
+		return nil
+	})
+	return b
+}
+
+func (b *deviceBuilder) WithDisplayName(value string) *deviceBuilder {
+	b.actions = append(b.actions, func(d *Device) error {
+		d.DisplayName = value
 		return nil
 	})
 	return b

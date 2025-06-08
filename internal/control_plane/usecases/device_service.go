@@ -76,6 +76,32 @@ func (s *SimpleDeviceService) DevicesByTenant(ctx context.Context, tenantID doma
 	return devices, nil
 }
 
+func (s *SimpleDeviceService) UpdateDeviceDisplayName(ctx context.Context, deviceID domain.ID, displayName string) error {
+	device, err := s.repository.Get(ctx, deviceID.String())
+	if errors.Is(err, ErrDeviceNotFound) {
+		slog.Warn("device not found for display name update", slog.String("device_id", deviceID.String()))
+		return ErrDeviceNotFound
+	}
+	if err != nil {
+		slog.Error("getting device for display name update", slog.String("error", err.Error()))
+		return errUnknown
+	}
+
+	device.UpdateDisplayName(displayName)
+
+	err = s.repository.UpdateDevice(ctx, device)
+	if err != nil {
+		slog.Error("updating device display name", slog.String("error", err.Error()))
+		return errUnknown
+	}
+
+	slog.Info("device display name updated successfully",
+		slog.String("device_id", deviceID.String()),
+		slog.String("display_name", displayName))
+
+	return nil
+}
+
 func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Command) error {
 	if cmd.Port == 0 {
 		cmd.Port = 1

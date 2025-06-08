@@ -98,19 +98,21 @@ func (d *PostgreDatabase) Up(path string, replacements map[string]string) {
 				panic(err)
 			}
 
-			statement := string(content)
-			for k, v := range replacements {
-				statement = strings.ReplaceAll(statement, fmt.Sprintf("${%s}", k), v)
-			}
+			statements := strings.Split(string(content), ";")
+			for _, statement := range statements {
+				for k, v := range replacements {
+					statement = strings.ReplaceAll(statement, fmt.Sprintf("${%s}", k), v)
+				}
 
-			slog.Debug("applying migration",
-				slog.String("file", file.Name()),
-				slog.String("statement", statement),
-			)
+				slog.Debug("applying migration",
+					slog.String("file", file.Name()),
+					slog.String("statement", statement),
+				)
 
-			err = d.Command(statement)
-			if err != nil {
-				panic(err)
+				err = d.Command(statement)
+				if err != nil {
+					panic(err)
+				}
 			}
 		}
 	}

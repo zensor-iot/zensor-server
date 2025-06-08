@@ -6,15 +6,16 @@ import (
 )
 
 type Device struct {
-	ID         string    `json:"id" gorm:"primaryKey"`
-	Version    int       `json:"version"`
-	Name       string    `json:"name"`
-	AppEUI     string    `json:"app_eui" gorm:"column:app_eui"`
-	DevEUI     string    `json:"dev_eui" gorm:"column:dev_eui"`
-	AppKey     string    `json:"app_key"`
-	TenantID   *string   `json:"tenant_id,omitempty" gorm:"index"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdaatedAt time.Time `json:"updated_at"`
+	ID          string    `json:"id" gorm:"primaryKey"`
+	Version     int       `json:"version"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name"`
+	AppEUI      string    `json:"app_eui" gorm:"column:app_eui"`
+	DevEUI      string    `json:"dev_eui" gorm:"column:dev_eui"`
+	AppKey      string    `json:"app_key"`
+	TenantID    *string   `json:"tenant_id,omitempty" gorm:"index"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdaatedAt  time.Time `json:"updated_at"`
 }
 
 func (Device) TableName() string {
@@ -23,11 +24,12 @@ func (Device) TableName() string {
 
 func (s Device) ToDomain() domain.Device {
 	device := domain.Device{
-		ID:     domain.ID(s.ID),
-		Name:   s.Name,
-		AppEUI: s.AppEUI,
-		DevEUI: s.DevEUI,
-		AppKey: s.AppKey,
+		ID:          domain.ID(s.ID),
+		Name:        s.Name,
+		DisplayName: s.DisplayName,
+		AppEUI:      s.AppEUI,
+		DevEUI:      s.DevEUI,
+		AppKey:      s.AppKey,
 	}
 
 	if s.TenantID != nil {
@@ -40,14 +42,15 @@ func (s Device) ToDomain() domain.Device {
 
 func FromDevice(value domain.Device) Device {
 	device := Device{
-		ID:         value.ID.String(),
-		Version:    1,
-		Name:       value.Name,
-		AppEUI:     value.AppEUI,
-		DevEUI:     value.DevEUI,
-		AppKey:     value.AppKey,
-		CreatedAt:  time.Now(),
-		UpdaatedAt: time.Now(),
+		ID:          value.ID.String(),
+		Version:     1,
+		Name:        value.Name,
+		DisplayName: value.DisplayName,
+		AppEUI:      value.AppEUI,
+		DevEUI:      value.DevEUI,
+		AppKey:      value.AppKey,
+		CreatedAt:   time.Now(),
+		UpdaatedAt:  time.Now(),
 	}
 
 	if value.TenantID != nil {

@@ -12,6 +12,7 @@ type DeviceService interface {
 	GetDevice(context.Context, domain.ID) (domain.Device, error)
 	AllDevices(context.Context) ([]domain.Device, error)
 	DevicesByTenant(context.Context, domain.ID) ([]domain.Device, error)
+	UpdateDeviceDisplayName(context.Context, domain.ID, string) error
 	QueueCommand(context.Context, domain.Command) error
 	QueueCommandSequence(context.Context, domain.CommandSequence) error
 	AdoptDeviceToTenant(context.Context, domain.ID, domain.ID) error

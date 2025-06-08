@@ -32,6 +32,7 @@ type DeviceController struct {
 func (c *DeviceController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /v1/devices", c.listDevices())
 	router.Handle("POST /v1/devices", c.createDevice())
+	router.Handle("PUT /v1/devices/{id}", c.updateDevice())
 	router.Handle("POST /v1/devices/{id}/commands", c.sendCommand())
 }
 
@@ -56,8 +57,14 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 			return
 		}
 
+		displayName := body.DisplayName
+		if displayName == "" {
+			displayName = body.Name // Default display name to name if not provided
+		}
+
 		device, err := domain.NewDeviceBuilder().
 			WithName(body.Name).
+			WithDisplayName(displayName).
 			Build()
 		if err != nil {
 			http.Error(w, createDeviceErrMessage, http.StatusInternalServerError)
@@ -75,15 +82,41 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 			return
 		}
 
-		response := internal.DeviceResponse{
-			ID:     device.ID.String(),
-			Name:   device.Name,
-			AppEUI: device.AppEUI,
-			DevEUI: device.DevEUI,
-			AppKey: device.AppKey,
+		response := internal.ToDeviceResponse(device)
+		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
+	}
+}
+
+func (c *DeviceController) updateDevice() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var body internal.DeviceUpdateRequest
+		err := httpserver.DecodeJSONBody(r, &body)
+		if err != nil {
+			http.Error(w, "failed to decode request body", http.StatusBadRequest)
+			return
 		}
 
-		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
+		err = c.service.UpdateDeviceDisplayName(r.Context(), domain.ID(id), body.DisplayName)
+		if errors.Is(err, usecases.ErrDeviceNotFound) {
+			http.Error(w, "device not found", http.StatusNotFound)
+			return
+		}
+
+		if err != nil {
+			http.Error(w, "failed to update device", http.StatusInternalServerError)
+			return
+		}
+
+		// Get the updated device to return it
+		device, err := c.service.GetDevice(r.Context(), domain.ID(id))
+		if err != nil {
+			http.Error(w, "failed to get updated device", http.StatusInternalServerError)
+			return
+		}
+
+		response := internal.ToDeviceResponse(device)
+		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
 	}
 }
 
