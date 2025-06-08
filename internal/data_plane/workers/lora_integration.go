@@ -179,8 +179,16 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mqtt.Message) {
 	var envelop dto.Envelop
 	json.Unmarshal(msg.Payload(), &envelop)
-	decodedPayload := envelop.UplinkMessage.FromMessagePack()
-	fmt.Printf("*** %+v\n", decodedPayload)
+	
+	// Update device last message timestamp
+	deviceName := envelop.EndDeviceIDs.DeviceID
+	err := w.service.UpdateLastMessageReceivedAt(ctx, deviceName)
+	if err != nil {
+		slog.Error("failed to update device last message timestamp",
+			slog.String("device_name", deviceName),
+			slog.String("error", err.Error()))
+	}
+	
 	brokerMsg := async.BrokerMessage{
 		Event: "uplink",
 		Value: envelop,

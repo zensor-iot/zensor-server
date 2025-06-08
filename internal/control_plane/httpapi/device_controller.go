@@ -44,7 +44,8 @@ func (c *DeviceController) listDevices() http.HandlerFunc {
 			return
 		}
 
-		httpserver.ReplyJSONResponse(w, http.StatusOK, result)
+		response := internal.ToDeviceListResponse(result)
+		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
 	}
 }
 

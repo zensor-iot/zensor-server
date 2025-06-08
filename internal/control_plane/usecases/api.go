@@ -16,6 +16,7 @@ type DeviceService interface {
 	QueueCommand(context.Context, domain.Command) error
 	QueueCommandSequence(context.Context, domain.CommandSequence) error
 	AdoptDeviceToTenant(context.Context, domain.ID, domain.ID) error
+	UpdateLastMessageReceivedAt(context.Context, string) error
 }
 
 type EvaluationRuleService interface {

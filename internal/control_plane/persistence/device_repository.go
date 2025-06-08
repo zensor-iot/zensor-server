@@ -88,7 +88,7 @@ func (s *SimpleDeviceRepository) AddEvaluationRule(ctx context.Context, device d
 	return nil
 }
 
-func (s *SimpleDeviceRepository) GetByName(ctx context.Context, name string) (domain.Device, error) {
+func (s *SimpleDeviceRepository) FindByName(ctx context.Context, name string) (domain.Device, error) {
 	var entity internal.Device
 	err := s.orm.
 		WithContext(ctx).
@@ -105,6 +105,10 @@ func (s *SimpleDeviceRepository) GetByName(ctx context.Context, name string) (do
 	}
 
 	return entity.ToDomain(), nil
+}
+
+func (s *SimpleDeviceRepository) GetByName(ctx context.Context, name string) (domain.Device, error) {
+	return s.FindByName(ctx, name)
 }
 
 func (s *SimpleDeviceRepository) Get(ctx context.Context, id string) (domain.Device, error) {

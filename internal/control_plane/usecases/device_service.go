@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/infra/utils"
 )
 
 var (
@@ -157,6 +159,32 @@ func (s *SimpleDeviceService) QueueCommandSequence(ctx context.Context, cmd doma
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (s *SimpleDeviceService) UpdateLastMessageReceivedAt(ctx context.Context, deviceName string) error {
+	device, err := s.repository.FindByName(ctx, deviceName)
+	if errors.Is(err, ErrDeviceNotFound) {
+		slog.Warn("device not found for message update", slog.String("device_name", deviceName))
+		return ErrDeviceNotFound
+	}
+	if err != nil {
+		slog.Error("getting device for message update", slog.String("error", err.Error()))
+		return fmt.Errorf("getting device: %w", err)
+	}
+
+	device.UpdateLastMessageReceivedAt(utils.Time{Time: time.Now()})
+
+	err = s.repository.UpdateDevice(ctx, device)
+	if err != nil {
+		slog.Error("updating device last message timestamp", slog.String("error", err.Error()))
+		return fmt.Errorf("updating device: %w", err)
+	}
+
+	slog.Debug("device last message timestamp updated",
+		slog.String("device_name", deviceName),
+		slog.String("device_id", device.ID.String()))
 
 	return nil
 }

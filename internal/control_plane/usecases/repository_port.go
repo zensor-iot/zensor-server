@@ -15,6 +15,7 @@ type DeviceRepository interface {
 	CreateDevice(context.Context, domain.Device) error
 	UpdateDevice(context.Context, domain.Device) error
 	Get(context.Context, string) (domain.Device, error)
+	FindByName(context.Context, string) (domain.Device, error)
 	FindAll(context.Context) ([]domain.Device, error)
 	FindByTenant(context.Context, string) ([]domain.Device, error)
 	AddEvaluationRule(context.Context, domain.Device, domain.EvaluationRule) error

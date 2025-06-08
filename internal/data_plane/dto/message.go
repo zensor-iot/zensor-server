@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"fmt"
 	"slices"
 	"time"
 
@@ -47,7 +46,6 @@ func (m *UplinkMessage) FromMessagePack() any {
 	msgpack.Unmarshal(m.RawPayload, &temp)
 	m.DecodedPayload = make(map[string][]SensorData)
 	for k, v := range temp {
-		fmt.Printf("*** message pack:\n\t- key: %s\n\t- value: %+v\n", k, v)
 		chunks := slices.Chunk(v, 3)
 		m.DecodedPayload[codeToNameMapping[k]] = make([]SensorData, 0)
 		for chunk := range chunks {

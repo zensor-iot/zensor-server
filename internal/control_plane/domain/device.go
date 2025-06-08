@@ -1,17 +1,21 @@
 package domain
 
-import "zensor-server/internal/infra/utils"
+import (
+	"time"
+	"zensor-server/internal/infra/utils"
+)
 
 type Device struct {
-	ID              ID
-	Name            string
-	DisplayName     string // User-friendly name that can be edited in tenant portal
-	AppEUI          string
-	DevEUI          string
-	AppKey          string
-	TenantID        *ID // Optional tenant association, nil means orphan device
-	Sector          *Sector
-	EvaluationRules []EvaluationRule
+	ID                    ID
+	Name                  string
+	DisplayName           string // User-friendly name that can be edited in tenant portal
+	AppEUI                string
+	DevEUI                string
+	AppKey                string
+	TenantID              *ID // Optional tenant association, nil means orphan device
+	Sector                *Sector
+	EvaluationRules       []EvaluationRule
+	LastMessageReceivedAt utils.Time
 }
 
 func (d *Device) AddEvaluationRule(evaluationRule EvaluationRule) {
@@ -32,6 +36,29 @@ func (d *Device) BelongsToTenant(tenantID ID) bool {
 
 func (d *Device) UpdateDisplayName(displayName string) {
 	d.DisplayName = displayName
+}
+
+// UpdateLastMessageReceivedAt updates the timestamp when a message was last received from TTN
+func (d *Device) UpdateLastMessageReceivedAt(timestamp utils.Time) {
+	d.LastMessageReceivedAt = timestamp
+}
+
+// IsOnline returns true if the device received a message within the last 5 minutes
+func (d *Device) IsOnline() bool {
+	if d.LastMessageReceivedAt.IsZero() {
+		return false
+	}
+
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
+	return d.LastMessageReceivedAt.After(fiveMinutesAgo)
+}
+
+// GetStatus returns "online" or "offline" based on last message timestamp
+func (d *Device) GetStatus() string {
+	if d.IsOnline() {
+		return "online"
+	}
+	return "offline"
 }
 
 func NewDeviceBuilder() *deviceBuilder {

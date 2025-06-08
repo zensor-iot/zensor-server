@@ -1,19 +1,24 @@
 package internal
 
-import "zensor-server/internal/control_plane/domain"
+import (
+	"time"
+	"zensor-server/internal/control_plane/domain"
+)
 
 type DeviceListResponse struct {
 	Data []DeviceResponse `json:"data"`
 }
 
 type DeviceResponse struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	DisplayName string  `json:"display_name"`
-	AppEUI      string  `json:"app_eui"`
-	DevEUI      string  `json:"dev_eui"`
-	AppKey      string  `json:"app_key"`
-	TenantID    *string `json:"tenant_id,omitempty"`
+	ID                    string     `json:"id"`
+	Name                  string     `json:"name"`
+	DisplayName           string     `json:"display_name"`
+	AppEUI                string     `json:"app_eui"`
+	DevEUI                string     `json:"dev_eui"`
+	AppKey                string     `json:"app_key"`
+	TenantID              *string    `json:"tenant_id,omitempty"`
+	Status                string     `json:"status"`
+	LastMessageReceivedAt *time.Time `json:"last_message_received_at,omitempty"`
 }
 
 type DeviceCreateRequest struct {
@@ -34,6 +39,12 @@ func ToDeviceResponse(device domain.Device) DeviceResponse {
 		AppEUI:      device.AppEUI,
 		DevEUI:      device.DevEUI,
 		AppKey:      device.AppKey,
+		Status:      device.GetStatus(),
+	}
+
+	// Convert utils.Time to *time.Time
+	if !device.LastMessageReceivedAt.IsZero() {
+		response.LastMessageReceivedAt = &device.LastMessageReceivedAt.Time
 	}
 
 	if device.TenantID != nil {
