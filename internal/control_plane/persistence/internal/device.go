@@ -12,6 +12,7 @@ type Device struct {
 	AppEUI     string    `json:"app_eui" gorm:"column:app_eui"`
 	DevEUI     string    `json:"dev_eui" gorm:"column:dev_eui"`
 	AppKey     string    `json:"app_key"`
+	TenantID   *string   `json:"tenant_id,omitempty" gorm:"index"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdaatedAt time.Time `json:"updated_at"`
 }
@@ -21,17 +22,24 @@ func (Device) TableName() string {
 }
 
 func (s Device) ToDomain() domain.Device {
-	return domain.Device{
+	device := domain.Device{
 		ID:     domain.ID(s.ID),
 		Name:   s.Name,
 		AppEUI: s.AppEUI,
 		DevEUI: s.DevEUI,
 		AppKey: s.AppKey,
 	}
+
+	if s.TenantID != nil {
+		tenantID := domain.ID(*s.TenantID)
+		device.TenantID = &tenantID
+	}
+
+	return device
 }
 
 func FromDevice(value domain.Device) Device {
-	return Device{
+	device := Device{
 		ID:         value.ID.String(),
 		Version:    1,
 		Name:       value.Name,
@@ -41,4 +49,11 @@ func FromDevice(value domain.Device) Device {
 		CreatedAt:  time.Now(),
 		UpdaatedAt: time.Now(),
 	}
+
+	if value.TenantID != nil {
+		tenantIDStr := value.TenantID.String()
+		device.TenantID = &tenantIDStr
+	}
+
+	return device
 }

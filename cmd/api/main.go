@@ -24,11 +24,21 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 )
 
-func main() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug, ReplaceAttr: slogReplaceSource})))
-	slog.Info("🚀 zensor is initializing")
+var (
+	logLevelMapping = map[string]slog.Level{
+		"debug": slog.LevelDebug,
+		"info":  slog.LevelInfo,
+		"warn":  slog.LevelWarn,
+		"error": slog.LevelError,
+	}
+)
 
+func main() {
 	config := config.LoadConfig()
+
+	level := logLevelMapping[config.General.LogLevel]
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: level, ReplaceAttr: slogReplaceSource})))
+	slog.Info("🚀 zensor is initializing")
 	slog.Debug("config loaded", "data", config)
 
 	shutdownOtel := startOTel()
@@ -37,6 +47,7 @@ func main() {
 		handleWireInjector(wire.InitializeDeviceController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTaskController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializeTenantController()).(httpserver.Controller),
 	)
 
 	appCtx, cancelFn := context.WithCancel(context.Background())

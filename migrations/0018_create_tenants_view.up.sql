@@ -1,0 +1,2 @@
+CREATE MATERIALIZED VIEW IF NOT EXISTS tenants_view AS
+  SELECT * FROM tenants; 

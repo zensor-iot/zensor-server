@@ -83,15 +83,18 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 const (
 	_metricKeyTemperature = "temperature"
 	_metricKeyHumidity    = "humidity"
+	_metricKeyWaterFlow   = "waterFlow"
 )
 
 func (w *LoraIntegrationWorker) setupOtelCounters() {
 	meter := otel.Meter("zensor_server")
 	temperatureCounter, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.temperature"), metric.WithDescription("zensor_server temperature metric counter"))
 	humidityCounter, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.humidity"), metric.WithDescription("zensor_server humidity metric counter"))
+	waterFlowGauge, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.water_flow"), metric.WithDescription("zensor_server water flow metric gauge"))
 
 	w.metricCounters[_metricKeyTemperature] = temperatureCounter
 	w.metricCounters[_metricKeyHumidity] = humidityCounter
+	w.metricCounters[_metricKeyWaterFlow] = waterFlowGauge
 }
 
 func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototype {
@@ -185,26 +188,28 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	w.broker.Publish(ctx, BrokerTopicUplinkMessage, brokerMsg)
 	slog.Debug("envelop", slog.Any("envelop", envelop))
 
-	var (
-		temperature float64 = -1
-		humidity    float64 = -1
-	)
-
-	if val, ok := envelop.UplinkMessage.DecodedPayload[_metricKeyTemperature].(float64); ok {
-		temperature = val
-	}
-
-	if val, ok := envelop.UplinkMessage.DecodedPayload[_metricKeyHumidity].(float64); ok {
-		humidity = val
-	}
-
+	temperatures := envelop.UplinkMessage.DecodedPayload[_metricKeyTemperature]
 	attributes := []attribute.KeyValue{
 		semconv.ServiceNameKey.String("zensor_server"),
 		attribute.String("device_name", envelop.EndDeviceIDs.DeviceID),
 		attribute.String("app_id", envelop.EndDeviceIDs.ApplicationIDs["application_id"]),
 	}
-	w.metricCounters[_metricKeyTemperature].Record(ctx, temperature, metric.WithAttributes(attributes...))
-	w.metricCounters[_metricKeyHumidity].Record(ctx, humidity, metric.WithAttributes(attributes...))
+	for _, t := range temperatures {
+		extAttributes := append(attributes, attribute.Int("index", int(t.Index)))
+		w.metricCounters[_metricKeyTemperature].Record(ctx, t.Value, metric.WithAttributes(extAttributes...))
+	}
+
+	humidities := envelop.UplinkMessage.DecodedPayload[_metricKeyHumidity]
+	for _, h := range humidities {
+		extAttributes := append(attributes, attribute.Int("index", int(h.Index)))
+		w.metricCounters[_metricKeyHumidity].Record(ctx, h.Value, metric.WithAttributes(extAttributes...))
+	}
+
+	waterFlows := envelop.UplinkMessage.DecodedPayload[_metricKeyWaterFlow]
+	for _, wf := range waterFlows {
+		extAttributes := append(attributes, attribute.Int("index", int(wf.Index)))
+		w.metricCounters[_metricKeyWaterFlow].Record(ctx, wf.Value, metric.WithAttributes(extAttributes...))
+	}
 }
 
 func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pubsub.Prototype, done func()) {

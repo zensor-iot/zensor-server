@@ -56,8 +56,8 @@ func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain
 		return fmt.Errorf("getting device: %w", err)
 	}
 
-	if currentDevice.ID != "" {
-		return usecases.ErrDeviceDuplicated
+	if currentDevice.ID == "" {
+		return usecases.ErrDeviceNotFound
 	}
 
 	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), data)

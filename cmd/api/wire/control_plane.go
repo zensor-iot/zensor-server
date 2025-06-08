@@ -65,6 +65,21 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 	return nil, nil
 }
 
+func InitializeTenantController() (*httpapi.TenantController, error) {
+	wire.Build(
+		provideAppConfig,
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		DeviceServiceSet,
+		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		usecases.NewTenantService,
+		wire.Bind(new(usecases.TenantService), new(*usecases.SimpleTenantService)),
+		httpapi.NewTenantController,
+	)
+
+	return nil, nil
+}
+
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	wire.Build(
 		provideAppConfig,

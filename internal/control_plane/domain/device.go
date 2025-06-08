@@ -8,12 +8,25 @@ type Device struct {
 	AppEUI          string
 	DevEUI          string
 	AppKey          string
+	TenantID        *ID // Optional tenant association, nil means orphan device
 	Sector          *Sector
 	EvaluationRules []EvaluationRule
 }
 
 func (d *Device) AddEvaluationRule(evaluationRule EvaluationRule) {
 	d.EvaluationRules = append(d.EvaluationRules, evaluationRule)
+}
+
+func (d *Device) AdoptToTenant(tenantID ID) {
+	d.TenantID = &tenantID
+}
+
+func (d *Device) IsOrphan() bool {
+	return d.TenantID == nil
+}
+
+func (d *Device) BelongsToTenant(tenantID ID) bool {
+	return d.TenantID != nil && *d.TenantID == tenantID
 }
 
 func NewDeviceBuilder() *deviceBuilder {
@@ -29,6 +42,14 @@ type deviceHandler func(v *Device) error
 func (b *deviceBuilder) WithName(value string) *deviceBuilder {
 	b.actions = append(b.actions, func(d *Device) error {
 		d.Name = value
+		return nil
+	})
+	return b
+}
+
+func (b *deviceBuilder) WithTenant(tenantID ID) *deviceBuilder {
+	b.actions = append(b.actions, func(d *Device) error {
+		d.TenantID = &tenantID
 		return nil
 	})
 	return b

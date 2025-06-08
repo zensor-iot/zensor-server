@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"fmt"
+	"slices"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -22,9 +24,14 @@ type EndDeviceIDs struct {
 }
 
 type UplinkMessage struct {
-	Port           uint8          `json:"port"`
-	RawPayload     []byte         `json:"frm_payload"`
-	DecodedPayload map[string]any `json:"decoded_payload"`
+	Port           uint8                   `json:"port"`
+	RawPayload     []byte                  `json:"frm_payload"`
+	DecodedPayload map[string][]SensorData `json:"decoded_payload"`
+}
+
+type SensorData struct {
+	Index uint
+	Value float64
 }
 
 var (
@@ -38,11 +45,20 @@ var (
 func (m *UplinkMessage) FromMessagePack() any {
 	temp := make(map[string][]byte)
 	msgpack.Unmarshal(m.RawPayload, &temp)
-	m.DecodedPayload = make(map[string]any)
+	m.DecodedPayload = make(map[string][]SensorData)
 	for k, v := range temp {
-		m.DecodedPayload[codeToNameMapping[k]] = float64(v[1]) + float64(v[2])/100
+		fmt.Printf("*** message pack:\n\t- key: %s\n\t- value: %+v\n", k, v)
+		chunks := slices.Chunk(v, 3)
+		m.DecodedPayload[codeToNameMapping[k]] = make([]SensorData, 0)
+		for chunk := range chunks {
+			if len(chunk) < 3 {
+				break
+			}
+			m.DecodedPayload[codeToNameMapping[k]] = append(m.DecodedPayload[codeToNameMapping[k]], SensorData{
+				Index: uint(chunk[0]),
+				Value: float64(chunk[1]) + float64(chunk[2])/100,
+			})
+		}
 	}
 	return m.DecodedPayload
 }
-
-// 129 161 116 196 3 1 28 248 132 247

@@ -13,6 +13,7 @@ type DeviceService interface {
 	AllDevices(context.Context) ([]domain.Device, error)
 	QueueCommand(context.Context, domain.Command) error
 	QueueCommandSequence(context.Context, domain.CommandSequence) error
+	AdoptDeviceToTenant(context.Context, domain.ID, domain.ID) error
 }
 
 type EvaluationRuleService interface {

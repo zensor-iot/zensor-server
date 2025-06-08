@@ -85,6 +85,29 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 	return taskController, nil
 }
 
+func InitializeTenantController() (*httpapi.TenantController, error) {
+	appConfig := provideAppConfig()
+	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
+	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	orm := provideDatabase(appConfig)
+	simpleTenantRepository, err := persistence.NewTenantRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, commandPublisher)
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	tenantController := httpapi.NewTenantController(simpleTenantService)
+	return tenantController, nil
+}
+
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	appConfig := provideAppConfig()
 	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)

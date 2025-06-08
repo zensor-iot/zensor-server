@@ -86,6 +86,32 @@ func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Comma
 	return nil
 }
 
+func (s *SimpleDeviceService) AdoptDeviceToTenant(ctx context.Context, tenantID, deviceID domain.ID) error {
+	device, err := s.repository.Get(ctx, deviceID.String())
+	if errors.Is(err, ErrDeviceNotFound) {
+		slog.Warn("device not found for adoption", slog.String("device_id", deviceID.String()))
+		return ErrDeviceNotFound
+	}
+	if err != nil {
+		slog.Error("getting device for adoption", slog.String("error", err.Error()))
+		return fmt.Errorf("getting device: %w", err)
+	}
+
+	device.AdoptToTenant(tenantID)
+
+	err = s.repository.UpdateDevice(ctx, device)
+	if err != nil {
+		slog.Error("updating device for adoption", slog.String("error", err.Error()))
+		return fmt.Errorf("updating device: %w", err)
+	}
+
+	slog.Info("device adopted to tenant successfully",
+		slog.String("device_id", deviceID.String()),
+		slog.String("tenant_id", tenantID.String()))
+
+	return nil
+}
+
 func (s *SimpleDeviceService) QueueCommandSequence(ctx context.Context, cmd domain.CommandSequence) error {
 	for _, command := range cmd.Commands {
 		err := s.QueueCommand(ctx, command)

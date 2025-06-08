@@ -23,6 +23,9 @@ func LoadConfig() AppConfig {
 			panic(fmt.Errorf("fatal error config file: %w", err))
 		}
 		configInstance = AppConfig{
+			General: GeneralConfig{
+				LogLevel: viper.GetString("general.log_level"),
+			},
 			mqtt: MqttConfig{
 				Broker: viper.GetString("mqtt.broker"),
 			},
@@ -48,10 +51,15 @@ func LoadConfig() AppConfig {
 }
 
 type AppConfig struct {
+	General    GeneralConfig
 	mqtt       MqttConfig
 	MQTTClient MQTTClientConfig
 	Kafka      KafkaConfig
 	Postgresql PostgresqlConfig
+}
+
+type GeneralConfig struct {
+	LogLevel string
 }
 
 type MqttConfig struct {

@@ -1,3 +1,5 @@
+general:
+  log_level: info
 mqtt:
   broker: "localhost:1883"
 database:
