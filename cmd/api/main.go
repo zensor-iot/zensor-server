@@ -43,17 +43,20 @@ func main() {
 
 	shutdownOtel := startOTel()
 
+	// DATA PLANE - Set up broker and dependencies first
+	internalBroker := async.NewLocalBroker()
+
 	httpServer := httpserver.NewServer(
 		handleWireInjector(wire.InitializeDeviceController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTaskController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTenantController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
 	)
 
 	appCtx, cancelFn := context.WithCancel(context.Background())
 	go httpServer.Run()
 
-	// DATA PLANE
 	var wg sync.WaitGroup
 	ticker := time.NewTicker(30 * time.Second)
 	simpleClientOpts := mqtt.SimpleClientOpts{
@@ -63,7 +66,6 @@ func main() {
 		Password: config.MQTTClient.Password, //pragma: allowlist secret
 	}
 	mqttClient := mqtt.NewSimpleClient(simpleClientOpts)
-	internalBroker := async.NewLocalBroker()
 	consumerFactory := pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group)
 	deviceService, err := wire.InitializeDeviceService()
 	if err != nil {

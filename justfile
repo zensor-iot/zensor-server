@@ -190,3 +190,8 @@ c4:
         -e STRUCTURIZR_WORKSPACE_PATH=. \
         -e STRUCTURIZR_WORKSPACE_FILENAME=c4model \
         structurizr/lite
+
+release version:
+    #!/bin/bash
+    git tag {{version}}
+    git push --tags

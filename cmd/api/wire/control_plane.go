@@ -145,3 +145,10 @@ func provideTicker() *time.Ticker {
 	ticker := time.NewTicker(30 * time.Second)
 	return ticker
 }
+
+func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*httpapi.DeviceMessageWebSocketController, error) {
+	wire.Build(
+		httpapi.NewDeviceMessageWebSocketController,
+	)
+	return nil, nil
+}
