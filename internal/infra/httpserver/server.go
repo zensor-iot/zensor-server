@@ -35,10 +35,9 @@ func NewServer(controllers ...Controller) *StandardServer {
 	// Configure CORS for development
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{
-			"http://localhost:5173", // Vite dev server
-			"http://localhost:3000", // Alternative dev port
+			"http://localhost:5173",
 			"http://127.0.0.1:5173",
-			"http://127.0.0.1:3000",
+			"https://portal.zensor-iot.net",
 		},
 		AllowedMethods: []string{
 			http.MethodGet,
