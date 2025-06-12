@@ -9,6 +9,7 @@ import (
 var (
 	ErrDeviceNotFound   = errors.New("device not found")
 	ErrDeviceDuplicated = errors.New("device already exists")
+	ErrCommandOverlap   = errors.New("command overlap detected")
 )
 
 type DeviceRepository interface {
@@ -24,6 +25,7 @@ type DeviceRepository interface {
 
 type CommandRepository interface {
 	FindAllPending(context.Context) ([]domain.Command, error)
+	FindPendingByDevice(context.Context, domain.ID) ([]domain.Command, error)
 }
 
 type EvaluationRuleRepository interface {

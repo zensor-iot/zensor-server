@@ -70,12 +70,12 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 	if err != nil {
 		return nil, err
 	}
-	simpleTaskService := usecases.NewTaskService(simpleTaskRepository)
 	orm := provideDatabase(appConfig)
 	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleDeviceRepository)
 	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
 	if err != nil {
 		return nil, err

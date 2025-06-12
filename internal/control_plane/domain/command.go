@@ -1,11 +1,15 @@
 package domain
 
 import (
+	"time"
 	"zensor-server/internal/infra/utils"
 )
 
 const (
 	_defaultPort Port = 15
+	// _overlapBufferTime defines the time window to consider commands as potentially overlapping
+	// This accounts for execution time, network delays, and safety margin
+	_overlapBufferTime = 30 * time.Second
 )
 
 type Port uint8
@@ -33,6 +37,26 @@ type Command struct {
 type CommandPayload struct {
 	Index Index
 	Value CommandValue
+}
+
+// OverlapsWith checks if this command overlaps with another command.
+// Commands overlap if they target the same index (sensor/actuator) and their execution times could conflict.
+func (c Command) OverlapsWith(other Command) bool {
+	// Commands overlap if they target the same index (sensor/actuator)
+	// and their execution times could conflict
+	if c.Payload.Index != other.Payload.Index {
+		return false // Different sensors/actuators, no overlap
+	}
+
+	// Calculate the effective time windows for each command
+	cStart := c.DispatchAfter.Time
+	cEnd := cStart.Add(_overlapBufferTime)
+
+	otherStart := other.DispatchAfter.Time
+	otherEnd := otherStart.Add(_overlapBufferTime)
+
+	// Check if time windows overlap
+	return cStart.Before(otherEnd) && otherStart.Before(cEnd)
 }
 
 func NewCommandBuilder() *commandBuilder {

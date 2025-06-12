@@ -204,3 +204,18 @@ func (r *SimpleDeviceRepository) FindAllPending(ctx context.Context) ([]domain.C
 
 	return entities.ToDomain(), nil
 }
+
+func (r *SimpleDeviceRepository) FindPendingByDevice(ctx context.Context, deviceID domain.ID) ([]domain.Command, error) {
+	var entities internal.CommandSet
+	err := r.orm.
+		WithContext(ctx).
+		Where("sent = ? AND device_id = ?", false, deviceID.String()).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	return entities.ToDomain(), nil
+}

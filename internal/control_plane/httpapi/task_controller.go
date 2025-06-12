@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,7 +13,8 @@ import (
 )
 
 const (
-	createTaskErrMessage = "failed to create task"
+	createTaskErrMessage     = "failed to create task"
+	commandOverlapErrMessage = "command overlap detected with existing pending commands"
 )
 
 func NewTaskController(
@@ -87,6 +89,10 @@ func (c *TaskController) create() http.HandlerFunc {
 		}
 
 		err = c.service.Create(r.Context(), task)
+		if errors.Is(err, usecases.ErrCommandOverlap) {
+			http.Error(w, commandOverlapErrMessage, http.StatusConflict)
+			return
+		}
 		if err != nil {
 			slog.Error("create task failed", slog.String("error", err.Error()))
 			http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
