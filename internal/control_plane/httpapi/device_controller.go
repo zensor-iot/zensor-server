@@ -63,10 +63,23 @@ func (c *DeviceController) createDevice() http.HandlerFunc {
 			displayName = body.Name // Default display name to name if not provided
 		}
 
-		device, err := domain.NewDeviceBuilder().
+		// Start building the device
+		builder := domain.NewDeviceBuilder().
 			WithName(body.Name).
-			WithDisplayName(displayName).
-			Build()
+			WithDisplayName(displayName)
+
+		// Add LoRaWAN parameters if provided
+		if body.AppEUI != nil && *body.AppEUI != "" {
+			builder = builder.WithAppEUI(*body.AppEUI)
+		}
+		if body.DevEUI != nil && *body.DevEUI != "" {
+			builder = builder.WithDevEUI(*body.DevEUI)
+		}
+		if body.AppKey != nil && *body.AppKey != "" {
+			builder = builder.WithAppKey(*body.AppKey)
+		}
+
+		device, err := builder.Build()
 		if err != nil {
 			http.Error(w, createDeviceErrMessage, http.StatusInternalServerError)
 			return

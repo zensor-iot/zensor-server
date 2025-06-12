@@ -95,6 +95,30 @@ func (b *deviceBuilder) WithTenant(tenantID ID) *deviceBuilder {
 	return b
 }
 
+func (b *deviceBuilder) WithAppEUI(value string) *deviceBuilder {
+	b.actions = append(b.actions, func(d *Device) error {
+		d.AppEUI = value
+		return nil
+	})
+	return b
+}
+
+func (b *deviceBuilder) WithDevEUI(value string) *deviceBuilder {
+	b.actions = append(b.actions, func(d *Device) error {
+		d.DevEUI = value
+		return nil
+	})
+	return b
+}
+
+func (b *deviceBuilder) WithAppKey(value string) *deviceBuilder {
+	b.actions = append(b.actions, func(d *Device) error {
+		d.AppKey = value
+		return nil
+	})
+	return b
+}
+
 func (b *deviceBuilder) Build() (Device, error) {
 	result := Device{
 		ID:              ID(utils.GenerateUUID()),

@@ -22,8 +22,11 @@ type DeviceResponse struct {
 }
 
 type DeviceCreateRequest struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
+	Name        string  `json:"name"`
+	DisplayName string  `json:"display_name"`
+	AppEUI      *string `json:"app_eui,omitempty"`
+	DevEUI      *string `json:"dev_eui,omitempty"`
+	AppKey      *string `json:"app_key,omitempty"`
 }
 
 type DeviceUpdateRequest struct {
