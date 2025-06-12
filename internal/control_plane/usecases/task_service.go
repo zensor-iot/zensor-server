@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"zensor-server/internal/control_plane/domain"
 )
 
@@ -37,18 +38,14 @@ func (s *SimpleTaskService) Create(ctx context.Context, task domain.Task) error 
 }
 
 func (s *SimpleTaskService) validateCommandOverlaps(ctx context.Context, newTask domain.Task) error {
-	// Get all pending commands for this device
 	pendingCommands, err := s.commandRepository.FindPendingByDevice(ctx, newTask.Device.ID)
 	if err != nil {
 		return fmt.Errorf("finding pending commands: %w", err)
 	}
 
-	// Check each new command against existing pending commands
 	for _, newCmd := range newTask.Commands {
-		for _, existingCmd := range pendingCommands {
-			if newCmd.OverlapsWith(existingCmd) {
-				return ErrCommandOverlap
-			}
+		if slices.ContainsFunc(pendingCommands, newCmd.OverlapsWith) {
+			return ErrCommandOverlap
 		}
 	}
 
