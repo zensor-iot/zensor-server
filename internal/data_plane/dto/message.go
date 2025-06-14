@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"fmt"
 	"slices"
 	"time"
 
@@ -38,6 +39,7 @@ var (
 		"t": "temperature",
 		"h": "humidity",
 		"w": "waterFlow",
+		"r": "relay",
 	}
 )
 
@@ -58,5 +60,7 @@ func (m *UplinkMessage) FromMessagePack() any {
 			})
 		}
 	}
+
+	fmt.Printf("*** DecodedPayload: %+v\n", m.DecodedPayload)
 	return m.DecodedPayload
 }
