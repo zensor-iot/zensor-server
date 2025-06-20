@@ -1,0 +1,43 @@
+# Go Dependency Management
+
+- Manage dependencies with Go modules (`go.mod` and `go.sum`).
+- Do not vendor dependencies unless required by project policy.
+- Keep dependencies up to date and remove unused ones.
+- Reference only stable, tagged releases in `go.mod`.
+
+# Go Error Handling
+
+- Always check and handle errors returned from functions.
+- Do not ignore errors by assigning them to `_` unless explicitly justified in a comment.
+- Return errors as the last return value.
+- Use `fmt.Errorf` with `%w` for error wrapping.
+- Prefer custom error types for domain-specific errors.
+- Never panic except in truly unrecoverable situations (e.g., program invariants).
+
+# Go General
+
+- Follow [Effective Go](mdc:https:/golang.org/doc/effective_go.html) guidelines for code style and idioms.
+- Use `gofmt` for code formatting; all code must be gofmt-compliant.
+- Prefer short variable declarations (`:=`) where appropriate.
+- Use clear, concise naming. Exported names must be capitalized; unexported names should be short and meaningful.
+- Avoid unnecessary abstraction; keep code simple and readable.
+- Group related code into packages; avoid large monolithic files.
+- Document all exported functions, types, and packages with Go-style comments.
+- Don't comment within function. Instead make the code expressive
+- All variable names, method names, function names, structure names and interface names must be in camel or pascal case.
+- always use the global slog method and never inject a *slog.Logger instance
+
+- Use context (`context.Context`) as the first parameter for functions that may block, perform I/O, or require cancellation.
+- Prefer interfaces for dependencies to enable easier testing and mocking.
+- Avoid global variables except for constants or configuration.
+- Use struct embedding for code reuse, not inheritance.
+- All configuration should be loaded from environment variables or config files, never hardcoded.
+
+# Go Testing
+
+- Write tests for all exported functions and critical logic.
+- Use Go's built-in `testing` package.
+- Name test functions as `TestXxx` and keep them small and focused.
+- Avoid test dependencies on external systems; use mocks or test servers.
+- Use table-driven tests for multiple cases.
+- Run `go test -race` to check for race conditions.
