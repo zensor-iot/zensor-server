@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"fmt"
 	"slices"
 	"time"
 
@@ -61,6 +60,5 @@ func (m *UplinkMessage) FromMessagePack() any {
 		}
 	}
 
-	fmt.Printf("*** DecodedPayload: %+v\n", m.DecodedPayload)
 	return m.DecodedPayload
 }
