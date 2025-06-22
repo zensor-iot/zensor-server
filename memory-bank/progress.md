@@ -1,33 +1,40 @@
 # Progress
 
 ## What Works
-- Database migrations MVP
-- Materialize as query persistence layer
-- Device registered events and event ingestion
-- HTTP server and endpoints for healthz and metrics
-- Event publishing from MQTT to Kafka
-- Device ID as key for Kafka messages
+- Device registration and management
+- Event ingestion from MQTT and Kafka
+- Command sequencing and dispatch to devices
+- Evaluation rules for device behavior
+- Task scheduling and execution
 - Multi-tenant support
+- HTTP API for device, event, and task management
+- Integration with Materialize (query persistence layer)
+- Observability (metrics, health checks)
+- **Scheduled tasks with cron-based scheduling**
+- **Tenant-scoped scheduled task management**
+- **Scheduled task worker with minute-based evaluation**
 
 ## What's Left to Build
-- Device resource API
-- Sensor resource API
-- OpenAPI documentation
-- Configuration improvements (Viper integration)
-- Database migration templates
-- Additional features and bug fixes
+- Error handling for task creation failures
+- Task status tracking and error descriptions
+- Scheduled task execution history
+- Advanced monitoring and alerting
+- Schedule validation rules
+- Task template management
+- Bulk scheduled task operations
 
 ## Current Status
-- Core backend and event pipeline are functional
-- APIs and integrations are expanding
-- Project is in active development with ongoing improvements
+- Core scheduled tasks functionality implemented and building
+- All components integrated with existing systems
+- Ready for testing and validation
+- Error handling and monitoring features planned for next iteration
 
 ## Known Issues
-- Some API endpoints are incomplete (devices, sensors)
-- Configuration flexibility is limited
-- OpenAPI documentation is not finalized
-- Potential for further optimization and scaling
+- No error handling for task creation failures (planned)
+- No task status tracking (planned)
+- No execution history (planned)
+- No schedule validation (planned)
 
 ---
 
-> _Keep this file up to date to track progress and surface issues._ 
+> _Track what's working, what's left, and current status._ 

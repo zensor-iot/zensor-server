@@ -37,3 +37,11 @@ type TaskRepository interface {
 	Create(context.Context, domain.Task) error
 	FindAllByDevice(context.Context, domain.Device) ([]domain.Task, error)
 }
+
+type ScheduledTaskRepository interface {
+	Create(context.Context, domain.ScheduledTask) error
+	FindAllByTenant(context.Context, domain.ID) ([]domain.ScheduledTask, error)
+	FindAllActive(context.Context) ([]domain.ScheduledTask, error)
+	Update(context.Context, domain.ScheduledTask) error
+	GetByID(context.Context, domain.ID) (domain.ScheduledTask, error)
+}

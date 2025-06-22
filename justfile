@@ -34,6 +34,7 @@ setup:
     rpk topic --brokers "localhost:19092" describe device_commands || rpk topic --brokers "localhost:19092" create device_commands
     rpk topic --brokers "localhost:19092" describe tasks || rpk topic --brokers "localhost:19092" create tasks
     rpk topic --brokers "localhost:19092" describe tenants || rpk topic --brokers "localhost:19092" create tenants
+    rpk topic --brokers "localhost:19092" describe scheduled_tasks || rpk topic --brokers "localhost:19092" create scheduled_tasks
     echo "✅ kafka topics created"
     
     echo "🚀 launching materialize..."

@@ -85,6 +85,62 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 	return taskController, nil
 }
 
+func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, error) {
+	appConfig := provideAppConfig()
+	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
+	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	orm := provideDatabase(appConfig)
+	simpleScheduledTaskRepository, err := persistence.NewScheduledTaskRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleScheduledTaskService := usecases.NewScheduledTaskService(simpleScheduledTaskRepository)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, commandPublisher)
+	simpleTenantRepository, err := persistence.NewTenantRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	scheduledTaskController := httpapi.NewScheduledTaskController(simpleScheduledTaskService, simpleDeviceService, simpleTenantService)
+	return scheduledTaskController, nil
+}
+
+func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.ScheduledTaskWorker, error) {
+	ticker := provideTicker()
+	appConfig := provideAppConfig()
+	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
+	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	orm := provideDatabase(appConfig)
+	simpleScheduledTaskRepository, err := persistence.NewScheduledTaskRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTaskRepository, err := persistence.NewTaskRepository(kafkaPublisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleDeviceRepository)
+	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, commandPublisher)
+	scheduledTaskWorker := usecases.NewScheduledTaskWorker(ticker, simpleScheduledTaskRepository, simpleTaskService, simpleDeviceService, broker)
+	return scheduledTaskWorker, nil
+}
+
 func InitializeTenantController() (*httpapi.TenantController, error) {
 	appConfig := provideAppConfig()
 	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)

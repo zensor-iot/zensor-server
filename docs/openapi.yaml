@@ -1,0 +1,1177 @@
+openapi: 3.0.3
+info:
+  title: Zensor Server API
+  description: Zensor Server API for IoT device management and task scheduling
+  version: 1.0.0
+  contact:
+    name: Zensor Team
+    email: support@zensor-iot.net
+  license:
+    name: Proprietary
+    url: https://zensor-iot.net
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.zensor-iot.net
+    description: Production server
+
+paths:
+  # Health and Monitoring
+  /healthz:
+    get:
+      summary: Health check
+      description: Returns the health status of the server
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Returns Prometheus-formatted metrics
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # WebSocket
+  /ws/device-messages:
+    get:
+      summary: Device messages WebSocket
+      description: WebSocket endpoint for real-time device messages
+      tags:
+        - WebSocket
+      responses:
+        '101':
+          description: WebSocket connection established
+          headers:
+            Upgrade:
+              schema:
+                type: string
+                example: "websocket"
+            Connection:
+              schema:
+                type: string
+                example: "Upgrade"
+
+  # Tenants
+  /v1/tenants:
+    get:
+      summary: List tenants
+      description: Retrieve a list of all tenants
+      tags:
+        - Tenants
+      parameters:
+        - name: include_deleted
+          in: query
+          description: Include soft-deleted tenants in the response
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of tenants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create tenant
+      description: Create a new tenant
+      tags:
+        - Tenants
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreateRequest'
+      responses:
+        '201':
+          description: Tenant created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Tenant already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/tenants/{id}:
+    get:
+      summary: Get tenant
+      description: Retrieve a specific tenant by ID
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tenant details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update tenant
+      description: Update an existing tenant
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUpdateRequest'
+      responses:
+        '200':
+          description: Tenant updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Tenant already exists or is soft deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Soft delete tenant
+      description: Soft delete a tenant (marks as deleted but doesn't remove from database)
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Tenant soft deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Tenant is already soft deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/tenants/{id}/activate:
+    post:
+      summary: Activate tenant
+      description: Activate a deactivated tenant
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Tenant activated successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Tenant is soft deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/tenants/{id}/deactivate:
+    post:
+      summary: Deactivate tenant
+      description: Deactivate an active tenant
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Tenant deactivated successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Tenant is soft deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/tenants/{id}/adopt:
+    post:
+      summary: Adopt device to tenant
+      description: Associate a device with a tenant
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantAdoptDeviceRequest'
+      responses:
+        '200':
+          description: Device adopted successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Tenant or device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Tenant is soft deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/tenants/{id}/devices:
+    get:
+      summary: List tenant devices
+      description: Retrieve all devices associated with a tenant
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of tenant devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Tenant is soft deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Devices
+  /v1/devices:
+    get:
+      summary: List devices
+      description: Retrieve a list of all devices
+      tags:
+        - Devices
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create device
+      description: Create a new device
+      tags:
+        - Devices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreateRequest'
+      responses:
+        '201':
+          description: Device created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Device already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/devices/{id}:
+    put:
+      summary: Update device
+      description: Update an existing device's display name
+      tags:
+        - Devices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUpdateRequest'
+      responses:
+        '200':
+          description: Device updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/devices/{id}/commands:
+    post:
+      summary: Send command to device
+      description: Send a command sequence to a specific device
+      tags:
+        - Devices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandSendRequest'
+      responses:
+        '201':
+          description: Command sent successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/devices/{id}/tasks:
+    post:
+      summary: Create task for device
+      description: Create a task with multiple commands for a specific device
+      tags:
+        - Tasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Command overlap detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/devices/{id}/evaluation-rules:
+    get:
+      summary: List device evaluation rules
+      description: Retrieve all evaluation rules for a specific device
+      tags:
+        - Evaluation Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of evaluation rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationRuleSetResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create evaluation rule for device
+      description: Create a new evaluation rule for a specific device
+      tags:
+        - Evaluation Rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationRuleCreateRequest'
+      responses:
+        '201':
+          description: Evaluation rule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationRuleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Scheduled Tasks
+  /v1/tenants/{tenant_id}/scheduled-tasks:
+    get:
+      summary: List scheduled tasks
+      description: Retrieve all scheduled tasks for a specific tenant
+      tags:
+        - Scheduled Tasks
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of scheduled tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledTaskListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create scheduled task
+      description: Create a new scheduled task for a specific tenant
+      tags:
+        - Scheduled Tasks
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledTaskCreateRequest'
+      responses:
+        '201':
+          description: Scheduled task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledTaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/tenants/{tenant_id}/scheduled-tasks/{id}:
+    get:
+      summary: Get scheduled task
+      description: Retrieve a specific scheduled task
+      tags:
+        - Scheduled Tasks
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          description: Scheduled task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Scheduled task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledTaskResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update scheduled task
+      description: Update an existing scheduled task
+      tags:
+        - Scheduled Tasks
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          description: Scheduled task ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledTaskUpdateRequest'
+      responses:
+        '200':
+          description: Scheduled task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledTaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    # Common schemas
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+      example:
+        message: "An error occurred"
+
+    # Tenant schemas
+    TenantCreateRequest:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Tenant name
+          example: "Acme Corporation"
+        email:
+          type: string
+          format: email
+          description: Tenant email address
+          example: "admin@acme.com"
+        description:
+          type: string
+          maxLength: 500
+          description: Tenant description
+          example: "Manufacturing company specializing in IoT solutions"
+
+    TenantUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Tenant name
+          example: "Acme Corporation"
+        email:
+          type: string
+          format: email
+          description: Tenant email address
+          example: "admin@acme.com"
+        description:
+          type: string
+          maxLength: 500
+          description: Tenant description
+          example: "Manufacturing company specializing in IoT solutions"
+
+    TenantAdoptDeviceRequest:
+      type: object
+      required:
+        - device_id
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          description: Device ID to adopt
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+    TenantResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Tenant ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Tenant name
+          example: "Acme Corporation"
+        email:
+          type: string
+          format: email
+          description: Tenant email address
+          example: "admin@acme.com"
+        description:
+          type: string
+          description: Tenant description
+          example: "Manufacturing company specializing in IoT solutions"
+        is_active:
+          type: boolean
+          description: Whether the tenant is active
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-01T00:00:00Z"
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Soft deletion timestamp
+          example: null
+
+    TenantListResponse:
+      type: object
+      properties:
+        tenants:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantResponse'
+        total:
+          type: integer
+          description: Total number of tenants
+          example: 10
+
+    # Device schemas
+    DeviceCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Device name (unique identifier)
+          example: "sensor-001"
+        display_name:
+          type: string
+          description: Human-readable device name
+          example: "Temperature Sensor 1"
+        app_eui:
+          type: string
+          description: LoRaWAN Application EUI
+          example: "0000000000000001"
+        dev_eui:
+          type: string
+          description: LoRaWAN Device EUI
+          example: "0000000000000001"
+        app_key:
+          type: string
+          description: LoRaWAN Application Key
+          example: "00000000000000000000000000000000"
+
+    DeviceUpdateRequest:
+      type: object
+      required:
+        - display_name
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Human-readable device name
+          example: "Temperature Sensor 1"
+
+    DeviceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Device ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Device name
+          example: "sensor-001"
+        display_name:
+          type: string
+          description: Human-readable device name
+          example: "Temperature Sensor 1"
+        app_eui:
+          type: string
+          description: LoRaWAN Application EUI
+          example: "0000000000000001"
+        dev_eui:
+          type: string
+          description: LoRaWAN Device EUI
+          example: "0000000000000001"
+        app_key:
+          type: string
+          description: LoRaWAN Application Key
+          example: "00000000000000000000000000000000"
+        tenant_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Associated tenant ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        status:
+          type: string
+          description: Device status
+          example: "online"
+        last_message_received_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last received message
+          example: "2024-01-01T00:00:00Z"
+
+    DeviceListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceResponse'
+
+    # Command schemas
+    CommandSendRequest:
+      type: object
+      required:
+        - sequence
+      properties:
+        priority:
+          type: string
+          description: Command priority
+          enum: [LOW, NORMAL, HIGH]
+          default: "NORMAL"
+          example: "NORMAL"
+        sequence:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandSendPayloadRequest'
+          description: Sequence of commands to send
+
+    CommandSendPayloadRequest:
+      type: object
+      required:
+        - index
+        - value
+      properties:
+        wait_for:
+          type: string
+          description: Duration to wait before executing this command
+          example: "30s"
+        priority:
+          type: string
+          description: Command priority
+          enum: [LOW, NORMAL, HIGH]
+          example: "NORMAL"
+        index:
+          type: integer
+          minimum: 0
+          maximum: 255
+          description: Sensor/actuator index
+          example: 1
+        value:
+          type: integer
+          minimum: 0
+          maximum: 255
+          description: Command value
+          example: 100
+
+    CommandResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Command ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        priority:
+          type: string
+          description: Command priority
+          example: "NORMAL"
+
+    # Task schemas
+    TaskCreateRequest:
+      type: object
+      required:
+        - commands
+      properties:
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandSendPayloadRequest'
+          description: Commands to execute as part of the task
+
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Task ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+
+    # Scheduled Task schemas
+    ScheduledTaskCreateRequest:
+      type: object
+      required:
+        - device_id
+        - task
+        - schedule
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          description: Target device ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        task:
+          $ref: '#/components/schemas/TaskCreateRequest'
+        schedule:
+          type: string
+          description: Cron expression for scheduling
+          example: "0 */5 * * * *"
+        is_active:
+          type: boolean
+          description: Whether the scheduled task is active
+          default: true
+          example: true
+
+    ScheduledTaskUpdateRequest:
+      type: object
+      properties:
+        task:
+          $ref: '#/components/schemas/TaskCreateRequest'
+        schedule:
+          type: string
+          description: Cron expression for scheduling
+          example: "0 */5 * * * *"
+        is_active:
+          type: boolean
+          description: Whether the scheduled task is active
+          example: true
+
+    ScheduledTaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Scheduled task ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        device_id:
+          type: string
+          format: uuid
+          description: Target device ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        task_id:
+          type: string
+          format: uuid
+          description: Associated task ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        schedule:
+          type: string
+          description: Cron expression for scheduling
+          example: "0 */5 * * * *"
+        is_active:
+          type: boolean
+          description: Whether the scheduled task is active
+          example: true
+
+    ScheduledTaskListResponse:
+      type: object
+      properties:
+        scheduled_tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduledTaskResponse'
+
+    # Evaluation Rule schemas
+    EvaluationRuleCreateRequest:
+      type: object
+      required:
+        - description
+        - kind
+        - parameters
+      properties:
+        description:
+          type: string
+          description: Rule description
+          example: "Temperature threshold alert"
+        kind:
+          type: string
+          description: Rule type
+          example: "threshold"
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationRuleParametersCreateRequest'
+          description: Rule parameters
+
+    EvaluationRuleParametersCreateRequest:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: Parameter key
+          example: "threshold"
+        value:
+          description: Parameter value
+          example: 25.5
+
+    EvaluationRuleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Evaluation rule ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        device:
+          type: string
+          format: uuid
+          description: Associated device ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        description:
+          type: string
+          description: Rule description
+          example: "Temperature threshold alert"
+        kind:
+          type: string
+          description: Rule type
+          example: "threshold"
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationRuleParametersResponse'
+        enabled:
+          type: boolean
+          description: Whether the rule is enabled
+          example: true
+
+    EvaluationRuleParametersResponse:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Parameter key
+          example: "threshold"
+        value:
+          description: Parameter value
+          example: 25.5
+
+    EvaluationRuleSetResponse:
+      type: object
+      properties:
+        evaluation_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationRuleResponse'
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Health
+    description: Health and monitoring endpoints
+  - name: Monitoring
+    description: Metrics and observability endpoints
+  - name: WebSocket
+    description: Real-time communication endpoints
+  - name: Tenants
+    description: Multi-tenant management
+  - name: Devices
+    description: IoT device management
+  - name: Tasks
+    description: Task execution and management
+  - name: Scheduled Tasks
+    description: Scheduled task management with cron-based scheduling
+  - name: Evaluation Rules
+    description: Device behavior evaluation rules 

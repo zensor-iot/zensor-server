@@ -28,3 +28,10 @@ type TaskService interface {
 	Create(context.Context, domain.Task) error
 	Run(context.Context, domain.Task) error
 }
+
+type ScheduledTaskService interface {
+	Create(context.Context, domain.ScheduledTask) error
+	FindAllByTenant(context.Context, domain.ID) ([]domain.ScheduledTask, error)
+	GetByID(context.Context, domain.ID) (domain.ScheduledTask, error)
+	Update(context.Context, domain.ScheduledTask) error
+}

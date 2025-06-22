@@ -66,6 +66,59 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 	return nil, nil
 }
 
+func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, error) {
+	wire.Build(
+		provideAppConfig,
+		provideKafkaPublisherFactoryOptions,
+		pubsub.NewKafkaPublisherFactory,
+		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
+		provideDatabase,
+		persistence.NewScheduledTaskRepository,
+		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
+		persistence.NewDeviceRepository,
+		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
+		communication.NewCommandPublisher,
+		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
+		usecases.NewDeviceService,
+		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		usecases.NewTenantService,
+		wire.Bind(new(usecases.TenantService), new(*usecases.SimpleTenantService)),
+		usecases.NewScheduledTaskService,
+		wire.Bind(new(usecases.ScheduledTaskService), new(*usecases.SimpleScheduledTaskService)),
+		httpapi.NewScheduledTaskController,
+	)
+
+	return nil, nil
+}
+
+func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.ScheduledTaskWorker, error) {
+	wire.Build(
+		provideAppConfig,
+		provideTicker,
+		provideDatabase,
+		provideKafkaPublisherFactoryOptions,
+		pubsub.NewKafkaPublisherFactory,
+		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
+		persistence.NewScheduledTaskRepository,
+		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
+		persistence.NewTaskRepository,
+		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
+		usecases.NewTaskService,
+		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
+		persistence.NewDeviceRepository,
+		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
+		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleDeviceRepository)),
+		communication.NewCommandPublisher,
+		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
+		usecases.NewDeviceService,
+		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		usecases.NewScheduledTaskWorker,
+	)
+	return nil, nil
+}
+
 func InitializeTenantController() (*httpapi.TenantController, error) {
 	wire.Build(
 		provideAppConfig,

@@ -51,6 +51,7 @@ func main() {
 		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTaskController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTenantController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializeScheduledTaskController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
 	)
 
@@ -77,6 +78,8 @@ func main() {
 	go workers.NewLoraIntegrationWorker(ticker, deviceService, mqttClient, internalBroker, consumerFactory).Run(appCtx, wg.Done)
 	wg.Add(1)
 	go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+	wg.Add(1)
+	go handleWireInjector(wire.InitializeScheduledTaskWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
