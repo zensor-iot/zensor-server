@@ -2,15 +2,51 @@ default:
     @just --list
 
 init:
-    just install_otelcol
+    just install-deps
 
-install_otelcol:
+install-deps: install-otelcol
+    @echo "📦 Installing Go tools..."
+    @if ! command -v golangci-lint &> /dev/null; then \
+        echo "   - golangci-lint not found, installing..."; \
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+    else \
+        echo "   - golangci-lint already installed."; \
+    fi
+    @if ! command -v ginkgo &> /dev/null; then \
+        echo "   - ginkgo not found, installing..."; \
+        go install github.com/onsi/ginkgo/v2/ginkgo@latest; \
+    else \
+        echo "   - ginkgo already installed."; \
+    fi
+    @if ! command -v wire &> /dev/null; then \
+        echo "   - wire not found, installing..."; \
+        go install github.com/google/wire/cmd/wire@latest; \
+    else \
+        echo "   - wire already installed."; \
+    fi
+    @if ! command -v arch-go &> /dev/null; then \
+        echo "   - arch-go not found, installing..."; \
+        go install github.com/arch-go/arch-go@latest; \
+    else \
+        echo "   - arch-go already installed."; \
+    fi
+    @echo "✅ All dependencies installed."
+
+install-otelcol:
     #!/bin/bash
+    if [ -f "./otelcol" ]; then
+        echo "otelcol is already installed."
+        exit 0
+    fi
     arch=$(uname -m)
-    mkdir tmp
+    if [[ "$arch" == "x86_64" ]]; then
+        arch="amd64"
+    fi
+    echo "Installing otelcol for darwin/${arch}..."
+    mkdir -p tmp
     pushd tmp
-    curl --proto '=https' --tlsv1.2 -fOL https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.108.0/otelcol_0.108.0_darwin_${arch}.tar.gz
-    tar -xvf otelcol_0.108.0_darwin_arm64.tar.gz
+    curl --proto '=https' --tlsv1.2 -fOL "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.108.0/otelcol_0.108.0_darwin_${arch}.tar.gz"
+    tar -xvf "otelcol_0.108.0_darwin_${arch}.tar.gz"
     popd
     mv tmp/otelcol .
     rm -rf tmp
@@ -182,6 +218,43 @@ tdd path="internal":
 
 unit path="internal":
     ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
+
+functional tags="": build setup validate-db
+    #!/bin/bash
+    echo "🚀 Starting server in background..."
+    ./server &
+    SERVER_PID=$!
+    
+    # Teardown function to ensure the server is killed
+    teardown() {
+        echo "🔪 Tearing down server (PID: $SERVER_PID)..."
+        kill $SERVER_PID
+        wait $SERVER_PID 2>/dev/null
+    }
+    
+    # Trap exit signals to ensure teardown runs
+    trap teardown EXIT
+    
+    echo "⏳ Waiting for server to be ready..."
+    max_attempts=30
+    attempt=0
+    while ! nc -z localhost 3000; do
+        if [ $attempt -ge $max_attempts ]; then
+            echo "❌ Server failed to start after 30 seconds."
+            exit 1
+        fi
+        sleep 1
+        attempt=$((attempt+1))
+    done
+    echo "✅ Server is ready."
+    
+    echo "🧪 Running functional tests..."
+    echo "   - Running tests with tags: {{tags}}"
+    cd test/functional
+    go test -v --godog.tags={{tags}}
+    TEST_EXIT_CODE=$?
+    
+    exit $TEST_EXIT_CODE
 
 c4:
     docker run -it \
