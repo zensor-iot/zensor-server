@@ -1,0 +1,157 @@
+package driver
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
+type APIDriver struct {
+	baseURL string
+	client  *http.Client
+}
+
+func NewAPIDriver(baseURL string) *APIDriver {
+	return &APIDriver{
+		baseURL: baseURL,
+		client:  &http.Client{},
+	}
+}
+
+func (d *APIDriver) CreateTenant(name, email, description string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"name":        name,
+		"email":       email,
+		"description": description,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants", d.baseURL), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) GetTenant(id string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s", d.baseURL, id))
+}
+
+func (d *APIDriver) ListTenants() (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants", d.baseURL))
+}
+
+func (d *APIDriver) UpdateTenant(id, newName string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{"name": newName})
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s", d.baseURL, id), bytes.NewBuffer(reqBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) DeactivateTenant(id string) (*http.Response, error) {
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/deactivate", d.baseURL, id), "application/json", nil)
+}
+
+func (d *APIDriver) ActivateTenant(id string) (*http.Response, error) {
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/activate", d.baseURL, id), "application/json", nil)
+}
+
+func (d *APIDriver) SoftDeleteTenant(id string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/v1/tenants/%s", d.baseURL, id), nil)
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) CreateDevice(name, displayName string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{"name": name, "display_name": displayName})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/devices", d.baseURL), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) ListDevices() (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/devices", d.baseURL))
+}
+
+func (d *APIDriver) UpdateDevice(id, newDisplayName string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{"display_name": newDisplayName})
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/devices/%s", d.baseURL, id), bytes.NewBuffer(reqBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) CreateTask(deviceID string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"commands": []map[string]interface{}{
+			{"index": 1, "value": 100},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/devices/%s/tasks", d.baseURL, deviceID), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) CreateScheduledTask(tenantID, deviceID, schedule string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"device_id": deviceID,
+		"schedule":  schedule,
+		"task": map[string]interface{}{
+			"commands": []map[string]interface{}{
+				{"index": 1, "value": 200},
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks", d.baseURL, tenantID), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) ListScheduledTasks(tenantID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks", d.baseURL, tenantID))
+}
+
+func (d *APIDriver) UpdateScheduledTask(tenantID, scheduledTaskID, newSchedule string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{"schedule": &newSchedule})
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks/%s", d.baseURL, tenantID, scheduledTaskID), bytes.NewBuffer(reqBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) CreateEvaluationRule(deviceID string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"description": "test rule",
+		"kind":        "threshold",
+		"parameters": []map[string]interface{}{
+			{"key": "threshold", "value": 25},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/devices/%s/evaluation-rules", d.baseURL, deviceID), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) ListEvaluationRules(deviceID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/devices/%s/evaluation-rules", d.baseURL, deviceID))
+}
