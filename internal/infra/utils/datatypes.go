@@ -34,7 +34,7 @@ func (p Time) Value() (driver.Value, error) {
 	return p.Time, nil
 }
 
-func (p *Time) Scan(src interface{}) error {
+func (p *Time) Scan(src any) error {
 	p.Time = src.(time.Time)
 	return nil
 }

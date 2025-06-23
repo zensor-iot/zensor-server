@@ -18,7 +18,7 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 	fc.require.NoError(err)
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
 	fc.tenantID = data["id"].(string)
@@ -42,7 +42,7 @@ func (fc *FeatureContext) iGetTheTenantByItsID() error {
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheTenantWithName(name string) error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.Equal(name, data["name"])
@@ -57,7 +57,7 @@ func (fc *FeatureContext) iListAllTenants() error {
 }
 
 func (fc *FeatureContext) theListShouldContainTheTenantWithName(name string) error {
-	var tenantList map[string][]map[string]interface{}
+	var tenantList map[string][]map[string]any
 	err := fc.decodeBody(fc.response.Body, &tenantList)
 	fc.require.NoError(err)
 

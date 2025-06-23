@@ -15,13 +15,13 @@ func (fc *FeatureContext) theResponseStatusCodeShouldBe(code int) error {
 	return nil
 }
 
-func (fc *FeatureContext) decodeBody(body io.ReadCloser, v interface{}) error {
+func (fc *FeatureContext) decodeBody(body io.ReadCloser, v any) error {
 	defer body.Close()
 	return json.NewDecoder(body).Decode(v)
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheTenantDetails() error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])

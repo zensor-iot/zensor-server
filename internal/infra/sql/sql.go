@@ -14,5 +14,5 @@ type Database interface {
 	Close()
 	Up(string)
 	Command(string) error
-	Query(context.Context, string, ...interface{}) ([][]byte, error)
+	Query(context.Context, string, ...any) ([][]byte, error)
 }

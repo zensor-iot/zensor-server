@@ -20,7 +20,7 @@ func NewAPIDriver(baseURL string) *APIDriver {
 }
 
 func (d *APIDriver) CreateTenant(name, email, description string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{
+	reqBody, err := json.Marshal(map[string]any{
 		"name":        name,
 		"email":       email,
 		"description": description,
@@ -40,7 +40,7 @@ func (d *APIDriver) ListTenants() (*http.Response, error) {
 }
 
 func (d *APIDriver) UpdateTenant(id, newName string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{"name": newName})
+	reqBody, err := json.Marshal(map[string]any{"name": newName})
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +69,7 @@ func (d *APIDriver) SoftDeleteTenant(id string) (*http.Response, error) {
 }
 
 func (d *APIDriver) CreateDevice(name, displayName string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{"name": name, "display_name": displayName})
+	reqBody, err := json.Marshal(map[string]any{"name": name, "display_name": displayName})
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +81,7 @@ func (d *APIDriver) ListDevices() (*http.Response, error) {
 }
 
 func (d *APIDriver) UpdateDevice(id, newDisplayName string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{"display_name": newDisplayName})
+	reqBody, err := json.Marshal(map[string]any{"display_name": newDisplayName})
 	if err != nil {
 		panic(err)
 	}
@@ -94,8 +94,8 @@ func (d *APIDriver) UpdateDevice(id, newDisplayName string) (*http.Response, err
 }
 
 func (d *APIDriver) CreateTask(deviceID string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{
-		"commands": []map[string]interface{}{
+	reqBody, err := json.Marshal(map[string]any{
+		"commands": []map[string]any{
 			{"index": 1, "value": 100},
 		},
 	})
@@ -106,11 +106,11 @@ func (d *APIDriver) CreateTask(deviceID string) (*http.Response, error) {
 }
 
 func (d *APIDriver) CreateScheduledTask(tenantID, deviceID, schedule string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{
+	reqBody, err := json.Marshal(map[string]any{
 		"device_id": deviceID,
 		"schedule":  schedule,
-		"task": map[string]interface{}{
-			"commands": []map[string]interface{}{
+		"task": map[string]any{
+			"commands": []map[string]any{
 				{"index": 1, "value": 200},
 			},
 		},
@@ -126,7 +126,7 @@ func (d *APIDriver) ListScheduledTasks(tenantID string) (*http.Response, error) 
 }
 
 func (d *APIDriver) UpdateScheduledTask(tenantID, scheduledTaskID, newSchedule string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{"schedule": &newSchedule})
+	reqBody, err := json.Marshal(map[string]any{"schedule": &newSchedule})
 	if err != nil {
 		panic(err)
 	}
@@ -139,10 +139,10 @@ func (d *APIDriver) UpdateScheduledTask(tenantID, scheduledTaskID, newSchedule s
 }
 
 func (d *APIDriver) CreateEvaluationRule(deviceID string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]interface{}{
+	reqBody, err := json.Marshal(map[string]any{
 		"description": "test rule",
 		"kind":        "threshold",
-		"parameters": []map[string]interface{}{
+		"parameters": []map[string]any{
 			{"key": "threshold", "value": 25},
 		},
 	})

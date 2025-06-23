@@ -18,7 +18,7 @@ func (fc *FeatureContext) aDeviceExistsWithName(name string) error {
 	fc.require.NoError(err)
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
 	fc.deviceID = data["id"].(string)
@@ -26,7 +26,7 @@ func (fc *FeatureContext) aDeviceExistsWithName(name string) error {
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheDeviceDetails() error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])
@@ -43,7 +43,7 @@ func (fc *FeatureContext) iListAllDevices() error {
 }
 
 func (fc *FeatureContext) theListShouldContainTheDeviceWithName(name string) error {
-	var devicesList map[string][]map[string]interface{}
+	var devicesList map[string][]map[string]any
 	err := fc.decodeBody(fc.response.Body, &devicesList)
 	fc.require.NoError(err)
 
@@ -66,7 +66,7 @@ func (fc *FeatureContext) iUpdateTheDeviceWithANewDisplayName(newDisplayName str
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheDeviceWithDisplayName(displayName string) error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.Equal(displayName, data["display_name"])

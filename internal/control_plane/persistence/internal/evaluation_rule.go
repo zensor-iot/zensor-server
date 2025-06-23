@@ -31,7 +31,7 @@ func (p Parameters) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-func (p *Parameters) Scan(src interface{}) error {
+func (p *Parameters) Scan(src any) error {
 	data, ok := src.(string)
 	if !ok {
 		return errors.New("invalid type")

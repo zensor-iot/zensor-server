@@ -15,7 +15,7 @@ func (fc *FeatureContext) anEvaluationRuleExistsForTheDevice() error {
 	fc.require.NoError(err)
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
 	fc.evaluationRuleID = data["id"].(string)
@@ -30,7 +30,7 @@ func (fc *FeatureContext) iCreateAnEvaluationRuleForTheDevice() error {
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheEvaluationRuleDetails() error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])
@@ -47,7 +47,7 @@ func (fc *FeatureContext) iListAllEvaluationRulesForTheDevice() error {
 }
 
 func (fc *FeatureContext) theListShouldContainOurEvaluationRule() error {
-	var rulesList map[string][]map[string]interface{}
+	var rulesList map[string][]map[string]any
 	err := fc.decodeBody(fc.response.Body, &rulesList)
 	fc.require.NoError(err)
 

@@ -16,11 +16,11 @@ type EventRepository interface {
 }
 
 type EventRecord struct {
-	ID       string      `json:"id"`
-	DeviceID string      `json:"device_id"`
-	Instant  time.Time   `json:"instant"`
-	Kind     string      `json:"kind"`
-	Data     interface{} `json:"data"`
+	ID       string    `json:"id"`
+	DeviceID string    `json:"device_id"`
+	Instant  time.Time `json:"instant"`
+	Kind     string    `json:"kind"`
+	Data     any       `json:"data"`
 }
 
 type eventRepositoryDefault struct {

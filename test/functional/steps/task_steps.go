@@ -9,7 +9,7 @@ func (fc *FeatureContext) iCreateATaskForTheDevice() error {
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheTaskDetails() error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])

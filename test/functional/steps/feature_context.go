@@ -13,8 +13,8 @@ import (
 type FeatureContext struct {
 	apiDriver        *driver.APIDriver
 	response         *http.Response
-	responseData     map[string]interface{}
-	responseListData []map[string]interface{}
+	responseData     map[string]any
+	responseListData []map[string]any
 	tenantID         string
 	deviceID         string
 	scheduledTaskID  string

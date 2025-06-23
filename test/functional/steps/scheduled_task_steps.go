@@ -15,7 +15,7 @@ func (fc *FeatureContext) aScheduledTaskExistsForTheTenantAndDeviceWithSchedule(
 	fc.require.NoError(err)
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
 	fc.scheduledTaskID = data["id"].(string)
@@ -30,7 +30,7 @@ func (fc *FeatureContext) iCreateAScheduledTaskForTheTenantAndDeviceWithSchedule
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetails() error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])
@@ -47,7 +47,7 @@ func (fc *FeatureContext) iListAllScheduledTasksForTheTenant() error {
 }
 
 func (fc *FeatureContext) theListShouldContainOurScheduledTask() error {
-	var tasksList map[string][]map[string]interface{}
+	var tasksList map[string][]map[string]any
 	err := fc.decodeBody(fc.response.Body, &tasksList)
 	fc.require.NoError(err)
 
@@ -70,7 +70,7 @@ func (fc *FeatureContext) iUpdateTheScheduledTaskWithANewSchedule(newSchedule st
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSchedule() error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.Equal(fc.scheduledTaskID, data["id"])

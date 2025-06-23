@@ -26,11 +26,11 @@ type DeviceRegisteredEvent struct {
 }
 
 type DeviceEvent struct {
-	ID       string      `json:"id"`
-	DeviceID string      `json:"device_id"`
-	Instant  time.Time   `json:"instant"`
-	Kind     string      `json:"kind"`
-	Data     interface{} `json:"data"`
+	ID       string    `json:"id"`
+	DeviceID string    `json:"device_id"`
+	Instant  time.Time `json:"instant"`
+	Kind     string    `json:"kind"`
+	Data     any       `json:"data"`
 }
 
 func EvaluateThingToServer(events chan mqtt.Event, publisher pubsub.Publisher, eventPublisher pubsub.Publisher) {

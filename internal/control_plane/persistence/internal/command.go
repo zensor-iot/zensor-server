@@ -54,7 +54,7 @@ func (v CommandPayload) Value() (driver.Value, error) {
 	return json.Marshal(v)
 }
 
-func (v *CommandPayload) Scan(value interface{}) error {
+func (v *CommandPayload) Scan(value any) error {
 	data, ok := value.(string)
 	if !ok {
 		return errors.New("type assertion to string failed")

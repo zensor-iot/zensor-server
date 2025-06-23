@@ -21,7 +21,7 @@ func ReplyWithError(w http.ResponseWriter, statusCode int, errMsg string) {
 	json.NewEncoder(w).Encode(errResponse)
 }
 
-func ReplyJSONResponse(w http.ResponseWriter, statusCode int, output interface{}) {
+func ReplyJSONResponse(w http.ResponseWriter, statusCode int, output any) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(output)

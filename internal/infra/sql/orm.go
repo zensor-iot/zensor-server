@@ -12,21 +12,21 @@ import (
 type ORM interface {
 	AutoMigrate(dst ...any) error
 	Count(count *int64) ORM
-	Create(value interface{}) ORM
-	Delete(value interface{}, conds ...interface{}) ORM
+	Create(value any) ORM
+	Delete(value any, conds ...any) ORM
 	Find(dest any, conds ...any) ORM
-	First(dest interface{}, conds ...interface{}) ORM
+	First(dest any, conds ...any) ORM
 	Limit(limit int) ORM
-	Model(value interface{}) ORM
+	Model(value any) ORM
 	Offset(offset int) ORM
-	Preload(query string, args ...interface{}) ORM
-	Save(value interface{}) ORM
+	Preload(query string, args ...any) ORM
+	Save(value any) ORM
 	Transaction(fc func(tx ORM) error, opts ...*sql.TxOptions) error
 	Unscoped() ORM
-	Where(query interface{}, args ...interface{}) ORM
+	Where(query any, args ...any) ORM
 	WithContext(ctx context.Context) ORM
-	Joins(value string, args ...interface{}) ORM
-	InnerJoins(value string, args ...interface{}) ORM
+	Joins(value string, args ...any) ORM
+	InnerJoins(value string, args ...any) ORM
 
 	Error() error
 }

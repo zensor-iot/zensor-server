@@ -7,8 +7,8 @@ import (
 )
 
 type Codec interface {
-	Encode(value interface{}) (data []byte, err error)
-	Decode(data []byte) (value interface{}, err error)
+	Encode(value any) (data []byte, err error)
+	Decode(data []byte) (value any, err error)
 }
 
 func newJSONCodec(prototype any) *JSONCodec {
