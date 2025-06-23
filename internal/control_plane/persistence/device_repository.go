@@ -17,6 +17,14 @@ func NewDeviceRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) 
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
 
+	err = orm.AutoMigrate(
+		&internal.Device{},
+		&internal.Command{},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("auto migrating: %w", err)
+	}
+
 	return &SimpleDeviceRepository{
 		publisher: publisher,
 		orm:       orm,

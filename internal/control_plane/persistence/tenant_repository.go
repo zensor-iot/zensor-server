@@ -17,6 +17,11 @@ func NewTenantRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) 
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
 
+	err = orm.AutoMigrate(&internal.Tenant{})
+	if err != nil {
+		return nil, fmt.Errorf("auto migrating: %w", err)
+	}
+
 	return &SimpleTenantRepository{
 		publisher: publisher,
 		orm:       orm,

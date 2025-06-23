@@ -4,6 +4,7 @@
 package wire
 
 import (
+	"os"
 	"time"
 	"zensor-server/cmd/config"
 	"zensor-server/internal/control_plane/communication"
@@ -45,9 +46,8 @@ func InitializeDeviceController() (*httpapi.DeviceController, error) {
 func InitializeTaskController() (*httpapi.TaskController, error) {
 	wire.Build(
 		provideAppConfig,
-		provideKafkaPublisherFactoryOptions,
-		pubsub.NewKafkaPublisherFactory,
-		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
+		providePubSubFactory,
+		providePublisherFactory,
 		persistence.NewTaskRepository,
 		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
 		provideDatabase,
@@ -97,22 +97,14 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 	wire.Build(
 		provideAppConfig,
 		provideTicker,
-		provideDatabase,
-		provideKafkaPublisherFactoryOptions,
-		pubsub.NewKafkaPublisherFactory,
-		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
 		persistence.NewScheduledTaskRepository,
 		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
 		persistence.NewTaskRepository,
 		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
 		usecases.NewTaskService,
 		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
-		persistence.NewDeviceRepository,
-		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
 		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleDeviceRepository)),
-		communication.NewCommandPublisher,
-		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
-		usecases.NewDeviceService,
+		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		usecases.NewScheduledTaskWorker,
 	)
@@ -156,6 +148,23 @@ var DeviceServiceSet = wire.NewSet(
 	usecases.NewDeviceService,
 )
 
+func providePubSubFactory(config config.AppConfig) *pubsub.Factory {
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	return pubsub.NewFactory(pubsub.FactoryOptions{
+		Environment:   env,
+		KafkaBrokers:  config.Kafka.Brokers,
+		ConsumerGroup: "zensor-server",
+	})
+}
+
+func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {
+	return factory.GetPublisherFactory()
+}
+
 func provideKafkaPublisherFactoryOptions(config config.AppConfig) pubsub.KafkaPublisherFactoryOptions {
 	return pubsub.KafkaPublisherFactoryOptions{
 		Brokers: config.Kafka.Brokers,
@@ -163,6 +172,20 @@ func provideKafkaPublisherFactoryOptions(config config.AppConfig) pubsub.KafkaPu
 }
 
 func provideDatabase(config config.AppConfig) sql.ORM {
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	if env == "local" {
+		orm, err := sql.NewMemoryORM("migrations", config.Postgresql.MigrationReplacements)
+		if err != nil {
+			panic(err)
+		}
+
+		return orm
+	}
+
 	db := sql.NewPosgreDatabase(config.Postgresql.URL)
 	if err := db.Open(); err != nil {
 		panic(err)

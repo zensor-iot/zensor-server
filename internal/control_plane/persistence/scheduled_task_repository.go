@@ -20,6 +20,11 @@ func NewScheduledTaskRepository(publisherFactory pubsub.PublisherFactory, orm sq
 		return nil, fmt.Errorf("creating scheduled task publisher: %w", err)
 	}
 
+	err = orm.AutoMigrate(&internal.ScheduledTask{})
+	if err != nil {
+		return nil, fmt.Errorf("auto migrating: %w", err)
+	}
+
 	return &SimpleScheduledTaskRepository{
 		publisher: publisher,
 		orm:       orm,

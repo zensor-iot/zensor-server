@@ -18,6 +18,11 @@ func NewEvaluationRuleRepository(publisherFactory pubsub.PublisherFactory, orm s
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
 
+	err = orm.AutoMigrate(&internal.EvaluationRule{})
+	if err != nil {
+		return nil, fmt.Errorf("auto migrating: %w", err)
+	}
+
 	return &EvaluationRuleRepository{
 		publisher: publisher,
 		orm:       orm,

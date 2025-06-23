@@ -27,6 +27,7 @@ func NewTaskRepository(
 	if err != nil {
 		return nil, fmt.Errorf("creating command publisher: %w", err)
 	}
+
 	return &SimpleTaskRepository{
 		taskPublisher:    taskPublisher,
 		commandPublisher: commandPublisher,

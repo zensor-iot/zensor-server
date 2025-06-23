@@ -32,6 +32,7 @@
 - Avoid global variables except for constants or configuration.
 - Use struct embedding for code reuse, not inheritance.
 - All configuration should be loaded from environment variables or config files, never hardcoded.
+- Always use any instead of interface{}
 
 # Go Testing
 

@@ -33,6 +33,7 @@ type ORM interface {
 
 type DB struct {
 	*gorm.DB
+	autoMigrationEnabled bool
 }
 
 var (
@@ -60,6 +61,14 @@ var (
 )
 
 var _ ORM = (*DB)(nil)
+
+func (d DB) AutoMigrate(dst ...any) error {
+	if d.autoMigrationEnabled {
+		return d.DB.AutoMigrate(dst...)
+	}
+
+	return nil
+}
 
 func (d DB) Count(value *int64) ORM {
 	tx := d.DB.Count(value)
@@ -141,7 +150,7 @@ func (d DB) WithContext(value context.Context) ORM {
 
 func (d DB) Transaction(f func(ORM) error, opts ...*sql.TxOptions) error {
 	return d.DB.Transaction(func(tx *gorm.DB) error {
-		return f(&DB{tx})
+		return f(&DB{tx, d.autoMigrationEnabled})
 	}, opts...)
 }
 
