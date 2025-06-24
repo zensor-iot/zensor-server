@@ -99,7 +99,7 @@ func (w *LoraIntegrationWorker) setupOtelCounters() {
 
 func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototype {
 	out := make(chan pubsub.Prototype, 1)
-	handler := func(msg pubsub.Prototype) error {
+	handler := func(key pubsub.Key, msg pubsub.Prototype) error {
 		out <- msg
 		return nil
 	}

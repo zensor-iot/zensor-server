@@ -37,7 +37,6 @@ type SimpleTenantRepository struct {
 
 func (r *SimpleTenantRepository) Create(ctx context.Context, tenant domain.Tenant) error {
 	data := internal.FromTenant(tenant)
-
 	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), data)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)

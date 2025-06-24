@@ -22,5 +22,5 @@ type Consumer interface {
 }
 
 type Topic string
-type MessageHandler func(Prototype) error
+type MessageHandler func(Key, Prototype) error
 type Prototype any

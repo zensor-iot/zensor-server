@@ -100,11 +100,16 @@ setup:
 build:
     go build -o server cmd/api/main.go
 
-run: build setup validate-db
+run: build
     #!/bin/bash
+    if [ "${ENV}" = "local" ]; then
+        echo "🌱 Local mode: skipping Docker dependencies (setup/validate-db)..."
+    else
+        just setup
+        just validate-db
+    fi
     echo "🔧 starting opentelemetry collector..."
     ./otelcol --config otelcol_config.yaml > otelcol.log 2>&1 &
-    
     echo "🚀 starting zensor server with hot reload..."
     find . -type f -name '*.go' | entr ./server
 

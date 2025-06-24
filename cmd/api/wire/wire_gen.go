@@ -17,6 +17,8 @@ import (
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/infra/replication"
+	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
 )
 
@@ -24,19 +26,18 @@ import (
 
 func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, error) {
 	appConfig := provideAppConfig()
-	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	evaluationRuleRepository, err := persistence.NewEvaluationRuleRepository(kafkaPublisherFactory, orm)
+	evaluationRuleRepository, err := persistence.NewEvaluationRuleRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
 	simpleEvaluationRuleService := usecases.NewEvaluationRuleService(evaluationRuleRepository)
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
@@ -47,14 +48,13 @@ func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, er
 
 func InitializeDeviceController() (*httpapi.DeviceController, error) {
 	appConfig := provideAppConfig()
-	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
@@ -88,24 +88,23 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 
 func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, error) {
 	appConfig := provideAppConfig()
-	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleScheduledTaskRepository, err := persistence.NewScheduledTaskRepository(kafkaPublisherFactory, orm)
+	simpleScheduledTaskRepository, err := persistence.NewScheduledTaskRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
 	simpleScheduledTaskService := usecases.NewScheduledTaskService(simpleScheduledTaskRepository)
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
 	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, commandPublisher)
-	simpleTenantRepository, err := persistence.NewTenantRepository(kafkaPublisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
@@ -117,23 +116,22 @@ func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, erro
 func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.ScheduledTaskWorker, error) {
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
-	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleScheduledTaskRepository, err := persistence.NewScheduledTaskRepository(kafkaPublisherFactory, orm)
+	simpleScheduledTaskRepository, err := persistence.NewScheduledTaskRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTaskRepository, err := persistence.NewTaskRepository(kafkaPublisherFactory)
+	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
 	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleDeviceRepository)
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
@@ -144,18 +142,17 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 
 func InitializeTenantController() (*httpapi.TenantController, error) {
 	appConfig := provideAppConfig()
-	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleTenantRepository, err := persistence.NewTenantRepository(kafkaPublisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
@@ -167,14 +164,13 @@ func InitializeTenantController() (*httpapi.TenantController, error) {
 
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	appConfig := provideAppConfig()
-	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
@@ -185,14 +181,13 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWorker, error) {
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
-	kafkaPublisherFactoryOptions := provideKafkaPublisherFactoryOptions(appConfig)
-	kafkaPublisherFactory := pubsub.NewKafkaPublisherFactory(kafkaPublisherFactoryOptions)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(kafkaPublisherFactory, orm)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	commandPublisher, err := communication.NewCommandPublisher(kafkaPublisherFactory)
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
@@ -205,11 +200,32 @@ func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*h
 	return deviceMessageWebSocketController, nil
 }
 
+func InitializeReplicationService() (*replication.Service, error) {
+	consumerFactory := provideMemoryConsumerFactory()
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	service := replication.NewService(consumerFactory, orm)
+	return service, nil
+}
+
+func InitializeDeviceHandler() (*handlers.DeviceHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	deviceHandler := handlers.NewDeviceHandler(orm)
+	return deviceHandler, nil
+}
+
+func InitializeTenantHandler() (*handlers.TenantHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	tenantHandler := handlers.NewTenantHandler(orm)
+	return tenantHandler, nil
+}
+
 // control_plane.go:
 
 var DeviceServiceSet = wire.NewSet(
-	provideDatabase,
-	provideKafkaPublisherFactoryOptions, pubsub.NewKafkaPublisherFactory, wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)), persistence.NewDeviceRepository, wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)), communication.NewCommandPublisher, wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)), usecases.NewDeviceService,
+	provideDatabase, persistence.NewDeviceRepository, wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)), communication.NewCommandPublisher, wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)), usecases.NewDeviceService,
 )
 
 func providePubSubFactory(config2 config.AppConfig) *pubsub.Factory {
@@ -268,4 +284,31 @@ func provideDatabase(config2 config.AppConfig) sql.ORM {
 func provideTicker() *time.Ticker {
 	ticker := time.NewTicker(30 * time.Second)
 	return ticker
+}
+
+func provideMemoryConsumerFactory() pubsub.ConsumerFactory {
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	if env == "local" {
+		return pubsub.NewMemoryConsumerFactory("replicator")
+	}
+
+	return nil
+}
+
+func providePublisherFactoryForEnvironment(config2 config.AppConfig) pubsub.PublisherFactory {
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	if env == "local" {
+		return pubsub.NewMemoryPublisherFactory()
+	}
+
+	kafkaOptions := provideKafkaPublisherFactoryOptions(config2)
+	return pubsub.NewKafkaPublisherFactory(kafkaOptions)
 }

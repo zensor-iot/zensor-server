@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -32,6 +33,7 @@ type MemoryPublisher struct {
 }
 
 func (p *MemoryPublisher) Publish(ctx context.Context, key Key, message Message) error {
+	slog.Debug("publishing message", slog.String("key", string(key)))
 	return p.broker.Publish(p.topic, key, message)
 }
 
@@ -106,6 +108,7 @@ func GetMemoryBroker() *MemoryBroker {
 }
 
 func (b *MemoryBroker) Publish(topic Topic, key Key, message Message) error {
+	slog.Debug("publish")
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -186,8 +189,8 @@ func (b *MemoryBroker) processSubscribers(topicChan *TopicChannel, event Message
 						}
 					}()
 
-					// Call the handler with the actual message
-					if err := c.Handler(event.Message); err != nil {
+					// Call the handler with both key and message
+					if err := c.Handler(event.Key, event.Message); err != nil {
 						fmt.Printf("error in message handler: %v\n", err)
 					}
 				}(consumer)

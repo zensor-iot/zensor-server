@@ -62,6 +62,7 @@ func (s *SimpleTenantService) CreateTenant(ctx context.Context, tenant domain.Te
 		return ErrTenantDuplicated
 	}
 
+	fmt.Println("*** creating tenant", tenant)
 	err = s.repository.Create(ctx, tenant)
 	if err != nil {
 		slog.Error("creating tenant", slog.String("error", err.Error()))

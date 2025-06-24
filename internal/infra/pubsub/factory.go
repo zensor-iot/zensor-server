@@ -1,5 +1,7 @@
 package pubsub
 
+import "log/slog"
+
 // Factory creates the appropriate pubsub implementation based on environment
 type Factory struct {
 	publisherFactory PublisherFactory
@@ -9,6 +11,7 @@ type Factory struct {
 // NewFactory creates a new factory with the appropriate implementation
 func NewFactory(opts FactoryOptions) *Factory {
 	if opts.Environment == "local" {
+		slog.Debug("memory publisher initializing...")
 		return &Factory{
 			publisherFactory: NewMemoryPublisherFactory(),
 			consumerFactory:  NewMemoryConsumerFactory(opts.ConsumerGroup),
@@ -16,6 +19,7 @@ func NewFactory(opts FactoryOptions) *Factory {
 	}
 
 	// Use Kafka for all other environments
+	slog.Debug("kafka publisher initializing...")
 	return &Factory{
 		publisherFactory: NewKafkaPublisherFactory(KafkaPublisherFactoryOptions{
 			Brokers: opts.KafkaBrokers,

@@ -13,6 +13,8 @@ import (
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/infra/replication"
+	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
 
 	"github.com/google/wire"
@@ -21,6 +23,7 @@ import (
 func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, error) {
 	wire.Build(
 		provideAppConfig,
+		providePublisherFactoryForEnvironment,
 		persistence.NewEvaluationRuleRepository,
 		wire.Bind(new(usecases.EvaluationRuleRepository), new(*persistence.EvaluationRuleRepository)),
 		DeviceServiceSet,
@@ -35,6 +38,7 @@ func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, er
 func InitializeDeviceController() (*httpapi.DeviceController, error) {
 	wire.Build(
 		provideAppConfig,
+		providePublisherFactoryForEnvironment,
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		httpapi.NewDeviceController,
@@ -69,9 +73,7 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, error) {
 	wire.Build(
 		provideAppConfig,
-		provideKafkaPublisherFactoryOptions,
-		pubsub.NewKafkaPublisherFactory,
-		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
+		providePublisherFactoryForEnvironment,
 		provideDatabase,
 		persistence.NewScheduledTaskRepository,
 		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
@@ -97,14 +99,20 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 	wire.Build(
 		provideAppConfig,
 		provideTicker,
+		provideDatabase,
+		providePublisherFactoryForEnvironment,
 		persistence.NewScheduledTaskRepository,
 		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
 		persistence.NewTaskRepository,
 		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
+		persistence.NewDeviceRepository,
+		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
+		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleDeviceRepository)),
 		usecases.NewTaskService,
 		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
-		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleDeviceRepository)),
-		DeviceServiceSet,
+		communication.NewCommandPublisher,
+		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
+		usecases.NewDeviceService,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		usecases.NewScheduledTaskWorker,
 	)
@@ -114,6 +122,7 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 func InitializeTenantController() (*httpapi.TenantController, error) {
 	wire.Build(
 		provideAppConfig,
+		providePublisherFactoryForEnvironment,
 		persistence.NewTenantRepository,
 		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
 		DeviceServiceSet,
@@ -129,6 +138,7 @@ func InitializeTenantController() (*httpapi.TenantController, error) {
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	wire.Build(
 		provideAppConfig,
+		providePublisherFactoryForEnvironment,
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 	)
@@ -138,9 +148,6 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 
 var DeviceServiceSet = wire.NewSet(
 	provideDatabase,
-	provideKafkaPublisherFactoryOptions,
-	pubsub.NewKafkaPublisherFactory,
-	wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
 	persistence.NewDeviceRepository,
 	wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
 	communication.NewCommandPublisher,
@@ -206,9 +213,7 @@ func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWork
 		provideAppConfig,
 		provideTicker,
 		provideDatabase,
-		provideKafkaPublisherFactoryOptions,
-		pubsub.NewKafkaPublisherFactory,
-		wire.Bind(new(pubsub.PublisherFactory), new(*pubsub.KafkaPublisherFactory)),
+		providePublisherFactoryForEnvironment,
 		communication.NewCommandPublisher,
 		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
 		persistence.NewDeviceRepository,
@@ -228,4 +233,60 @@ func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*h
 		httpapi.NewDeviceMessageWebSocketController,
 	)
 	return nil, nil
+}
+
+func InitializeReplicationService() (*replication.Service, error) {
+	wire.Build(
+		provideAppConfig,
+		provideMemoryConsumerFactory,
+		provideDatabase,
+		replication.NewService,
+	)
+	return nil, nil
+}
+
+func provideMemoryConsumerFactory() pubsub.ConsumerFactory {
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	if env == "local" {
+		return pubsub.NewMemoryConsumerFactory("replicator")
+	}
+
+	// Return nil for non-local environments - replication service will handle this
+	return nil
+}
+
+func InitializeDeviceHandler() (*handlers.DeviceHandler, error) {
+	wire.Build(
+		provideAppConfig,
+		provideDatabase,
+		handlers.NewDeviceHandler,
+	)
+	return nil, nil
+}
+
+func InitializeTenantHandler() (*handlers.TenantHandler, error) {
+	wire.Build(
+		provideAppConfig,
+		provideDatabase,
+		handlers.NewTenantHandler,
+	)
+	return nil, nil
+}
+
+func providePublisherFactoryForEnvironment(config config.AppConfig) pubsub.PublisherFactory {
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	if env == "local" {
+		return pubsub.NewMemoryPublisherFactory()
+	}
+
+	kafkaOptions := provideKafkaPublisherFactoryOptions(config)
+	return pubsub.NewKafkaPublisherFactory(kafkaOptions)
 }

@@ -17,6 +17,8 @@ import (
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/infra/replication"
+	"zensor-server/internal/infra/replication/handlers"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -58,6 +60,9 @@ func main() {
 	appCtx, cancelFn := context.WithCancel(context.Background())
 	go httpServer.Run()
 
+	// Initialize replication service for local environment
+	replicationService := initializeReplicationService()
+
 	var wg sync.WaitGroup
 	ticker := time.NewTicker(30 * time.Second)
 	simpleClientOpts := mqtt.SimpleClientOpts{
@@ -67,7 +72,19 @@ func main() {
 		Password: config.MQTTClient.Password, //pragma: allowlist secret
 	}
 	mqttClient := mqtt.NewSimpleClient(simpleClientOpts)
-	consumerFactory := pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group)
+
+	// Use environment-aware consumer factory
+	var consumerFactory pubsub.ConsumerFactory
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+	if env == "local" {
+		consumerFactory = pubsub.NewMemoryConsumerFactory("lora-integration")
+	} else {
+		consumerFactory = pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group)
+	}
+
 	deviceService, err := wire.InitializeDeviceService()
 	if err != nil {
 		panic(err)
@@ -86,10 +103,56 @@ func main() {
 
 	<-signalChannel
 	shutdownOtel()
+
+	// Stop replication service if running
+	if replicationService != nil {
+		replicationService.Stop()
+	}
+
 	cancelFn()
 	wg.Wait()
 	slog.Info("good bye!!!")
 	os.Exit(0)
+}
+
+// initializeReplicationService initializes and starts the replication service for local environment
+func initializeReplicationService() *replication.Service {
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	if env != "local" {
+		return nil
+	}
+
+	slog.Info("initializing replication service for local environment")
+
+	// Initialize replication service
+	replicationService := handleWireInjector(wire.InitializeReplicationService()).(*replication.Service)
+
+	// Register handlers
+	deviceHandler := handleWireInjector(wire.InitializeDeviceHandler()).(*handlers.DeviceHandler)
+	tenantHandler := handleWireInjector(wire.InitializeTenantHandler()).(*handlers.TenantHandler)
+
+	if err := replicationService.RegisterHandler(deviceHandler); err != nil {
+		slog.Error("failed to register device handler", slog.Any("error", err))
+		panic(err)
+	}
+
+	if err := replicationService.RegisterHandler(tenantHandler); err != nil {
+		slog.Error("failed to register tenant handler", slog.Any("error", err))
+		panic(err)
+	}
+
+	// Start the replication service
+	if err := replicationService.Start(); err != nil {
+		slog.Error("failed to start replication service", slog.Any("error", err))
+		panic(err)
+	}
+
+	slog.Info("replication service started successfully")
+	return replicationService
 }
 
 func slogReplaceSource(groups []string, a slog.Attr) slog.Attr {

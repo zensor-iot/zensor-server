@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/lovoo/goka"
@@ -15,6 +16,7 @@ const (
 
 func NewKafkaPublisher(brokers []string, topic string, prototype any) (*SimpleKafkaPublisher, error) {
 	for try := 0; try < maxRetries; try++ {
+		slog.Debug("connecting to kafka brokers", slog.String("brokers", strings.Join(brokers, ",")))
 		e, err := goka.NewEmitter(brokers, goka.Stream(topic), newJSONCodec(prototype))
 
 		if err != nil {
@@ -32,6 +34,7 @@ type SimpleKafkaPublisher struct {
 }
 
 func (p *SimpleKafkaPublisher) Publish(_ context.Context, key Key, message Message) error {
+	slog.Debug("publishing message", slog.String("key", string(key)))
 	err := p.emitter.EmitSync(string(key), message)
 	if err != nil {
 		slog.Error("emitting message", slog.String("error", err.Error()))
@@ -59,7 +62,8 @@ type SimpleKafkaConsumer struct {
 func (c *SimpleKafkaConsumer) Consume(topic Topic, handler MessageHandler, prototype Prototype) error {
 	cb := func(ctx goka.Context, msg any) {
 		slog.Debug("message received", slog.Any("msg", msg))
-		handler(msg)
+		key := Key(ctx.Key())
+		handler(key, msg)
 	}
 	stream := goka.Stream(topic)
 	gg := goka.DefineGroup(

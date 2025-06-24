@@ -36,8 +36,8 @@ func ExampleFactory_usage() {
 	messageReceived := make(chan bool, 1)
 
 	// Message handler
-	handler := func(prototype Prototype) error {
-		fmt.Printf("Received message: %v\n", prototype)
+	handler := func(key Key, prototype Prototype) error {
+		fmt.Printf("Received message: %v (key: %v)\n", prototype, key)
 		messageReceived <- true
 		return nil
 	}
@@ -69,7 +69,7 @@ func ExampleFactory_usage() {
 	}
 
 	// Output:
-	// Received message: hello from example
+	// Received message: hello from example (key: test-key)
 	// Message received successfully!
 }
 
