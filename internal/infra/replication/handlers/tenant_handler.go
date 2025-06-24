@@ -91,52 +91,34 @@ func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantData {
 		Version: 1,
 	}
 
-	// Extract ID field
 	if idField := val.FieldByName("ID"); idField.IsValid() {
-		if idField.Type().String() == "domain.ID" {
-			// Handle domain.ID type by calling String() method
-			if stringMethod := idField.MethodByName("String"); stringMethod.IsValid() {
-				results := stringMethod.Call(nil)
-				if len(results) > 0 {
-					result.ID = results[0].String()
-				}
-			}
-		} else {
-			result.ID = idField.Interface().(string)
-		}
+		result.ID = idField.Interface().(string)
 	}
 
-	// Extract Name field
 	if nameField := val.FieldByName("Name"); nameField.IsValid() {
 		result.Name = nameField.Interface().(string)
 	}
 
-	// Extract Email field
 	if emailField := val.FieldByName("Email"); emailField.IsValid() {
 		result.Email = emailField.Interface().(string)
 	}
 
-	// Extract Description field
 	if descField := val.FieldByName("Description"); descField.IsValid() {
 		result.Description = descField.Interface().(string)
 	}
 
-	// Extract IsActive field
 	if activeField := val.FieldByName("IsActive"); activeField.IsValid() {
 		result.IsActive = activeField.Interface().(bool)
 	}
 
-	// Extract CreatedAt field
 	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
 		result.CreatedAt = createdAtField.Interface().(time.Time)
 	}
 
-	// Extract UpdatedAt field
 	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
 		result.UpdatedAt = updatedAtField.Interface().(time.Time)
 	}
 
-	// Extract DeletedAt field
 	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
 		if deletedAtField.IsNil() {
 			result.DeletedAt = nil
@@ -149,7 +131,6 @@ func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantData {
 	return result
 }
 
-// toDomainTenant converts internal tenant to domain representation
 func (h *TenantHandler) toDomainTenant(internalTenant TenantData) map[string]any {
 	return map[string]any{
 		"id":   internalTenant.ID,

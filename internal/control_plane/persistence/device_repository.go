@@ -17,10 +17,7 @@ func NewDeviceRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) 
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
 
-	err = orm.AutoMigrate(
-		&internal.Device{},
-		&internal.Command{},
-	)
+	err = orm.AutoMigrate(&internal.Device{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
@@ -194,36 +191,4 @@ func (s *SimpleDeviceRepository) FindAllEvaluationRules(ctx context.Context, dev
 	// }
 
 	return result, nil
-}
-
-var _ usecases.CommandRepository = (*SimpleDeviceRepository)(nil)
-
-func (r *SimpleDeviceRepository) FindAllPending(ctx context.Context) ([]domain.Command, error) {
-	var entities internal.CommandSet
-	err := r.orm.
-		WithContext(ctx).
-		Where("sent = ?", false).
-		Find(&entities).
-		Error()
-
-	if err != nil {
-		return nil, fmt.Errorf("database query: %w", err)
-	}
-
-	return entities.ToDomain(), nil
-}
-
-func (r *SimpleDeviceRepository) FindPendingByDevice(ctx context.Context, deviceID domain.ID) ([]domain.Command, error) {
-	var entities internal.CommandSet
-	err := r.orm.
-		WithContext(ctx).
-		Where("sent = ? AND device_id = ?", false, deviceID.String()).
-		Find(&entities).
-		Error()
-
-	if err != nil {
-		return nil, fmt.Errorf("database query: %w", err)
-	}
-
-	return entities.ToDomain(), nil
 }

@@ -72,11 +72,15 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 		return nil, err
 	}
 	orm := provideDatabase(appConfig)
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository)
 	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleDeviceRepository)
 	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
@@ -126,11 +130,15 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 	if err != nil {
 		return nil, err
 	}
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository)
 	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleDeviceRepository)
 	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
@@ -181,17 +189,17 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWorker, error) {
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
 	}
-	commandWorker := usecases.NewCommandWorker(ticker, simpleDeviceRepository, commandPublisher, broker)
+	commandWorker := usecases.NewCommandWorker(ticker, simpleCommandRepository, commandPublisher, broker)
 	return commandWorker, nil
 }
 

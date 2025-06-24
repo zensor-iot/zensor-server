@@ -9,7 +9,6 @@ import (
 	"zensor-server/internal/infra/sql"
 )
 
-// DeviceData represents the device table structure for GORM operations
 type DeviceData struct {
 	ID                    string     `json:"id" gorm:"primaryKey"`
 	Version               int        `json:"version"`
@@ -21,14 +20,12 @@ type DeviceData struct {
 	TenantID              *string    `json:"tenant_id" gorm:"index"`
 	LastMessageReceivedAt *time.Time `json:"last_message_received_at"`
 	CreatedAt             time.Time  `json:"created_at"`
-	// UpdatedAt             time.Time  `json:"updated_at"`
 }
 
 func (DeviceData) TableName() string {
 	return "devices_final"
 }
 
-// DeviceHandler handles replication of device data
 type DeviceHandler struct {
 	orm sql.ORM
 }
@@ -82,7 +79,6 @@ func (h *DeviceHandler) Update(ctx context.Context, key pubsub.Key, message pubs
 	return nil
 }
 
-// extractDeviceFields uses reflection to extract device fields from any message type
 func (h *DeviceHandler) extractDeviceFields(message pubsub.Message) DeviceData {
 	val := reflect.ValueOf(message)
 	if val.Kind() == reflect.Ptr {
@@ -93,47 +89,30 @@ func (h *DeviceHandler) extractDeviceFields(message pubsub.Message) DeviceData {
 		Version: 1,
 	}
 
-	// Extract ID field
 	if idField := val.FieldByName("ID"); idField.IsValid() {
-		if idField.Type().String() == "domain.ID" {
-			// Handle domain.ID type by calling String() method
-			if stringMethod := idField.MethodByName("String"); stringMethod.IsValid() {
-				results := stringMethod.Call(nil)
-				if len(results) > 0 {
-					result.ID = results[0].String()
-				}
-			}
-		} else {
-			result.ID = idField.Interface().(string)
-		}
+		result.ID = idField.Interface().(string)
 	}
 
-	// Extract Name field
 	if nameField := val.FieldByName("Name"); nameField.IsValid() {
 		result.Name = nameField.Interface().(string)
 	}
 
-	// Extract DisplayName field
 	if displayNameField := val.FieldByName("DisplayName"); displayNameField.IsValid() {
 		result.DisplayName = displayNameField.Interface().(string)
 	}
 
-	// Extract AppEUI field
 	if appEUIField := val.FieldByName("AppEUI"); appEUIField.IsValid() {
 		result.AppEUI = appEUIField.Interface().(string)
 	}
 
-	// Extract DevEUI field
 	if devEUIField := val.FieldByName("DevEUI"); devEUIField.IsValid() {
 		result.DevEUI = devEUIField.Interface().(string)
 	}
 
-	// Extract AppKey field
 	if appKeyField := val.FieldByName("AppKey"); appKeyField.IsValid() {
 		result.AppKey = appKeyField.Interface().(string)
 	}
 
-	// Extract TenantID field
 	if tenantIDField := val.FieldByName("TenantID"); tenantIDField.IsValid() {
 		if tenantIDField.IsNil() {
 			result.TenantID = nil
@@ -143,7 +122,6 @@ func (h *DeviceHandler) extractDeviceFields(message pubsub.Message) DeviceData {
 		}
 	}
 
-	// Extract LastMessageReceivedAt field
 	if lastMessageField := val.FieldByName("LastMessageReceivedAt"); lastMessageField.IsValid() {
 		if lastMessageField.IsZero() {
 			result.LastMessageReceivedAt = nil
@@ -153,20 +131,13 @@ func (h *DeviceHandler) extractDeviceFields(message pubsub.Message) DeviceData {
 		}
 	}
 
-	// Extract CreatedAt field
 	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
 		result.CreatedAt = createdAtField.Interface().(time.Time)
 	}
 
-	// Extract UpdatedAt field
-	// if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-	// 	result.UpdatedAt = updatedAtField.Interface().(time.Time)
-	// }
-
 	return result
 }
 
-// toDomainDevice converts internal device to domain representation
 func (h *DeviceHandler) toDomainDevice(internalDevice DeviceData) map[string]any {
 	result := map[string]any{
 		"id":           internalDevice.ID,
