@@ -9,8 +9,8 @@ import (
 	"zensor-server/internal/infra/sql"
 )
 
-// TenantGORM represents the tenant table structure for GORM operations
-type TenantGORM struct {
+// TenantData represents the tenant table structure for GORM operations
+type TenantData struct {
 	ID          string     `json:"id" gorm:"primaryKey"`
 	Version     int        `json:"version"`
 	Name        string     `json:"name" gorm:"uniqueIndex;not null"`
@@ -22,7 +22,7 @@ type TenantGORM struct {
 	DeletedAt   *time.Time `json:"deleted_at,omitempty" gorm:"index"`
 }
 
-func (TenantGORM) TableName() string {
+func (TenantData) TableName() string {
 	return "tenants_final"
 }
 
@@ -57,7 +57,7 @@ func (h *TenantHandler) Create(ctx context.Context, key pubsub.Key, message pubs
 
 // GetByID retrieves a tenant by its ID
 func (h *TenantHandler) GetByID(ctx context.Context, id string) (pubsub.Message, error) {
-	var internalTenant TenantGORM
+	var internalTenant TenantData
 
 	err := h.orm.WithContext(ctx).First(&internalTenant, "id = ?", id).Error()
 	if err != nil {
@@ -81,13 +81,13 @@ func (h *TenantHandler) Update(ctx context.Context, key pubsub.Key, message pubs
 }
 
 // extractTenantFields uses reflection to extract tenant fields from any message type
-func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantGORM {
+func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantData {
 	val := reflect.ValueOf(message)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
 
-	result := TenantGORM{
+	result := TenantData{
 		Version: 1,
 	}
 
@@ -150,7 +150,7 @@ func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantGORM {
 }
 
 // toDomainTenant converts internal tenant to domain representation
-func (h *TenantHandler) toDomainTenant(internalTenant TenantGORM) map[string]any {
+func (h *TenantHandler) toDomainTenant(internalTenant TenantData) map[string]any {
 	return map[string]any{
 		"id":   internalTenant.ID,
 		"name": internalTenant.Name,
