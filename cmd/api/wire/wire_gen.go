@@ -67,20 +67,20 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 	appConfig := provideAppConfig()
 	factory := providePubSubFactory(appConfig)
 	publisherFactory := providePublisherFactory(factory)
-	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory)
+	orm := provideDatabase(appConfig)
+	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	orm := provideDatabase(appConfig)
 	simpleCommandRepository, err := persistence.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository)
 	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository, simpleDeviceRepository)
 	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 	if err != nil {
 		return nil, err
 	}
-	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory)
+	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +134,11 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 	if err != nil {
 		return nil, err
 	}
-	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository)
 	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository, simpleDeviceRepository)
 	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
 	if err != nil {
 		return nil, err
@@ -228,6 +228,13 @@ func InitializeTenantHandler() (*handlers.TenantHandler, error) {
 	orm := provideDatabase(appConfig)
 	tenantHandler := handlers.NewTenantHandler(orm)
 	return tenantHandler, nil
+}
+
+func InitializeTaskHandler() (*handlers.TaskHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	taskHandler := handlers.NewTaskHandler(orm)
+	return taskHandler, nil
 }
 
 // control_plane.go:

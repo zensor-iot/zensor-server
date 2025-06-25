@@ -279,6 +279,15 @@ func InitializeTenantHandler() (*handlers.TenantHandler, error) {
 	return nil, nil
 }
 
+func InitializeTaskHandler() (*handlers.TaskHandler, error) {
+	wire.Build(
+		provideAppConfig,
+		provideDatabase,
+		handlers.NewTaskHandler,
+	)
+	return nil, nil
+}
+
 func providePublisherFactoryForEnvironment(config config.AppConfig) pubsub.PublisherFactory {
 	env, ok := os.LookupEnv("ENV")
 	if !ok {

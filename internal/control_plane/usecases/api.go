@@ -27,6 +27,7 @@ type EvaluationRuleService interface {
 type TaskService interface {
 	Create(context.Context, domain.Task) error
 	Run(context.Context, domain.Task) error
+	FindAllByDevice(context.Context, domain.ID) ([]domain.Task, error)
 }
 
 type ScheduledTaskService interface {

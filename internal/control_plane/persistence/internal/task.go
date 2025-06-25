@@ -7,7 +7,7 @@ import (
 )
 
 type Task struct {
-	ID         string     `json:"id", gorm:"primaryKey"`
+	ID         string     `json:"id" gorm:"primaryKey"`
 	DeviceID   string     `json:"device_id" gorm:"foreignKey:device_id"`
 	Version    uint       `json:"version"`
 	CreatedAt  utils.Time `json:"created_at"`

@@ -36,6 +36,7 @@ type TaskController struct {
 
 func (c *TaskController) AddRoutes(router *http.ServeMux) {
 	router.Handle("POST /v1/devices/{id}/tasks", c.create())
+	router.Handle("GET /v1/devices/{id}/tasks", c.getByDevice())
 }
 
 func (c *TaskController) create() http.HandlerFunc {
@@ -104,5 +105,29 @@ func (c *TaskController) create() http.HandlerFunc {
 		}
 
 		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
+	}
+}
+
+func (c *TaskController) getByDevice() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		tasks, err := c.service.FindAllByDevice(r.Context(), domain.ID(id))
+		if err != nil {
+			slog.Error("get tasks by device failed", slog.String("error", err.Error()))
+			http.Error(w, "failed to get tasks", http.StatusInternalServerError)
+			return
+		}
+
+		response := internal.TaskListResponse{
+			Tasks: make([]internal.TaskResponse, len(tasks)),
+		}
+
+		for i, task := range tasks {
+			response.Tasks[i] = internal.TaskResponse{
+				ID: task.ID.String(),
+			}
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
 	}
 }

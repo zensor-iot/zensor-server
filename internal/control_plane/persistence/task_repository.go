@@ -2,12 +2,12 @@ package persistence
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/infra/sql"
 )
 
 const (
@@ -17,6 +17,7 @@ const (
 
 func NewTaskRepository(
 	publisherFactory pubsub.PublisherFactory,
+	orm sql.ORM,
 ) (*SimpleTaskRepository, error) {
 	taskPublisher, err := publisherFactory.New(_tasksTopic, internal.Task{})
 	if err != nil {
@@ -28,9 +29,15 @@ func NewTaskRepository(
 		return nil, fmt.Errorf("creating command publisher: %w", err)
 	}
 
+	err = orm.AutoMigrate(&internal.Task{})
+	if err != nil {
+		return nil, fmt.Errorf("auto migrating: %w", err)
+	}
+
 	return &SimpleTaskRepository{
 		taskPublisher:    taskPublisher,
 		commandPublisher: commandPublisher,
+		orm:              orm,
 	}, nil
 }
 
@@ -39,6 +46,7 @@ var _ usecases.TaskRepository = (*SimpleTaskRepository)(nil)
 type SimpleTaskRepository struct {
 	taskPublisher    pubsub.Publisher
 	commandPublisher pubsub.Publisher
+	orm              sql.ORM
 }
 
 func (r *SimpleTaskRepository) Create(ctx context.Context, task domain.Task) error {
@@ -61,5 +69,26 @@ func (r *SimpleTaskRepository) Create(ctx context.Context, task domain.Task) err
 }
 
 func (r *SimpleTaskRepository) FindAllByDevice(ctx context.Context, device domain.Device) ([]domain.Task, error) {
-	return nil, errors.New("implement me")
+	var entities []internal.Task
+	err := r.orm.
+		WithContext(ctx).
+		Where("device_id = ?", device.ID.String()).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	tasks := make([]domain.Task, len(entities))
+	for i, entity := range entities {
+		tasks[i] = domain.Task{
+			ID:      domain.ID(entity.ID),
+			Device:  device,
+			Version: domain.Version(entity.Version),
+			// Commands are not loaded here; add if needed
+		}
+	}
+
+	return tasks, nil
 }
