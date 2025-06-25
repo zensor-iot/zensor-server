@@ -12,13 +12,19 @@ var (
 	ErrCommandOverlap   = errors.New("command overlap detected")
 )
 
+// Pagination encapsulates pagination parameters for repository queries
+type Pagination struct {
+	Limit  int
+	Offset int
+}
+
 type DeviceRepository interface {
 	CreateDevice(context.Context, domain.Device) error
 	UpdateDevice(context.Context, domain.Device) error
 	Get(context.Context, string) (domain.Device, error)
 	FindByName(context.Context, string) (domain.Device, error)
 	FindAll(context.Context) ([]domain.Device, error)
-	FindByTenant(context.Context, string) ([]domain.Device, error)
+	FindByTenant(context.Context, string, Pagination) ([]domain.Device, int, error)
 	AddEvaluationRule(context.Context, domain.Device, domain.EvaluationRule) error
 	FindAllEvaluationRules(context.Context, domain.Device) ([]domain.EvaluationRule, error)
 }
@@ -35,7 +41,7 @@ type EvaluationRuleRepository interface {
 
 type TaskRepository interface {
 	Create(context.Context, domain.Task) error
-	FindAllByDevice(context.Context, domain.Device) ([]domain.Task, error)
+	FindAllByDevice(ctx context.Context, device domain.Device, pagination Pagination) ([]domain.Task, int, error)
 }
 
 type ScheduledTaskRepository interface {

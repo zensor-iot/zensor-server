@@ -53,15 +53,22 @@ func (c *TenantController) listTenants() http.HandlerFunc {
 			includeDeleted = true
 		}
 
-		tenants, err := c.service.ListTenants(r.Context(), includeDeleted)
+		params := httpserver.ExtractPaginationParams(r)
+		pagination := usecases.Pagination{Limit: params.Limit, Offset: (params.Page - 1) * params.Limit}
+
+		tenants, total, err := c.service.ListTenants(r.Context(), includeDeleted, pagination)
 		if err != nil {
 			slog.Error("listing tenants", slog.String("error", err.Error()))
 			http.Error(w, listTenantsErrMessage, http.StatusInternalServerError)
 			return
 		}
 
-		response := internal.ToTenantListResponse(tenants)
-		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
+		responses := make([]internal.TenantResponse, len(tenants))
+		for i, tenant := range tenants {
+			responses[i] = internal.ToTenantResponse(tenant)
+		}
+
+		httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, params)
 	}
 }
 
@@ -307,7 +314,10 @@ func (c *TenantController) listTenantDevices() http.HandlerFunc {
 			return
 		}
 
-		devices, err := c.service.ListTenantDevices(r.Context(), domain.ID(tenantID))
+		params := httpserver.ExtractPaginationParams(r)
+		pagination := usecases.Pagination{Limit: params.Limit, Offset: (params.Page - 1) * params.Limit}
+
+		devices, total, err := c.service.ListTenantDevices(r.Context(), domain.ID(tenantID), pagination)
 		if errors.Is(err, usecases.ErrTenantNotFound) {
 			http.Error(w, tenantNotFoundErrMessage, http.StatusNotFound)
 			return
@@ -322,7 +332,11 @@ func (c *TenantController) listTenantDevices() http.HandlerFunc {
 			return
 		}
 
-		response := internal.ToDeviceListResponse(devices)
-		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
+		responses := make([]internal.DeviceResponse, len(devices))
+		for i, device := range devices {
+			responses[i] = internal.ToDeviceResponse(device)
+		}
+
+		httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, params)
 	}
 }

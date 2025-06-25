@@ -58,16 +58,16 @@ func (s *SimpleTaskService) Run(_ context.Context, task domain.Task) error {
 	return errors.New("implement me")
 }
 
-func (s *SimpleTaskService) FindAllByDevice(ctx context.Context, deviceID domain.ID) ([]domain.Task, error) {
+func (s *SimpleTaskService) FindAllByDevice(ctx context.Context, deviceID domain.ID, pagination Pagination) ([]domain.Task, int, error) {
 	device, err := s.deviceRepository.Get(ctx, string(deviceID))
 	if err != nil {
-		return nil, fmt.Errorf("finding device: %w", err)
+		return nil, 0, fmt.Errorf("finding device: %w", err)
 	}
 
-	tasks, err := s.repository.FindAllByDevice(ctx, device)
+	tasks, total, err := s.repository.FindAllByDevice(ctx, device, pagination)
 	if err != nil {
-		return nil, fmt.Errorf("finding tasks by device: %w", err)
+		return nil, 0, fmt.Errorf("finding tasks by device: %w", err)
 	}
 
-	return tasks, nil
+	return tasks, total, nil
 }

@@ -93,19 +93,31 @@ func (r *SimpleTenantRepository) Update(ctx context.Context, tenant domain.Tenan
 	return nil
 }
 
-func (r *SimpleTenantRepository) FindAll(ctx context.Context, includeDeleted bool) ([]domain.Tenant, error) {
-	var entities []internal.Tenant
-
-	query := r.orm.WithContext(ctx)
+func (r *SimpleTenantRepository) FindAll(ctx context.Context, includeDeleted bool, pagination usecases.Pagination) ([]domain.Tenant, int, error) {
+	var total int64
+	query := r.orm.WithContext(ctx).Model(&internal.Tenant{})
 
 	// Filter out soft-deleted tenants unless specifically requested
 	if !includeDeleted {
 		query = query.Where("deleted_at IS NULL")
 	}
 
-	err := query.Find(&entities).Error()
+	err := query.Count(&total).Error()
 	if err != nil {
-		return nil, fmt.Errorf("database query: %w", err)
+		return nil, 0, fmt.Errorf("count query: %w", err)
+	}
+
+	var entities []internal.Tenant
+	query = r.orm.WithContext(ctx)
+
+	// Filter out soft-deleted tenants unless specifically requested
+	if !includeDeleted {
+		query = query.Where("deleted_at IS NULL")
+	}
+
+	err = query.Limit(pagination.Limit).Offset(pagination.Offset).Find(&entities).Error()
+	if err != nil {
+		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
 
 	result := make([]domain.Tenant, len(entities))
@@ -113,5 +125,5 @@ func (r *SimpleTenantRepository) FindAll(ctx context.Context, includeDeleted boo
 		result[i] = entity.ToDomain()
 	}
 
-	return result, nil
+	return result, int(total), nil
 }

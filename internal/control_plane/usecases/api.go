@@ -11,7 +11,7 @@ type DeviceService interface {
 	CreateDevice(context.Context, domain.Device) error
 	GetDevice(context.Context, domain.ID) (domain.Device, error)
 	AllDevices(context.Context) ([]domain.Device, error)
-	DevicesByTenant(context.Context, domain.ID) ([]domain.Device, error)
+	DevicesByTenant(context.Context, domain.ID, Pagination) ([]domain.Device, int, error)
 	UpdateDeviceDisplayName(context.Context, domain.ID, string) error
 	QueueCommand(context.Context, domain.Command) error
 	QueueCommandSequence(context.Context, domain.CommandSequence) error
@@ -27,7 +27,7 @@ type EvaluationRuleService interface {
 type TaskService interface {
 	Create(context.Context, domain.Task) error
 	Run(context.Context, domain.Task) error
-	FindAllByDevice(context.Context, domain.ID) ([]domain.Task, error)
+	FindAllByDevice(context.Context, domain.ID, Pagination) ([]domain.Task, int, error)
 }
 
 type ScheduledTaskService interface {

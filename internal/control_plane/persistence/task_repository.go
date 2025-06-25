@@ -68,16 +68,28 @@ func (r *SimpleTaskRepository) Create(ctx context.Context, task domain.Task) err
 	return nil
 }
 
-func (r *SimpleTaskRepository) FindAllByDevice(ctx context.Context, device domain.Device) ([]domain.Task, error) {
-	var entities []internal.Task
+func (r *SimpleTaskRepository) FindAllByDevice(ctx context.Context, device domain.Device, pagination usecases.Pagination) ([]domain.Task, int, error) {
+	var total int64
 	err := r.orm.
 		WithContext(ctx).
+		Model(&internal.Task{}).
 		Where("device_id = ?", device.ID.String()).
+		Count(&total).
+		Error()
+	if err != nil {
+		return nil, 0, fmt.Errorf("count query: %w", err)
+	}
+
+	var entities []internal.Task
+	err = r.orm.
+		WithContext(ctx).
+		Where("device_id = ?", device.ID.String()).
+		Limit(pagination.Limit).
+		Offset(pagination.Offset).
 		Find(&entities).
 		Error()
-
 	if err != nil {
-		return nil, fmt.Errorf("database query: %w", err)
+		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
 
 	tasks := make([]domain.Task, len(entities))
@@ -90,5 +102,5 @@ func (r *SimpleTaskRepository) FindAllByDevice(ctx context.Context, device domai
 		}
 	}
 
-	return tasks, nil
+	return tasks, int(total), nil
 }

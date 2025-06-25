@@ -111,23 +111,23 @@ func (c *TaskController) create() http.HandlerFunc {
 func (c *TaskController) getByDevice() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		tasks, err := c.service.FindAllByDevice(r.Context(), domain.ID(id))
+		params := httpserver.ExtractPaginationParams(r)
+		pagination := usecases.Pagination{Limit: params.Limit, Offset: (params.Page - 1) * params.Limit}
+
+		tasks, total, err := c.service.FindAllByDevice(r.Context(), domain.ID(id), pagination)
 		if err != nil {
 			slog.Error("get tasks by device failed", slog.String("error", err.Error()))
 			http.Error(w, "failed to get tasks", http.StatusInternalServerError)
 			return
 		}
 
-		response := internal.TaskListResponse{
-			Tasks: make([]internal.TaskResponse, len(tasks)),
-		}
-
+		responses := make([]internal.TaskResponse, len(tasks))
 		for i, task := range tasks {
-			response.Tasks[i] = internal.TaskResponse{
+			responses[i] = internal.TaskResponse{
 				ID: task.ID.String(),
 			}
 		}
 
-		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
+		httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, params)
 	}
 }
