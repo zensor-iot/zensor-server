@@ -23,9 +23,9 @@ type EndDeviceIDs struct {
 }
 
 type UplinkMessage struct {
-	Port           uint8                   `json:"port"`
-	RawPayload     []byte                  `json:"frm_payload"`
-	DecodedPayload map[string][]SensorData `json:"decoded_payload"`
+	Port           uint8  `json:"port"`
+	RawPayload     []byte `json:"frm_payload"`
+	DecodedPayload map[string][]SensorData
 }
 
 type SensorData struct {

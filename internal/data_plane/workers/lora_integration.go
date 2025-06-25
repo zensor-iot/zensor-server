@@ -104,7 +104,12 @@ func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototy
 		return nil
 	}
 
-	go w.pubsubConsumer.Consume(PubSubTopicDeviceCommands, handler, shared_kernel.Command{})
+	go func() {
+		err := w.pubsubConsumer.Consume(PubSubTopicDeviceCommands, handler, map[string]any{})
+		if err != nil {
+			slog.Error("failed to consume commands", slog.String("error", err.Error()))
+		}
+	}()
 	return out
 }
 
@@ -178,11 +183,16 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 
 func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mqtt.Message) {
 	var envelop dto.Envelop
-	json.Unmarshal(msg.Payload(), &envelop)
+	err := json.Unmarshal(msg.Payload(), &envelop)
+	if err != nil {
+		slog.Error("failed to unmarshal message", slog.String("error", err.Error()))
+		return
+	}
+
 	envelop.UplinkMessage.FromMessagePack()
 
 	deviceName := envelop.EndDeviceIDs.DeviceID
-	err := w.service.UpdateLastMessageReceivedAt(ctx, deviceName)
+	err = w.service.UpdateLastMessageReceivedAt(ctx, deviceName)
 	if err != nil {
 		slog.Error("failed to update device last message timestamp",
 			slog.String("device_name", deviceName),
@@ -193,7 +203,10 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 		Event: "uplink",
 		Value: envelop,
 	}
-	w.broker.Publish(ctx, BrokerTopicUplinkMessage, brokerMsg)
+	err = w.broker.Publish(ctx, BrokerTopicUplinkMessage, brokerMsg)
+	if err != nil {
+		slog.Error("failed to publish message", slog.String("error", err.Error()))
+	}
 	slog.Debug("envelop", slog.Any("envelop", envelop))
 
 	temperatures := envelop.UplinkMessage.DecodedPayload[_metricKeyTemperature]
@@ -222,11 +235,13 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 
 func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pubsub.Prototype, done func()) {
 	defer done()
-	command, ok := msg.(*shared_kernel.Command)
-	if !ok {
-		slog.Error("parsing message type", slog.String("error", "msg is not dto.Command"), slog.Any("message", msg))
+
+	command, err := w.convertToSharedCommand(msg)
+	if err != nil {
+		slog.Error("converting message to command", slog.String("error", err.Error()))
 		return
 	}
+
 	if !command.Ready {
 		slog.Warn("command won't be send because is not ready")
 		return
@@ -271,6 +286,21 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 			Value: *command,
 		},
 	)
+}
+
+func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*shared_kernel.Command, error) {
+	jsonData, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling message to JSON: %w", err)
+	}
+
+	var command shared_kernel.Command
+	err = json.Unmarshal(jsonData, &command)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshaling to shared_kernel.Command: %w", err)
+	}
+
+	return &command, nil
 }
 
 func (w *LoraIntegrationWorker) Shutdown() {

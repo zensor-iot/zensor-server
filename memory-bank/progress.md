@@ -12,6 +12,7 @@
 - Observability (metrics, health checks)
 - Scheduled tasks with cron-based scheduling
 - **Replication module for local development**
+- **Command flow between control plane and data plane**
 
 ## What's Left to Build
 - Complete ORM wiring for replication handlers
@@ -27,14 +28,19 @@
 - **Core Features**: Complete ✅
 - **Scheduled Tasks**: Complete ✅
 - **Replication Module**: Core implementation complete, wiring pending ⚠️
+- **Command Flow**: Fixed and working ✅
 
 ## Known Issues
 - ORM dependency wiring for replication handlers needs completion
 - Replication module testing and validation pending
 - Need to add more comprehensive error handling for replication failures
 - Monitoring and metrics for replication operations not yet implemented
+- ~~Command type mismatch between control plane and data plane~~ ✅ **RESOLVED**
 
 ## Recent Achievements
+- ✅ **Fixed command type mismatch issue**: Resolved LoraIntegrationWorker receiving internal.Command instead of shared_kernel.Command
+- ✅ **Implemented JSON-based command conversion**: Added generic conversion method to handle type differences
+- ✅ **Updated command consumption**: Modified worker to use generic map consumption with conversion
 - Implemented comprehensive replication module architecture
 - Created TopicHandler interface for flexible topic-specific replication
 - Built DeviceHandler and TenantHandler implementations
