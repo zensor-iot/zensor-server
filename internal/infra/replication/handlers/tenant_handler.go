@@ -70,13 +70,26 @@ func (h *TenantHandler) GetByID(ctx context.Context, id string) (pubsub.Message,
 
 // Update handles updating an existing tenant record
 func (h *TenantHandler) Update(ctx context.Context, key pubsub.Key, message pubsub.Message) error {
-	internalTenant := h.extractTenantFields(message)
+	var existing TenantData
+	if err := h.orm.WithContext(ctx).First(&existing, "id = ?", string(key)).Error(); err != nil {
+		return fmt.Errorf("fetching existing tenant: %w", err)
+	}
+	incoming := h.extractTenantFields(message)
+	if incoming.Name != "" {
+		existing.Name = incoming.Name
+	}
+	if incoming.Email != "" {
+		existing.Email = incoming.Email
+	}
+	existing.Description = incoming.Description
+	existing.IsActive = incoming.IsActive
+	existing.UpdatedAt = incoming.UpdatedAt
+	existing.DeletedAt = incoming.DeletedAt
+	existing.Version = incoming.Version
 
-	err := h.orm.WithContext(ctx).Save(&internalTenant).Error()
-	if err != nil {
+	if err := h.orm.WithContext(ctx).Save(&existing).Error(); err != nil {
 		return fmt.Errorf("updating tenant: %w", err)
 	}
-
 	return nil
 }
 
@@ -93,6 +106,10 @@ func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantData {
 
 	if idField := val.FieldByName("ID"); idField.IsValid() {
 		result.ID = idField.Interface().(string)
+	}
+
+	if versionField := val.FieldByName("Version"); versionField.IsValid() {
+		result.Version = versionField.Interface().(int)
 	}
 
 	if nameField := val.FieldByName("Name"); nameField.IsValid() {

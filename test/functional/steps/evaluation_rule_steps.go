@@ -1,8 +1,24 @@
 package steps
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 )
+
+// EvaluationRule represents an evaluation rule entity in the response
+type EvaluationRule struct {
+	ID          string `json:"id"`
+	DeviceID    string `json:"device_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Condition   string `json:"condition"`
+	Action      string `json:"action"`
+	IsActive    bool   `json:"is_active"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
 
 // Evaluation Rule step implementations
 func (fc *FeatureContext) anEvaluationRuleExistsForTheDevice() error {
@@ -47,13 +63,19 @@ func (fc *FeatureContext) iListAllEvaluationRulesForTheDevice() error {
 }
 
 func (fc *FeatureContext) theListShouldContainOurEvaluationRule() error {
-	var rulesList map[string][]map[string]any
-	err := fc.decodeBody(fc.response.Body, &rulesList)
-	fc.require.NoError(err)
+	body, err := io.ReadAll(fc.response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var paginatedResp PaginatedResponse[EvaluationRule]
+	if err := json.Unmarshal(body, &paginatedResp); err != nil {
+		return fmt.Errorf("failed to decode paginated response: %w", err)
+	}
 
 	found := false
-	for _, rule := range rulesList["evaluation_rules"] {
-		if rule["id"] == fc.evaluationRuleID {
+	for _, rule := range paginatedResp.Data {
+		if rule.ID == fc.evaluationRuleID {
 			found = true
 			break
 		}

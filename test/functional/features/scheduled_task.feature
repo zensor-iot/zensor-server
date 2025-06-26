@@ -5,16 +5,15 @@ Feature: Scheduled Task Management
   I want to be able to create, list, and update scheduled tasks for a tenant.
 
   Scenario: Create a scheduled task
-    Given the service is running
-    And a tenant exists with name "ScheduledTaskTenant" and email "stt@example.com"
+    Given a tenant exists with name "ScheduledTaskTenant" and email "stt@example.com"
     And a device exists with name "scheduled-task-device-001"
     When I create a scheduled task for the tenant and device with schedule "* * * * *"
+    And wait for 250ms
     Then the response status code should be 201
     And the response should contain the scheduled task details
 
   Scenario: List scheduled tasks
-    Given the service is running
-    And a tenant exists with name "ScheduledTaskTenantList" and email "sttl@example.com"
+    Given a tenant exists with name "ScheduledTaskTenantList" and email "sttl@example.com"
     And a device exists with name "scheduled-task-device-002"
     And a scheduled task exists for the tenant and device with schedule "* * * * *"
     When I list all scheduled tasks for the tenant
@@ -22,10 +21,10 @@ Feature: Scheduled Task Management
     And the list should contain our scheduled task
 
   Scenario: Update a scheduled task
-    Given the service is running
-    And a tenant exists with name "ScheduledTaskTenantUpdate" and email "sttu@example.com"
+    Given a tenant exists with name "ScheduledTaskTenantUpdate" and email "sttu@example.com"
     And a device exists with name "scheduled-task-device-003"
     And a scheduled task exists for the tenant and device with schedule "* * * * *"
     When I update the scheduled task with a new schedule "*/5 * * * *"
+    And wait for 250ms
     Then the response status code should be 200
-    And the response should contain the scheduled task with the new schedule 
+    And the response should contain the scheduled task with the new schedule

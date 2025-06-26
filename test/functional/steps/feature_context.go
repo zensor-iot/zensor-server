@@ -2,13 +2,25 @@ package steps
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"zensor-server/test/functional/driver"
 
 	"github.com/cucumber/godog"
 	"github.com/stretchr/testify/require"
 )
+
+// PaginatedResponse represents the new paginated response format
+type PaginatedResponse[T any] struct {
+	Data       []T `json:"data"`
+	Pagination struct {
+		Total  int `json:"total"`
+		Limit  int `json:"limit"`
+		Offset int `json:"offset"`
+	} `json:"pagination"`
+}
 
 type FeatureContext struct {
 	apiDriver        *driver.APIDriver
@@ -31,13 +43,14 @@ func NewFeatureContext() *FeatureContext {
 
 func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	// Generic steps
-	ctx.Given(`^the service is running$`, fc.theServiceIsRunning)
+	ctx.Step(`^wait for (.*)$`, fc.waitForDuration)
 	ctx.Then(`^the response status code should be (\d+)$`, fc.theResponseStatusCodeShouldBe)
 	ctx.Then(`^the response should contain the tenant details$`, fc.theResponseShouldContainTheTenantDetails)
 	ctx.Then(`^the response should contain the device details$`, fc.theResponseShouldContainTheDeviceDetails)
 	ctx.Then(`^the response should contain the task details$`, fc.theResponseShouldContainTheTaskDetails)
 	ctx.Then(`^the response should contain the scheduled task details$`, fc.theResponseShouldContainTheScheduledTaskDetails)
 	ctx.Then(`^the response should contain the evaluation rule details$`, fc.theResponseShouldContainTheEvaluationRuleDetails)
+	ctx.Then(`^the tenant should be soft deleted$`, fc.theTenantShouldBeSoftDeleted)
 
 	// Tenant steps
 	ctx.When(`^I create a new tenant with name "([^"]*)" and email "([^"]*)"$`, fc.iCreateANewTenantWithNameAndEmail)
@@ -98,4 +111,16 @@ func (fc *FeatureContext) reset() {
 	fc.deviceID = ""
 	fc.scheduledTaskID = ""
 	fc.evaluationRuleID = ""
+}
+
+func (fc *FeatureContext) decodeBody(body io.ReadCloser, target any) error {
+	return json.NewDecoder(body).Decode(target)
+}
+
+func (fc *FeatureContext) decodePaginatedResponse(body *http.Response) ([]map[string]any, error) {
+	var paginatedResp PaginatedResponse[map[string]any]
+	if err := fc.decodeBody(body.Body, &paginatedResp); err != nil {
+		return nil, fmt.Errorf("failed to decode paginated response: %w", err)
+	}
+	return paginatedResp.Data, nil
 }

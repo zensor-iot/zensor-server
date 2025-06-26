@@ -1,9 +1,22 @@
 package steps
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 )
+
+// Device represents a device entity in the response
+type Device struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	DisplayName   string `json:"display_name"`
+	TenantID      string `json:"tenant_id"`
+	LastMessageAt string `json:"last_message_at,omitempty"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+}
 
 // Device step implementations
 func (fc *FeatureContext) iCreateANewDeviceWithNameAndDisplayName(name, displayName string) error {
@@ -43,13 +56,19 @@ func (fc *FeatureContext) iListAllDevices() error {
 }
 
 func (fc *FeatureContext) theListShouldContainTheDeviceWithName(name string) error {
-	var devicesList map[string][]map[string]any
-	err := fc.decodeBody(fc.response.Body, &devicesList)
-	fc.require.NoError(err)
+	body, err := io.ReadAll(fc.response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var paginatedResp PaginatedResponse[Device]
+	if err := json.Unmarshal(body, &paginatedResp); err != nil {
+		return fmt.Errorf("failed to decode paginated response: %w", err)
+	}
 
 	found := false
-	for _, device := range devicesList["devices"] {
-		if device["name"] == name {
+	for _, device := range paginatedResp.Data {
+		if device.Name == name {
 			found = true
 			break
 		}

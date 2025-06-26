@@ -11,14 +11,15 @@ import (
 )
 
 const (
-	createTenantErrMessage      = "failed to create tenant"
-	tenantNotFoundErrMessage    = "tenant not found"
-	tenantDuplicatedErrMessage  = "tenant already exists"
-	tenantSoftDeletedErrMessage = "tenant is soft deleted"
-	updateTenantErrMessage      = "failed to update tenant"
-	softDeleteTenantErrMessage  = "failed to soft delete tenant"
-	listTenantsErrMessage       = "failed to list tenants"
-	getTenantErrMessage         = "failed to get tenant"
+	createTenantErrMessage          = "failed to create tenant"
+	tenantNotFoundErrMessage        = "tenant not found"
+	tenantDuplicatedErrMessage      = "tenant already exists"
+	tenantSoftDeletedErrMessage     = "tenant is soft deleted"
+	tenantVersionConflictErrMessage = "tenant version conflict"
+	updateTenantErrMessage          = "failed to update tenant"
+	softDeleteTenantErrMessage      = "failed to soft delete tenant"
+	listTenantsErrMessage           = "failed to list tenants"
+	getTenantErrMessage             = "failed to get tenant"
 )
 
 func NewTenantController(service usecases.TenantService) *TenantController {
@@ -149,7 +150,16 @@ func (c *TenantController) updateTenant() http.HandlerFunc {
 			return
 		}
 
-		err = c.service.UpdateTenant(r.Context(), domain.ID(id), body.Name, body.Email, body.Description)
+		// Create a tenant object with the update data
+		tenant := domain.Tenant{
+			ID:          domain.ID(id),
+			Name:        body.Name,
+			Email:       body.Email,
+			Description: body.Description,
+			Version:     body.Version,
+		}
+
+		err = c.service.UpdateTenant(r.Context(), tenant)
 		if errors.Is(err, usecases.ErrTenantNotFound) {
 			http.Error(w, tenantNotFoundErrMessage, http.StatusNotFound)
 			return
@@ -162,6 +172,10 @@ func (c *TenantController) updateTenant() http.HandlerFunc {
 			http.Error(w, tenantSoftDeletedErrMessage, http.StatusConflict)
 			return
 		}
+		if errors.Is(err, usecases.ErrTenantVersionConflict) {
+			http.Error(w, tenantVersionConflictErrMessage, http.StatusConflict)
+			return
+		}
 		if err != nil {
 			slog.Error("updating tenant", slog.String("error", err.Error()))
 			http.Error(w, updateTenantErrMessage, http.StatusInternalServerError)
@@ -169,7 +183,7 @@ func (c *TenantController) updateTenant() http.HandlerFunc {
 		}
 
 		// Get updated tenant to return
-		tenant, err := c.service.GetTenant(r.Context(), domain.ID(id))
+		tenant, err = c.service.GetTenant(r.Context(), domain.ID(id))
 		if err != nil {
 			slog.Error("getting updated tenant", slog.String("error", err.Error()))
 			http.Error(w, getTenantErrMessage, http.StatusInternalServerError)

@@ -16,6 +16,7 @@ type TenantUpdateRequest struct {
 	Name        string `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
 	Email       string `json:"email,omitempty" validate:"omitempty,email"`
 	Description string `json:"description,omitempty" validate:"omitempty,max=500"`
+	Version     int    `json:"version,omitempty"`
 }
 
 type TenantAdoptDeviceRequest struct {
@@ -29,6 +30,7 @@ type TenantResponse struct {
 	Email       string     `json:"email"`
 	Description string     `json:"description"`
 	IsActive    bool       `json:"is_active"`
+	Version     int        `json:"version"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
@@ -47,6 +49,7 @@ func ToTenantResponse(tenant domain.Tenant) TenantResponse {
 		Email:       tenant.Email,
 		Description: tenant.Description,
 		IsActive:    tenant.IsActive,
+		Version:     tenant.Version,
 		CreatedAt:   tenant.CreatedAt,
 		UpdatedAt:   tenant.UpdatedAt,
 		DeletedAt:   tenant.DeletedAt,

@@ -3,7 +3,17 @@ package steps
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
+
+// Tenant represents a tenant entity in the response
+type Tenant struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
 
 // Tenant step implementations
 func (fc *FeatureContext) iCreateANewTenantWithNameAndEmail(name, email string) error {
@@ -27,6 +37,7 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 
 func (fc *FeatureContext) aDeactivatedTenantExistsWithNameAndEmail(name, email string) error {
 	err := fc.aTenantExistsWithNameAndEmail(name, email)
+	time.Sleep(50 * time.Millisecond) // wait for replication to complete
 	fc.require.NoError(err)
 	resp, err := fc.apiDriver.DeactivateTenant(fc.tenantID)
 	fc.require.NoError(err)
@@ -57,13 +68,12 @@ func (fc *FeatureContext) iListAllTenants() error {
 }
 
 func (fc *FeatureContext) theListShouldContainTheTenantWithName(name string) error {
-	var tenantList map[string][]map[string]any
-	err := fc.decodeBody(fc.response.Body, &tenantList)
+	items, err := fc.decodePaginatedResponse(fc.response)
 	fc.require.NoError(err)
 
 	found := false
-	for _, tenant := range tenantList["tenants"] {
-		if tenant["name"] == name {
+	for _, item := range items {
+		if item["name"] == name {
 			found = true
 			break
 		}
@@ -98,4 +108,12 @@ func (fc *FeatureContext) iSoftDeleteTheTenant() error {
 	fc.require.NoError(err)
 	fc.response = resp
 	return err
+}
+
+func (fc *FeatureContext) theTenantShouldBeSoftDeleted() error {
+	var data map[string]any
+	err := fc.decodeBody(fc.response.Body, &data)
+	fc.require.NoError(err)
+	fc.require.NotNil(data["deleted_at"], "Tenant should be soft deleted")
+	return nil
 }

@@ -227,7 +227,9 @@ unit path="internal":
 functional tags="": build setup validate-db
     #!/bin/bash
     echo "🚀 Starting server in background..."
-    ./server &
+    export ENV=local
+    export ZENSOR_SERVER_GENERAL_LOG_LEVEL=debug
+    ./server > api.log 2>&1 &
     SERVER_PID=$!
     
     # Teardown function to ensure the server is killed

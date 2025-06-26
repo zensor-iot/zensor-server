@@ -28,6 +28,7 @@ func (t Tenant) ToDomain() domain.Tenant {
 		Email:       t.Email,
 		Description: t.Description,
 		IsActive:    t.IsActive,
+		Version:     t.Version,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
 		DeletedAt:   t.DeletedAt,
@@ -37,7 +38,7 @@ func (t Tenant) ToDomain() domain.Tenant {
 func FromTenant(value domain.Tenant) Tenant {
 	return Tenant{
 		ID:          value.ID.String(),
-		Version:     1,
+		Version:     value.Version,
 		Name:        value.Name,
 		Email:       value.Email,
 		Description: value.Description,

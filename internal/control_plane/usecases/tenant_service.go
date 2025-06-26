@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	ErrTenantNotFound    = errors.New("tenant not found")
-	ErrTenantDuplicated  = errors.New("tenant already exists")
-	ErrTenantSoftDeleted = errors.New("tenant is soft deleted")
+	ErrTenantNotFound        = errors.New("tenant not found")
+	ErrTenantDuplicated      = errors.New("tenant already exists")
+	ErrTenantSoftDeleted     = errors.New("tenant is soft deleted")
+	ErrTenantVersionConflict = errors.New("tenant version conflict")
 )
 
 type TenantService interface {
@@ -19,7 +20,7 @@ type TenantService interface {
 	GetTenant(ctx context.Context, id domain.ID) (domain.Tenant, error)
 	GetTenantByName(ctx context.Context, name string) (domain.Tenant, error)
 	ListTenants(ctx context.Context, includeDeleted bool, pagination Pagination) ([]domain.Tenant, int, error)
-	UpdateTenant(ctx context.Context, id domain.ID, name, email, description string) error
+	UpdateTenant(ctx context.Context, tenant domain.Tenant) error
 	SoftDeleteTenant(ctx context.Context, id domain.ID) error
 	ActivateTenant(ctx context.Context, id domain.ID) error
 	DeactivateTenant(ctx context.Context, id domain.ID) error
@@ -50,7 +51,6 @@ type SimpleTenantService struct {
 }
 
 func (s *SimpleTenantService) CreateTenant(ctx context.Context, tenant domain.Tenant) error {
-	// Check if tenant with same name already exists
 	existingTenant, err := s.repository.GetByName(ctx, tenant.Name)
 	if err != nil && !errors.Is(err, ErrTenantNotFound) {
 		slog.Error("checking existing tenant", slog.String("error", err.Error()))
@@ -62,7 +62,6 @@ func (s *SimpleTenantService) CreateTenant(ctx context.Context, tenant domain.Te
 		return ErrTenantDuplicated
 	}
 
-	fmt.Println("*** creating tenant", tenant)
 	err = s.repository.Create(ctx, tenant)
 	if err != nil {
 		slog.Error("creating tenant", slog.String("error", err.Error()))
@@ -112,8 +111,8 @@ func (s *SimpleTenantService) ListTenants(ctx context.Context, includeDeleted bo
 	return tenants, total, nil
 }
 
-func (s *SimpleTenantService) UpdateTenant(ctx context.Context, id domain.ID, name, email, description string) error {
-	tenant, err := s.repository.GetByID(ctx, id)
+func (s *SimpleTenantService) UpdateTenant(ctx context.Context, tenant domain.Tenant) error {
+	existingTenant, err := s.repository.GetByID(ctx, tenant.ID)
 	if err != nil {
 		if errors.Is(err, ErrTenantNotFound) {
 			return ErrTenantNotFound
@@ -121,30 +120,35 @@ func (s *SimpleTenantService) UpdateTenant(ctx context.Context, id domain.ID, na
 		return fmt.Errorf("getting tenant: %w", err)
 	}
 
-	if tenant.IsDeleted() {
+	if existingTenant.IsDeleted() {
 		return ErrTenantSoftDeleted
 	}
 
+	// Check version for optimistic locking
+	if tenant.Version != 0 && tenant.Version != existingTenant.Version {
+		return ErrTenantVersionConflict
+	}
+
 	// Check if new name conflicts with existing tenant
-	if name != "" && name != tenant.Name {
-		existing, err := s.repository.GetByName(ctx, name)
+	if tenant.Name != "" && tenant.Name != existingTenant.Name {
+		existing, err := s.repository.GetByName(ctx, tenant.Name)
 		if err != nil && !errors.Is(err, ErrTenantNotFound) {
 			return fmt.Errorf("checking name conflict: %w", err)
 		}
-		if existing.ID != "" && existing.ID != tenant.ID {
+		if err == nil && existing.ID != tenant.ID {
 			return ErrTenantDuplicated
 		}
 	}
 
-	tenant.UpdateInfo(name, email, description)
+	existingTenant.UpdateInfo(tenant.Name, tenant.Email, tenant.Description)
 
-	err = s.repository.Update(ctx, tenant)
+	err = s.repository.Update(ctx, existingTenant)
 	if err != nil {
 		slog.Error("updating tenant", slog.String("error", err.Error()))
 		return fmt.Errorf("updating tenant: %w", err)
 	}
 
-	slog.Info("tenant updated successfully", slog.String("id", id.String()))
+	slog.Info("tenant updated successfully", slog.String("id", tenant.ID.String()), slog.Int("version", existingTenant.Version))
 	return nil
 }
 

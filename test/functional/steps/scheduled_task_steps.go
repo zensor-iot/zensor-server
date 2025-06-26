@@ -1,8 +1,24 @@
 package steps
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 )
+
+// ScheduledTask represents a scheduled task entity in the response
+type ScheduledTask struct {
+	ID          string `json:"id"`
+	TenantID    string `json:"tenant_id"`
+	DeviceID    string `json:"device_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Schedule    string `json:"schedule"`
+	IsActive    bool   `json:"is_active"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
 
 // Scheduled Task step implementations
 func (fc *FeatureContext) aScheduledTaskExistsForTheTenantAndDeviceWithSchedule(schedule string) error {
@@ -47,13 +63,19 @@ func (fc *FeatureContext) iListAllScheduledTasksForTheTenant() error {
 }
 
 func (fc *FeatureContext) theListShouldContainOurScheduledTask() error {
-	var tasksList map[string][]map[string]any
-	err := fc.decodeBody(fc.response.Body, &tasksList)
-	fc.require.NoError(err)
+	body, err := io.ReadAll(fc.response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var paginatedResp PaginatedResponse[ScheduledTask]
+	if err := json.Unmarshal(body, &paginatedResp); err != nil {
+		return fmt.Errorf("failed to decode paginated response: %w", err)
+	}
 
 	found := false
-	for _, task := range tasksList["scheduled_tasks"] {
-		if task["id"] == fc.scheduledTaskID {
+	for _, task := range paginatedResp.Data {
+		if task.ID == fc.scheduledTaskID {
 			found = true
 			break
 		}
