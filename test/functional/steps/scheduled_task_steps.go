@@ -91,6 +91,13 @@ func (fc *FeatureContext) iUpdateTheScheduledTaskWithANewSchedule(newSchedule st
 	return err
 }
 
+func (fc *FeatureContext) iGetTheScheduledTaskByItsID() error {
+	resp, err := fc.apiDriver.GetScheduledTask(fc.tenantID, fc.scheduledTaskID)
+	fc.require.NoError(err)
+	fc.response = resp
+	return err
+}
+
 func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSchedule() error {
 	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)

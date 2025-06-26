@@ -26,5 +26,6 @@ Feature: Scheduled Task Management
     And a scheduled task exists for the tenant and device with schedule "* * * * *"
     When I update the scheduled task with a new schedule "*/5 * * * *"
     And wait for 250ms
+    And I get the scheduled task by its ID
     Then the response status code should be 200
     And the response should contain the scheduled task with the new schedule

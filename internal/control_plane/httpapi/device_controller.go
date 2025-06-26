@@ -31,6 +31,7 @@ type DeviceController struct {
 
 func (c *DeviceController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /v1/devices", c.listDevices())
+	router.Handle("GET /v1/devices/{id}", c.getDevice())
 	router.Handle("POST /v1/devices", c.createDevice())
 	router.Handle("PUT /v1/devices/{id}", c.updateDevice())
 	router.Handle("POST /v1/devices/{id}/commands", c.sendCommand())
@@ -45,6 +46,25 @@ func (c *DeviceController) listDevices() http.HandlerFunc {
 		}
 
 		response := internal.ToDeviceListResponse(result)
+		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
+	}
+}
+
+func (c *DeviceController) getDevice() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		device, err := c.service.GetDevice(r.Context(), domain.ID(id))
+		if err != nil {
+			if errors.Is(err, usecases.ErrDeviceNotFound) {
+				http.Error(w, "device not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "failed to get device", http.StatusInternalServerError)
+			return
+		}
+
+		response := internal.ToDeviceResponse(device)
 		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
 	}
 }

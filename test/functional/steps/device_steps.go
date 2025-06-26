@@ -84,6 +84,13 @@ func (fc *FeatureContext) iUpdateTheDeviceWithANewDisplayName(newDisplayName str
 	return err
 }
 
+func (fc *FeatureContext) iGetTheDeviceByItsID() error {
+	resp, err := fc.apiDriver.GetDevice(fc.deviceID)
+	fc.require.NoError(err)
+	fc.response = resp
+	return err
+}
+
 func (fc *FeatureContext) theResponseShouldContainTheDeviceWithDisplayName(displayName string) error {
 	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)

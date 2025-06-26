@@ -71,6 +71,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I list all devices$`, fc.iListAllDevices)
 	ctx.Then(`^the list should contain the device with name "([^"]*)"$`, fc.theListShouldContainTheDeviceWithName)
 	ctx.When(`^I update the device with a new display name "([^"]*)"$`, fc.iUpdateTheDeviceWithANewDisplayName)
+	ctx.When(`^I get the device by its ID$`, fc.iGetTheDeviceByItsID)
 	ctx.Then(`^the response should contain the device with display name "([^"]*)"$`, fc.theResponseShouldContainTheDeviceWithDisplayName)
 
 	// Task steps
@@ -82,6 +83,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I list all scheduled tasks for the tenant$`, fc.iListAllScheduledTasksForTheTenant)
 	ctx.Then(`^the list should contain our scheduled task$`, fc.theListShouldContainOurScheduledTask)
 	ctx.When(`^I update the scheduled task with a new schedule "([^"]*)"$`, fc.iUpdateTheScheduledTaskWithANewSchedule)
+	ctx.When(`^I get the scheduled task by its ID$`, fc.iGetTheScheduledTaskByItsID)
 	ctx.Then(`^the response should contain the scheduled task with the new schedule$`, fc.theResponseShouldContainTheScheduledTaskWithTheNewSchedule)
 
 	// Evaluation Rule steps
@@ -91,12 +93,8 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the list should contain our evaluation rule$`, fc.theListShouldContainOurEvaluationRule)
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-		t := godog.T(ctx)
-		if t == nil {
-			return ctx, fmt.Errorf("godog.T(ctx) returned nil")
-		}
-		fc.t = t
-		fc.require = require.New(t)
+		fc.t = godog.T(ctx)
+		fc.require = require.New(fc.t)
 
 		fc.reset()
 		return ctx, nil

@@ -80,6 +80,10 @@ func (d *APIDriver) ListDevices() (*http.Response, error) {
 	return d.client.Get(fmt.Sprintf("%s/v1/devices", d.baseURL))
 }
 
+func (d *APIDriver) GetDevice(id string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/devices/%s", d.baseURL, id))
+}
+
 func (d *APIDriver) UpdateDevice(id, newDisplayName string) (*http.Response, error) {
 	reqBody, err := json.Marshal(map[string]any{"display_name": newDisplayName})
 	if err != nil {
@@ -123,6 +127,10 @@ func (d *APIDriver) CreateScheduledTask(tenantID, deviceID, schedule string) (*h
 
 func (d *APIDriver) ListScheduledTasks(tenantID string) (*http.Response, error) {
 	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks", d.baseURL, tenantID))
+}
+
+func (d *APIDriver) GetScheduledTask(tenantID, scheduledTaskID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks/%s", d.baseURL, tenantID, scheduledTaskID))
 }
 
 func (d *APIDriver) UpdateScheduledTask(tenantID, scheduledTaskID, newSchedule string) (*http.Response, error) {

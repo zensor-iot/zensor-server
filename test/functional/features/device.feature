@@ -20,5 +20,6 @@ Feature: Device Management
     Given a device exists with name "sensor-002"
     When I update the device with a new display name "Humidity Sensor"
     And wait for 250ms
+    And I get the device by its ID
     Then the response status code should be 200
     And the response should contain the device with display name "Humidity Sensor"
