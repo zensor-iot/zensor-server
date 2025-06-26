@@ -164,6 +164,7 @@ func (b *MemoryBroker) Subscribe(topic Topic, group string, handler MessageHandl
 		b.topics[topic] = topicChan
 	}
 
+	// Use the topic channel's mutex for subscriber operations
 	topicChan.mu.Lock()
 	topicChan.subscribers[group] = append(topicChan.subscribers[group], consumerInfo)
 	topicChan.mu.Unlock()
@@ -172,11 +173,16 @@ func (b *MemoryBroker) Subscribe(topic Topic, group string, handler MessageHandl
 }
 
 func (b *MemoryBroker) processSubscribers(topicChan *TopicChannel, event MessageEvent) {
+	// Create a copy of subscribers to avoid holding the lock during processing
 	topicChan.mu.RLock()
-	subscribers := topicChan.subscribers
+	subscribersCopy := make(map[string][]*ConsumerInfo)
+	for group, consumers := range topicChan.subscribers {
+		subscribersCopy[group] = make([]*ConsumerInfo, len(consumers))
+		copy(subscribersCopy[group], consumers)
+	}
 	topicChan.mu.RUnlock()
 
-	for _, consumers := range subscribers {
+	for _, consumers := range subscribersCopy {
 		// In a real pubsub system, only one consumer per group would receive the message
 		// For simplicity, we'll send to all consumers in the group
 		for _, consumer := range consumers {

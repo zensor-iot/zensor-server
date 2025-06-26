@@ -12,12 +12,6 @@ install-deps: install-otelcol
     else \
         echo "   - golangci-lint already installed."; \
     fi
-    @if ! command -v ginkgo &> /dev/null; then \
-        echo "   - ginkgo not found, installing..."; \
-        go install github.com/onsi/ginkgo/v2/ginkgo@latest; \
-    else \
-        echo "   - ginkgo already installed."; \
-    fi
     @if ! command -v wire &> /dev/null; then \
         echo "   - wire not found, installing..."; \
         go install github.com/google/wire/cmd/wire@latest; \
@@ -219,12 +213,12 @@ arch args="":
     arch-go {{args}}
 
 tdd path="internal":
-    ginkgo watch --race {{path}}
+    go run github.com/onsi/ginkgo/v2/ginkgo watch --race {{path}}
 
 unit path="internal":
-    ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
+    go run github.com/onsi/ginkgo/v2/ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
 
-functional tags="": build setup validate-db
+functional tags="": build
     #!/bin/bash
     echo "🚀 Starting server in background..."
     export ENV=local
