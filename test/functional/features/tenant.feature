@@ -32,7 +32,6 @@ Feature: Tenant Management
     Then the response status code should be 200
     And the response should contain the tenant details
 
-  @wip
   Scenario: Activate a tenant
     Given a deactivated tenant exists with name "ACME Corp Activate" and email "contact@acmeactivate.com"
     When I activate the tenant

@@ -56,7 +56,7 @@ jobs:
     
     strategy:
       matrix:
-        test_pattern: ["@tenant"]
+        test_pattern: ["@tenant", "@task"]
     
     steps:
       - name: Checkout repository
@@ -87,7 +87,7 @@ jobs:
         run: just build
 
       - name: Run functional tests
-        run: just functional tags="${{ matrix.test_pattern }}"
+        run: just functional "${{ matrix.test_pattern }}"
         env:
           ENV: local
 
