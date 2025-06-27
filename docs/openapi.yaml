@@ -1,3 +1,4 @@
+---
 openapi: 3.0.3
 info:
   title: Zensor Server API
@@ -85,6 +86,23 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
         '200':
           description: List of tenants
@@ -391,6 +409,31 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /v1/devices/{id}:
+    get:
+      summary: Get device
+      description: Retrieve a specific device by ID
+      tags:
+        - Devices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Device details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     put:
       summary: Update device
       description: Update an existing device's display name
@@ -457,6 +500,46 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /v1/devices/{id}/tasks:
+    get:
+      summary: List device tasks
+      description: Retrieve all tasks for a specific device
+      tags:
+        - Tasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     post:
       summary: Create task for device
       description: Create a task with multiple commands for a specific device
@@ -556,10 +639,10 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # Scheduled Tasks
-  /v1/tenants/{tenant_id}/scheduled-tasks:
+  /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks:
     get:
       summary: List scheduled tasks
-      description: Retrieve all scheduled tasks for a specific tenant
+      description: Retrieve all scheduled tasks for a specific tenant and device
       tags:
         - Scheduled Tasks
       parameters:
@@ -570,6 +653,30 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: device_id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
         '200':
           description: List of scheduled tasks
@@ -582,7 +689,7 @@ paths:
 
     post:
       summary: Create scheduled task
-      description: Create a new scheduled task for a specific tenant
+      description: Create a new scheduled task for a specific tenant and device
       tags:
         - Scheduled Tasks
       parameters:
@@ -590,6 +697,13 @@ paths:
           in: path
           required: true
           description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+        - name: device_id
+          in: path
+          required: true
+          description: Device ID
           schema:
             type: string
             format: uuid
@@ -611,7 +725,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /v1/tenants/{tenant_id}/scheduled-tasks/{id}:
+  /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}:
     get:
       summary: Get scheduled task
       description: Retrieve a specific scheduled task
@@ -622,6 +736,13 @@ paths:
           in: path
           required: true
           description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+        - name: device_id
+          in: path
+          required: true
+          description: Device ID
           schema:
             type: string
             format: uuid
@@ -657,6 +778,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: device_id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
         - name: id
           in: path
           required: true
@@ -679,6 +807,46 @@ paths:
                 $ref: '#/components/schemas/ScheduledTaskResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}/tasks:
+    get:
+      summary: Get tasks by scheduled task
+      description: Retrieve all tasks created by a specific scheduled task
+      tags:
+        - Scheduled Tasks
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+        - name: device_id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          description: Scheduled task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of tasks created by the scheduled task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -739,6 +907,10 @@ components:
           maxLength: 500
           description: Tenant description
           example: "Manufacturing company specializing in IoT solutions"
+        version:
+          type: integer
+          description: Tenant version for optimistic locking
+          example: 1
 
     TenantAdoptDeviceRequest:
       type: object
@@ -776,6 +948,10 @@ components:
           type: boolean
           description: Whether the tenant is active
           example: true
+        version:
+          type: integer
+          description: Tenant version for optimistic locking
+          example: 1
         created_at:
           type: string
           format: date-time
@@ -968,6 +1144,56 @@ components:
             $ref: '#/components/schemas/CommandSendPayloadRequest'
           description: Commands to execute as part of the task
 
+    TaskCommandResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Command ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        index:
+          type: integer
+          minimum: 0
+          maximum: 255
+          description: Sensor/actuator index
+          example: 1
+        value:
+          type: integer
+          minimum: 0
+          maximum: 255
+          description: Command value
+          example: 100
+        port:
+          type: integer
+          minimum: 0
+          maximum: 255
+          description: Command port
+          example: 1
+        priority:
+          type: string
+          description: Command priority
+          example: "NORMAL"
+        dispatch_after:
+          type: string
+          format: date-time
+          description: When the command should be dispatched
+          example: "2024-01-01T00:00:00Z"
+        ready:
+          type: boolean
+          description: Whether the command is ready to be sent
+          example: true
+        sent:
+          type: boolean
+          description: Whether the command has been sent
+          example: false
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the command was sent
+          example: "2024-01-01T00:00:00Z"
+
     TaskResponse:
       type: object
       properties:
@@ -976,22 +1202,41 @@ components:
           format: uuid
           description: Task ID
           example: "123e4567-e89b-12d3-a456-426614174000"
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskCommandResponse'
+          description: Commands in the task
+        created_at:
+          type: string
+          format: date-time
+          description: Task creation timestamp
+          example: "2024-01-01T00:00:00Z"
+
+    TaskListResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+        total:
+          type: integer
+          description: Total number of tasks
+          example: 10
 
     # Scheduled Task schemas
     ScheduledTaskCreateRequest:
       type: object
       required:
-        - device_id
-        - task
+        - commands
         - schedule
       properties:
-        device_id:
-          type: string
-          format: uuid
-          description: Target device ID
-          example: "123e4567-e89b-12d3-a456-426614174000"
-        task:
-          $ref: '#/components/schemas/TaskCreateRequest'
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandSendPayloadRequest'
+          description: Commands to execute as part of the scheduled task
         schedule:
           type: string
           description: Cron expression for scheduling
@@ -1005,8 +1250,11 @@ components:
     ScheduledTaskUpdateRequest:
       type: object
       properties:
-        task:
-          $ref: '#/components/schemas/TaskCreateRequest'
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandSendPayloadRequest'
+          description: Commands to execute as part of the scheduled task
         schedule:
           type: string
           description: Cron expression for scheduling
@@ -1029,11 +1277,11 @@ components:
           format: uuid
           description: Target device ID
           example: "123e4567-e89b-12d3-a456-426614174000"
-        task_id:
-          type: string
-          format: uuid
-          description: Associated task ID
-          example: "123e4567-e89b-12d3-a456-426614174000"
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandSendPayloadRequest'
+          description: Commands in the scheduled task
         schedule:
           type: string
           description: Cron expression for scheduling
@@ -1050,6 +1298,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ScheduledTaskResponse'
+        total:
+          type: integer
+          description: Total number of scheduled tasks
+          example: 10
 
     # Evaluation Rule schemas
     EvaluationRuleCreateRequest:
@@ -1135,6 +1387,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EvaluationRuleResponse'
+
+    # WebSocket Message schemas
+    DeviceMessage:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Message type
+          example: "device_message"
+        device_id:
+          type: string
+          description: Device ID that sent the message
+          example: "sensor-001"
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+          example: "2024-01-01T00:00:00Z"
+        data:
+          description: Message payload data
+          example: {"temperature": 25.5, "humidity": 60.2}
 
   responses:
     BadRequest:
