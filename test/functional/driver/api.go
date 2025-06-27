@@ -111,8 +111,7 @@ func (d *APIDriver) CreateTask(deviceID string) (*http.Response, error) {
 
 func (d *APIDriver) CreateScheduledTask(tenantID, deviceID, schedule string) (*http.Response, error) {
 	reqBody, err := json.Marshal(map[string]any{
-		"device_id": deviceID,
-		"schedule":  schedule,
+		"schedule": schedule,
 		"commands": []map[string]any{
 			{"index": 1, "value": 200, "priority": "NORMAL", "wait_for": "0s"},
 		},
@@ -121,23 +120,23 @@ func (d *APIDriver) CreateScheduledTask(tenantID, deviceID, schedule string) (*h
 	if err != nil {
 		panic(err)
 	}
-	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks", d.baseURL, tenantID), "application/json", bytes.NewBuffer(reqBody))
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks", d.baseURL, tenantID, deviceID), "application/json", bytes.NewBuffer(reqBody))
 }
 
-func (d *APIDriver) ListScheduledTasks(tenantID string) (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks", d.baseURL, tenantID))
+func (d *APIDriver) ListScheduledTasks(tenantID, deviceID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks", d.baseURL, tenantID, deviceID))
 }
 
-func (d *APIDriver) GetScheduledTask(tenantID, scheduledTaskID string) (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks/%s", d.baseURL, tenantID, scheduledTaskID))
+func (d *APIDriver) GetScheduledTask(tenantID, deviceID, scheduledTaskID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s", d.baseURL, tenantID, deviceID, scheduledTaskID))
 }
 
-func (d *APIDriver) UpdateScheduledTask(tenantID, scheduledTaskID, newSchedule string) (*http.Response, error) {
+func (d *APIDriver) UpdateScheduledTask(tenantID, deviceID, scheduledTaskID, newSchedule string) (*http.Response, error) {
 	reqBody, err := json.Marshal(map[string]any{"schedule": &newSchedule})
 	if err != nil {
 		panic(err)
 	}
-	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s/scheduled-tasks/%s", d.baseURL, tenantID, scheduledTaskID), bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s", d.baseURL, tenantID, deviceID, scheduledTaskID), bytes.NewBuffer(reqBody))
 	if err != nil {
 		panic(err)
 	}

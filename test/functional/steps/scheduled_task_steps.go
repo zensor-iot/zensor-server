@@ -56,7 +56,7 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetails() erro
 }
 
 func (fc *FeatureContext) iListAllScheduledTasksForTheTenant() error {
-	resp, err := fc.apiDriver.ListScheduledTasks(fc.tenantID)
+	resp, err := fc.apiDriver.ListScheduledTasks(fc.tenantID, fc.deviceID)
 	fc.require.NoError(err)
 	fc.response = resp
 	return err
@@ -85,14 +85,14 @@ func (fc *FeatureContext) theListShouldContainOurScheduledTask() error {
 }
 
 func (fc *FeatureContext) iUpdateTheScheduledTaskWithANewSchedule(newSchedule string) error {
-	resp, err := fc.apiDriver.UpdateScheduledTask(fc.tenantID, fc.scheduledTaskID, newSchedule)
+	resp, err := fc.apiDriver.UpdateScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID, newSchedule)
 	fc.require.NoError(err)
 	fc.response = resp
 	return err
 }
 
 func (fc *FeatureContext) iGetTheScheduledTaskByItsID() error {
-	resp, err := fc.apiDriver.GetScheduledTask(fc.tenantID, fc.scheduledTaskID)
+	resp, err := fc.apiDriver.GetScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID)
 	fc.require.NoError(err)
 	fc.response = resp
 	return err

@@ -8,6 +8,7 @@ import (
 	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/utils"
 
 	"github.com/robfig/cron/v3"
 	"go.opentelemetry.io/otel"
@@ -90,13 +91,23 @@ func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()
 		return
 	}
 
-	now := time.Now()
+	slog.Debug("found scheduled tasks", slog.Int("count", len(scheduledTasks)))
 	for _, scheduledTask := range scheduledTasks {
+		slog.Debug("evaluating scheduled task", slog.String("scheduled_task_id", scheduledTask.ID.String()))
 		if !scheduledTask.IsActive {
 			continue
 		}
 
-		shouldExecute, err := w.shouldExecuteSchedule(scheduledTask.Schedule, now)
+		// Determine the last executed time for evaluation
+		var lastExecuted time.Time
+		if scheduledTask.LastExecutedAt != nil {
+			lastExecuted = scheduledTask.LastExecutedAt.Time
+		}
+		if lastExecuted.IsZero() {
+			lastExecuted = scheduledTask.CreatedAt.Time
+		}
+
+		shouldExecute, err := w.shouldExecuteSchedule(scheduledTask.Schedule, lastExecuted)
 		if err != nil {
 			slog.Error("evaluating schedule",
 				slog.String("scheduled_task_id", scheduledTask.ID.String()),
@@ -105,6 +116,13 @@ func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()
 			continue
 		}
 
+		slog.Info("*** should execute schedule",
+			slog.String("scheduled_task_id", scheduledTask.ID.String()),
+			slog.Bool("should_execute", shouldExecute),
+			slog.String("schedule", scheduledTask.Schedule),
+			slog.Time("now", time.Now()),
+			slog.Time("last_executed", lastExecuted),
+		)
 		if shouldExecute {
 			w.createTaskFromScheduledTask(ctx, scheduledTask)
 		}
@@ -113,14 +131,16 @@ func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()
 	slog.Debug("scheduled task evaluation completed", slog.Time("time", time.Now()))
 }
 
-func (w *ScheduledTaskWorker) shouldExecuteSchedule(schedule string, now time.Time) (bool, error) {
+func (w *ScheduledTaskWorker) shouldExecuteSchedule(schedule string, lastExecuted time.Time) (bool, error) {
 	scheduleSpec, err := w.cronParser.Parse(schedule)
 	if err != nil {
 		return false, fmt.Errorf("parsing cron schedule: %w", err)
 	}
 
-	// Check if the schedule should execute at the current minute
-	nextRun := scheduleSpec.Next(now.Add(-time.Minute))
+	now := time.Now()
+
+	nextRun := scheduleSpec.Next(lastExecuted)
+
 	return nextRun.Before(now) || nextRun.Equal(now), nil
 }
 
@@ -135,25 +155,15 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		return
 	}
 
-	// Create a new task based on the scheduled task's commands
-	// We need to create new commands with fresh IDs and current timestamps
-	commands := make([]domain.Command, len(scheduledTask.Commands))
-	for i, originalCmd := range scheduledTask.Commands {
-		cmdBuilder := domain.NewCommandBuilder()
-		cmd, err := cmdBuilder.
-			WithDevice(device).
-			WithPayload(originalCmd.Payload).
-			WithPriority(originalCmd.Priority).
-			WithDispatchAfter(originalCmd.DispatchAfter).
-			WithPort(originalCmd.Port).
-			Build()
-		if err != nil {
-			slog.Error("building command for scheduled task",
-				slog.String("scheduled_task_id", scheduledTask.ID.String()),
-				slog.Any("error", err))
-			return
-		}
-		commands[i] = cmd
+	// Create a new task based on the scheduled task's command templates
+	// We need to create new commands from templates with fresh IDs and calculated timestamps
+	commands := make([]domain.Command, len(scheduledTask.CommandTemplates))
+	now := time.Now()
+
+	for i, template := range scheduledTask.CommandTemplates {
+		// Update the device in the template to ensure it's current
+		template.Device = device
+		commands[i] = template.ToCommand(domain.Task{}, now)
 	}
 
 	taskBuilder := domain.NewTaskBuilder()
@@ -181,6 +191,20 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 			slog.String("task_id", task.ID.String()),
 			slog.Any("error", err))
 		return
+	}
+
+	// Update the last executed time for the scheduled task
+	currentTime := utils.Time{Time: time.Now()}
+	updatedScheduledTask := scheduledTask
+	updatedScheduledTask.LastExecutedAt = &currentTime
+	updatedScheduledTask.UpdatedAt = currentTime
+
+	err = w.scheduledTaskRepository.Update(ctx, updatedScheduledTask)
+	if err != nil {
+		slog.Error("updating scheduled task last executed time",
+			slog.String("scheduled_task_id", scheduledTask.ID.String()),
+			slog.Any("error", err))
+		// Don't return here as the task was already created successfully
 	}
 
 	slog.Info("created task from scheduled task",

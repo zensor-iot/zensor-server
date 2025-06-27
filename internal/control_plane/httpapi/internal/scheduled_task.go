@@ -1,7 +1,6 @@
 package internal
 
 type ScheduledTaskCreateRequest struct {
-	DeviceID string                      `json:"device_id"`
 	Commands []CommandSendPayloadRequest `json:"commands"`
 	Schedule string                      `json:"schedule"`
 	IsActive bool                        `json:"is_active"`

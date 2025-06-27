@@ -2,17 +2,21 @@ package domain
 
 import (
 	"errors"
+	"time"
 	"zensor-server/internal/infra/utils"
 )
 
 type ScheduledTask struct {
-	ID       ID
-	Version  Version
-	Tenant   Tenant
-	Device   Device
-	Commands []Command
-	Schedule string // Cron format schedule
-	IsActive bool
+	ID               ID
+	Version          Version
+	Tenant           Tenant
+	Device           Device
+	CommandTemplates []CommandTemplate
+	Schedule         string // Cron format schedule
+	IsActive         bool
+	CreatedAt        utils.Time
+	UpdatedAt        utils.Time
+	LastExecutedAt   *utils.Time // When the scheduled task was last executed
 }
 
 func NewScheduledTaskBuilder() *scheduledTaskBuilder {
@@ -41,9 +45,9 @@ func (b *scheduledTaskBuilder) WithDevice(value Device) *scheduledTaskBuilder {
 	return b
 }
 
-func (b *scheduledTaskBuilder) WithCommands(value []Command) *scheduledTaskBuilder {
+func (b *scheduledTaskBuilder) WithCommandTemplates(value []CommandTemplate) *scheduledTaskBuilder {
 	b.actions = append(b.actions, func(d *ScheduledTask) error {
-		d.Commands = value
+		d.CommandTemplates = value
 		return nil
 	})
 	return b
@@ -65,12 +69,23 @@ func (b *scheduledTaskBuilder) WithIsActive(value bool) *scheduledTaskBuilder {
 	return b
 }
 
+func (b *scheduledTaskBuilder) WithLastExecutedAt(value *utils.Time) *scheduledTaskBuilder {
+	b.actions = append(b.actions, func(d *ScheduledTask) error {
+		d.LastExecutedAt = value
+		return nil
+	})
+	return b
+}
+
 func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
+	now := utils.Time{Time: time.Now()}
 	result := ScheduledTask{
-		ID:       ID(utils.GenerateUUID()),
-		Version:  1,
-		IsActive: true,
-		Commands: make([]Command, 0),
+		ID:               ID(utils.GenerateUUID()),
+		Version:          1,
+		IsActive:         true,
+		CommandTemplates: make([]CommandTemplate, 0),
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 
 	for _, a := range b.actions {
@@ -87,8 +102,8 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 		return ScheduledTask{}, errors.New("device is required")
 	}
 
-	if len(result.Commands) == 0 {
-		return ScheduledTask{}, errors.New("commands are required")
+	if len(result.CommandTemplates) == 0 {
+		return ScheduledTask{}, errors.New("command templates are required")
 	}
 
 	if result.Schedule == "" {

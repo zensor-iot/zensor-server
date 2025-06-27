@@ -36,6 +36,15 @@ func (s *SimpleScheduledTaskService) FindAllByTenant(ctx context.Context, tenant
 	return scheduledTasks, nil
 }
 
+func (s *SimpleScheduledTaskService) FindAllByTenantAndDevice(ctx context.Context, tenantID domain.ID, deviceID domain.ID) ([]domain.ScheduledTask, error) {
+	scheduledTasks, err := s.repository.FindAllByTenantAndDevice(ctx, tenantID, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("finding scheduled tasks by tenant and device: %w", err)
+	}
+
+	return scheduledTasks, nil
+}
+
 func (s *SimpleScheduledTaskService) GetByID(ctx context.Context, id domain.ID) (domain.ScheduledTask, error) {
 	scheduledTask, err := s.repository.GetByID(ctx, id)
 	if err != nil {

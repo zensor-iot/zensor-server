@@ -244,6 +244,13 @@ func InitializeCommandHandler() (*handlers.CommandHandler, error) {
 	return commandHandler, nil
 }
 
+func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	scheduledTaskHandler := handlers.NewScheduledTaskHandler(orm)
+	return scheduledTaskHandler, nil
+}
+
 // control_plane.go:
 
 var DeviceServiceSet = wire.NewSet(

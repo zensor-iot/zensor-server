@@ -109,7 +109,15 @@ func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantData {
 	}
 
 	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		result.Version = versionField.Interface().(int)
+		versionInterface := versionField.Interface()
+		switch v := versionInterface.(type) {
+		case int:
+			result.Version = v
+		case uint:
+			result.Version = int(v)
+		default:
+			result.Version = 1
+		}
 	}
 
 	if nameField := val.FieldByName("Name"); nameField.IsValid() {

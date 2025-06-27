@@ -68,6 +68,26 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenant(ctx context.Context, ten
 	return result, nil
 }
 
+func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Context, tenantID domain.ID, deviceID domain.ID) ([]domain.ScheduledTask, error) {
+	var entities []internal.ScheduledTask
+	err := r.orm.
+		WithContext(ctx).
+		Where("tenant_id = ? AND device_id = ?", tenantID.String(), deviceID.String()).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	result := make([]domain.ScheduledTask, len(entities))
+	for i, entity := range entities {
+		result[i] = entity.ToDomain()
+	}
+
+	return result, nil
+}
+
 func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]domain.ScheduledTask, error) {
 	var entities []internal.ScheduledTask
 	err := r.orm.

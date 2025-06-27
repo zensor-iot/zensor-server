@@ -34,6 +34,7 @@ type TaskService interface {
 type ScheduledTaskService interface {
 	Create(context.Context, domain.ScheduledTask) error
 	FindAllByTenant(context.Context, domain.ID) ([]domain.ScheduledTask, error)
+	FindAllByTenantAndDevice(context.Context, domain.ID, domain.ID) ([]domain.ScheduledTask, error)
 	GetByID(context.Context, domain.ID) (domain.ScheduledTask, error)
 	Update(context.Context, domain.ScheduledTask) error
 }
