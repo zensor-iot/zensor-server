@@ -67,7 +67,6 @@ func (h *CommandHandler) TopicName() pubsub.Topic {
 
 // Create handles creating a new command record
 func (h *CommandHandler) Create(ctx context.Context, key pubsub.Key, message pubsub.Message) error {
-	fmt.Printf("*** Creating command: %+v\n", message)
 	internalCommand := h.extractCommandFields(message)
 
 	err := h.orm.WithContext(ctx).Create(&internalCommand).Error()

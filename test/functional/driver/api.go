@@ -161,3 +161,11 @@ func (d *APIDriver) CreateEvaluationRule(deviceID string) (*http.Response, error
 func (d *APIDriver) ListEvaluationRules(deviceID string) (*http.Response, error) {
 	return d.client.Get(fmt.Sprintf("%s/v1/devices/%s/evaluation-rules", d.baseURL, deviceID))
 }
+
+func (d *APIDriver) GetTasksByScheduledTask(tenantID, deviceID, scheduledTaskID string, page, limit int) (*http.Response, error) {
+	url := fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s/tasks", d.baseURL, tenantID, deviceID, scheduledTaskID)
+	if page > 0 || limit > 0 {
+		url += fmt.Sprintf("?page=%d&limit=%d", page, limit)
+	}
+	return d.client.Get(url)
+}

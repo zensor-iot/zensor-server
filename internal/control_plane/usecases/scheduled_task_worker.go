@@ -116,13 +116,6 @@ func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()
 			continue
 		}
 
-		slog.Info("*** should execute schedule",
-			slog.String("scheduled_task_id", scheduledTask.ID.String()),
-			slog.Bool("should_execute", shouldExecute),
-			slog.String("schedule", scheduledTask.Schedule),
-			slog.Time("now", time.Now()),
-			slog.Time("last_executed", lastExecuted),
-		)
 		if shouldExecute {
 			w.createTaskFromScheduledTask(ctx, scheduledTask)
 		}

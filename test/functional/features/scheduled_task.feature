@@ -20,7 +20,6 @@ Feature: Scheduled Task Management
     Then the response status code should be 200
     And the list should contain our scheduled task
 
-  @wip
   Scenario: Update a scheduled task
     Given a tenant exists with name "ScheduledTaskTenantUpdate" and email "sttu@example.com"
     And a device exists with name "scheduled-task-device-003"

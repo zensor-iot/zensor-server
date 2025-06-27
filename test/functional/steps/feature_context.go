@@ -88,6 +88,25 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I get the scheduled task by its ID$`, fc.iGetTheScheduledTaskByItsID)
 	ctx.Then(`^the response should contain the scheduled task with the new schedule$`, fc.theResponseShouldContainTheScheduledTaskWithTheNewSchedule)
 
+	// Scheduled Task Tasks steps
+	ctx.Given(`^there are (\d+) tasks created from scheduled task "([^"]*)"$`, fc.thereAreTasksCreatedFromScheduledTask)
+	ctx.When(`^I retrieve the first (\d+) tasks for scheduled task "([^"]*)"$`, fc.iRetrieveTheFirstTasksForScheduledTask)
+	ctx.When(`^I retrieve page (\d+) with (\d+) tasks for scheduled task "([^"]*)"$`, fc.iRetrievePageWithTasksForScheduledTask)
+	ctx.When(`^I retrieve tasks for scheduled task "([^"]*)"$`, fc.iRetrieveTasksForScheduledTask)
+	ctx.Then(`^I should receive (\d+) tasks$`, fc.iShouldReceiveTasks)
+	ctx.Then(`^the tasks should be sorted by creation date in descending order$`, fc.theTasksShouldBeSortedByCreationDateInDescendingOrder)
+	ctx.Then(`^pagination information should be included$`, fc.paginationInformationShouldBeIncluded)
+	ctx.Then(`^the pagination should indicate page (\d+)$`, fc.thePaginationShouldIndicatePage)
+	ctx.When(`^I try to retrieve tasks for non-existent scheduled task "([^"]*)"$`, fc.iTryToRetrieveTasksForNonExistentScheduledTask)
+	ctx.When(`^I try to retrieve tasks for scheduled task "([^"]*)" using invalid tenant "([^"]*)"$`, fc.iTryToRetrieveTasksForScheduledTaskUsingInvalidTenant)
+	ctx.When(`^I try to retrieve tasks for scheduled task "([^"]*)" using invalid device "([^"]*)"$`, fc.iTryToRetrieveTasksForScheduledTaskUsingInvalidDevice)
+	ctx.Then(`^the operation should fail with an error$`, fc.theOperationShouldFailWithAnError)
+
+	// Background steps for scheduled task tasks feature
+	ctx.Given(`^a tenant with id "([^"]*)"$`, fc.aTenantWithId)
+	ctx.Given(`^a device with id "([^"]*)" belonging to tenant "([^"]*)"$`, fc.aDeviceWithIdBelongingToTenant)
+	ctx.Given(`^a scheduled task with id "([^"]*)" for device "([^"]*)" with schedule "([^"]*)"$`, fc.aScheduledTaskWithIdForDeviceWithSchedule)
+
 	// Evaluation Rule steps
 	ctx.Given(`^an evaluation rule exists for the device$`, fc.anEvaluationRuleExistsForTheDevice)
 	ctx.When(`^I create an evaluation rule for the device$`, fc.iCreateAnEvaluationRuleForTheDevice)

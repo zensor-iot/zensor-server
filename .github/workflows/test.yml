@@ -56,7 +56,11 @@ jobs:
     
     strategy:
       matrix:
-        test_pattern: ["@tenant", "@task", "@device"]
+        test_pattern: 
+          - "@tenant"
+          - "@task"
+          - "@device"
+          - "@scheduled_task"
     
     steps:
       - name: Checkout repository

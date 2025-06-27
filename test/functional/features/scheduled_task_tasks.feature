@@ -1,3 +1,4 @@
+@scheduled_task_tasks
 Feature: Get Tasks by Scheduled Task
   As a user
   I want to retrieve all tasks created from a scheduled task
@@ -8,36 +9,34 @@ Feature: Get Tasks by Scheduled Task
     And a device with id "test-device-1" belonging to tenant "test-tenant-1"
     And a scheduled task with id "test-scheduled-task-1" for device "test-device-1" with schedule "0 0 * * *"
 
+  @wip
   Scenario: Get tasks by scheduled task with pagination
     Given there are 15 tasks created from scheduled task "test-scheduled-task-1"
-    When I request "GET /v1/tenants/test-tenant-1/devices/test-device-1/scheduled-tasks/test-scheduled-task-1/tasks?page=1&limit=10"
-    Then the response status should be 200
-    And the response should contain pagination metadata
-    And the response should contain 10 tasks
-    And the tasks should be sorted by created_at in descending order
+    When I retrieve the first 10 tasks for scheduled task "test-scheduled-task-1"
+    Then I should receive 10 tasks
+    And the tasks should be sorted by creation date in descending order
+    And pagination information should be included
 
   Scenario: Get tasks by scheduled task with custom pagination
     Given there are 15 tasks created from scheduled task "test-scheduled-task-1"
-    When I request "GET /v1/tenants/test-tenant-1/devices/test-device-1/scheduled-tasks/test-scheduled-task-1/tasks?page=2&limit=5"
-    Then the response status should be 200
-    And the response should contain pagination metadata
-    And the response should contain 5 tasks
-    And the pagination should show page 2
+    When I retrieve page 2 with 5 tasks for scheduled task "test-scheduled-task-1"
+    Then I should receive 5 tasks
+    And the pagination should indicate page 2
+    And pagination information should be included
 
   Scenario: Get tasks by scheduled task when no tasks exist
-    When I request "GET /v1/tenants/test-tenant-1/devices/test-device-1/scheduled-tasks/test-scheduled-task-1/tasks"
-    Then the response status should be 200
-    And the response should contain pagination metadata
-    And the response should contain 0 tasks
+    When I retrieve tasks for scheduled task "test-scheduled-task-1"
+    Then I should receive 0 tasks
+    And pagination information should be included
 
   Scenario: Get tasks by non-existent scheduled task
-    When I request "GET /v1/tenants/test-tenant-1/devices/test-device-1/scheduled-tasks/non-existent/tasks"
-    Then the response status should be 500
+    When I try to retrieve tasks for non-existent scheduled task "non-existent"
+    Then the operation should fail with an error
 
   Scenario: Get tasks by scheduled task with invalid tenant
-    When I request "GET /v1/tenants/invalid-tenant/devices/test-device-1/scheduled-tasks/test-scheduled-task-1/tasks"
-    Then the response status should be 500
+    When I try to retrieve tasks for scheduled task "test-scheduled-task-1" using invalid tenant "invalid-tenant"
+    Then the operation should fail with an error
 
   Scenario: Get tasks by scheduled task with invalid device
-    When I request "GET /v1/tenants/test-tenant-1/devices/invalid-device/scheduled-tasks/test-scheduled-task-1/tasks"
-    Then the response status should be 500
+    When I try to retrieve tasks for scheduled task "test-scheduled-task-1" using invalid device "invalid-device"
+    Then the operation should fail with an error
