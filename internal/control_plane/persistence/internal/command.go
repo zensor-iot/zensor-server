@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"errors"
+	"fmt"
 	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/utils"
@@ -55,11 +55,20 @@ func (v CommandPayload) Value() (driver.Value, error) {
 }
 
 func (v *CommandPayload) Scan(value any) error {
-	data, ok := value.(string)
-	if !ok {
-		return errors.New("type assertion to string failed")
+	var data []byte
+
+	switch val := value.(type) {
+	case string:
+		data = []byte(val)
+	case []byte:
+		data = val
+	case nil:
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into CommandPayload", value)
 	}
-	return json.Unmarshal([]byte(data), &v)
+
+	return json.Unmarshal(data, &v)
 }
 
 func (c Command) ToDomain() domain.Command {
