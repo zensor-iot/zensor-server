@@ -113,11 +113,10 @@ func (d *APIDriver) CreateScheduledTask(tenantID, deviceID, schedule string) (*h
 	reqBody, err := json.Marshal(map[string]any{
 		"device_id": deviceID,
 		"schedule":  schedule,
-		"task": map[string]any{
-			"commands": []map[string]any{
-				{"index": 1, "value": 200},
-			},
+		"commands": []map[string]any{
+			{"index": 1, "value": 200, "priority": "NORMAL", "wait_for": "0s"},
 		},
+		"is_active": true,
 	})
 	if err != nil {
 		panic(err)

@@ -10,6 +10,7 @@ otelcol
 
 api
 api.log
+server.log
 
 # c4
 .structurizr

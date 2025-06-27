@@ -69,5 +69,32 @@ func (s *SimpleTaskService) FindAllByDevice(ctx context.Context, deviceID domain
 		return nil, 0, fmt.Errorf("finding tasks by device: %w", err)
 	}
 
+	// Load commands for each task
+	for i := range tasks {
+		commands, err := s.commandRepository.FindByTaskID(ctx, tasks[i].ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("finding commands for task %s: %w", tasks[i].ID, err)
+		}
+		tasks[i].Commands = commands
+	}
+
+	return tasks, total, nil
+}
+
+func (s *SimpleTaskService) FindAllByScheduledTask(ctx context.Context, scheduledTaskID domain.ID, pagination Pagination) ([]domain.Task, int, error) {
+	tasks, total, err := s.repository.FindAllByScheduledTask(ctx, scheduledTaskID, pagination)
+	if err != nil {
+		return nil, 0, fmt.Errorf("finding tasks by scheduled task: %w", err)
+	}
+
+	// Load commands for each task
+	for i := range tasks {
+		commands, err := s.commandRepository.FindByTaskID(ctx, tasks[i].ID)
+		if err != nil {
+			return nil, 0, fmt.Errorf("finding commands for task %s: %w", tasks[i].ID, err)
+		}
+		tasks[i].Commands = commands
+	}
+
 	return tasks, total, nil
 }

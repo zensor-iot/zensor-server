@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"zensor-server/internal/infra/pubsub"
@@ -30,6 +33,18 @@ type CommandPayload struct {
 	Data  uint8 `json:"value"`
 }
 
+func (v CommandPayload) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+func (v *CommandPayload) Scan(value any) error {
+	data, ok := value.(string)
+	if !ok {
+		return errors.New("type assertion to string failed")
+	}
+	return json.Unmarshal([]byte(data), &v)
+}
+
 func (CommandData) TableName() string {
 	return "device_commands_final"
 }
@@ -47,11 +62,12 @@ func NewCommandHandler(orm sql.ORM) *CommandHandler {
 
 // TopicName returns the commands topic
 func (h *CommandHandler) TopicName() pubsub.Topic {
-	return "commands"
+	return "device_commands"
 }
 
 // Create handles creating a new command record
 func (h *CommandHandler) Create(ctx context.Context, key pubsub.Key, message pubsub.Message) error {
+	fmt.Printf("*** Creating command: %+v\n", message)
 	internalCommand := h.extractCommandFields(message)
 
 	err := h.orm.WithContext(ctx).Create(&internalCommand).Error()

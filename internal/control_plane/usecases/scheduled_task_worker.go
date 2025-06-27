@@ -135,10 +135,10 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		return
 	}
 
-	// Create a new task based on the scheduled task's task definition
+	// Create a new task based on the scheduled task's commands
 	// We need to create new commands with fresh IDs and current timestamps
-	commands := make([]domain.Command, len(scheduledTask.Task.Commands))
-	for i, originalCmd := range scheduledTask.Task.Commands {
+	commands := make([]domain.Command, len(scheduledTask.Commands))
+	for i, originalCmd := range scheduledTask.Commands {
 		cmdBuilder := domain.NewCommandBuilder()
 		cmd, err := cmdBuilder.
 			WithDevice(device).
@@ -160,12 +160,18 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 	task, err := taskBuilder.
 		WithDevice(device).
 		WithCommands(commands).
+		WithScheduledTask(&scheduledTask).
 		Build()
 	if err != nil {
 		slog.Error("building task for scheduled task",
 			slog.String("scheduled_task_id", scheduledTask.ID.String()),
 			slog.Any("error", err))
 		return
+	}
+
+	// Set the Task field on each command so they have the correct task reference
+	for i := range task.Commands {
+		task.Commands[i].Task = task
 	}
 
 	err = w.taskService.Create(ctx, task)

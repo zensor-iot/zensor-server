@@ -55,3 +55,18 @@ func (r *SimpleCommandRepository) FindPendingByDevice(ctx context.Context, devic
 
 	return entities.ToDomain(), nil
 }
+
+func (r *SimpleCommandRepository) FindByTaskID(ctx context.Context, taskID domain.ID) ([]domain.Command, error) {
+	var entities internal.CommandSet
+	err := r.orm.
+		WithContext(ctx).
+		Where("task_id = ?", taskID.String()).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	return entities.ToDomain(), nil
+}

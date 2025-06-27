@@ -17,7 +17,7 @@ type Device struct {
 	TenantID              *string    `json:"tenant_id,omitempty" gorm:"index"`
 	LastMessageReceivedAt utils.Time `json:"last_message_received_at,omitempty"`
 	CreatedAt             time.Time  `json:"created_at"`
-	UpdaatedAt            time.Time  `json:"updated_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
 func (Device) TableName() string {
@@ -54,7 +54,7 @@ func FromDevice(value domain.Device) Device {
 		AppKey:                value.AppKey,
 		LastMessageReceivedAt: value.LastMessageReceivedAt,
 		CreatedAt:             time.Now(),
-		UpdaatedAt:            time.Now(),
+		UpdatedAt:             time.Now(),
 	}
 
 	if value.TenantID != nil {

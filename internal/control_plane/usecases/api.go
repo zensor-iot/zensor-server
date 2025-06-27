@@ -28,6 +28,7 @@ type TaskService interface {
 	Create(context.Context, domain.Task) error
 	Run(context.Context, domain.Task) error
 	FindAllByDevice(context.Context, domain.ID, Pagination) ([]domain.Task, int, error)
+	FindAllByScheduledTask(context.Context, domain.ID, Pagination) ([]domain.Task, int, error)
 }
 
 type ScheduledTaskService interface {

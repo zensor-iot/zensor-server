@@ -76,6 +76,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	// Task steps
 	ctx.When(`^I create a task for the device$`, fc.iCreateATaskForTheDevice)
+	ctx.Then(`^the response should contain command details$`, fc.theResponseShouldContainCommandDetails)
 
 	// Scheduled Task steps
 	ctx.Given(`^a scheduled task exists for the tenant and device with schedule "([^"]*)"$`, fc.aScheduledTaskExistsForTheTenantAndDeviceWithSchedule)

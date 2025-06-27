@@ -32,6 +32,7 @@ type DeviceRepository interface {
 type CommandRepository interface {
 	FindAllPending(context.Context) ([]domain.Command, error)
 	FindPendingByDevice(context.Context, domain.ID) ([]domain.Command, error)
+	FindByTaskID(context.Context, domain.ID) ([]domain.Command, error)
 }
 
 type EvaluationRuleRepository interface {
@@ -42,6 +43,7 @@ type EvaluationRuleRepository interface {
 type TaskRepository interface {
 	Create(context.Context, domain.Task) error
 	FindAllByDevice(ctx context.Context, device domain.Device, pagination Pagination) ([]domain.Task, int, error)
+	FindAllByScheduledTask(ctx context.Context, scheduledTaskID domain.ID, pagination Pagination) ([]domain.Task, int, error)
 }
 
 type ScheduledTaskRepository interface {

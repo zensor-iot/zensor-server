@@ -6,10 +6,23 @@
 - ✅ Replication service wiring completed for local environment
 - ✅ TaskHandler implementation completed for replicator
 - ✅ Implemented missing "get device by id" endpoint
+- ✅ **Refactored ScheduledTask to use Commands instead of Task**
+- ✅ **Added ScheduledTaskID tracking to Task domain**
 - Ready for testing and validation
 - Next: Test replication functionality with actual data flow
 
 ## Recent Changes
+- ✅ **Task creation response fix verified**: Functional tests confirm commands are now included in task creation response
+- ✅ **Fixed task creation response**: Updated task controller to include commands in the response
+- ✅ **Updated test API driver**: Fixed CreateScheduledTask to use new commands format instead of task
+- ✅ **Updated Task domain model**: Changed from ScheduledTaskID to ScheduledTask reference for better association
+- ✅ **Refactored ScheduledTask domain model**: Changed from having a Task reference to having Commands array directly
+- ✅ **Updated Task domain model**: Added optional ScheduledTaskID field to track back to the scheduled task that created it
+- ✅ **Updated database schema**: Created migrations to update scheduled_tasks and tasks tables
+- ✅ **Updated persistence layer**: Modified internal models and repositories to handle the new structure
+- ✅ **Updated scheduled task worker**: Modified to create tasks from scheduled task commands and set ScheduledTaskID
+- ✅ **Updated HTTP API**: Modified scheduled task controller and internal models to work with commands instead of task
+- ✅ **Added new repository method**: Added FindAllByScheduledTask to track task executions from scheduled tasks
 - ✅ **Implemented missing "get device by id" endpoint**: Added GET /v1/devices/{id} endpoint to DeviceController
 - ✅ **Added proper error handling**: Implemented 404 Not Found response for non-existent devices
 - ✅ **Created TaskHandler for replicator**: Implemented task handler following the same pattern as DeviceHandler and TenantHandler
@@ -31,6 +44,7 @@
 - ✅ Updated main.go to properly initialize and start replication service
 
 ## Next Steps
+- Test the scheduled task refactoring with actual data flow
 - Test the replication module with actual data flow
 - Add more topic handlers (evaluation rules, scheduled tasks)
 - Implement proper error handling and retry mechanisms
@@ -44,6 +58,17 @@
 - What monitoring and alerting should be added for replication failures?
 - Should we add support for custom replication strategies?
 - Should we consider creating a shared command interface to avoid type conversion issues?
+- How to handle scheduled task execution history and cleanup?
+
+## Scheduled Task Refactoring Status
+- ✅ **Domain Model Changes**: Updated ScheduledTask to use Commands instead of Task
+- ✅ **Task Domain Updates**: Added ScheduledTaskID field for tracking
+- ✅ **Database Schema**: Created migrations for updated structure
+- ✅ **Persistence Layer**: Updated internal models and repositories
+- ✅ **Worker Updates**: Modified scheduled task worker to create tasks from commands
+- ✅ **API Updates**: Updated HTTP controller and internal models
+- ✅ **Repository Methods**: Added FindAllByScheduledTask for tracking executions
+- ⚠️ Testing and validation pending
 
 ## Replication Module Status
 - ✅ Core replication infrastructure implemented
@@ -70,6 +95,7 @@
 - ✅ **POST /v1/devices**: Create new device
 - ✅ **PUT /v1/devices/{id}**: Update device display name
 - ✅ **POST /v1/devices/{id}/commands**: Send command to device
+- ✅ **Scheduled Task APIs**: Updated to work with commands instead of task
 
 ---
 

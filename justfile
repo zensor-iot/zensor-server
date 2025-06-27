@@ -139,22 +139,6 @@ validate-db:
     docker logs materialize --tail 20
     exit 1
 
-migrate:
-    #!/bin/bash
-    echo "🔄 applying database migrations..."
-    
-    # Apply migrations by reading all .sql files in order
-    for migration in migrations/*.up.sql; do
-        if [ -f "$migration" ]; then
-            echo "📄 applying $(basename "$migration")..."
-            if ! psql -h localhost -p 6875 -U materialize -d materialize -f "$migration"; then
-                echo "❌ failed to apply $(basename "$migration")"
-                exit 1
-            fi
-        fi
-    done
-    echo "✅ migrations completed successfully"
-
 health:
     #!/bin/bash
     echo "🔍 checking service health..."

@@ -10,7 +10,7 @@ type ScheduledTask struct {
 	Version  Version
 	Tenant   Tenant
 	Device   Device
-	Task     Task
+	Commands []Command
 	Schedule string // Cron format schedule
 	IsActive bool
 }
@@ -41,9 +41,9 @@ func (b *scheduledTaskBuilder) WithDevice(value Device) *scheduledTaskBuilder {
 	return b
 }
 
-func (b *scheduledTaskBuilder) WithTask(value Task) *scheduledTaskBuilder {
+func (b *scheduledTaskBuilder) WithCommands(value []Command) *scheduledTaskBuilder {
 	b.actions = append(b.actions, func(d *ScheduledTask) error {
-		d.Task = value
+		d.Commands = value
 		return nil
 	})
 	return b
@@ -70,6 +70,7 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 		ID:       ID(utils.GenerateUUID()),
 		Version:  1,
 		IsActive: true,
+		Commands: make([]Command, 0),
 	}
 
 	for _, a := range b.actions {
@@ -86,8 +87,8 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 		return ScheduledTask{}, errors.New("device is required")
 	}
 
-	if result.Task.ID == "" {
-		return ScheduledTask{}, errors.New("task is required")
+	if len(result.Commands) == 0 {
+		return ScheduledTask{}, errors.New("commands are required")
 	}
 
 	if result.Schedule == "" {

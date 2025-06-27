@@ -74,9 +74,9 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 			return
 		}
 
-		// Create the task definition
-		cmds := make([]domain.Command, len(body.Task.Commands))
-		for i, item := range body.Task.Commands {
+		// Create the commands from the request
+		cmds := make([]domain.Command, len(body.Commands))
+		for i, item := range body.Commands {
 			cmdBuilder := domain.NewCommandBuilder()
 			cmd, err := cmdBuilder.
 				WithDevice(device).
@@ -96,21 +96,11 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 			cmds[i] = cmd
 		}
 
-		task, err := domain.NewTaskBuilder().
-			WithDevice(device).
-			WithCommands(cmds).
-			Build()
-		if err != nil {
-			slog.Error("build task", slog.String("error", err.Error()))
-			http.Error(w, createScheduledTaskErrMessage, http.StatusInternalServerError)
-			return
-		}
-
 		// Create the scheduled task
 		scheduledTask, err := domain.NewScheduledTaskBuilder().
 			WithTenant(tenant).
 			WithDevice(device).
-			WithTask(task).
+			WithCommands(cmds).
 			WithSchedule(body.Schedule).
 			WithIsActive(body.IsActive).
 			Build()
@@ -130,7 +120,7 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 		response := internal.ScheduledTaskResponse{
 			ID:       scheduledTask.ID.String(),
 			DeviceID: scheduledTask.Device.ID.String(),
-			TaskID:   scheduledTask.Task.ID.String(),
+			Commands: body.Commands,
 			Schedule: scheduledTask.Schedule,
 			IsActive: scheduledTask.IsActive,
 		}
@@ -154,10 +144,21 @@ func (c *ScheduledTaskController) list() http.HandlerFunc {
 
 		responses := make([]internal.ScheduledTaskResponse, len(scheduledTasks))
 		for i, scheduledTask := range scheduledTasks {
+			// Convert domain commands to API commands
+			apiCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.Commands))
+			for j, cmd := range scheduledTask.Commands {
+				apiCommands[j] = internal.CommandSendPayloadRequest{
+					Index:    uint8(cmd.Payload.Index),
+					Value:    uint8(cmd.Payload.Value),
+					Priority: string(cmd.Priority),
+					WaitFor:  utils.Duration(cmd.DispatchAfter.Time.Sub(time.Now())),
+				}
+			}
+
 			responses[i] = internal.ScheduledTaskResponse{
 				ID:       scheduledTask.ID.String(),
 				DeviceID: scheduledTask.Device.ID.String(),
-				TaskID:   scheduledTask.Task.ID.String(),
+				Commands: apiCommands,
 				Schedule: scheduledTask.Schedule,
 				IsActive: scheduledTask.IsActive,
 			}
@@ -190,10 +191,21 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 			return
 		}
 
+		// Convert domain commands to API commands
+		apiCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.Commands))
+		for i, cmd := range scheduledTask.Commands {
+			apiCommands[i] = internal.CommandSendPayloadRequest{
+				Index:    uint8(cmd.Payload.Index),
+				Value:    uint8(cmd.Payload.Value),
+				Priority: string(cmd.Priority),
+				WaitFor:  utils.Duration(cmd.DispatchAfter.Time.Sub(time.Now())),
+			}
+		}
+
 		response := internal.ScheduledTaskResponse{
 			ID:       scheduledTask.ID.String(),
 			DeviceID: scheduledTask.Device.ID.String(),
-			TaskID:   scheduledTask.Task.ID.String(),
+			Commands: apiCommands,
 			Schedule: scheduledTask.Schedule,
 			IsActive: scheduledTask.IsActive,
 		}
@@ -237,8 +249,8 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 		if body.IsActive != nil {
 			scheduledTask.IsActive = *body.IsActive
 		}
-		if body.Task != nil {
-			// Update the task definition
+		if body.Commands != nil {
+			// Convert API commands to domain commands
 			device, err := c.deviceService.GetDevice(r.Context(), scheduledTask.Device.ID)
 			if err != nil {
 				slog.Error("get device failed", slog.String("error", err.Error()))
@@ -246,8 +258,8 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 				return
 			}
 
-			cmds := make([]domain.Command, len(body.Task.Commands))
-			for i, item := range body.Task.Commands {
+			cmds := make([]domain.Command, len(*body.Commands))
+			for i, item := range *body.Commands {
 				cmdBuilder := domain.NewCommandBuilder()
 				cmd, err := cmdBuilder.
 					WithDevice(device).
@@ -267,17 +279,7 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 				cmds[i] = cmd
 			}
 
-			task, err := domain.NewTaskBuilder().
-				WithDevice(device).
-				WithCommands(cmds).
-				Build()
-			if err != nil {
-				slog.Error("build task", slog.String("error", err.Error()))
-				http.Error(w, updateScheduledTaskErrMessage, http.StatusInternalServerError)
-				return
-			}
-
-			scheduledTask.Task = task
+			scheduledTask.Commands = cmds
 		}
 
 		err = c.service.Update(r.Context(), scheduledTask)
@@ -287,10 +289,21 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 			return
 		}
 
+		// Convert domain commands to API commands for response
+		apiCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.Commands))
+		for i, cmd := range scheduledTask.Commands {
+			apiCommands[i] = internal.CommandSendPayloadRequest{
+				Index:    uint8(cmd.Payload.Index),
+				Value:    uint8(cmd.Payload.Value),
+				Priority: string(cmd.Priority),
+				WaitFor:  utils.Duration(cmd.DispatchAfter.Time.Sub(time.Now())),
+			}
+		}
+
 		response := internal.ScheduledTaskResponse{
 			ID:       scheduledTask.ID.String(),
 			DeviceID: scheduledTask.Device.ID.String(),
-			TaskID:   scheduledTask.Task.ID.String(),
+			Commands: apiCommands,
 			Schedule: scheduledTask.Schedule,
 			IsActive: scheduledTask.IsActive,
 		}

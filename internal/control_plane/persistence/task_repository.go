@@ -94,12 +94,40 @@ func (r *SimpleTaskRepository) FindAllByDevice(ctx context.Context, device domai
 
 	tasks := make([]domain.Task, len(entities))
 	for i, entity := range entities {
-		tasks[i] = domain.Task{
-			ID:      domain.ID(entity.ID),
-			Device:  device,
-			Version: domain.Version(entity.Version),
-			// Commands are not loaded here; add if needed
-		}
+		tasks[i] = entity.ToDomain()
+		tasks[i].Device = device
+	}
+
+	return tasks, int(total), nil
+}
+
+func (r *SimpleTaskRepository) FindAllByScheduledTask(ctx context.Context, scheduledTaskID domain.ID, pagination usecases.Pagination) ([]domain.Task, int, error) {
+	var total int64
+	err := r.orm.
+		WithContext(ctx).
+		Model(&internal.Task{}).
+		Where("scheduled_task LIKE ?", "%"+scheduledTaskID.String()+"%").
+		Count(&total).
+		Error()
+	if err != nil {
+		return nil, 0, fmt.Errorf("count query: %w", err)
+	}
+
+	var entities []internal.Task
+	err = r.orm.
+		WithContext(ctx).
+		Where("scheduled_task LIKE ?", "%"+scheduledTaskID.String()+"%").
+		Limit(pagination.Limit).
+		Offset(pagination.Offset).
+		Find(&entities).
+		Error()
+	if err != nil {
+		return nil, 0, fmt.Errorf("database query: %w", err)
+	}
+
+	tasks := make([]domain.Task, len(entities))
+	for i, entity := range entities {
+		tasks[i] = entity.ToDomain()
 	}
 
 	return tasks, int(total), nil

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/json"
 	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/utils"
@@ -11,7 +12,7 @@ type ScheduledTask struct {
 	Version   uint       `json:"version"`
 	TenantID  string     `json:"tenant_id"`
 	DeviceID  string     `json:"device_id"`
-	TaskID    string     `json:"task_id"`
+	Commands  string     `json:"commands"` // JSON array of commands
 	Schedule  string     `json:"schedule"`
 	IsActive  bool       `json:"is_active"`
 	CreatedAt utils.Time `json:"created_at"`
@@ -23,12 +24,14 @@ func (ScheduledTask) TableName() string {
 }
 
 func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
+	commandsJSON, _ := json.Marshal(value.Commands)
+
 	return ScheduledTask{
 		ID:        value.ID.String(),
 		Version:   uint(value.Version),
 		TenantID:  value.Tenant.ID.String(),
 		DeviceID:  value.Device.ID.String(),
-		TaskID:    value.Task.ID.String(),
+		Commands:  string(commandsJSON),
 		Schedule:  value.Schedule,
 		IsActive:  value.IsActive,
 		CreatedAt: utils.Time{Time: time.Now()},
@@ -37,12 +40,15 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 }
 
 func (s ScheduledTask) ToDomain() domain.ScheduledTask {
+	var commands []domain.Command
+	json.Unmarshal([]byte(s.Commands), &commands)
+
 	return domain.ScheduledTask{
 		ID:       domain.ID(s.ID),
 		Version:  domain.Version(s.Version),
 		Tenant:   domain.Tenant{ID: domain.ID(s.TenantID)},
 		Device:   domain.Device{ID: domain.ID(s.DeviceID)},
-		Task:     domain.Task{ID: domain.ID(s.TaskID)},
+		Commands: commands,
 		Schedule: s.Schedule,
 		IsActive: s.IsActive,
 	}

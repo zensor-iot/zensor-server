@@ -6,10 +6,11 @@ import (
 )
 
 type Task struct {
-	ID       ID
-	Version  Version
-	Device   Device
-	Commands []Command
+	ID            ID
+	Version       Version
+	Device        Device
+	Commands      []Command
+	ScheduledTask *ScheduledTask // Optional reference to the scheduled task that created this task
 }
 
 func NewTaskBuilder() *taskBuilder {
@@ -33,6 +34,14 @@ func (b *taskBuilder) WithDevice(value Device) *taskBuilder {
 func (b *taskBuilder) WithCommands(value []Command) *taskBuilder {
 	b.actions = append(b.actions, func(d *Task) error {
 		d.Commands = value
+		return nil
+	})
+	return b
+}
+
+func (b *taskBuilder) WithScheduledTask(value *ScheduledTask) *taskBuilder {
+	b.actions = append(b.actions, func(d *Task) error {
+		d.ScheduledTask = value
 		return nil
 	})
 	return b

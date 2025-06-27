@@ -288,6 +288,15 @@ func InitializeTaskHandler() (*handlers.TaskHandler, error) {
 	return nil, nil
 }
 
+func InitializeCommandHandler() (*handlers.CommandHandler, error) {
+	wire.Build(
+		provideAppConfig,
+		provideDatabase,
+		handlers.NewCommandHandler,
+	)
+	return nil, nil
+}
+
 func providePublisherFactoryForEnvironment(config config.AppConfig) pubsub.PublisherFactory {
 	env, ok := os.LookupEnv("ENV")
 	if !ok {

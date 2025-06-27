@@ -18,7 +18,7 @@ type EvaluationRule struct {
 	Enabled     bool       `json:"enabled"`
 	Parameters  Parameters `json:"parameters"`
 	CreatedAt   utils.Time `json:"created_at"`
-	UpdaatedAt  utils.Time `json:"updated_at"`
+	UpdatedAt   utils.Time `json:"updated_at"`
 }
 
 func (EvaluationRule) TableName() string {
@@ -48,7 +48,7 @@ func FromEvaluationRule(value domain.EvaluationRule) EvaluationRule {
 		Enabled:     value.Enabled,
 		Parameters:  MapEvaluationRuleParametersToMap(value.Parameters),
 		CreatedAt:   utils.Time{Time: time.Now()},
-		UpdaatedAt:  utils.Time{Time: time.Now()},
+		UpdatedAt:   utils.Time{Time: time.Now()},
 	}
 }
 

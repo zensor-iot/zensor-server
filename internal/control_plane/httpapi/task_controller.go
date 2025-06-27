@@ -89,6 +89,11 @@ func (c *TaskController) create() http.HandlerFunc {
 			return
 		}
 
+		// Set the Task field on each command so they have the correct task reference
+		for i := range task.Commands {
+			task.Commands[i].Task = task
+		}
+
 		err = c.service.Create(r.Context(), task)
 		if errors.Is(err, usecases.ErrCommandOverlap) {
 			http.Error(w, commandOverlapErrMessage, http.StatusConflict)
@@ -100,8 +105,31 @@ func (c *TaskController) create() http.HandlerFunc {
 			return
 		}
 
+		// Convert domain commands to API command responses
+		commandResponses := make([]internal.TaskCommandResponse, len(task.Commands))
+		for j, cmd := range task.Commands {
+			var sentAt *string
+			if !cmd.SentAt.IsZero() {
+				sentAtStr := cmd.SentAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				sentAt = &sentAtStr
+			}
+
+			commandResponses[j] = internal.TaskCommandResponse{
+				ID:            cmd.ID.String(),
+				Index:         uint8(cmd.Payload.Index),
+				Value:         uint8(cmd.Payload.Value),
+				Port:          uint8(cmd.Port),
+				Priority:      string(cmd.Priority),
+				DispatchAfter: cmd.DispatchAfter.Time.Format("2006-01-02T15:04:05Z07:00"),
+				Ready:         cmd.Ready,
+				Sent:          cmd.Sent,
+				SentAt:        sentAt,
+			}
+		}
+
 		response := internal.TaskResponse{
-			ID: task.ID.String(),
+			ID:       task.ID.String(),
+			Commands: commandResponses,
 		}
 
 		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
@@ -123,8 +151,30 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 
 		responses := make([]internal.TaskResponse, len(tasks))
 		for i, task := range tasks {
+			commandResponses := make([]internal.TaskCommandResponse, len(task.Commands))
+			for j, cmd := range task.Commands {
+				var sentAt *string
+				if !cmd.SentAt.IsZero() {
+					sentAtStr := cmd.SentAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					sentAt = &sentAtStr
+				}
+
+				commandResponses[j] = internal.TaskCommandResponse{
+					ID:            cmd.ID.String(),
+					Index:         uint8(cmd.Payload.Index),
+					Value:         uint8(cmd.Payload.Value),
+					Port:          uint8(cmd.Port),
+					Priority:      string(cmd.Priority),
+					DispatchAfter: cmd.DispatchAfter.Time.Format("2006-01-02T15:04:05Z07:00"),
+					Ready:         cmd.Ready,
+					Sent:          cmd.Sent,
+					SentAt:        sentAt,
+				}
+			}
+
 			responses[i] = internal.TaskResponse{
-				ID: task.ID.String(),
+				ID:       task.ID.String(),
+				Commands: commandResponses,
 			}
 		}
 
