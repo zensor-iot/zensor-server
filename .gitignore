@@ -14,3 +14,5 @@ api.log
 # c4
 .structurizr
 c4model.json
+
+coverprofile.out
