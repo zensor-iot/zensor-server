@@ -152,7 +152,10 @@ func (c *ScheduledTaskController) list() http.HandlerFunc {
 		tenantID := r.PathValue("tenant_id")
 		deviceID := r.PathValue("device_id")
 
-		scheduledTasks, err := c.service.FindAllByTenantAndDevice(r.Context(), domain.ID(tenantID), domain.ID(deviceID))
+		params := httpserver.ExtractPaginationParams(r)
+		pagination := usecases.Pagination{Limit: params.Limit, Offset: (params.Page - 1) * params.Limit}
+
+		scheduledTasks, total, err := c.service.FindAllByTenantAndDevice(r.Context(), domain.ID(tenantID), domain.ID(deviceID), pagination)
 		if err != nil {
 			slog.Error("list scheduled tasks failed", slog.String("error", err.Error()))
 			http.Error(w, listScheduledTaskErrMessage, http.StatusInternalServerError)
@@ -181,12 +184,7 @@ func (c *ScheduledTaskController) list() http.HandlerFunc {
 			}
 		}
 
-		response := internal.ScheduledTaskListResponse{
-			ScheduledTasks: responses,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, params)
 	}
 }
 

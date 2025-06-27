@@ -68,15 +68,21 @@ func (fc *FeatureContext) theListShouldContainOurScheduledTask() error {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var listResp struct {
-		ScheduledTasks []ScheduledTask `json:"scheduled_tasks"`
+	var paginatedResp struct {
+		Data       []ScheduledTask `json:"data"`
+		Pagination struct {
+			Page       int `json:"page"`
+			Limit      int `json:"limit"`
+			Total      int `json:"total"`
+			TotalPages int `json:"total_pages"`
+		} `json:"pagination"`
 	}
-	if err := json.Unmarshal(body, &listResp); err != nil {
-		return fmt.Errorf("failed to decode list response: %w", err)
+	if err := json.Unmarshal(body, &paginatedResp); err != nil {
+		return fmt.Errorf("failed to decode paginated response: %w", err)
 	}
 
 	found := false
-	for _, task := range listResp.ScheduledTasks {
+	for _, task := range paginatedResp.Data {
 		if task.ID == fc.scheduledTaskID {
 			found = true
 			break

@@ -130,6 +130,11 @@ func (m *MockORM) Error() error {
 	return args.Error(0)
 }
 
+func (m *MockORM) Order(value any) sql.ORM {
+	args := m.Called(value)
+	return args.Get(0).(sql.ORM)
+}
+
 // MockTopicHandler is a mock implementation of TopicHandler
 type MockTopicHandler struct {
 	mock.Mock

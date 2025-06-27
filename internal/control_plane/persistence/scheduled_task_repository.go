@@ -68,16 +68,33 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenant(ctx context.Context, ten
 	return result, nil
 }
 
-func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Context, tenantID domain.ID, deviceID domain.ID) ([]domain.ScheduledTask, error) {
+func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Context, tenantID domain.ID, deviceID domain.ID, pagination usecases.Pagination) ([]domain.ScheduledTask, int, error) {
 	var entities []internal.ScheduledTask
+	var total int64
+
+	// Get total count
 	err := r.orm.
 		WithContext(ctx).
+		Model(&internal.ScheduledTask{}).
 		Where("tenant_id = ? AND device_id = ?", tenantID.String(), deviceID.String()).
+		Count(&total).
+		Error()
+
+	if err != nil {
+		return nil, 0, fmt.Errorf("counting scheduled tasks: %w", err)
+	}
+
+	// Get paginated results
+	err = r.orm.
+		WithContext(ctx).
+		Where("tenant_id = ? AND device_id = ?", tenantID.String(), deviceID.String()).
+		Limit(pagination.Limit).
+		Offset(pagination.Offset).
 		Find(&entities).
 		Error()
 
 	if err != nil {
-		return nil, fmt.Errorf("database query: %w", err)
+		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
 
 	result := make([]domain.ScheduledTask, len(entities))
@@ -85,7 +102,7 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Con
 		result[i] = entity.ToDomain()
 	}
 
-	return result, nil
+	return result, int(total), nil
 }
 
 func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]domain.ScheduledTask, error) {
