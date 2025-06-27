@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"time"
 	"zensor-server/internal/infra/utils"
 )
 
@@ -11,6 +12,7 @@ type Task struct {
 	Device        Device
 	Commands      []Command
 	ScheduledTask *ScheduledTask // Optional reference to the scheduled task that created this task
+	CreatedAt     utils.Time
 }
 
 func NewTaskBuilder() *taskBuilder {
@@ -49,9 +51,10 @@ func (b *taskBuilder) WithScheduledTask(value *ScheduledTask) *taskBuilder {
 
 func (b *taskBuilder) Build() (Task, error) {
 	result := Task{
-		ID:       ID(utils.GenerateUUID()),
-		Version:  1,
-		Commands: make([]Command, 0),
+		ID:        ID(utils.GenerateUUID()),
+		Version:   1,
+		Commands:  make([]Command, 0),
+		CreatedAt: utils.Time{Time: time.Now()},
 	}
 
 	for _, a := range b.actions {

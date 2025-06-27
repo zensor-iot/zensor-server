@@ -17,8 +17,9 @@ type TaskCommandResponse struct {
 }
 
 type TaskResponse struct {
-	ID       string                `json:"id"`
-	Commands []TaskCommandResponse `json:"commands"`
+	ID        string                `json:"id"`
+	Commands  []TaskCommandResponse `json:"commands"`
+	CreatedAt string                `json:"created_at"`
 }
 
 type TaskListResponse struct {

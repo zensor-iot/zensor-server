@@ -23,11 +23,13 @@ func NewScheduledTaskController(
 	service usecases.ScheduledTaskService,
 	deviceService usecases.DeviceService,
 	tenantService usecases.TenantService,
+	taskService usecases.TaskService,
 ) *ScheduledTaskController {
 	return &ScheduledTaskController{
 		service:       service,
 		deviceService: deviceService,
 		tenantService: tenantService,
+		taskService:   taskService,
 	}
 }
 
@@ -37,6 +39,7 @@ type ScheduledTaskController struct {
 	service       usecases.ScheduledTaskService
 	deviceService usecases.DeviceService
 	tenantService usecases.TenantService
+	taskService   usecases.TaskService
 }
 
 func (c *ScheduledTaskController) AddRoutes(router *http.ServeMux) {
@@ -44,6 +47,7 @@ func (c *ScheduledTaskController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks", c.list())
 	router.Handle("GET /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}", c.get())
 	router.Handle("PUT /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}", c.update())
+	router.Handle("GET /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}/tasks", c.getTasksByScheduledTask())
 }
 
 func (c *ScheduledTaskController) create() http.HandlerFunc {
@@ -325,5 +329,89 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+	}
+}
+
+func (c *ScheduledTaskController) getTasksByScheduledTask() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := r.PathValue("tenant_id")
+		deviceID := r.PathValue("device_id")
+		scheduledTaskID := r.PathValue("id")
+
+		// Verify tenant exists
+		_, err := c.tenantService.GetTenant(r.Context(), domain.ID(tenantID))
+		if err != nil {
+			slog.Error("get tenant failed", slog.String("error", err.Error()))
+			http.Error(w, "failed to get tasks", http.StatusInternalServerError)
+			return
+		}
+
+		// Verify device exists and belongs to tenant
+		_, err = c.deviceService.GetDevice(r.Context(), domain.ID(deviceID))
+		if err != nil {
+			slog.Error("get device failed", slog.String("error", err.Error()))
+			http.Error(w, "failed to get tasks", http.StatusInternalServerError)
+			return
+		}
+
+		// Verify scheduled task exists and belongs to tenant and device
+		scheduledTask, err := c.service.GetByID(r.Context(), domain.ID(scheduledTaskID))
+		if err != nil {
+			slog.Error("get scheduled task failed", slog.String("error", err.Error()))
+			http.Error(w, "failed to get tasks", http.StatusInternalServerError)
+			return
+		}
+
+		if scheduledTask.Tenant.ID != domain.ID(tenantID) || scheduledTask.Device.ID != domain.ID(deviceID) {
+			http.Error(w, "failed to get tasks", http.StatusNotFound)
+			return
+		}
+
+		// Extract pagination parameters
+		params := httpserver.ExtractPaginationParams(r)
+		pagination := usecases.Pagination{Limit: params.Limit, Offset: (params.Page - 1) * params.Limit}
+
+		// Get tasks by scheduled task
+		tasks, total, err := c.taskService.FindAllByScheduledTask(r.Context(), domain.ID(scheduledTaskID), pagination)
+		if err != nil {
+			slog.Error("get tasks by scheduled task failed", slog.String("error", err.Error()))
+			http.Error(w, "failed to get tasks", http.StatusInternalServerError)
+			return
+		}
+
+		// Convert domain tasks to API responses
+		responses := make([]internal.TaskResponse, len(tasks))
+		for i, task := range tasks {
+			// Convert domain commands to API command responses
+			commandResponses := make([]internal.TaskCommandResponse, len(task.Commands))
+			for j, cmd := range task.Commands {
+				var sentAt *string
+				if !cmd.SentAt.IsZero() {
+					sentAtStr := cmd.SentAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					sentAt = &sentAtStr
+				}
+
+				commandResponses[j] = internal.TaskCommandResponse{
+					ID:            cmd.ID.String(),
+					Index:         uint8(cmd.Payload.Index),
+					Value:         uint8(cmd.Payload.Value),
+					Port:          uint8(cmd.Port),
+					Priority:      string(cmd.Priority),
+					DispatchAfter: cmd.DispatchAfter.Time.Format("2006-01-02T15:04:05Z07:00"),
+					Ready:         cmd.Ready,
+					Sent:          cmd.Sent,
+					SentAt:        sentAt,
+				}
+			}
+
+			responses[i] = internal.TaskResponse{
+				ID:        task.ID.String(),
+				Commands:  commandResponses,
+				CreatedAt: task.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			}
+		}
+
+		// Return paginated response
+		httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, params)
 	}
 }

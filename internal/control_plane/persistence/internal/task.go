@@ -33,7 +33,7 @@ func FromTask(value domain.Task) Task {
 		DeviceID:      value.Device.ID.String(),
 		ScheduledTask: scheduledTaskJSON,
 		Version:       uint(value.Version),
-		CreatedAt:     utils.Time{Time: time.Now()},
+		CreatedAt:     value.CreatedAt,
 		UpdatedAt:     utils.Time{Time: time.Now()},
 	}
 }
@@ -52,5 +52,6 @@ func (t Task) ToDomain() domain.Task {
 		Device:        domain.Device{ID: domain.ID(t.DeviceID)},
 		ScheduledTask: scheduledTask,
 		Version:       domain.Version(t.Version),
+		CreatedAt:     t.CreatedAt,
 	}
 }

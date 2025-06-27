@@ -26,6 +26,30 @@ func (fc *FeatureContext) iCreateANewTenantWithNameAndEmail(name, email string) 
 func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "A test tenant")
 	fc.require.NoError(err)
+
+	if resp.StatusCode == http.StatusConflict {
+		// Tenant already exists, try to get it by listing all tenants
+		listResp, err := fc.apiDriver.ListTenants()
+		fc.require.NoError(err)
+		fc.require.Equal(http.StatusOK, listResp.StatusCode)
+
+		var listData struct {
+			Data []map[string]any `json:"data"`
+		}
+		err = fc.decodeBody(listResp.Body, &listData)
+		fc.require.NoError(err)
+
+		// Find the tenant with the given name
+		for _, tenant := range listData.Data {
+			if tenant["name"] == name {
+				fc.tenantID = tenant["id"].(string)
+				return nil
+			}
+		}
+		fc.require.Fail("Tenant with name " + name + " not found in list")
+		return nil
+	}
+
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any

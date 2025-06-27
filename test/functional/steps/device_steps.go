@@ -29,6 +29,29 @@ func (fc *FeatureContext) iCreateANewDeviceWithNameAndDisplayName(name, displayN
 func (fc *FeatureContext) aDeviceExistsWithName(name string) error {
 	resp, err := fc.apiDriver.CreateDevice(name, name)
 	fc.require.NoError(err)
+
+	if resp.StatusCode == http.StatusConflict {
+		// Device already exists, try to get it by listing all devices
+		listResp, err := fc.apiDriver.ListDevices()
+		fc.require.NoError(err)
+		fc.require.Equal(http.StatusOK, listResp.StatusCode)
+
+		var listData struct {
+			Data []map[string]any `json:"data"`
+		}
+		err = fc.decodeBody(listResp.Body, &listData)
+		fc.require.NoError(err)
+
+		for _, device := range listData.Data {
+			if device["name"] == name {
+				fc.deviceID = device["id"].(string)
+				return nil
+			}
+		}
+		fc.require.Fail("Device with name " + name + " not found in list")
+		return nil
+	}
+
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any

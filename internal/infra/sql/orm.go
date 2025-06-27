@@ -19,6 +19,7 @@ type ORM interface {
 	Limit(limit int) ORM
 	Model(value any) ORM
 	Offset(offset int) ORM
+	Order(value any) ORM
 	Preload(query string, args ...any) ORM
 	Save(value any) ORM
 	Transaction(fc func(tx ORM) error, opts ...*sql.TxOptions) error
@@ -114,6 +115,12 @@ func (d DB) Model(value any) ORM {
 
 func (d DB) Offset(value int) ORM {
 	tx := d.DB.Offset(value)
+	d.DB = tx
+	return &d
+}
+
+func (d DB) Order(value any) ORM {
+	tx := d.DB.Order(value)
 	d.DB = tx
 	return &d
 }

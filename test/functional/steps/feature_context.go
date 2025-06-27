@@ -31,6 +31,7 @@ type FeatureContext struct {
 	deviceID         string
 	scheduledTaskID  string
 	evaluationRuleID string
+	updatedSchedule  string
 	require          *require.Assertions
 	t                godog.TestingT
 }
@@ -110,6 +111,7 @@ func (fc *FeatureContext) reset() {
 	fc.deviceID = ""
 	fc.scheduledTaskID = ""
 	fc.evaluationRuleID = ""
+	fc.updatedSchedule = ""
 }
 
 func (fc *FeatureContext) decodeBody(body io.ReadCloser, target any) error {

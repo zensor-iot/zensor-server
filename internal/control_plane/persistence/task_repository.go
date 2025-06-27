@@ -84,6 +84,7 @@ func (r *SimpleTaskRepository) FindAllByDevice(ctx context.Context, device domai
 	err = r.orm.
 		WithContext(ctx).
 		Where("device_id = ?", device.ID.String()).
+		Order("created_at DESC").
 		Limit(pagination.Limit).
 		Offset(pagination.Offset).
 		Find(&entities).
@@ -117,6 +118,7 @@ func (r *SimpleTaskRepository) FindAllByScheduledTask(ctx context.Context, sched
 	err = r.orm.
 		WithContext(ctx).
 		Where("scheduled_task LIKE ?", "%"+scheduledTaskID.String()+"%").
+		Order("created_at DESC").
 		Limit(pagination.Limit).
 		Offset(pagination.Offset).
 		Find(&entities).

@@ -128,8 +128,9 @@ func (c *TaskController) create() http.HandlerFunc {
 		}
 
 		response := internal.TaskResponse{
-			ID:       task.ID.String(),
-			Commands: commandResponses,
+			ID:        task.ID.String(),
+			Commands:  commandResponses,
+			CreatedAt: task.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		}
 
 		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
@@ -173,8 +174,9 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 			}
 
 			responses[i] = internal.TaskResponse{
-				ID:       task.ID.String(),
-				Commands: commandResponses,
+				ID:        task.ID.String(),
+				Commands:  commandResponses,
+				CreatedAt: task.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 			}
 		}
 

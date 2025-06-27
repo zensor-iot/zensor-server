@@ -113,7 +113,16 @@ func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, erro
 		return nil, err
 	}
 	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
-	scheduledTaskController := httpapi.NewScheduledTaskController(simpleScheduledTaskService, simpleDeviceService, simpleTenantService)
+	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository, simpleDeviceRepository)
+	scheduledTaskController := httpapi.NewScheduledTaskController(simpleScheduledTaskService, simpleDeviceService, simpleTenantService, simpleTaskService)
 	return scheduledTaskController, nil
 }
 

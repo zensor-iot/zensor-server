@@ -90,6 +90,12 @@ func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, erro
 		wire.Bind(new(usecases.TenantService), new(*usecases.SimpleTenantService)),
 		usecases.NewScheduledTaskService,
 		wire.Bind(new(usecases.ScheduledTaskService), new(*usecases.SimpleScheduledTaskService)),
+		persistence.NewTaskRepository,
+		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
+		persistence.NewCommandRepository,
+		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleCommandRepository)),
+		usecases.NewTaskService,
+		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
 		httpapi.NewScheduledTaskController,
 	)
 

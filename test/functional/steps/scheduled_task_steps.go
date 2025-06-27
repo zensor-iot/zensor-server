@@ -68,13 +68,15 @@ func (fc *FeatureContext) theListShouldContainOurScheduledTask() error {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var paginatedResp PaginatedResponse[ScheduledTask]
-	if err := json.Unmarshal(body, &paginatedResp); err != nil {
-		return fmt.Errorf("failed to decode paginated response: %w", err)
+	var listResp struct {
+		ScheduledTasks []ScheduledTask `json:"scheduled_tasks"`
+	}
+	if err := json.Unmarshal(body, &listResp); err != nil {
+		return fmt.Errorf("failed to decode list response: %w", err)
 	}
 
 	found := false
-	for _, task := range paginatedResp.Data {
+	for _, task := range listResp.ScheduledTasks {
 		if task.ID == fc.scheduledTaskID {
 			found = true
 			break
@@ -85,6 +87,7 @@ func (fc *FeatureContext) theListShouldContainOurScheduledTask() error {
 }
 
 func (fc *FeatureContext) iUpdateTheScheduledTaskWithANewSchedule(newSchedule string) error {
+	fc.updatedSchedule = newSchedule
 	resp, err := fc.apiDriver.UpdateScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID, newSchedule)
 	fc.require.NoError(err)
 	fc.response = resp
@@ -103,6 +106,6 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSche
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.Equal(fc.scheduledTaskID, data["id"])
-	fc.require.Equal(fc.responseData["schedule"], data["schedule"])
+	fc.require.Equal(fc.updatedSchedule, data["schedule"])
 	return nil
 }
