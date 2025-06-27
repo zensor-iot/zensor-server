@@ -50,17 +50,9 @@ jobs:
           path: coverprofile.out
           retention-days: 30
 
-  test-functional-tenant:
-    name: Functional Tests - Tenant
+  test-functional:
+    name: Functional Tests
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        test_pattern: 
-          - "@tenant"
-          - "@task"
-          - "@device"
-          - "@scheduled_task"
     
     steps:
       - name: Checkout repository
@@ -91,7 +83,11 @@ jobs:
         run: just build
 
       - name: Run functional tests
-        run: just functional "${{ matrix.test_pattern }}"
+        run: |
+          just functional "@tenant"
+          just functional "@task"
+          just functional "@device"
+          just functional "@scheduled_task"
         env:
           ENV: local
 
