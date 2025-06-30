@@ -1,21 +1,17 @@
--- Add last_executed_at column to scheduled_tasks table
-ALTER TABLE scheduled_tasks ADD COLUMN last_executed_at TIMESTAMP WITH TIME ZONE;
+-- Drop the existing materialized views to recreate them with the new field
+DROP MATERIALIZED VIEW IF EXISTS scheduled_tasks_final;
 
--- Update the materialized view to include the new field
-DROP MATERIALIZED VIEW IF EXISTS scheduled_tasks_view_structured;
-CREATE MATERIALIZED VIEW scheduled_tasks_view_structured AS
-SELECT 
-    id,
-    version,
-    tenant_id,
-    device_id,
-    command_templates,
-    schedule,
-    is_active,
-    created_at,
-    updated_at,
-    last_executed_at
-FROM scheduled_tasks;
-
--- Create index on the new column for better query performance
-CREATE INDEX idx_scheduled_tasks_last_executed_at ON scheduled_tasks(last_executed_at); 
+-- Recreate the materialized view to include the last_executed_at field
+CREATE MATERIALIZED VIEW IF NOT EXISTS scheduled_tasks_final AS
+  SELECT
+    (data->>'id')::uuid AS id,
+    (data->>'version')::integer AS version,
+    (data->>'tenant_id')::uuid AS tenant_id,
+    (data->>'device_id')::uuid AS device_id,
+    data->>'command_templates' AS command_templates,
+    (data->>'schedule')::text AS schedule,
+    (data->>'is_active')::boolean AS is_active,
+    try_parse_monotonic_iso8601_timestamp(data->>'created_at') AS created_at,
+    try_parse_monotonic_iso8601_timestamp(data->>'updated_at') AS updated_at,
+    try_parse_monotonic_iso8601_timestamp(data->>'last_executed_at') AS last_executed_at
+  FROM scheduled_tasks; 

@@ -1,6 +1,5 @@
 -- Drop the existing scheduled_tasks source and views
 DROP MATERIALIZED VIEW IF EXISTS scheduled_tasks_final;
-DROP MATERIALIZED VIEW IF EXISTS scheduled_tasks;
 DROP SOURCE IF EXISTS scheduled_tasks;
 
 -- Recreate the scheduled_tasks source with updated schema
