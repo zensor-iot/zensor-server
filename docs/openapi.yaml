@@ -109,7 +109,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantListResponse'
+                $ref: '#/components/schemas/PaginatedTenantResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -344,13 +344,30 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
         '200':
           description: List of tenant devices
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceListResponse'
+                $ref: '#/components/schemas/PaginatedDeviceResponse'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -980,6 +997,49 @@ components:
           type: integer
           description: Total number of tenants
           example: 10
+
+    # Pagination schemas
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 10
+        total:
+          type: integer
+          description: Total number of items
+          example: 100
+        total_pages:
+          type: integer
+          description: Total number of pages
+          example: 10
+
+    PaginatedTenantResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantResponse'
+          description: Array of tenant objects
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    PaginatedDeviceResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceResponse'
+          description: Array of device objects
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
 
     # Device schemas
     DeviceCreateRequest:
