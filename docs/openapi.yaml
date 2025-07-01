@@ -386,13 +386,31 @@ paths:
       description: Retrieve a list of all devices
       tags:
         - Devices
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
         '200':
           description: List of devices
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceListResponse'
+                $ref: '#/components/schemas/PaginatedDeviceResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -553,7 +571,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskListResponse'
+                $ref: '#/components/schemas/PaginatedTaskResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -608,13 +626,30 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
         '200':
           description: List of evaluation rules
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EvaluationRuleSetResponse'
+                $ref: '#/components/schemas/PaginatedEvaluationRuleResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -700,7 +735,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ScheduledTaskListResponse'
+                $ref: '#/components/schemas/PaginatedScheduledTaskResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -857,13 +892,30 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
         '200':
           description: List of tasks created by the scheduled task
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskListResponse'
+                $ref: '#/components/schemas/PaginatedTaskResponse'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -1351,17 +1403,16 @@ components:
           description: Whether the scheduled task is active
           example: true
 
-    ScheduledTaskListResponse:
+    PaginatedScheduledTaskResponse:
       type: object
       properties:
-        scheduled_tasks:
+        data:
           type: array
           items:
             $ref: '#/components/schemas/ScheduledTaskResponse'
-        total:
-          type: integer
-          description: Total number of scheduled tasks
-          example: 10
+          description: Array of scheduled task objects
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
 
     # Evaluation Rule schemas
     EvaluationRuleCreateRequest:
@@ -1468,6 +1519,27 @@ components:
         data:
           description: Message payload data
           example: {"temperature": 25.5, "humidity": 60.2}
+
+    PaginatedEvaluationRuleResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvaluationRuleResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    PaginatedTaskResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+          description: Array of task objects
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
 
   responses:
     BadRequest:
