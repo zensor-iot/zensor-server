@@ -18,6 +18,11 @@ func NewMemoryORM(migrationsPath string, replacements map[string]string) (ORM, e
 	databaseCreationOnce.Do(func() {
 		dialector := sqlite.Open("file::memory:?cache=shared")
 		gormDB, err = gorm.Open(dialector, &gorm.Config{})
+		db, err := gormDB.DB()
+		if err != nil {
+			panic(err)
+		}
+		db.SetMaxOpenConns(1)
 	})
 
 	if err != nil {
