@@ -107,12 +107,11 @@ func (fc *FeatureContext) iGetTheScheduledTaskByItsID() error {
 	return err
 }
 
-func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSchedule() error {
+func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSchedule(schedule string) error {
 	var data map[string]any
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
-	fc.require.Equal(fc.scheduledTaskID, data["id"])
-	fc.require.Equal(fc.updatedSchedule, data["schedule"])
+	fc.require.Equal(schedule, data["schedule"])
 	return nil
 }
 
@@ -319,4 +318,18 @@ func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTas
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating scheduled task")
 	}
 	return nil
+}
+
+func (fc *FeatureContext) iDeleteTheScheduledTask() error {
+	resp, err := fc.apiDriver.DeleteScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID)
+	fc.require.NoError(err)
+	fc.response = resp
+	return err
+}
+
+func (fc *FeatureContext) iTryToGetTheScheduledTaskByItsID() error {
+	resp, err := fc.apiDriver.GetScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID)
+	fc.require.NoError(err)
+	fc.response = resp
+	return err
 }

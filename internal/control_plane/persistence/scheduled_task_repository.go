@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
@@ -52,7 +53,7 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenant(ctx context.Context, ten
 	var entities []internal.ScheduledTask
 	err := r.orm.
 		WithContext(ctx).
-		Where("tenant_id = ?", tenantID.String()).
+		Where("tenant_id = ? AND deleted_at IS NULL", tenantID.String()).
 		Find(&entities).
 		Error()
 
@@ -76,7 +77,7 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Con
 	err := r.orm.
 		WithContext(ctx).
 		Model(&internal.ScheduledTask{}).
-		Where("tenant_id = ? AND device_id = ?", tenantID.String(), deviceID.String()).
+		Where("tenant_id = ? AND device_id = ? AND deleted_at IS NULL", tenantID.String(), deviceID.String()).
 		Count(&total).
 		Error()
 
@@ -87,7 +88,7 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Con
 	// Get paginated results
 	err = r.orm.
 		WithContext(ctx).
-		Where("tenant_id = ? AND device_id = ?", tenantID.String(), deviceID.String()).
+		Where("tenant_id = ? AND device_id = ? AND deleted_at IS NULL", tenantID.String(), deviceID.String()).
 		Limit(pagination.Limit).
 		Offset(pagination.Offset).
 		Find(&entities).
@@ -109,7 +110,7 @@ func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]do
 	var entities []internal.ScheduledTask
 	err := r.orm.
 		WithContext(ctx).
-		Where("is_active = ?", true).
+		Where("is_active = ? AND deleted_at IS NULL", true).
 		Find(&entities).
 		Error()
 
@@ -135,15 +136,40 @@ func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTas
 	return nil
 }
 
+func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID) error {
+	// Get the existing scheduled task
+	scheduledTask, err := r.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("getting scheduled task for deletion: %w", err)
+	}
+
+	// Soft delete the scheduled task
+	scheduledTask.SoftDelete()
+
+	// Publish the soft-deleted scheduled task
+	data := internal.FromScheduledTask(scheduledTask)
+	err = r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), data)
+	if err != nil {
+		return fmt.Errorf("publishing scheduled task deletion to kafka: %w", err)
+	}
+
+	return nil
+}
+
 func (r *SimpleScheduledTaskRepository) GetByID(ctx context.Context, id domain.ID) (domain.ScheduledTask, error) {
 	var entity internal.ScheduledTask
 	err := r.orm.
 		WithContext(ctx).
-		First(&entity, "id = ?", id.String()).
+		Where("id = ? AND deleted_at IS NULL", id.String()).
+		First(&entity).
 		Error()
 
+	if errors.Is(err, sql.ErrRecordNotFound) {
+		return domain.ScheduledTask{}, usecases.ErrScheduledTaskNotFound
+	}
+
 	if err != nil {
-		return domain.ScheduledTask{}, fmt.Errorf("database query: %w", err)
+		return domain.ScheduledTask{}, err
 	}
 
 	return entity.ToDomain(), nil

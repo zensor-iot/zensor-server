@@ -9,7 +9,6 @@ Feature: Get Tasks by Scheduled Task
     And a device with id "test-device-1" belonging to tenant "test-tenant-1"
     And a scheduled task with id "test-scheduled-task-1" for device "test-device-1" with schedule "0 0 * * *"
 
-  @wip
   Scenario: Get tasks by scheduled task with pagination
     Given there are 15 tasks created from scheduled task "test-scheduled-task-1"
     When I retrieve the first 10 tasks for scheduled task "test-scheduled-task-1"

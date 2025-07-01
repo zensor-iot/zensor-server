@@ -28,4 +28,13 @@ Feature: Scheduled Task Management
     And wait for 250ms
     And I get the scheduled task by its ID
     Then the response status code should be 200
-    And the response should contain the scheduled task with the new schedule
+    And the response should contain the scheduled task with the new schedule "*/5 * * * *"
+
+  Scenario: Delete a scheduled task
+    Given a tenant exists with name "ScheduledTaskTenantDelete" and email "sttd@example.com"
+    And a device exists with name "scheduled-task-device-004"
+    And a scheduled task exists for the tenant and device with schedule "* * * * *"
+    When I delete the scheduled task
+    And wait for 250ms
+    And I try to get the scheduled task by its ID
+    Then the response status code should be 404

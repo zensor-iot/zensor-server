@@ -17,6 +17,19 @@ type ScheduledTask struct {
 	CreatedAt        utils.Time
 	UpdatedAt        utils.Time
 	LastExecutedAt   *utils.Time // When the scheduled task was last executed
+	DeletedAt        *time.Time  // For soft deletion
+}
+
+func (st *ScheduledTask) IsDeleted() bool {
+	return st.DeletedAt != nil
+}
+
+func (st *ScheduledTask) SoftDelete() {
+	now := time.Now()
+	st.DeletedAt = &now
+	st.IsActive = false
+	st.Version++
+	st.UpdatedAt = utils.Time{Time: now}
 }
 
 func NewScheduledTaskBuilder() *scheduledTaskBuilder {

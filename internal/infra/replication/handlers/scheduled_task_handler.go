@@ -22,6 +22,7 @@ type ScheduledTaskData struct {
 	CreatedAt        utils.Time  `json:"created_at"`
 	UpdatedAt        utils.Time  `json:"updated_at"`
 	LastExecutedAt   *utils.Time `json:"last_executed_at"`
+	DeletedAt        *time.Time  `json:"deleted_at,omitempty" gorm:"index"`
 }
 
 func (ScheduledTaskData) TableName() string {
@@ -96,6 +97,7 @@ func (h *ScheduledTaskHandler) Update(ctx context.Context, key pubsub.Key, messa
 	existing.UpdatedAt = incoming.UpdatedAt
 	existing.Version = incoming.Version
 	existing.LastExecutedAt = incoming.LastExecutedAt
+	existing.DeletedAt = incoming.DeletedAt
 
 	if err := h.orm.WithContext(ctx).Save(&existing).Error(); err != nil {
 		return fmt.Errorf("updating scheduled task: %w", err)
@@ -177,23 +179,20 @@ func (h *ScheduledTaskHandler) extractScheduledTaskFields(message pubsub.Message
 	}
 
 	if lastExecutedAtField := val.FieldByName("LastExecutedAt"); lastExecutedAtField.IsValid() {
-		lastExecutedAtInterface := lastExecutedAtField.Interface()
-		switch v := lastExecutedAtInterface.(type) {
-		case *utils.Time:
-			result.LastExecutedAt = v
-		case *time.Time:
-			if v != nil {
-				utilsTime := utils.Time{Time: *v}
-				result.LastExecutedAt = &utilsTime
-			}
-		case utils.Time:
-			result.LastExecutedAt = &v
-		case time.Time:
-			utilsTime := utils.Time{Time: v}
-			result.LastExecutedAt = &utilsTime
-		default:
-			// Leave as nil if we can't convert
+		if lastExecutedAtField.IsNil() {
 			result.LastExecutedAt = nil
+		} else {
+			lastExecutedAt := lastExecutedAtField.Interface().(*utils.Time)
+			result.LastExecutedAt = lastExecutedAt
+		}
+	}
+
+	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
+		if deletedAtField.IsNil() {
+			result.DeletedAt = nil
+		} else {
+			deletedAt := deletedAtField.Interface().(*time.Time)
+			result.DeletedAt = deletedAt
 		}
 	}
 

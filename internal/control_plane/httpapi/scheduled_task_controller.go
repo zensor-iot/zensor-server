@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -17,6 +18,7 @@ const (
 	updateScheduledTaskErrMessage = "failed to update scheduled task"
 	getScheduledTaskErrMessage    = "failed to get scheduled task"
 	listScheduledTaskErrMessage   = "failed to list scheduled tasks"
+	deleteScheduledTaskErrMessage = "failed to delete scheduled task"
 )
 
 func NewScheduledTaskController(
@@ -47,6 +49,7 @@ func (c *ScheduledTaskController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks", c.list())
 	router.Handle("GET /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}", c.get())
 	router.Handle("PUT /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}", c.update())
+	router.Handle("DELETE /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}", c.delete())
 	router.Handle("GET /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}/tasks", c.getTasksByScheduledTask())
 }
 
@@ -196,6 +199,10 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 
 		scheduledTask, err := c.service.GetByID(r.Context(), domain.ID(id))
 		if err != nil {
+			if errors.Is(err, usecases.ErrScheduledTaskNotFound) {
+				http.Error(w, getScheduledTaskErrMessage, http.StatusNotFound)
+				return
+			}
 			slog.Error("get scheduled task failed", slog.String("error", err.Error()))
 			http.Error(w, getScheduledTaskErrMessage, http.StatusInternalServerError)
 			return
@@ -207,10 +214,10 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 			return
 		}
 
-		// Convert command templates to response format
-		responseCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.CommandTemplates))
+		// Convert domain command templates to API commands
+		apiCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.CommandTemplates))
 		for i, template := range scheduledTask.CommandTemplates {
-			responseCommands[i] = internal.CommandSendPayloadRequest{
+			apiCommands[i] = internal.CommandSendPayloadRequest{
 				Index:    uint8(template.Payload.Index),
 				Value:    uint8(template.Payload.Value),
 				Priority: string(template.Priority),
@@ -221,7 +228,7 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 		response := internal.ScheduledTaskResponse{
 			ID:       scheduledTask.ID.String(),
 			DeviceID: scheduledTask.Device.ID.String(),
-			Commands: responseCommands,
+			Commands: apiCommands,
 			Schedule: scheduledTask.Schedule,
 			IsActive: scheduledTask.IsActive,
 		}
@@ -411,5 +418,46 @@ func (c *ScheduledTaskController) getTasksByScheduledTask() http.HandlerFunc {
 
 		// Return paginated response
 		httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, params)
+	}
+}
+
+func (c *ScheduledTaskController) delete() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := r.PathValue("tenant_id")
+		deviceID := r.PathValue("device_id")
+		id := r.PathValue("id")
+
+		// Get existing scheduled task to verify ownership
+		scheduledTask, err := c.service.GetByID(r.Context(), domain.ID(id))
+		if err != nil {
+			if errors.Is(err, usecases.ErrScheduledTaskNotFound) {
+				http.Error(w, deleteScheduledTaskErrMessage, http.StatusNotFound)
+				return
+			}
+			slog.Error("get scheduled task failed", slog.String("error", err.Error()))
+			http.Error(w, deleteScheduledTaskErrMessage, http.StatusInternalServerError)
+			return
+		}
+
+		// Verify the scheduled task belongs to the tenant and device
+		if scheduledTask.Tenant.ID != domain.ID(tenantID) || scheduledTask.Device.ID != domain.ID(deviceID) {
+			http.Error(w, deleteScheduledTaskErrMessage, http.StatusNotFound)
+			return
+		}
+
+		// Check if already deleted
+		if scheduledTask.IsDeleted() {
+			http.Error(w, deleteScheduledTaskErrMessage, http.StatusConflict)
+			return
+		}
+
+		err = c.service.Delete(r.Context(), domain.ID(id))
+		if err != nil {
+			slog.Error("delete scheduled task failed", slog.String("error", err.Error()))
+			http.Error(w, deleteScheduledTaskErrMessage, http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

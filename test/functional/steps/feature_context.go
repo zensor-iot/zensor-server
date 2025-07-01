@@ -86,7 +86,9 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the list should contain our scheduled task$`, fc.theListShouldContainOurScheduledTask)
 	ctx.When(`^I update the scheduled task with a new schedule "([^"]*)"$`, fc.iUpdateTheScheduledTaskWithANewSchedule)
 	ctx.When(`^I get the scheduled task by its ID$`, fc.iGetTheScheduledTaskByItsID)
-	ctx.Then(`^the response should contain the scheduled task with the new schedule$`, fc.theResponseShouldContainTheScheduledTaskWithTheNewSchedule)
+	ctx.Then(`^the response should contain the scheduled task with the new schedule "([^"]*)"$`, fc.theResponseShouldContainTheScheduledTaskWithTheNewSchedule)
+	ctx.When(`^I delete the scheduled task$`, fc.iDeleteTheScheduledTask)
+	ctx.When(`^I try to get the scheduled task by its ID$`, fc.iTryToGetTheScheduledTaskByItsID)
 
 	// Scheduled Task Tasks steps
 	ctx.Given(`^there are (\d+) tasks created from scheduled task "([^"]*)"$`, fc.thereAreTasksCreatedFromScheduledTask)

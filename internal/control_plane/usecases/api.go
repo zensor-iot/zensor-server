@@ -37,4 +37,5 @@ type ScheduledTaskService interface {
 	FindAllByTenantAndDevice(context.Context, domain.ID, domain.ID, Pagination) ([]domain.ScheduledTask, int, error)
 	GetByID(context.Context, domain.ID) (domain.ScheduledTask, error)
 	Update(context.Context, domain.ScheduledTask) error
+	Delete(context.Context, domain.ID) error
 }

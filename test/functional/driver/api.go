@@ -144,6 +144,14 @@ func (d *APIDriver) UpdateScheduledTask(tenantID, deviceID, scheduledTaskID, new
 	return d.client.Do(req)
 }
 
+func (d *APIDriver) DeleteScheduledTask(tenantID, deviceID, scheduledTaskID string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s", d.baseURL, tenantID, deviceID, scheduledTaskID), nil)
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Do(req)
+}
+
 func (d *APIDriver) CreateEvaluationRule(deviceID string) (*http.Response, error) {
 	reqBody, err := json.Marshal(map[string]any{
 		"description": "test rule",

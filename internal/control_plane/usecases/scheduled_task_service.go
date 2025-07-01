@@ -2,8 +2,13 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"zensor-server/internal/control_plane/domain"
+)
+
+var (
+	ErrScheduledTaskNotFound = errors.New("scheduled task not found")
 )
 
 func NewScheduledTaskService(repository ScheduledTaskRepository) *SimpleScheduledTaskService {
@@ -48,7 +53,10 @@ func (s *SimpleScheduledTaskService) FindAllByTenantAndDevice(ctx context.Contex
 func (s *SimpleScheduledTaskService) GetByID(ctx context.Context, id domain.ID) (domain.ScheduledTask, error) {
 	scheduledTask, err := s.repository.GetByID(ctx, id)
 	if err != nil {
-		return domain.ScheduledTask{}, fmt.Errorf("getting scheduled task by ID: %w", err)
+		if errors.Is(err, ErrScheduledTaskNotFound) {
+			return domain.ScheduledTask{}, ErrScheduledTaskNotFound
+		}
+		return domain.ScheduledTask{}, err
 	}
 
 	return scheduledTask, nil
@@ -58,6 +66,15 @@ func (s *SimpleScheduledTaskService) Update(ctx context.Context, scheduledTask d
 	err := s.repository.Update(ctx, scheduledTask)
 	if err != nil {
 		return fmt.Errorf("updating scheduled task: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SimpleScheduledTaskService) Delete(ctx context.Context, id domain.ID) error {
+	err := s.repository.Delete(ctx, id)
+	if err != nil {
+		return fmt.Errorf("deleting scheduled task: %w", err)
 	}
 
 	return nil

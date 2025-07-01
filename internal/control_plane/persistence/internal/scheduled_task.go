@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/json"
+	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/utils"
 )
@@ -17,6 +18,7 @@ type ScheduledTask struct {
 	CreatedAt        utils.Time  `json:"created_at"`
 	UpdatedAt        utils.Time  `json:"updated_at"`
 	LastExecutedAt   *utils.Time `json:"last_executed_at"`
+	DeletedAt        *time.Time  `json:"deleted_at,omitempty" gorm:"index"`
 }
 
 func (ScheduledTask) TableName() string {
@@ -37,6 +39,7 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 		CreatedAt:        value.CreatedAt,
 		UpdatedAt:        value.UpdatedAt,
 		LastExecutedAt:   value.LastExecutedAt,
+		DeletedAt:        value.DeletedAt,
 	}
 }
 
@@ -55,5 +58,6 @@ func (s ScheduledTask) ToDomain() domain.ScheduledTask {
 		CreatedAt:        s.CreatedAt,
 		UpdatedAt:        s.UpdatedAt,
 		LastExecutedAt:   s.LastExecutedAt,
+		DeletedAt:        s.DeletedAt,
 	}
 }

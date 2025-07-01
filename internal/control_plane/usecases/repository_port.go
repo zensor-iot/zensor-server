@@ -53,4 +53,5 @@ type ScheduledTaskRepository interface {
 	FindAllActive(context.Context) ([]domain.ScheduledTask, error)
 	Update(context.Context, domain.ScheduledTask) error
 	GetByID(context.Context, domain.ID) (domain.ScheduledTask, error)
+	Delete(context.Context, domain.ID) error
 }

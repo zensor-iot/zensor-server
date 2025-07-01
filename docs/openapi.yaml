@@ -864,6 +864,47 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+    delete:
+      summary: Soft delete scheduled task
+      description: Soft delete a scheduled task (marks as deleted but doesn't remove from database)
+      tags:
+        - Scheduled Tasks
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+        - name: device_id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          description: Scheduled task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Scheduled task soft deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Scheduled task is already soft deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}/tasks:
     get:
       summary: Get tasks by scheduled task
