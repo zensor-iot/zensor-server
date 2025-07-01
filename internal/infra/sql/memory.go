@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"fmt"
 	"sync"
 
 	"gorm.io/driver/sqlite"
@@ -18,6 +17,9 @@ func NewMemoryORM(migrationsPath string, replacements map[string]string) (ORM, e
 	databaseCreationOnce.Do(func() {
 		dialector := sqlite.Open("file::memory:?cache=shared")
 		gormDB, err = gorm.Open(dialector, &gorm.Config{})
+		if err != nil {
+			panic(err)
+		}
 		db, err := gormDB.DB()
 		if err != nil {
 			panic(err)
@@ -25,8 +27,5 @@ func NewMemoryORM(migrationsPath string, replacements map[string]string) (ORM, e
 		db.SetMaxOpenConns(1)
 	})
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to open sqlite in-memory db: %w", err)
-	}
 	return &DB{DB: gormDB, autoMigrationEnabled: true}, nil
 }
