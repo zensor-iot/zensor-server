@@ -115,12 +115,23 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I list all evaluation rules for the device$`, fc.iListAllEvaluationRulesForTheDevice)
 	ctx.Then(`^the list should contain our evaluation rule$`, fc.theListShouldContainOurEvaluationRule)
 
+	// Device State Cache steps
+	ctx.Given(`^the device has cached sensor data$`, fc.theDeviceHasCachedSensorData)
+	ctx.When(`^I connect to the WebSocket endpoint$`, fc.iConnectToTheWebSocketEndpoint)
+	ctx.Then(`^I should receive cached device states immediately$`, fc.iShouldReceiveCachedDeviceStatesImmediately)
+	ctx.Then(`^the cached states should contain the device data$`, fc.theCachedStatesShouldContainTheDeviceData)
+
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
 		fc.require = require.New(fc.t)
 
 		fc.reset()
 		return ctx, nil
+	})
+
+	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+		fc.cleanupWebSocket()
+		return ctx, err
 	})
 }
 

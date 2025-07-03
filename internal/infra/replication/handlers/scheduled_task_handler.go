@@ -22,7 +22,7 @@ type ScheduledTaskData struct {
 	CreatedAt        utils.Time  `json:"created_at"`
 	UpdatedAt        utils.Time  `json:"updated_at"`
 	LastExecutedAt   *utils.Time `json:"last_executed_at"`
-	DeletedAt        *time.Time  `json:"deleted_at,omitempty" gorm:"index"`
+	DeletedAt        *utils.Time `json:"deleted_at,omitempty" gorm:"index"`
 }
 
 func (ScheduledTaskData) TableName() string {
@@ -191,7 +191,7 @@ func (h *ScheduledTaskHandler) extractScheduledTaskFields(message pubsub.Message
 		if deletedAtField.IsNil() {
 			result.DeletedAt = nil
 		} else {
-			deletedAt := deletedAtField.Interface().(*time.Time)
+			deletedAt := deletedAtField.Interface().(*utils.Time)
 			result.DeletedAt = deletedAt
 		}
 	}
@@ -211,5 +211,6 @@ func (h *ScheduledTaskHandler) toDomainScheduledTask(internalScheduledTask Sched
 		"created_at":        internalScheduledTask.CreatedAt,
 		"updated_at":        internalScheduledTask.UpdatedAt,
 		"last_executed_at":  internalScheduledTask.LastExecutedAt,
+		"deleted_at":        internalScheduledTask.DeletedAt,
 	}
 }

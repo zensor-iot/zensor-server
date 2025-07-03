@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
@@ -30,8 +31,16 @@ type DeviceMessage struct {
 	Data      any       `json:"data"`
 }
 
+type DeviceStateMessage struct {
+	Type      string                           `json:"type"`
+	DeviceID  string                           `json:"device_id"`
+	Timestamp time.Time                        `json:"timestamp"`
+	Data      map[string][]usecases.SensorData `json:"data"`
+}
+
 type DeviceMessageWebSocketController struct {
 	broker     async.InternalBroker
+	stateCache usecases.DeviceStateCacheService
 	clients    map[*websocket.Conn]bool
 	clientsMux sync.RWMutex
 	broadcast  chan DeviceMessage
@@ -41,11 +50,12 @@ type DeviceMessageWebSocketController struct {
 	cancel     context.CancelFunc
 }
 
-func NewDeviceMessageWebSocketController(broker async.InternalBroker) *DeviceMessageWebSocketController {
+func NewDeviceMessageWebSocketController(broker async.InternalBroker, stateCache usecases.DeviceStateCacheService) *DeviceMessageWebSocketController {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wsc := &DeviceMessageWebSocketController{
 		broker:     broker,
+		stateCache: stateCache,
 		clients:    make(map[*websocket.Conn]bool),
 		broadcast:  make(chan DeviceMessage, 256),
 		register:   make(chan *websocket.Conn),
@@ -151,6 +161,9 @@ func (wsc *DeviceMessageWebSocketController) run() {
 			wsc.clientsMux.Unlock()
 			slog.Info("websocket client registered", slog.Int("total_clients", len(wsc.clients)))
 
+			// Send cached device states to the new client
+			go wsc.sendCachedStatesToClient(client)
+
 		case client := <-wsc.unregister:
 			wsc.clientsMux.Lock()
 			if _, ok := wsc.clients[client]; ok {
@@ -190,7 +203,7 @@ func (wsc *DeviceMessageWebSocketController) run() {
 			if brokerMsg.Event == "uplink" {
 				if envelop, ok := brokerMsg.Value.(dto.Envelop); ok {
 					deviceMsg := DeviceMessage{
-						Type:      "device_message",
+						Type:      "device_state",
 						DeviceID:  envelop.EndDeviceIDs.DeviceID,
 						Timestamp: envelop.ReceivedAt,
 						Data:      envelop.UplinkMessage.DecodedPayload,
@@ -206,6 +219,43 @@ func (wsc *DeviceMessageWebSocketController) run() {
 			}
 		}
 	}
+}
+
+func (wsc *DeviceMessageWebSocketController) sendCachedStatesToClient(client *websocket.Conn) {
+	slog.Info("sending cached states to new client", slog.String("remote_addr", client.RemoteAddr().String()))
+
+	// Get all device IDs that have cached states
+	deviceIDs := wsc.stateCache.GetAllDeviceIDs(context.Background())
+	slog.Info("found device IDs in cache", slog.Int("count", len(deviceIDs)))
+
+	for _, deviceID := range deviceIDs {
+		state, exists := wsc.stateCache.GetState(context.Background(), deviceID)
+		if !exists {
+			slog.Warn("device state not found in cache", slog.String("device_id", deviceID))
+			continue
+		}
+
+		slog.Info("sending cached state for device", slog.String("device_id", deviceID), slog.Int("sensor_types", len(state.Data)))
+
+		stateMsg := DeviceStateMessage{
+			Type:      "device_state",
+			DeviceID:  deviceID,
+			Timestamp: state.Timestamp,
+			Data:      state.Data,
+		}
+
+		client.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if err := client.WriteJSON(stateMsg); err != nil {
+			slog.Error("failed to send cached state to new client",
+				slog.String("device_id", deviceID),
+				slog.String("error", err.Error()))
+			return
+		}
+	}
+
+	slog.Info("finished sending cached states to new client",
+		slog.String("remote_addr", client.RemoteAddr().String()),
+		slog.Int("states_count", len(deviceIDs)))
 }
 
 func (wsc *DeviceMessageWebSocketController) Shutdown() {

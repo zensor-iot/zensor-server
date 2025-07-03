@@ -4,14 +4,18 @@
 package wire
 
 import (
+	"log/slog"
 	"os"
+	"sync"
 	"time"
 	"zensor-server/cmd/config"
 	"zensor-server/internal/control_plane/communication"
 	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/data_plane/workers"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
@@ -154,6 +158,18 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 	return nil, nil
 }
 
+func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker, consumerFactory pubsub.ConsumerFactory) (*workers.LoraIntegrationWorker, error) {
+	wire.Build(
+		provideAppConfig,
+		providePublisherFactoryForEnvironment,
+		DeviceServiceSet,
+		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		provideDeviceStateCacheService,
+		workers.NewLoraIntegrationWorker,
+	)
+	return nil, nil
+}
+
 var DeviceServiceSet = wire.NewSet(
 	provideDatabase,
 	persistence.NewDeviceRepository,
@@ -238,6 +254,7 @@ func provideTicker() *time.Ticker {
 
 func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*httpapi.DeviceMessageWebSocketController, error) {
 	wire.Build(
+		provideDeviceStateCacheService,
 		httpapi.NewDeviceMessageWebSocketController,
 	)
 	return nil, nil
@@ -324,4 +341,18 @@ func providePublisherFactoryForEnvironment(config config.AppConfig) pubsub.Publi
 
 	kafkaOptions := provideKafkaPublisherFactoryOptions(config)
 	return pubsub.NewKafkaPublisherFactory(kafkaOptions)
+}
+
+var (
+	deviceStateCacheService usecases.DeviceStateCacheService
+	deviceStateCacheOnce    sync.Once
+)
+
+// provideDeviceStateCacheService provides a singleton instance of the device state cache service
+func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
+	deviceStateCacheOnce.Do(func() {
+		deviceStateCacheService = usecases.NewDeviceStateCacheService()
+		slog.Info("device state cache service singleton created")
+	})
+	return deviceStateCacheService
 }

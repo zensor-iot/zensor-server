@@ -12,7 +12,6 @@ import (
 
 	"zensor-server/cmd/api/wire"
 	"zensor-server/cmd/config"
-	"zensor-server/internal/data_plane/workers"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
@@ -85,14 +84,9 @@ func main() {
 		consumerFactory = pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group)
 	}
 
-	deviceService, err := wire.InitializeDeviceService()
-	if err != nil {
-		panic(err)
-	}
-
 	// TODO: capture workers into a variable to shutdown them later
 	wg.Add(1)
-	go workers.NewLoraIntegrationWorker(ticker, deviceService, mqttClient, internalBroker, consumerFactory).Run(appCtx, wg.Done)
+	go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker, consumerFactory)).(async.Worker).Run(appCtx, wg.Done)
 	wg.Add(1)
 	go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 	wg.Add(1)

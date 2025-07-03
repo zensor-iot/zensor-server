@@ -154,8 +154,8 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 	now := time.Now()
 
 	for i, template := range scheduledTask.CommandTemplates {
-		// Update the device in the template to ensure it's current
-		template.Device = device
+		// Create command from template using the current device
+		// The template already contains the device information
 		commands[i] = template.ToCommand(domain.Task{}, now)
 	}
 

@@ -1547,7 +1547,7 @@ components:
         type:
           type: string
           description: Message type
-          example: "device_message"
+          example: "device_state"
         device_id:
           type: string
           description: Device ID that sent the message

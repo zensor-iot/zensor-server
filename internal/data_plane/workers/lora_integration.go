@@ -30,6 +30,7 @@ const (
 func NewLoraIntegrationWorker(
 	ticker *time.Ticker,
 	service usecases.DeviceService,
+	stateCache usecases.DeviceStateCacheService,
 	mqttClient mqtt.Client,
 	broker async.InternalBroker,
 	pubsubConsumerFactory pubsub.ConsumerFactory,
@@ -37,6 +38,7 @@ func NewLoraIntegrationWorker(
 	return &LoraIntegrationWorker{
 		ticker:         ticker,
 		service:        service,
+		stateCache:     stateCache,
 		mqttClient:     mqttClient,
 		broker:         broker,
 		pubsubConsumer: pubsubConsumerFactory.New(),
@@ -49,6 +51,7 @@ var _ async.Worker = &LoraIntegrationWorker{}
 type LoraIntegrationWorker struct {
 	ticker         *time.Ticker
 	service        usecases.DeviceService
+	stateCache     usecases.DeviceStateCacheService
 	mqttClient     mqtt.Client
 	broker         async.InternalBroker
 	pubsubConsumer pubsub.Consumer
@@ -195,6 +198,14 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	err = w.service.UpdateLastMessageReceivedAt(ctx, deviceName)
 	if err != nil {
 		slog.Error("failed to update device last message timestamp",
+			slog.String("device_name", deviceName),
+			slog.String("error", err.Error()))
+	}
+
+	// Update device state cache with new sensor data
+	err = w.stateCache.SetState(ctx, deviceName, envelop.UplinkMessage.DecodedPayload)
+	if err != nil {
+		slog.Error("failed to update device state cache",
 			slog.String("device_name", deviceName),
 			slog.String("error", err.Error()))
 	}

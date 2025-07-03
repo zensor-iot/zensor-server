@@ -214,10 +214,10 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 			return
 		}
 
-		// Convert domain command templates to API commands
-		apiCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.CommandTemplates))
+		// Convert command templates to response format
+		responseCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.CommandTemplates))
 		for i, template := range scheduledTask.CommandTemplates {
-			apiCommands[i] = internal.CommandSendPayloadRequest{
+			responseCommands[i] = internal.CommandSendPayloadRequest{
 				Index:    uint8(template.Payload.Index),
 				Value:    uint8(template.Payload.Value),
 				Priority: string(template.Priority),
@@ -228,7 +228,7 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 		response := internal.ScheduledTaskResponse{
 			ID:       scheduledTask.ID.String(),
 			DeviceID: scheduledTask.Device.ID.String(),
-			Commands: apiCommands,
+			Commands: responseCommands,
 			Schedule: scheduledTask.Schedule,
 			IsActive: scheduledTask.IsActive,
 		}

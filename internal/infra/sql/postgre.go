@@ -112,7 +112,7 @@ func (d *PostgreDatabase) Up(path string, replacements map[string]string) {
 
 				err = d.Command(statement)
 				if err != nil {
-					panic(err)
+					panic(fmt.Errorf("applying migration %s: %s", file.Name(), err.Error()))
 				}
 			}
 		}

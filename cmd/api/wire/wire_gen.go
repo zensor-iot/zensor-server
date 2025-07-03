@@ -8,14 +8,18 @@ package wire
 
 import (
 	"github.com/google/wire"
+	"log/slog"
 	"os"
+	"sync"
 	"time"
 	"zensor-server/cmd/config"
 	"zensor-server/internal/control_plane/communication"
 	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/data_plane/workers"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
@@ -195,6 +199,24 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 	return simpleDeviceService, nil
 }
 
+func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker, consumerFactory pubsub.ConsumerFactory) (*workers.LoraIntegrationWorker, error) {
+	appConfig := provideAppConfig()
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	commandPublisher, err := communication.NewCommandPublisher(publisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, commandPublisher)
+	usecasesDeviceStateCacheService := provideDeviceStateCacheService()
+	loraIntegrationWorker := workers.NewLoraIntegrationWorker(ticker, simpleDeviceService, usecasesDeviceStateCacheService, mqttClient, broker, consumerFactory)
+	return loraIntegrationWorker, nil
+}
+
 func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWorker, error) {
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
@@ -213,7 +235,8 @@ func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWork
 }
 
 func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*httpapi.DeviceMessageWebSocketController, error) {
-	deviceMessageWebSocketController := httpapi.NewDeviceMessageWebSocketController(broker)
+	usecasesDeviceStateCacheService := provideDeviceStateCacheService()
+	deviceMessageWebSocketController := httpapi.NewDeviceMessageWebSocketController(broker, usecasesDeviceStateCacheService)
 	return deviceMessageWebSocketController, nil
 }
 
@@ -349,4 +372,18 @@ func providePublisherFactoryForEnvironment(config2 config.AppConfig) pubsub.Publ
 
 	kafkaOptions := provideKafkaPublisherFactoryOptions(config2)
 	return pubsub.NewKafkaPublisherFactory(kafkaOptions)
+}
+
+var (
+	deviceStateCacheService usecases.DeviceStateCacheService
+	deviceStateCacheOnce    sync.Once
+)
+
+// provideDeviceStateCacheService provides a singleton instance of the device state cache service
+func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
+	deviceStateCacheOnce.Do(func() {
+		deviceStateCacheService = usecases.NewDeviceStateCacheService()
+		slog.Info("device state cache service singleton created")
+	})
+	return deviceStateCacheService
 }
