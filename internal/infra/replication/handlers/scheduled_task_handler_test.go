@@ -176,6 +176,7 @@ func TestScheduledTaskHandler_ToDomainScheduledTask(t *testing.T) {
 		CreatedAt:        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		UpdatedAt:        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		LastExecutedAt:   nil,
+		DeletedAt:        nil,
 	}
 
 	result := handler.toDomainScheduledTask(internalData)
@@ -191,6 +192,7 @@ func TestScheduledTaskHandler_ToDomainScheduledTask(t *testing.T) {
 		"created_at":        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		"updated_at":        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		"last_executed_at":  (*utils.Time)(nil),
+		"deleted_at":        (*utils.Time)(nil),
 	}
 
 	assert.Equal(t, expected, result)
