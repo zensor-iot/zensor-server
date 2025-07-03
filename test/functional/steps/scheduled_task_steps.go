@@ -120,7 +120,7 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSche
 func (fc *FeatureContext) thereAreTasksCreatedFromScheduledTask(count int, scheduledTaskID string) error {
 	// Create multiple tasks for the scheduled task
 	for i := 0; i < count; i++ {
-		resp, err := fc.apiDriver.CreateTask(fc.deviceID)
+		resp, err := fc.apiDriver.CreateTaskFromScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID)
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusCreated, resp.StatusCode)
 	}

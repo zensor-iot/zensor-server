@@ -96,6 +96,7 @@ func FromCommand(cmd domain.Command) Command {
 		Version:    int(cmd.Version),
 		DeviceID:   cmd.Device.ID.String(),
 		DeviceName: cmd.Device.Name,
+		TaskID:     cmd.Task.ID.String(),
 		Payload: CommandPayload{
 			Index: uint8(cmd.Payload.Index),
 			Data:  uint8(cmd.Payload.Value),

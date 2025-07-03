@@ -58,7 +58,6 @@ func (r *SimpleTaskRepository) Create(ctx context.Context, task domain.Task) err
 
 	for _, cmd := range task.Commands {
 		data := internal.FromCommand(cmd)
-		data.TaskID = string(task.ID)
 		err := r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), data)
 		if err != nil {
 			return fmt.Errorf("publishing command to kafka: %w", err)
@@ -107,7 +106,7 @@ func (r *SimpleTaskRepository) FindAllByScheduledTask(ctx context.Context, sched
 	err := r.orm.
 		WithContext(ctx).
 		Model(&internal.Task{}).
-		Where("scheduled_task LIKE ?", "%"+scheduledTaskID.String()+"%").
+		Where("scheduled_task_id = ?", scheduledTaskID.String()).
 		Count(&total).
 		Error()
 	if err != nil {
@@ -117,7 +116,7 @@ func (r *SimpleTaskRepository) FindAllByScheduledTask(ctx context.Context, sched
 	var entities []internal.Task
 	err = r.orm.
 		WithContext(ctx).
-		Where("scheduled_task LIKE ?", "%"+scheduledTaskID.String()+"%").
+		Where("scheduled_task_id = ?", scheduledTaskID.String()).
 		Order("created_at DESC").
 		Limit(pagination.Limit).
 		Offset(pagination.Offset).

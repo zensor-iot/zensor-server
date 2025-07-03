@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,7 +22,15 @@ type PostgreDatabase struct {
 	url  string
 	Conn *pgxpool.Pool
 	DB   *gorm.DB
+	once sync.Once
 }
+
+// Singleton pattern for PostgreSQL database
+var (
+	postgreInstance *PostgreDatabase
+	postgreOnce     sync.Once
+	postgreMutex    sync.RWMutex
+)
 
 func NewPosgreORM(dsn string) (*DB, error) {
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -36,9 +45,16 @@ func NewPosgreORM(dsn string) (*DB, error) {
 }
 
 func NewPosgreDatabase(url string) *PostgreDatabase {
-	return &PostgreDatabase{
-		url: url,
-	}
+	postgreMutex.Lock()
+	defer postgreMutex.Unlock()
+
+	postgreOnce.Do(func() {
+		postgreInstance = &PostgreDatabase{
+			url: url,
+		}
+	})
+
+	return postgreInstance
 }
 
 func (d *PostgreDatabase) Open() error {
@@ -87,34 +103,37 @@ func (d *PostgreDatabase) Query(ctx context.Context, sql string, args ...any) ([
 }
 
 func (d *PostgreDatabase) Up(path string, replacements map[string]string) {
-	files, err := os.ReadDir(path)
-	if err != nil {
-		panic(err)
-	}
+	d.once.Do(func() {
+		files, err := os.ReadDir(path)
+		if err != nil {
+			panic(err)
+		}
 
-	for _, file := range files {
-		if strings.Contains(file.Name(), upSuffix) {
-			content, err := os.ReadFile(path + "/" + file.Name())
-			if err != nil {
-				panic(err)
-			}
-
-			statements := strings.Split(string(content), ";")
-			for _, statement := range statements {
-				for k, v := range replacements {
-					statement = strings.ReplaceAll(statement, fmt.Sprintf("${%s}", k), v)
+		for _, file := range files {
+			if strings.Contains(file.Name(), upSuffix) {
+				slog.Info("applying migration", slog.String("file", file.Name()))
+				content, err := os.ReadFile(path + "/" + file.Name())
+				if err != nil {
+					panic(err)
 				}
 
-				slog.Debug("applying migration",
-					slog.String("file", file.Name()),
-					slog.String("statement", statement),
-				)
+				statements := strings.Split(string(content), ";")
+				for _, statement := range statements {
+					for k, v := range replacements {
+						statement = strings.ReplaceAll(statement, fmt.Sprintf("${%s}", k), v)
+					}
 
-				err = d.Command(statement)
-				if err != nil {
-					panic(fmt.Errorf("applying migration %s: %s", file.Name(), err.Error()))
+					slog.Debug("applying migration",
+						slog.String("file", file.Name()),
+						slog.String("statement", statement),
+					)
+
+					err = d.Command(statement)
+					if err != nil {
+						panic(fmt.Errorf("applying migration %s: %s", file.Name(), err.Error()))
+					}
 				}
 			}
 		}
-	}
+	})
 }

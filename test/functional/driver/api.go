@@ -177,3 +177,16 @@ func (d *APIDriver) GetTasksByScheduledTask(tenantID, deviceID, scheduledTaskID 
 	}
 	return d.client.Get(url)
 }
+
+func (d *APIDriver) CreateTaskFromScheduledTask(tenantID, deviceID, scheduledTaskID string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"scheduled_task_id": scheduledTaskID,
+		"commands": []map[string]any{
+			{"index": 1, "value": 100, "priority": "NORMAL", "wait_for": "0s"},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s/tasks", d.baseURL, tenantID, deviceID, scheduledTaskID), "application/json", bytes.NewBuffer(reqBody))
+}
