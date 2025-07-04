@@ -40,7 +40,7 @@ func NewPosgreORM(dsn string) (*DB, error) {
 
 	return &DB{
 		DB:                   gormDB,
-		autoMigrationEnabled: false,
+		autoMigrationEnabled: true,
 	}, nil
 }
 

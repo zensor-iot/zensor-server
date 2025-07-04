@@ -1,0 +1,134 @@
+name: zensor-server-staging
+
+services:
+
+  kafka-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKACONNECT_ENABLED=true
+      - KAFKACONNECT_CLUSTERS_0_NAME=local-connect
+      - KAFKACONNECT_CLUSTERS_0_URL=http://kafka-connect:8083
+    networks:
+      - zensor_v2
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+
+  kafka:
+    image: bitnami/kafka:3.9.0
+    environment:
+      - KAFKA_KRAFT_CLUSTER_ID=101
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    networks:
+      - zensor_v2
+
+  kafka-connect:
+    image: cp-kafka-connect:0.1.0
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "kafka:9092"
+      CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+      CONNECT_GROUP_ID: "kafka-connect-cluster"
+      CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
+      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+    networks:
+      - zensor_v2
+    depends_on:
+      - kafka
+
+  postgresql:
+    image: bitnami/postgresql:17.5.0
+    environment:
+      ALLOW_EMPTY_PASSWORD: true
+    volumes:
+      - pgdata:/bitnami/postgresql
+    ports:
+      - "5432:5432"
+    networks:
+      - zensor_v2
+
+  # prometheus:
+  #   image: bitnami/prometheus:2.55.1
+  #   command: --config.file=/opt/bitnami/prometheus/conf/prometheus.yml --storage.tsdb.path=/opt/bitnami/prometheus/data --web.console.libraries=/opt/bitnami/prometheus/conf/console_libraries --web.console.templates=/opt/bitnami/prometheus/conf/consoles --web.enable-remote-write-receiver
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - zensor
+
+  # grafana:
+  #   image: grafana/grafana:11.5.1
+  #   ports:
+  #     - "3001:3000"
+  #   networks:
+  #     - zensor
+  #   depends_on:
+  #     - prometheus
+
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib
+  #   command: --config=/config/otelcol.yaml
+  #   configs:
+  #     - source: otelcol
+  #       target: /config/otelcol.yaml
+  #   networks:
+  #     - zensor
+
+  # cloudflared:
+  #   image: cloudflare/cloudflared:2025.5.0
+  #   command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
+  #   networks:
+  #     - zensor
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  zensor_v2:
+    driver: bridge
+
+configs:
+
+  otelcol:
+    content: |
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+      
+      processors:
+        batch:
+          timeout: 0ms
+      
+      exporters:
+        prometheusremotewrite:
+          endpoint: http://prometheus:9090/api/v1/write
+          tls:
+            insecure: true
+      
+      service:
+        pipelines:
+          metrics:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [prometheusremotewrite]

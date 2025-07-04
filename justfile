@@ -76,7 +76,17 @@ setup:
         sleep 1
     done
     echo "✅ materialize port is available (full validation will happen before starting app)"
+
+    echo "🚀 launching postgres..."
+    docker start postgres || docker container run --name postgres --network zensor -p 5432:5432 -e ALLOW_EMPTY_PASSWORD=yes -d bitnami/postgresql:17.5.0
+    echo "⏳ waiting for postgres port to be available..."
     
+    # Wait for port to be available
+    while ! nc -z localhost 5432; do
+        sleep 1
+    done
+    echo "✅ postgres port is available"
+
     echo "🚀 launching prometheus..."
     docker start prometheus || docker container run --name prometheus --network zensor -p 9090:9090 -d bitnami/prometheus:2.55.1 --config.file=/opt/bitnami/prometheus/conf/prometheus.yml --storage.tsdb.path=/opt/bitnami/prometheus/data --web.console.libraries=/opt/bitnami/prometheus/conf/console_libraries --web.console.templates=/opt/bitnami/prometheus/conf/consoles --web.enable-remote-write-receiver
     echo "⏳ waiting for prometheus to be ready..."
