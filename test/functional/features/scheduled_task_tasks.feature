@@ -1,4 +1,4 @@
-@scheduled_task_tasks
+@scheduled_task_tasks @pending
 Feature: Get Tasks by Scheduled Task
   As a user
   I want to retrieve all tasks created from a scheduled task

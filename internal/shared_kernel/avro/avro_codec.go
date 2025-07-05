@@ -360,7 +360,7 @@ func (c *AvroCodec) convertScheduledTaskToAvro(v reflect.Value) (*AvroScheduledT
 		if deletedAt.IsNil() {
 			scheduledTask.DeletedAt = nil
 		} else {
-			val := deletedAt.String()
+			val := deletedAt.Interface().(time.Time)
 			scheduledTask.DeletedAt = &val
 		}
 	}
@@ -399,7 +399,7 @@ func (c *AvroCodec) convertTenantToAvro(v reflect.Value) (*AvroTenant, error) {
 		if deletedAt.IsNil() {
 			tenant.DeletedAt = nil
 		} else {
-			val := deletedAt.String()
+			val := deletedAt.Interface().(time.Time)
 			tenant.DeletedAt = &val
 		}
 	}

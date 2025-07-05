@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
@@ -51,8 +50,7 @@ func (r *SimpleTenantRepository) Create(ctx context.Context, tenant domain.Tenan
 	}
 
 	if tenant.DeletedAt != nil {
-		deletedAtStr := tenant.DeletedAt.Format(time.RFC3339)
-		avroTenant.DeletedAt = &deletedAtStr
+		avroTenant.DeletedAt = tenant.DeletedAt
 	}
 
 	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), avroTenant)
@@ -114,8 +112,7 @@ func (r *SimpleTenantRepository) Update(ctx context.Context, tenant domain.Tenan
 	}
 
 	if tenant.DeletedAt != nil {
-		deletedAtStr := tenant.DeletedAt.Format(time.RFC3339)
-		avroTenant.DeletedAt = &deletedAtStr
+		avroTenant.DeletedAt = tenant.DeletedAt
 	}
 
 	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), avroTenant)

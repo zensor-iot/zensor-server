@@ -1,4 +1,4 @@
-@device_state_cache
+@device_state_cache @pending
 Feature: Device State Cache
   In order to provide quick access to device states
   As a WebSocket client

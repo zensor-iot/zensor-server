@@ -68,20 +68,20 @@ type AvroScheduledTask struct {
 	CreatedAt        time.Time  `avro:"created_at"`
 	UpdatedAt        time.Time  `avro:"updated_at"`
 	LastExecutedAt   *time.Time `avro:"last_executed_at"`
-	DeletedAt        *string    `avro:"deleted_at"`
+	DeletedAt        *time.Time `avro:"deleted_at"`
 }
 
 // AvroTenant represents the Avro-compatible Tenant message
 type AvroTenant struct {
-	ID          string    `avro:"id"`
-	Version     int       `avro:"version"`
-	Name        string    `avro:"name"`
-	Email       string    `avro:"email"`
-	Description string    `avro:"description"`
-	IsActive    bool      `avro:"is_active"`
-	CreatedAt   time.Time `avro:"created_at"`
-	UpdatedAt   time.Time `avro:"updated_at"`
-	DeletedAt   *string   `avro:"deleted_at"`
+	ID          string     `avro:"id"`
+	Version     int        `avro:"version"`
+	Name        string     `avro:"name"`
+	Email       string     `avro:"email"`
+	Description string     `avro:"description"`
+	IsActive    bool       `avro:"is_active"`
+	CreatedAt   time.Time  `avro:"created_at"`
+	UpdatedAt   time.Time  `avro:"updated_at"`
+	DeletedAt   *time.Time `avro:"deleted_at"`
 }
 
 // AvroEvaluationRule represents the Avro-compatible EvaluationRule message
@@ -315,8 +315,8 @@ func ToAvroScheduledTask(scheduledTask interface{}) *AvroScheduledTask {
 	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
 		if deletedAt := deletedAtField.Interface().(*interface{ Time() time.Time }); deletedAt != nil {
 			if timeField, ok := (*deletedAt).(interface{ Time() time.Time }); ok {
-				timeStr := timeField.Time().Format(time.RFC3339)
-				avroScheduledTask.DeletedAt = &timeStr
+				timeVal := timeField.Time()
+				avroScheduledTask.DeletedAt = &timeVal
 			}
 		}
 	}
@@ -359,8 +359,7 @@ func ToAvroTenant(tenant interface{}) *AvroTenant {
 	}
 	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
 		if deletedAt := deletedAtField.Interface().(*time.Time); deletedAt != nil {
-			timeStr := deletedAt.Format(time.RFC3339)
-			avroTenant.DeletedAt = &timeStr
+			avroTenant.DeletedAt = deletedAt
 		}
 	}
 

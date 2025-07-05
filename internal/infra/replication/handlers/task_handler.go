@@ -3,11 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"log/slog"
 	"time"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 // TaskData represents the task table structure for GORM operations
@@ -79,58 +79,19 @@ func (h *TaskHandler) Update(ctx context.Context, key pubsub.Key, message pubsub
 
 // extractTaskFields uses reflection to extract task fields from any message type
 func (h *TaskHandler) extractTaskFields(message pubsub.Message) TaskData {
-	val := reflect.ValueOf(message)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+	avroTask, ok := message.(*avro.AvroTask)
+	if !ok {
+		slog.Error("message is not *avro.AvroTask", "message", message)
+		return TaskData{}
 	}
 
-	result := TaskData{
-		Version: 1,
+	return TaskData{
+		ID:        avroTask.ID,
+		Version:   int(avroTask.Version),
+		DeviceID:  avroTask.DeviceID,
+		CreatedAt: avroTask.CreatedAt,
+		UpdatedAt: avroTask.UpdatedAt,
 	}
-
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		result.ID = idField.Interface().(string)
-	}
-
-	if deviceIDField := val.FieldByName("DeviceID"); deviceIDField.IsValid() {
-		result.DeviceID = deviceIDField.Interface().(string)
-	}
-
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		// Handle both time.Time and utils.Time types
-		createdAt := createdAtField.Interface()
-		switch v := createdAt.(type) {
-		case time.Time:
-			result.CreatedAt = v
-		case utils.Time:
-			result.CreatedAt = v.Time
-		default:
-			// Default to current time if we can't extract it
-			result.CreatedAt = time.Now()
-		}
-	} else {
-		// Default to current time if field doesn't exist
-		result.CreatedAt = time.Now()
-	}
-
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		// Handle both time.Time and utils.Time types
-		updatedAt := updatedAtField.Interface()
-		switch v := updatedAt.(type) {
-		case time.Time:
-			result.UpdatedAt = v
-		case utils.Time:
-			result.UpdatedAt = v.Time
-		default:
-			// Default to current time if we can't extract it
-			result.UpdatedAt = time.Now()
-		}
-	} else {
-		// Default to current time if field doesn't exist
-		result.UpdatedAt = time.Now()
-	}
-
-	return result
 }
 
 func (h *TaskHandler) toDomainTask(internalTask TaskData) map[string]any {

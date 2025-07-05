@@ -199,7 +199,7 @@ func TestConfluentAvroCodec_EncodeDecode_Tenant(t *testing.T) {
 	codec, err := NewConfluentAvroCodec(&AvroTenant{}, "http://localhost:8081")
 	require.NoError(t, err)
 
-	deletedAt := "2024-01-01T00:00:00Z"
+	deletedAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	original := &AvroTenant{
 		ID:          "tenant-123",
 		Version:     1,

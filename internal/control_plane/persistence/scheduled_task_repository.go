@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
@@ -65,7 +64,7 @@ func (r *SimpleScheduledTaskRepository) Create(ctx context.Context, scheduledTas
 	}
 
 	if scheduledTask.DeletedAt != nil {
-		deletedAtStr := scheduledTask.DeletedAt.Time.Format(time.RFC3339)
+		deletedAtStr := scheduledTask.DeletedAt.Time
 		avroScheduledTask.DeletedAt = &deletedAtStr
 	}
 
@@ -177,7 +176,7 @@ func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTas
 	}
 
 	if scheduledTask.DeletedAt != nil {
-		deletedAtStr := scheduledTask.DeletedAt.Time.Format(time.RFC3339)
+		deletedAtStr := scheduledTask.DeletedAt.Time
 		avroScheduledTask.DeletedAt = &deletedAtStr
 	}
 
@@ -221,7 +220,7 @@ func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID
 	}
 
 	if scheduledTask.DeletedAt != nil {
-		deletedAtStr := scheduledTask.DeletedAt.Time.Format(time.RFC3339)
+		deletedAtStr := scheduledTask.DeletedAt.Time
 		avroScheduledTask.DeletedAt = &deletedAtStr
 	}
 

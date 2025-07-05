@@ -595,7 +595,7 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 						IsActive:    getBool(mapValue, "is_active"),
 						CreatedAt:   parseTimeRFC3339(getString(mapValue, "created_at")),
 						UpdatedAt:   parseTimeRFC3339(getString(mapValue, "updated_at")),
-						DeletedAt:   getStringPtr(mapValue, "deleted_at"),
+						DeletedAt:   parseTimePtrRFC3339(getStringPtr(mapValue, "deleted_at")),
 					}, nil
 				}
 			} else if _, hasTenantID := mapValue["tenant_id"]; hasTenantID {
@@ -612,7 +612,7 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 						CreatedAt:        parseTimeRFC3339(getString(mapValue, "created_at")),
 						UpdatedAt:        parseTimeRFC3339(getString(mapValue, "updated_at")),
 						LastExecutedAt:   parseTimePtrRFC3339(getStringPtr(mapValue, "last_executed_at")),
-						DeletedAt:        getStringPtr(mapValue, "deleted_at"),
+						DeletedAt:        parseTimePtrRFC3339(getStringPtr(mapValue, "deleted_at")),
 					}, nil
 				}
 			}

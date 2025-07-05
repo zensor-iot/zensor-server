@@ -3,11 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"time"
+	"log/slog"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 // ScheduledTaskData represents the scheduled task table structure for GORM operations
@@ -107,93 +107,29 @@ func (h *ScheduledTaskHandler) Update(ctx context.Context, key pubsub.Key, messa
 
 // extractScheduledTaskFields uses reflection to extract scheduled task fields from any message type
 func (h *ScheduledTaskHandler) extractScheduledTaskFields(message pubsub.Message) ScheduledTaskData {
-	val := reflect.ValueOf(message)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+	avroScheduledTask, ok := message.(*avro.AvroScheduledTask)
+	if !ok {
+		slog.Error("message is not *avro.AvroScheduledTask", "message", message)
+		return ScheduledTaskData{}
 	}
 
 	result := ScheduledTaskData{
-		Version: 1,
+		ID:               avroScheduledTask.ID,
+		Version:          int(avroScheduledTask.Version),
+		TenantID:         avroScheduledTask.TenantID,
+		DeviceID:         avroScheduledTask.DeviceID,
+		CommandTemplates: avroScheduledTask.CommandTemplates,
+		Schedule:         avroScheduledTask.Schedule,
+		IsActive:         avroScheduledTask.IsActive,
+		CreatedAt:        utils.Time{Time: avroScheduledTask.CreatedAt},
+		UpdatedAt:        utils.Time{Time: avroScheduledTask.UpdatedAt},
 	}
 
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		result.ID = idField.Interface().(string)
+	if avroScheduledTask.LastExecutedAt != nil {
+		result.LastExecutedAt = &utils.Time{Time: *avroScheduledTask.LastExecutedAt}
 	}
-
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		versionInterface := versionField.Interface()
-		switch v := versionInterface.(type) {
-		case int:
-			result.Version = v
-		case uint:
-			result.Version = int(v)
-		default:
-			result.Version = 1
-		}
-	}
-
-	if tenantIDField := val.FieldByName("TenantID"); tenantIDField.IsValid() {
-		result.TenantID = tenantIDField.Interface().(string)
-	}
-
-	if deviceIDField := val.FieldByName("DeviceID"); deviceIDField.IsValid() {
-		result.DeviceID = deviceIDField.Interface().(string)
-	}
-
-	if commandTemplatesField := val.FieldByName("CommandTemplates"); commandTemplatesField.IsValid() {
-		result.CommandTemplates = commandTemplatesField.Interface().(string)
-	}
-
-	if scheduleField := val.FieldByName("Schedule"); scheduleField.IsValid() {
-		result.Schedule = scheduleField.Interface().(string)
-	}
-
-	if isActiveField := val.FieldByName("IsActive"); isActiveField.IsValid() {
-		result.IsActive = isActiveField.Interface().(bool)
-	}
-
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		createdAtInterface := createdAtField.Interface()
-		switch v := createdAtInterface.(type) {
-		case utils.Time:
-			result.CreatedAt = v
-		case time.Time:
-			result.CreatedAt = utils.Time{Time: v}
-		default:
-			// Default to current time if we can't convert
-			result.CreatedAt = utils.Time{Time: time.Now()}
-		}
-	}
-
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		updatedAtInterface := updatedAtField.Interface()
-		switch v := updatedAtInterface.(type) {
-		case utils.Time:
-			result.UpdatedAt = v
-		case time.Time:
-			result.UpdatedAt = utils.Time{Time: v}
-		default:
-			// Default to current time if we can't convert
-			result.UpdatedAt = utils.Time{Time: time.Now()}
-		}
-	}
-
-	if lastExecutedAtField := val.FieldByName("LastExecutedAt"); lastExecutedAtField.IsValid() {
-		if lastExecutedAtField.IsNil() {
-			result.LastExecutedAt = nil
-		} else {
-			lastExecutedAt := lastExecutedAtField.Interface().(*utils.Time)
-			result.LastExecutedAt = lastExecutedAt
-		}
-	}
-
-	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
-		if deletedAtField.IsNil() {
-			result.DeletedAt = nil
-		} else {
-			deletedAt := deletedAtField.Interface().(*utils.Time)
-			result.DeletedAt = deletedAt
-		}
+	if avroScheduledTask.DeletedAt != nil {
+		result.DeletedAt = &utils.Time{Time: *avroScheduledTask.DeletedAt}
 	}
 
 	return result
