@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
+	"log/slog"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 type CommandData struct {
@@ -104,76 +105,30 @@ func (h *CommandHandler) Update(ctx context.Context, key pubsub.Key, message pub
 
 // extractCommandFields uses reflection to extract command fields from any message type
 func (h *CommandHandler) extractCommandFields(message pubsub.Message) CommandData {
-	val := reflect.ValueOf(message)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+	avroCommand, ok := message.(*avro.AvroCommand)
+	if !ok {
+		slog.Error("message is not *avro.AvroCommand", "message", message)
+		return CommandData{}
 	}
 
-	result := CommandData{
-		Version: 1,
+	return CommandData{
+		ID:         avroCommand.ID,
+		Version:    int(avroCommand.Version),
+		DeviceName: avroCommand.DeviceName,
+		DeviceID:   avroCommand.DeviceID,
+		TaskID:     avroCommand.TaskID,
+		Payload: CommandPayload{
+			Index: uint8(avroCommand.Payload.Index),
+			Data:  uint8(avroCommand.Payload.Value),
+		},
+		DispatchAfter: utils.Time{Time: avroCommand.DispatchAfter},
+		Port:          uint8(avroCommand.Port),
+		Priority:      avroCommand.Priority,
+		CreatedAt:     utils.Time{Time: avroCommand.CreatedAt},
+		Ready:         avroCommand.Ready,
+		Sent:          avroCommand.Sent,
+		SentAt:        utils.Time{Time: avroCommand.SentAt},
 	}
-
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		result.ID = idField.Interface().(string)
-	}
-
-	if deviceNameField := val.FieldByName("DeviceName"); deviceNameField.IsValid() {
-		result.DeviceName = deviceNameField.Interface().(string)
-	}
-
-	if deviceIDField := val.FieldByName("DeviceID"); deviceIDField.IsValid() {
-		result.DeviceID = deviceIDField.Interface().(string)
-	}
-
-	if taskIDField := val.FieldByName("TaskID"); taskIDField.IsValid() {
-		result.TaskID = taskIDField.Interface().(string)
-	}
-
-	if payloadField := val.FieldByName("Payload"); payloadField.IsValid() {
-		payload := payloadField.Interface()
-		payloadVal := reflect.ValueOf(payload)
-		if payloadVal.Kind() == reflect.Ptr {
-			payloadVal = payloadVal.Elem()
-		}
-
-		if indexField := payloadVal.FieldByName("Index"); indexField.IsValid() {
-			result.Payload.Index = uint8(indexField.Interface().(uint8))
-		}
-
-		if dataField := payloadVal.FieldByName("Data"); dataField.IsValid() {
-			result.Payload.Data = uint8(dataField.Interface().(uint8))
-		}
-	}
-
-	if dispatchAfterField := val.FieldByName("DispatchAfter"); dispatchAfterField.IsValid() {
-		result.DispatchAfter = dispatchAfterField.Interface().(utils.Time)
-	}
-
-	if portField := val.FieldByName("Port"); portField.IsValid() {
-		result.Port = uint8(portField.Interface().(uint8))
-	}
-
-	if priorityField := val.FieldByName("Priority"); priorityField.IsValid() {
-		result.Priority = priorityField.Interface().(string)
-	}
-
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		result.CreatedAt = createdAtField.Interface().(utils.Time)
-	}
-
-	if readyField := val.FieldByName("Ready"); readyField.IsValid() {
-		result.Ready = readyField.Interface().(bool)
-	}
-
-	if sentField := val.FieldByName("Sent"); sentField.IsValid() {
-		result.Sent = sentField.Interface().(bool)
-	}
-
-	if sentAtField := val.FieldByName("SentAt"); sentAtField.IsValid() {
-		result.SentAt = sentAtField.Interface().(utils.Time)
-	}
-
-	return result
 }
 
 func (h *CommandHandler) toDomainCommand(internalCommand CommandData) map[string]any {
