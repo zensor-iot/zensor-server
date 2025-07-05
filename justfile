@@ -47,46 +47,7 @@ install-otelcol:
 
 setup:
     #!/bin/bash
-    echo "🚀 creating network..."
-    docker network inspect zensor || docker network create zensor
     
-    # echo "🚀 launching redpanda..."
-    # docker start redpanda || docker container run --name redpanda --network zensor -d -p 19092:19092 redpandadata/redpanda:v24.3.4 redpanda start --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092  --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
-    # echo "⏳ waiting for redpanda to be ready..."
-    # while ! nc -z localhost 19092; do
-    #     sleep 0.5
-    # done
-    # echo "✅ redpanda is ready"
-    
-    # echo "🔧 creating kafka topics..."
-    # rpk topic --brokers "localhost:19092" describe devices || rpk topic --brokers "localhost:19092" create devices
-    # rpk topic --brokers "localhost:19092" describe evaluation_rules || rpk topic --brokers "localhost:19092" create evaluation_rules
-    # rpk topic --brokers "localhost:19092" describe device_commands || rpk topic --brokers "localhost:19092" create device_commands
-    # rpk topic --brokers "localhost:19092" describe tasks || rpk topic --brokers "localhost:19092" create tasks
-    # rpk topic --brokers "localhost:19092" describe tenants || rpk topic --brokers "localhost:19092" create tenants
-    # rpk topic --brokers "localhost:19092" describe scheduled_tasks || rpk topic --brokers "localhost:19092" create scheduled_tasks
-    # echo "✅ kafka topics created"
-    
-    # echo "🚀 launching materialize..."
-    # docker start materialize || docker container run --name materialize --network zensor -p 6875:6875 -d materialize/materialized:v0.133.0-dev.0--main.gd098b5f47028a4eccd4b3bc4ce6f8cd33c1895cf
-    # echo "⏳ waiting for materialize port to be available..."
-    
-    # # Wait for port to be available
-    # while ! nc -z localhost 6875; do
-    #     sleep 1
-    # done
-    # echo "✅ materialize port is available (full validation will happen before starting app)"
-
-    echo "🚀 launching postgres..."
-    docker start postgres || docker container run --name postgres --network zensor -p 5432:5432 -e ALLOW_EMPTY_PASSWORD=yes -d bitnami/postgresql:17.5.0
-    echo "⏳ waiting for postgres port to be available..."
-    
-    # Wait for port to be available
-    while ! nc -z localhost 5432; do
-        sleep 1
-    done
-    echo "✅ postgres port is available"
-
     echo "🚀 launching prometheus..."
     docker start prometheus || docker container run --name prometheus --network zensor -p 9090:9090 -d bitnami/prometheus:2.55.1 --config.file=/opt/bitnami/prometheus/conf/prometheus.yml --storage.tsdb.path=/opt/bitnami/prometheus/data --web.console.libraries=/opt/bitnami/prometheus/conf/console_libraries --web.console.templates=/opt/bitnami/prometheus/conf/consoles --web.enable-remote-write-receiver
     echo "⏳ waiting for prometheus to be ready..."
@@ -109,8 +70,7 @@ run: build
     if [ "${ENV}" = "local" ]; then
         echo "🌱 Local mode: skipping Docker dependencies (setup/validate-db)..."
     else
-        just setup
-        # just validate-db
+        docker compose up -d
     fi
     echo "🔧 starting opentelemetry collector..."
     ./otelcol --config otelcol_config.yaml > otelcol.log 2>&1 &
