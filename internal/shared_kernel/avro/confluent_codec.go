@@ -15,21 +15,26 @@ import (
 	"github.com/riferrei/srclient"
 )
 
+// SchemaRegistry defines the interface for schema registry operations
+type SchemaRegistry interface {
+	GetLatestSchema(subject string) (*srclient.Schema, error)
+	CreateSchema(subject string, schema string, schemaType srclient.SchemaType, references ...srclient.Reference) (*srclient.Schema, error)
+	GetSchema(schemaID int) (*srclient.Schema, error)
+}
+
 // ConfluentAvroCodec implements Codec interface using Confluent Avro wire format and Schema Registry
 type ConfluentAvroCodec struct {
 	prototype      any
 	schemas        map[string]string
 	codecs         map[string]*goavro.Codec
-	schemaRegistry *srclient.SchemaRegistryClient
+	schemaRegistry SchemaRegistry
 	subjectToID    map[string]int
 	idToCodec      map[int]*goavro.Codec
 	subjectSuffix  string
 }
 
 // NewConfluentAvroCodec creates a new Confluent Avro codec with schema registry
-func NewConfluentAvroCodec(prototype any, schemaRegistryURL string) (*ConfluentAvroCodec, error) {
-	schemaRegistry := srclient.CreateSchemaRegistryClient(schemaRegistryURL)
-
+func NewConfluentAvroCodec(prototype any, schemaRegistry SchemaRegistry) *ConfluentAvroCodec {
 	return &ConfluentAvroCodec{
 		prototype:      prototype,
 		schemas:        make(map[string]string),
@@ -38,7 +43,7 @@ func NewConfluentAvroCodec(prototype any, schemaRegistryURL string) (*ConfluentA
 		subjectToID:    make(map[string]int),
 		idToCodec:      make(map[int]*goavro.Codec),
 		subjectSuffix:  "-value",
-	}, nil
+	}
 }
 
 // getSchemaForMessage returns the Avro schema name for the given message

@@ -9,6 +9,7 @@ import (
 
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -323,17 +324,7 @@ func TestDeviceHandler_extractDeviceFields(t *testing.T) {
 	lastMessageTime := time.Now()
 	createdAt := time.Now()
 
-	device := struct {
-		ID                    string
-		Name                  string
-		DisplayName           string
-		AppEUI                string
-		DevEUI                string
-		AppKey                string
-		TenantID              *string
-		LastMessageReceivedAt time.Time
-		CreatedAt             time.Time
-	}{
+	device := &avro.AvroDevice{
 		ID:                    "test-device-1",
 		Name:                  "Test Device",
 		DisplayName:           "Test Device Display",
@@ -341,8 +332,9 @@ func TestDeviceHandler_extractDeviceFields(t *testing.T) {
 		DevEUI:                "test-dev-eui",
 		AppKey:                "test-app-key",
 		TenantID:              &tenantID,
-		LastMessageReceivedAt: lastMessageTime,
+		LastMessageReceivedAt: &lastMessageTime,
 		CreatedAt:             createdAt,
+		Version:               1,
 	}
 
 	result := handler.extractDeviceFields(device)

@@ -19,10 +19,10 @@ const (
 
 // publisherKey represents a unique key for a publisher instance
 type publisherKey struct {
-	brokers           string
-	topic             string
-	prototypeType     string
-	schemaRegistryURL string
+	brokers        string
+	topic          string
+	prototypeType  string
+	schemaRegistry avro.SchemaRegistry
 }
 
 // publisherInstance holds a publisher and its initialization state
@@ -38,13 +38,13 @@ var (
 	publishersMutex sync.RWMutex
 )
 
-func NewKafkaPublisher(brokers []string, topic string, prototype any, schemaRegistryURL string) (*SimpleKafkaPublisher, error) {
+func NewKafkaPublisher(brokers []string, topic string, prototype any, schemaRegistry avro.SchemaRegistry) (*SimpleKafkaPublisher, error) {
 	// Create a unique key for this publisher configuration
 	key := publisherKey{
-		brokers:           strings.Join(brokers, ","),
-		topic:             topic,
-		prototypeType:     fmt.Sprintf("%T", prototype),
-		schemaRegistryURL: schemaRegistryURL,
+		brokers:        strings.Join(brokers, ","),
+		topic:          topic,
+		prototypeType:  fmt.Sprintf("%T", prototype),
+		schemaRegistry: schemaRegistry,
 	}
 
 	// Get or create the publisher instance
@@ -59,17 +59,14 @@ func NewKafkaPublisher(brokers []string, topic string, prototype any, schemaRegi
 	// Initialize the publisher exactly once
 	instance.once.Do(func() {
 		slog.Debug("creating kafka publisher",
-			slog.String("schemaRegistryURL", schemaRegistryURL),
 			slog.String("topic", topic),
 			slog.String("prototypeType", key.prototypeType))
 
 		for try := 0; try < maxRetries; try++ {
 			slog.Debug("connecting to kafka brokers", slog.String("brokers", key.brokers))
-			codec, err := avro.NewConfluentAvroCodec(prototype, schemaRegistryURL)
-			if err != nil {
-				instance.err = fmt.Errorf("failed to create Avro codec: %w", err)
-				return
-			}
+
+			codec := avro.NewConfluentAvroCodec(prototype, schemaRegistry)
+
 			e, err := goka.NewEmitter(brokers, goka.Stream(topic), codec)
 
 			if err != nil {
@@ -107,9 +104,9 @@ func (p *SimpleKafkaPublisher) Publish(_ context.Context, key Key, message Messa
 
 // consumerKey represents a unique key for a consumer instance
 type consumerKey struct {
-	brokers           string
-	group             string
-	schemaRegistryURL string
+	brokers        string
+	group          string
+	schemaRegistry avro.SchemaRegistry
 }
 
 // consumerInstance holds a consumer and its initialization state
@@ -125,12 +122,12 @@ var (
 	consumersMutex sync.RWMutex
 )
 
-func NewKafkaConsumer(brokers []string, group string, schemaRegistryURL string) *SimpleKafkaConsumer {
+func NewKafkaConsumer(brokers []string, group string, schemaRegistry avro.SchemaRegistry) *SimpleKafkaConsumer {
 	// Create a unique key for this consumer configuration
 	key := consumerKey{
-		brokers:           strings.Join(brokers, ","),
-		group:             group,
-		schemaRegistryURL: schemaRegistryURL,
+		brokers:        strings.Join(brokers, ","),
+		group:          group,
+		schemaRegistry: schemaRegistry,
 	}
 
 	// Get or create the consumer instance
@@ -145,15 +142,14 @@ func NewKafkaConsumer(brokers []string, group string, schemaRegistryURL string) 
 	// Initialize the consumer exactly once
 	instance.once.Do(func() {
 		slog.Debug("creating kafka consumer",
-			slog.String("schemaRegistryURL", schemaRegistryURL),
 			slog.String("group", group),
 			slog.String("brokers", key.brokers))
 
 		gokaGroup := goka.Group(group)
 		instance.consumer = &SimpleKafkaConsumer{
-			brokers:           brokers,
-			group:             gokaGroup,
-			schemaRegistryURL: schemaRegistryURL,
+			brokers:        brokers,
+			group:          gokaGroup,
+			schemaRegistry: schemaRegistry,
 		}
 	})
 
@@ -163,9 +159,9 @@ func NewKafkaConsumer(brokers []string, group string, schemaRegistryURL string) 
 var _ Consumer = (*SimpleKafkaConsumer)(nil)
 
 type SimpleKafkaConsumer struct {
-	brokers           []string
-	group             goka.Group
-	schemaRegistryURL string
+	brokers        []string
+	group          goka.Group
+	schemaRegistry avro.SchemaRegistry
 }
 
 func (c *SimpleKafkaConsumer) Consume(topic Topic, handler MessageHandler, prototype Prototype) error {
@@ -175,10 +171,9 @@ func (c *SimpleKafkaConsumer) Consume(topic Topic, handler MessageHandler, proto
 		handler(key, msg)
 	}
 	stream := goka.Stream(topic)
-	codec, err := avro.NewConfluentAvroCodec(prototype, c.schemaRegistryURL)
-	if err != nil {
-		return fmt.Errorf("failed to create Avro codec: %w", err)
-	}
+
+	codec := avro.NewConfluentAvroCodec(prototype, c.schemaRegistry)
+
 	gg := goka.DefineGroup(
 		c.group,
 		goka.Input(stream, codec, cb),

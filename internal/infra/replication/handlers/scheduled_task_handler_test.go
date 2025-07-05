@@ -7,6 +7,7 @@ import (
 
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -125,18 +126,10 @@ func TestScheduledTaskHandler_ExtractScheduledTaskFields(t *testing.T) {
 	orm := &MockORM{}
 	handler := NewScheduledTaskHandler(orm)
 
-	// Create test data with CommandTemplate structure as struct
-	testData := struct {
-		ID               string
-		Version          int
-		TenantID         string
-		DeviceID         string
-		CommandTemplates string
-		Schedule         string
-		IsActive         bool
-		CreatedAt        utils.Time
-		UpdatedAt        utils.Time
-	}{
+	createdAt := utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}
+	updatedAt := utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}
+
+	avroTask := &avro.AvroScheduledTask{
 		ID:               "test-id",
 		Version:          1,
 		TenantID:         "tenant-1",
@@ -144,11 +137,11 @@ func TestScheduledTaskHandler_ExtractScheduledTaskFields(t *testing.T) {
 		CommandTemplates: `[{"device":{"id":"device-1"},"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
 		Schedule:         "* * * * *",
 		IsActive:         true,
-		CreatedAt:        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
-		UpdatedAt:        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+		CreatedAt:        createdAt.Time,
+		UpdatedAt:        updatedAt.Time,
 	}
 
-	result := handler.extractScheduledTaskFields(testData)
+	result := handler.extractScheduledTaskFields(avroTask)
 
 	assert.Equal(t, "test-id", result.ID)
 	assert.Equal(t, 1, result.Version)
@@ -157,8 +150,8 @@ func TestScheduledTaskHandler_ExtractScheduledTaskFields(t *testing.T) {
 	assert.Equal(t, `[{"device":{"id":"device-1"},"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`, result.CommandTemplates)
 	assert.Equal(t, "* * * * *", result.Schedule)
 	assert.True(t, result.IsActive)
-	assert.Equal(t, utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}, result.CreatedAt)
-	assert.Equal(t, utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}, result.UpdatedAt)
+	assert.Equal(t, createdAt, result.CreatedAt)
+	assert.Equal(t, updatedAt, result.UpdatedAt)
 }
 
 func TestScheduledTaskHandler_ToDomainScheduledTask(t *testing.T) {

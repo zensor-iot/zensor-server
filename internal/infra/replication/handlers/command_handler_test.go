@@ -8,6 +8,7 @@ import (
 
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -137,29 +138,17 @@ func TestCommandHandler_Update_Error(t *testing.T) {
 func TestCommandHandler_extractCommandFields(t *testing.T) {
 	orm := &MockORM{}
 	handler := NewCommandHandler(orm)
-	timeNow := utils.Time{Time: time.Now()}
-	cmd := struct {
-		ID         string
-		DeviceName string
-		DeviceID   string
-		TaskID     string
-		Payload    struct {
-			Index uint8
-			Data  uint8
-		}
-		DispatchAfter utils.Time
-		Port          uint8
-		Priority      string
-		CreatedAt     utils.Time
-		Ready         bool
-		Sent          bool
-		SentAt        utils.Time
-	}{
-		ID:            "cmd-1",
-		DeviceName:    "dev",
-		DeviceID:      "dev-1",
-		TaskID:        "task-1",
-		Payload:       struct{ Index, Data uint8 }{Index: 1, Data: 2},
+	timeNow := time.Now()
+
+	cmd := &avro.AvroCommand{
+		ID:         "cmd-1",
+		DeviceName: "dev",
+		DeviceID:   "dev-1",
+		TaskID:     "task-1",
+		Payload: avro.AvroCommandPayload{
+			Index: 1,
+			Value: 2,
+		},
 		DispatchAfter: timeNow,
 		Port:          3,
 		Priority:      "high",
@@ -168,6 +157,7 @@ func TestCommandHandler_extractCommandFields(t *testing.T) {
 		Sent:          false,
 		SentAt:        timeNow,
 	}
+
 	result := handler.extractCommandFields(cmd)
 	assert.Equal(t, "cmd-1", result.ID)
 	assert.Equal(t, "dev", result.DeviceName)
@@ -175,11 +165,11 @@ func TestCommandHandler_extractCommandFields(t *testing.T) {
 	assert.Equal(t, "task-1", result.TaskID)
 	assert.Equal(t, uint8(1), result.Payload.Index)
 	assert.Equal(t, uint8(2), result.Payload.Data)
-	assert.Equal(t, timeNow, result.DispatchAfter)
+	assert.Equal(t, utils.Time{Time: timeNow}, result.DispatchAfter)
 	assert.Equal(t, uint8(3), result.Port)
 	assert.Equal(t, "high", result.Priority)
-	assert.Equal(t, timeNow, result.CreatedAt)
+	assert.Equal(t, utils.Time{Time: timeNow}, result.CreatedAt)
 	assert.Equal(t, true, result.Ready)
 	assert.Equal(t, false, result.Sent)
-	assert.Equal(t, timeNow, result.SentAt)
+	assert.Equal(t, utils.Time{Time: timeNow}, result.SentAt)
 }

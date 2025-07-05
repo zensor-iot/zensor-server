@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -129,37 +130,30 @@ func TestTenantHandler_Update_Error(t *testing.T) {
 func TestTenantHandler_extractTenantFields(t *testing.T) {
 	orm := &MockORM{}
 	handler := NewTenantHandler(orm)
-	timeNow := time.Now()
-	deletedAt := timeNow
-	tenant := struct {
-		ID          string
-		Version     int
-		Name        string
-		Email       string
-		Description string
-		IsActive    bool
-		CreatedAt   time.Time
-		UpdatedAt   time.Time
-		DeletedAt   *time.Time
-	}{
+
+	deletedAt := time.Date(2025, time.July, 5, 2, 5, 57, 34788000, time.Local)
+
+	avroTenant := &avro.AvroTenant{
 		ID:          "tenant-1",
 		Version:     2,
 		Name:        "Tenant",
 		Email:       "tenant@example.com",
 		Description: "desc",
 		IsActive:    true,
-		CreatedAt:   timeNow,
-		UpdatedAt:   timeNow,
+		CreatedAt:   deletedAt,
+		UpdatedAt:   deletedAt,
 		DeletedAt:   &deletedAt,
 	}
-	result := handler.extractTenantFields(tenant)
+
+	result := handler.extractTenantFields(avroTenant)
+
 	assert.Equal(t, "tenant-1", result.ID)
 	assert.Equal(t, 2, result.Version)
 	assert.Equal(t, "Tenant", result.Name)
 	assert.Equal(t, "tenant@example.com", result.Email)
 	assert.Equal(t, "desc", result.Description)
 	assert.Equal(t, true, result.IsActive)
-	assert.Equal(t, timeNow, result.CreatedAt)
-	assert.Equal(t, timeNow, result.UpdatedAt)
+	assert.Equal(t, deletedAt, result.CreatedAt)
+	assert.Equal(t, deletedAt, result.UpdatedAt)
 	assert.Equal(t, &deletedAt, result.DeletedAt)
 }

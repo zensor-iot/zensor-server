@@ -1,16 +1,18 @@
 package avro
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/riferrei/srclient"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConfluentAvroCodec(t *testing.T) {
 	// Test that ConfluentAvroCodec can be created
-	codec, err := NewConfluentAvroCodec(&AvroCommand{}, "http://localhost:8081")
-	assert.NoError(t, err)
+	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
 	assert.NotNil(t, codec)
 	assert.NotNil(t, codec.schemas)
 	assert.NotNil(t, codec.codecs)
@@ -142,11 +144,11 @@ func TestConfluentAvroCodec_StructValidation(t *testing.T) {
 }
 
 func TestConfluentAvroCodec_InvalidData(t *testing.T) {
-	codec, err := NewConfluentAvroCodec(&AvroCommand{}, "http://localhost:8081")
-	assert.NoError(t, err)
+	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
 
 	// Test with invalid data
-	_, err = codec.Decode([]byte{1, 2, 3}) // Too short
+	_, err := codec.Decode([]byte{1, 2, 3}) // Too short
 	assert.Error(t, err)
 
 	// Test with invalid magic byte
@@ -157,10 +159,53 @@ func TestConfluentAvroCodec_InvalidData(t *testing.T) {
 }
 
 func TestConfluentAvroCodec_UnsupportedType(t *testing.T) {
-	codec, err := NewConfluentAvroCodec(&AvroCommand{}, "http://localhost:8081")
-	assert.NoError(t, err)
+	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
 
 	// Test with unsupported type
-	_, err = codec.Encode("unsupported")
+	_, err := codec.Encode("unsupported")
 	assert.Error(t, err)
+}
+
+// MockSchemaRegistry is a mock implementation of SchemaRegistry for testing
+type MockSchemaRegistry struct {
+	schemas map[string]*srclient.Schema
+}
+
+func NewMockSchemaRegistry() *MockSchemaRegistry {
+	return &MockSchemaRegistry{
+		schemas: make(map[string]*srclient.Schema),
+	}
+}
+
+func (m *MockSchemaRegistry) GetLatestSchema(subject string) (*srclient.Schema, error) {
+	if schema, exists := m.schemas[subject]; exists {
+		return schema, nil
+	}
+	return nil, fmt.Errorf("schema not found for subject: %s", subject)
+}
+
+func (m *MockSchemaRegistry) CreateSchema(subject string, schema string, schemaType srclient.SchemaType, references ...srclient.Reference) (*srclient.Schema, error) {
+	// Create a simple mock schema - in real tests you might want to use a proper mock library
+	mockSchema := &srclient.Schema{}
+	m.schemas[subject] = mockSchema
+	return mockSchema, nil
+}
+
+func (m *MockSchemaRegistry) GetSchema(schemaID int) (*srclient.Schema, error) {
+	// For simplicity, return the first schema found
+	for _, schema := range m.schemas {
+		return schema, nil
+	}
+	return nil, fmt.Errorf("schema not found for ID: %d", schemaID)
+}
+
+func TestConfluentAvroCodec_WithMockSchemaRegistry(t *testing.T) {
+	// Create a mock schema registry
+	mockRegistry := NewMockSchemaRegistry()
+
+	// Create codec with mock registry
+	codec := NewConfluentAvroCodec(&AvroCommand{}, mockRegistry)
+	assert.NotNil(t, codec)
+	assert.Equal(t, mockRegistry, codec.schemaRegistry)
 }

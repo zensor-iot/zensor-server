@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -123,12 +124,7 @@ func TestTaskHandler_extractTaskFields(t *testing.T) {
 	orm := &MockORM{}
 	handler := NewTaskHandler(orm)
 	timeNow := time.Now()
-	task := struct {
-		ID        string
-		DeviceID  string
-		CreatedAt time.Time
-		UpdatedAt time.Time
-	}{
+	task := &avro.AvroTask{
 		ID:        "task-1",
 		DeviceID:  "device-1",
 		CreatedAt: timeNow,
