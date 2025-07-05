@@ -3,10 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"log/slog"
 	"time"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 // TenantData represents the tenant table structure for GORM operations
@@ -95,65 +96,23 @@ func (h *TenantHandler) Update(ctx context.Context, key pubsub.Key, message pubs
 
 // extractTenantFields uses reflection to extract tenant fields from any message type
 func (h *TenantHandler) extractTenantFields(message pubsub.Message) TenantData {
-	val := reflect.ValueOf(message)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+	avroTenant, ok := message.(*avro.AvroTenant)
+	if !ok {
+		slog.Error("message is not *avro.AvroTenant", "message", message)
+		return TenantData{}
 	}
 
-	result := TenantData{
-		Version: 1,
+	return TenantData{
+		ID:          avroTenant.ID,
+		Version:     int(avroTenant.Version),
+		Name:        avroTenant.Name,
+		Email:       avroTenant.Email,
+		Description: avroTenant.Description,
+		IsActive:    avroTenant.IsActive,
+		CreatedAt:   avroTenant.CreatedAt,
+		UpdatedAt:   avroTenant.UpdatedAt,
+		DeletedAt:   avroTenant.DeletedAt,
 	}
-
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		result.ID = idField.Interface().(string)
-	}
-
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		versionInterface := versionField.Interface()
-		switch v := versionInterface.(type) {
-		case int:
-			result.Version = v
-		case uint:
-			result.Version = int(v)
-		default:
-			result.Version = 1
-		}
-	}
-
-	if nameField := val.FieldByName("Name"); nameField.IsValid() {
-		result.Name = nameField.Interface().(string)
-	}
-
-	if emailField := val.FieldByName("Email"); emailField.IsValid() {
-		result.Email = emailField.Interface().(string)
-	}
-
-	if descField := val.FieldByName("Description"); descField.IsValid() {
-		result.Description = descField.Interface().(string)
-	}
-
-	if activeField := val.FieldByName("IsActive"); activeField.IsValid() {
-		result.IsActive = activeField.Interface().(bool)
-	}
-
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		result.CreatedAt = createdAtField.Interface().(time.Time)
-	}
-
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		result.UpdatedAt = updatedAtField.Interface().(time.Time)
-	}
-
-	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
-		if deletedAtField.IsNil() {
-			result.DeletedAt = nil
-		} else {
-			deletedAt := deletedAtField.Interface().(*time.Time)
-			result.DeletedAt = deletedAt
-		}
-	}
-
-	return result
 }
 
 func (h *TenantHandler) toDomainTenant(internalTenant TenantData) map[string]any {
