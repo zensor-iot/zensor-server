@@ -45,30 +45,13 @@ install-otelcol:
     mv tmp/otelcol .
     rm -rf tmp
 
-setup:
-    #!/bin/bash
-    
-    echo "🚀 launching prometheus..."
-    docker start prometheus || docker container run --name prometheus --network zensor -p 9090:9090 -d bitnami/prometheus:2.55.1 --config.file=/opt/bitnami/prometheus/conf/prometheus.yml --storage.tsdb.path=/opt/bitnami/prometheus/data --web.console.libraries=/opt/bitnami/prometheus/conf/console_libraries --web.console.templates=/opt/bitnami/prometheus/conf/consoles --web.enable-remote-write-receiver
-    echo "⏳ waiting for prometheus to be ready..."
-    while ! nc -z localhost 9090; do
-        sleep 0.5
-    done
-    echo "✅ prometheus is ready"
-    
-    echo "🚀 launching grafana..."
-    docker start grafana || docker container run --name grafana --network zensor -p 3001:3000 -d grafana/grafana:11.5.1
-    echo "✅ grafana started"
-    
-    echo "🎉 all services are ready!"
-
 build:
     go build -o server cmd/api/main.go
 
 run: build
     #!/bin/bash
     if [ "${ENV}" = "local" ]; then
-        echo "🌱 Local mode: skipping Docker dependencies (setup/validate-db)..."
+        echo "🌱 Local mode: skipping Docker dependencies"
     else
         docker compose up -d
     fi
@@ -76,38 +59,6 @@ run: build
     ./otelcol --config otelcol_config.yaml > otelcol.log 2>&1 &
     echo "🚀 starting zensor server with hot reload..."
     find . -type f -name '*.go' | entr ./server
-
-validate-db:
-    #!/bin/bash
-    echo "🔍 validating materialize database connectivity..."
-    
-    max_attempts=60
-    attempt=1
-    
-    while [ $attempt -le $max_attempts ]; do
-        if psql -h localhost -p 6875 -U materialize -d materialize -c "SELECT 1;" >/dev/null 2>&1; then
-            echo "✅ materialize database is ready and accepting connections"
-            
-            # Additional validation: check if we can create a simple test connection
-            if psql -h localhost -p 6875 -U materialize -d materialize -c "SELECT version();" >/dev/null 2>&1; then
-                echo "✅ materialize database validation successful"
-                exit 0
-            else
-                echo "⚠️  materialize responds but may not be fully ready"
-            fi
-        fi
-        
-        echo "⏳ attempt $attempt/$max_attempts: waiting for materialize database..."
-        sleep 2
-        attempt=$((attempt + 1))
-    done
-    
-    echo "❌ materialize database failed to become ready after $max_attempts attempts ($(($max_attempts * 2)) seconds)"
-    echo "🔍 checking materialize container status..."
-    docker ps --filter "name=materialize"
-    echo "🔍 checking materialize logs..."
-    docker logs materialize --tail 20
-    exit 1
 
 health:
     #!/bin/bash
