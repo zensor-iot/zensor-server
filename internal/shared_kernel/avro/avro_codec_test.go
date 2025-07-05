@@ -26,8 +26,8 @@ func TestAvroCodec_Command(t *testing.T) {
 		SentAt:        time.Time{},
 	}
 
-	// Create Avro codec
-	codec := NewAvroCodec(testCommand)
+	// Create Avro codec with schema registry URL
+	codec := NewAvroCodec(testCommand, "http://localhost:8081")
 
 	// Encode the command
 	encoded, err := codec.Encode(testCommand)
@@ -61,8 +61,8 @@ func TestAvroCodec_Task(t *testing.T) {
 		UpdatedAt:       time.Now(),
 	}
 
-	// Create Avro codec
-	codec := NewAvroCodec(testTask)
+	// Create Avro codec with schema registry URL
+	codec := NewAvroCodec(testTask, "http://localhost:8081")
 
 	// Encode the task
 	encoded, err := codec.Encode(testTask)
@@ -100,8 +100,8 @@ func TestAvroCodec_Device(t *testing.T) {
 		UpdatedAt:             time.Now(),
 	}
 
-	// Create Avro codec
-	codec := NewAvroCodec(testDevice)
+	// Create Avro codec with schema registry URL
+	codec := NewAvroCodec(testDevice, "http://localhost:8081")
 
 	// Encode the device
 	encoded, err := codec.Encode(testDevice)
@@ -139,8 +139,8 @@ func TestAvroCodec_ScheduledTask(t *testing.T) {
 		DeletedAt:        nil,
 	}
 
-	// Create Avro codec
-	codec := NewAvroCodec(testScheduledTask)
+	// Create Avro codec with schema registry URL
+	codec := NewAvroCodec(testScheduledTask, "http://localhost:8081")
 
 	// Encode the scheduled task
 	encoded, err := codec.Encode(testScheduledTask)
@@ -176,8 +176,8 @@ func TestAvroCodec_Tenant(t *testing.T) {
 		DeletedAt:   nil,
 	}
 
-	// Create Avro codec
-	codec := NewAvroCodec(testTenant)
+	// Create Avro codec with schema registry URL
+	codec := NewAvroCodec(testTenant, "http://localhost:8081")
 
 	// Encode the tenant
 	encoded, err := codec.Encode(testTenant)
@@ -213,8 +213,8 @@ func TestAvroCodec_EvaluationRule(t *testing.T) {
 		UpdatedAt:   time.Now(),
 	}
 
-	// Create Avro codec
-	codec := NewAvroCodec(testEvaluationRule)
+	// Create Avro codec with schema registry URL
+	codec := NewAvroCodec(testEvaluationRule, "http://localhost:8081")
 
 	// Encode the evaluation rule
 	encoded, err := codec.Encode(testEvaluationRule)
