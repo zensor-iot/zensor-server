@@ -3,10 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"log/slog"
 	"time"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 type DeviceData struct {
@@ -80,59 +81,31 @@ func (h *DeviceHandler) Update(ctx context.Context, key pubsub.Key, message pubs
 }
 
 func (h *DeviceHandler) extractDeviceFields(message pubsub.Message) DeviceData {
-	val := reflect.ValueOf(message)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+	avroDevice, ok := message.(*avro.AvroDevice)
+	if !ok {
+		slog.Error("message is not *avro.AvroDevice", "message", message)
+		return DeviceData{}
 	}
 
 	result := DeviceData{
-		Version: 1,
+		ID:                    avroDevice.ID,
+		Version:               int(avroDevice.Version),
+		Name:                  avroDevice.Name,
+		DisplayName:           avroDevice.DisplayName,
+		AppEUI:                avroDevice.AppEUI,
+		DevEUI:                avroDevice.DevEUI,
+		AppKey:                avroDevice.AppKey,
+		TenantID:              avroDevice.TenantID,
+		LastMessageReceivedAt: avroDevice.LastMessageReceivedAt,
+		CreatedAt:             avroDevice.CreatedAt,
 	}
 
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		result.ID = idField.Interface().(string)
+	if avroDevice.TenantID != nil {
+		result.TenantID = avroDevice.TenantID
 	}
 
-	if nameField := val.FieldByName("Name"); nameField.IsValid() {
-		result.Name = nameField.Interface().(string)
-	}
-
-	if displayNameField := val.FieldByName("DisplayName"); displayNameField.IsValid() {
-		result.DisplayName = displayNameField.Interface().(string)
-	}
-
-	if appEUIField := val.FieldByName("AppEUI"); appEUIField.IsValid() {
-		result.AppEUI = appEUIField.Interface().(string)
-	}
-
-	if devEUIField := val.FieldByName("DevEUI"); devEUIField.IsValid() {
-		result.DevEUI = devEUIField.Interface().(string)
-	}
-
-	if appKeyField := val.FieldByName("AppKey"); appKeyField.IsValid() {
-		result.AppKey = appKeyField.Interface().(string)
-	}
-
-	if tenantIDField := val.FieldByName("TenantID"); tenantIDField.IsValid() {
-		if tenantIDField.IsNil() {
-			result.TenantID = nil
-		} else {
-			tenantID := tenantIDField.Interface().(*string)
-			result.TenantID = tenantID
-		}
-	}
-
-	if lastMessageField := val.FieldByName("LastMessageReceivedAt"); lastMessageField.IsValid() {
-		if lastMessageField.IsZero() {
-			result.LastMessageReceivedAt = nil
-		} else {
-			lastMessage := lastMessageField.Interface().(time.Time)
-			result.LastMessageReceivedAt = &lastMessage
-		}
-	}
-
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		result.CreatedAt = createdAtField.Interface().(time.Time)
+	if avroDevice.LastMessageReceivedAt != nil {
+		result.LastMessageReceivedAt = avroDevice.LastMessageReceivedAt
 	}
 
 	return result
