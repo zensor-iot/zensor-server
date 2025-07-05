@@ -20,7 +20,6 @@ type PostgreDatabase struct {
 	url  string
 	Conn *pgxpool.Pool
 	DB   *gorm.DB
-	once sync.Once
 }
 
 // Singleton pattern for PostgreSQL database

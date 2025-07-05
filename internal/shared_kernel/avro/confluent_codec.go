@@ -23,13 +23,11 @@ type ConfluentAvroCodec struct {
 	schemaRegistry *srclient.SchemaRegistryClient
 	subjectToID    map[string]int
 	idToCodec      map[int]*goavro.Codec
-	subjectSuffix  string // e.g. ".value"
+	subjectSuffix  string
 }
 
 // NewConfluentAvroCodec creates a new Confluent Avro codec with schema registry
 func NewConfluentAvroCodec(prototype any, schemaRegistryURL string) (*ConfluentAvroCodec, error) {
-	fmt.Printf("*** prototype: %T\n", prototype)
-	fmt.Printf("*** schemaRegistryURL: %s\n", schemaRegistryURL)
 	schemaRegistry := srclient.CreateSchemaRegistryClient(schemaRegistryURL)
 
 	return &ConfluentAvroCodec{
@@ -150,7 +148,7 @@ func (c *ConfluentAvroCodec) loadSchemaFromFile(schemaName string) (string, erro
 	}
 
 	// Read schema from file
-	schemaPath := "schemas/" + fileName
+	schemaPath := "../../../schemas/" + fileName
 	schemaBytes, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return "", fmt.Errorf("reading schema file %s: %w", schemaPath, err)
