@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "ScheduledTask",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "version", "type": "long"},
+    {"name": "tenant_id", "type": "string"},
+    {"name": "device_id", "type": "string"},
+    {"name": "command_templates", "type": "string"},
+    {"name": "schedule", "type": "string"},
+    {"name": "is_active", "type": "boolean"},
+    {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "last_executed_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}]},
+    {"name": "deleted_at", "type": ["null", "string"]}
+  ]
+} 

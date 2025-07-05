@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "Device",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "version", "type": "int"},
+    {"name": "name", "type": "string"},
+    {"name": "display_name", "type": "string"},
+    {"name": "app_eui", "type": "string"},
+    {"name": "dev_eui", "type": "string"},
+    {"name": "app_key", "type": "string"},
+    {"name": "tenant_id", "type": ["null", "string"]},
+    {"name": "last_message_received_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}]},
+    {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+} 

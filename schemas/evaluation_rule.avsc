@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "EvaluationRule",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "device_id", "type": "string"},
+    {"name": "version", "type": "int"},
+    {"name": "description", "type": "string"},
+    {"name": "kind", "type": "string"},
+    {"name": "enabled", "type": "boolean"},
+    {"name": "parameters", "type": "string"},
+    {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+} 
