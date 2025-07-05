@@ -12,7 +12,7 @@ var (
 	gormDB               *gorm.DB
 )
 
-func NewMemoryORM(migrationsPath string, replacements map[string]string) (ORM, error) {
+func NewMemoryORM(migrationsPath string) (ORM, error) {
 	var err error
 	databaseCreationOnce.Do(func() {
 		dialector := sqlite.Open("file::memory:?cache=shared")

@@ -1,22 +1,6 @@
-name: zensor-server-staging
+name: zensor-server
 
 services:
-
-  server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    configs:
-      - source: server
-        target: /config/server.yaml
-    ports:
-      - "3000:3000"
-    networks:
-      - zensor_v2
-    depends_on:
-      - kafka
-      - postgresql
-      - schema-registry
 
   kafka-console:
     image: docker.redpanda.com/redpandadata/console:latest
@@ -26,7 +10,7 @@ services:
     environment:
       CONFIG_FILEPATH: /tmp/config.yml
     networks:
-      - zensor_v2
+      - zensor
     ports:
       - "8080:8080"
     depends_on:
@@ -46,7 +30,7 @@ services:
     ports:
       - "19092:19092"
     networks:
-      - zensor_v2
+      - zensor
 
   kafka-connect:
     image: cp-kafka-connect:8.0.0-1
@@ -70,7 +54,7 @@ services:
       CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
       KAFKA_HEAP_OPTS: "-Xms512M -Xmx1G"
     networks:
-      - zensor_v2
+      - zensor
     depends_on:
       - kafka
 
@@ -85,7 +69,7 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
     networks:
-      - zensor_v2
+      - zensor
 
   postgresql:
     image: bitnami/postgresql:17.5.0
@@ -96,7 +80,7 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - zensor_v2
+      - zensor
 
   prometheus:
     image: bitnami/prometheus:2.55.1
@@ -109,14 +93,14 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - zensor_v2
+      - zensor
 
   grafana:
     image: grafana/grafana:11.5.1
     ports:
       - "3001:3000"
     networks:
-      - zensor_v2
+      - zensor
     depends_on:
       - prometheus
 
@@ -127,7 +111,7 @@ services:
       - source: otelcol
         target: /config/otelcol.yaml
     networks:
-      - zensor_v2
+      - zensor
 
 volumes:
   pgdata:

@@ -38,7 +38,7 @@ func setupTestTables(orm sql.ORM) error {
 }
 
 func TestNewCommandRepository(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations", nil)
+	orm, err := sql.NewMemoryORM("migrations")
 	require.NoError(t, err)
 
 	// Create test tables
@@ -51,7 +51,7 @@ func TestNewCommandRepository(t *testing.T) {
 }
 
 func TestSimpleCommandRepository_FindAllPending(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations", nil)
+	orm, err := sql.NewMemoryORM("migrations")
 	require.NoError(t, err)
 
 	// Create test tables
@@ -68,7 +68,7 @@ func TestSimpleCommandRepository_FindAllPending(t *testing.T) {
 }
 
 func TestSimpleCommandRepository_FindPendingByDevice(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations", nil)
+	orm, err := sql.NewMemoryORM("migrations")
 	require.NoError(t, err)
 
 	// Create test tables
@@ -86,7 +86,7 @@ func TestSimpleCommandRepository_FindPendingByDevice(t *testing.T) {
 }
 
 func TestSimpleCommandRepository_FindByTaskID(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations", nil)
+	orm, err := sql.NewMemoryORM("migrations")
 	require.NoError(t, err)
 
 	// Create test tables

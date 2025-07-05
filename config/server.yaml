@@ -3,11 +3,7 @@ general:
 mqtt:
   broker: "localhost:1883"
 database:
-  url: "postgresql://postgres@localhost:5432/postgres"
-  # dsn: "host=localhost user=materialize dbname=materialize port=6875 sslmode=disable"
   dsn: "host=localhost user=postgres dbname=postgres port=5432 sslmode=disable"
-  migration_replacements:
-    kafka_broker: redpanda:9092
 kafka:
   brokers:
     - "localhost:19092"

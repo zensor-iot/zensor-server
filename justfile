@@ -95,11 +95,7 @@ health:
 destroy:
     #!/bin/bash
     echo "🧹 stopping and removing containers..."
-    docker stop redpanda | xargs docker rm
-    docker stop materialize | xargs docker rm
-    docker stop prometheus | xargs docker rm
-    docker stop grafana | xargs docker rm
-    echo "✅ cleanup completed"
+    docker compose down
 
 
 docker-build: build

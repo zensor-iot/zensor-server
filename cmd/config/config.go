@@ -36,9 +36,7 @@ func LoadConfig() AppConfig {
 				Password: viper.GetString("mqtt_client.password"),
 			},
 			Postgresql: PostgresqlConfig{
-				URL:                   viper.GetString("database.url"),
-				DSN:                   viper.GetString("database.dsn"),
-				MigrationReplacements: viper.GetStringMapString("database.migration_replacements"),
+				DSN: viper.GetString("database.dsn"),
 			},
 			Kafka: KafkaConfig{
 				Brokers:        viper.GetStringSlice("kafka.brokers"),
@@ -81,7 +79,5 @@ type KafkaConfig struct {
 }
 
 type PostgresqlConfig struct {
-	URL                   string
-	DSN                   string
-	MigrationReplacements map[string]string
+	DSN string
 }

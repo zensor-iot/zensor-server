@@ -12,7 +12,6 @@ const (
 type Database interface {
 	Open() error
 	Close()
-	Up(string)
 	Command(string) error
 	Query(context.Context, string, ...any) ([][]byte, error)
 }

@@ -211,20 +211,13 @@ func provideDatabase(config config.AppConfig) sql.ORM {
 	}
 
 	if env == "local" {
-		orm, err := sql.NewMemoryORM("migrations", config.Postgresql.MigrationReplacements)
+		orm, err := sql.NewMemoryORM("migrations")
 		if err != nil {
 			panic(err)
 		}
 
 		return orm
 	}
-
-	db := sql.NewPosgreDatabase(config.Postgresql.URL)
-	if err := db.Open(); err != nil {
-		panic(err)
-	}
-
-	db.Up("migrations", config.Postgresql.MigrationReplacements)
 
 	orm, err := sql.NewPosgreORM(config.Postgresql.DSN)
 	if err != nil {

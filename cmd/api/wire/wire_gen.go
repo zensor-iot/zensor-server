@@ -296,9 +296,10 @@ func providePubSubFactory(config2 config.AppConfig) *pubsub.Factory {
 	}
 
 	return pubsub.NewFactory(pubsub.FactoryOptions{
-		Environment:   env,
-		KafkaBrokers:  config2.Kafka.Brokers,
-		ConsumerGroup: "zensor-server",
+		Environment:       env,
+		KafkaBrokers:      config2.Kafka.Brokers,
+		ConsumerGroup:     "zensor-server",
+		SchemaRegistryURL: config2.Kafka.SchemaRegistry,
 	})
 }
 
@@ -320,20 +321,13 @@ func provideDatabase(config2 config.AppConfig) sql.ORM {
 	}
 
 	if env == "local" {
-		orm, err := sql.NewMemoryORM("migrations", config2.Postgresql.MigrationReplacements)
+		orm, err := sql.NewMemoryORM("migrations")
 		if err != nil {
 			panic(err)
 		}
 
 		return orm
 	}
-
-	db := sql.NewPosgreDatabase(config2.Postgresql.URL)
-	if err := db.Open(); err != nil {
-		panic(err)
-	}
-
-	db.Up("migrations", config2.Postgresql.MigrationReplacements)
 
 	orm, err := sql.NewPosgreORM(config2.Postgresql.DSN)
 	if err != nil {
