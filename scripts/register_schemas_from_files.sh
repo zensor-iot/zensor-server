@@ -43,9 +43,9 @@ echo "=== Registering schemas ==="
 register_schema "commands" "command.avsc"
 register_schema "tasks" "task.avsc"
 register_schema "devices" "device.avsc"
-register_schema "scheduled-tasks" "scheduled_task.avsc"
+register_schema "scheduled_tasks" "scheduled_task.avsc"
 register_schema "tenants" "tenant.avsc"
-register_schema "evaluation-rules" "evaluation_rule.avsc"
+register_schema "evaluation_rules" "evaluation_rule.avsc"
 
 echo "=== Schema registration complete ==="
 

@@ -1,0 +1,20 @@
+{
+    "name": "postgres-scheduled-tasks-sink",
+    "config": {
+        "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+        "tasks.max": "1",
+        "topics": "scheduled_tasks",
+        "connection.url": "jdbc:postgresql://postgresql:5432/postgres?user=postgres",
+        "auto.create": "false",
+        "auto.evolve": "false",
+        "insert.mode": "upsert",
+        "pk.mode": "record_value",
+        "pk.fields": "id",
+        "delete.enabled": "false",
+        "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+        "value.converter": "io.confluent.connect.avro.AvroConverter",
+        "value.converter.schema.registry.url": "http://schema-registry:8081",
+        "value.converter.enhanced.avro.schema.support": true,
+        "value.converter.auto.register.schemas": true
+    }
+}
