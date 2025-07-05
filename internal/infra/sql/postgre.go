@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -30,6 +31,11 @@ var (
 )
 
 func NewPosgreORM(dsn string) (*DB, error) {
+	pass, ok := os.LookupEnv("ZENSOR_SERVER_POSTGRES_PASSWORD")
+	if ok {
+		dsn = fmt.Sprintf("%s password=%s", dsn, pass)
+	}
+
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
