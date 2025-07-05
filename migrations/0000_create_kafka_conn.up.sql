@@ -1,4 +1,0 @@
-CREATE CONNECTION IF NOT EXISTS kafka_connection TO KAFKA (
-    BROKER '${kafka_broker}',
-    SECURITY PROTOCOL 'PLAINTEXT'
-);

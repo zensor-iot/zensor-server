@@ -1,3 +1,0 @@
-CREATE MATERIALIZED VIEW IF NOT EXISTS devices_final AS
-  SELECT *
-  FROM devices;

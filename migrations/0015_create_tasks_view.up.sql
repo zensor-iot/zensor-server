@@ -1,3 +1,0 @@
-CREATE MATERIALIZED VIEW IF NOT EXISTS tasks_final AS
-  SELECT *
-  FROM tasks;
