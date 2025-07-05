@@ -81,7 +81,7 @@ func main() {
 	if env == "local" {
 		consumerFactory = pubsub.NewMemoryConsumerFactory("lora-integration")
 	} else {
-		consumerFactory = pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group)
+		consumerFactory = pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group, config.Kafka.SchemaRegistry)
 	}
 
 	// TODO: capture workers into a variable to shutdown them later

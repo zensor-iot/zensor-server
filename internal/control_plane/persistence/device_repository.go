@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 func NewDeviceRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleDeviceRepository, error) {
-	publisher, err := publisherFactory.New("devices", internal.Device{})
+	publisher, err := publisherFactory.New("devices", &avro.AvroDevice{})
 	if err != nil {
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
@@ -36,7 +38,6 @@ type SimpleDeviceRepository struct {
 }
 
 func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain.Device) error {
-	data := internal.FromDevice(device)
 	currentDevice, err := s.GetByName(ctx, device.Name)
 	if err != nil && err != usecases.ErrDeviceNotFound {
 		return fmt.Errorf("getting device: %w", err)
@@ -46,7 +47,30 @@ func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain
 		return usecases.ErrDeviceDuplicated
 	}
 
-	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), data)
+	// Convert domain device to Avro device
+	avroDevice := &avro.AvroDevice{
+		ID:          device.ID.String(),
+		Version:     1, // Default version for new devices
+		Name:        device.Name,
+		DisplayName: device.DisplayName,
+		AppEUI:      device.AppEUI,
+		DevEUI:      device.DevEUI,
+		AppKey:      device.AppKey,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	if device.TenantID != nil {
+		tenantIDStr := device.TenantID.String()
+		avroDevice.TenantID = &tenantIDStr
+	}
+
+	if !device.LastMessageReceivedAt.IsZero() {
+		lastMessageStr := device.LastMessageReceivedAt.Time
+		avroDevice.LastMessageReceivedAt = &lastMessageStr
+	}
+
+	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), avroDevice)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
@@ -55,7 +79,6 @@ func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain
 }
 
 func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain.Device) error {
-	data := internal.FromDevice(device)
 	currentDevice, err := s.GetByName(ctx, device.Name)
 	if err != nil && err != usecases.ErrDeviceNotFound {
 		return fmt.Errorf("getting device: %w", err)
@@ -65,7 +88,30 @@ func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain
 		return usecases.ErrDeviceNotFound
 	}
 
-	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), data)
+	// Convert domain device to Avro device
+	avroDevice := &avro.AvroDevice{
+		ID:          device.ID.String(),
+		Version:     1, // Default version for updates
+		Name:        device.Name,
+		DisplayName: device.DisplayName,
+		AppEUI:      device.AppEUI,
+		DevEUI:      device.DevEUI,
+		AppKey:      device.AppKey,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	if device.TenantID != nil {
+		tenantIDStr := device.TenantID.String()
+		avroDevice.TenantID = &tenantIDStr
+	}
+
+	if !device.LastMessageReceivedAt.IsZero() {
+		lastMessageStr := device.LastMessageReceivedAt.Time
+		avroDevice.LastMessageReceivedAt = &lastMessageStr
+	}
+
+	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), avroDevice)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}

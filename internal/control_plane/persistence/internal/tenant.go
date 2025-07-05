@@ -18,7 +18,7 @@ type Tenant struct {
 }
 
 func (Tenant) TableName() string {
-	return "tenants_final"
+	return "tenants"
 }
 
 func (t Tenant) ToDomain() domain.Tenant {

@@ -3,7 +3,7 @@ general:
 mqtt:
   broker: "localhost:1883"
 database:
-  url: "postgresql://materialize@localhost:6875/materialize"
+  url: "postgresql://postgres@localhost:5432/postgres"
   # dsn: "host=localhost user=materialize dbname=materialize port=6875 sslmode=disable"
   dsn: "host=localhost user=postgres dbname=postgres port=5432 sslmode=disable"
   migration_replacements:
@@ -12,6 +12,7 @@ kafka:
   brokers:
     - "localhost:19092"
   group: "zensor-server"
+  schema_registry: "http://localhost:8081"
 mqtt_client:
   broker: nam1.cloud.thethings.network:1883
   client_id: zensor_server_local

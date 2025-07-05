@@ -3,11 +3,13 @@ package persistence
 import (
 	"context"
 	"fmt"
+	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 const (
@@ -19,12 +21,12 @@ func NewTaskRepository(
 	publisherFactory pubsub.PublisherFactory,
 	orm sql.ORM,
 ) (*SimpleTaskRepository, error) {
-	taskPublisher, err := publisherFactory.New(_tasksTopic, internal.Task{})
+	taskPublisher, err := publisherFactory.New(_tasksTopic, &avro.AvroTask{})
 	if err != nil {
 		return nil, fmt.Errorf("creating task publisher: %w", err)
 	}
 
-	commandPublisher, err := publisherFactory.New(_commandsTopic, internal.Task{})
+	commandPublisher, err := publisherFactory.New(_commandsTopic, &avro.AvroCommand{})
 	if err != nil {
 		return nil, fmt.Errorf("creating command publisher: %w", err)
 	}
@@ -50,15 +52,44 @@ type SimpleTaskRepository struct {
 }
 
 func (r *SimpleTaskRepository) Create(ctx context.Context, task domain.Task) error {
-	data := internal.FromTask(task)
-	err := r.taskPublisher.Publish(ctx, pubsub.Key(task.ID), data)
+	// Convert domain task to Avro task
+	avroTask := &avro.AvroTask{
+		ID:        task.ID.String(),
+		DeviceID:  task.Device.ID.String(),
+		Version:   int64(task.Version),
+		CreatedAt: task.CreatedAt.Time,
+		UpdatedAt: time.Now(),
+	}
+
+	if task.ScheduledTask != nil {
+		scheduledTaskIDStr := task.ScheduledTask.ID.String()
+		avroTask.ScheduledTaskID = &scheduledTaskIDStr
+	}
+
+	err := r.taskPublisher.Publish(ctx, pubsub.Key(task.ID), avroTask)
 	if err != nil {
 		return fmt.Errorf("publishing task to kafka: %w", err)
 	}
 
+	// Publish each command as Avro command
 	for _, cmd := range task.Commands {
-		data := internal.FromCommand(cmd)
-		err := r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), data)
+		avroCommand := &avro.AvroCommand{
+			ID:            cmd.ID.String(),
+			Version:       int(cmd.Version),
+			DeviceID:      cmd.Device.ID.String(),
+			DeviceName:    cmd.Device.Name,
+			TaskID:        cmd.Task.ID.String(),
+			Payload:       avro.AvroCommandPayload{Index: int(cmd.Payload.Index), Value: int(cmd.Payload.Value)},
+			DispatchAfter: cmd.DispatchAfter.Time,
+			Port:          int(cmd.Port),
+			Priority:      string(cmd.Priority),
+			CreatedAt:     time.Now(),
+			Ready:         cmd.Ready,
+			Sent:          cmd.Sent,
+			SentAt:        cmd.SentAt.Time,
+		}
+
+		err := r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), avroCommand)
 		if err != nil {
 			return fmt.Errorf("publishing command to kafka: %w", err)
 		}

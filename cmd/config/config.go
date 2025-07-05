@@ -41,8 +41,9 @@ func LoadConfig() AppConfig {
 				MigrationReplacements: viper.GetStringMapString("database.migration_replacements"),
 			},
 			Kafka: KafkaConfig{
-				Brokers: viper.GetStringSlice("kafka.brokers"),
-				Group:   viper.GetString("kafka.group"),
+				Brokers:        viper.GetStringSlice("kafka.brokers"),
+				Group:          viper.GetString("kafka.group"),
+				SchemaRegistry: viper.GetString("kafka.schema_registry"),
 			},
 		}
 	})
@@ -74,8 +75,9 @@ type MQTTClientConfig struct {
 }
 
 type KafkaConfig struct {
-	Brokers []string
-	Group   string
+	Brokers        []string
+	Group          string
+	SchemaRegistry string
 }
 
 type PostgresqlConfig struct {

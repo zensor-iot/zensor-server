@@ -18,9 +18,10 @@ import "zensor-server/internal/infra/pubsub"
 
 // Create a factory
 factory := pubsub.NewFactory(pubsub.FactoryOptions{
-    Environment:   "local", // or "production"
-    KafkaBrokers:  []string{"localhost:9092"},
-    ConsumerGroup: "my-app",
+    Environment:       "local", // or "production"
+    KafkaBrokers:      []string{"localhost:9092"},
+    ConsumerGroup:     "my-app",
+    SchemaRegistryURL: "http://localhost:8081", // Required for Kafka environments
 })
 
 // Get publisher factory
@@ -76,9 +77,10 @@ The in-memory implementation is perfect for testing as it:
 ```go
 func TestMyPubSub(t *testing.T) {
     factory := pubsub.NewFactory(pubsub.FactoryOptions{
-        Environment:   "local",
-        KafkaBrokers:  []string{"localhost:9092"}, // Not used when Environment=local
-        ConsumerGroup: "test-group",
+        Environment:       "local",
+        KafkaBrokers:      []string{"localhost:9092"}, // Not used when Environment=local
+        ConsumerGroup:     "test-group",
+        SchemaRegistryURL: "http://localhost:8081", // Not used when Environment=local
     })
     
     // Use factory as normal - it will use in-memory implementation
@@ -128,9 +130,10 @@ func providePubSubFactory(config config.AppConfig) *pubsub.Factory {
     }
     
     return pubsub.NewFactory(pubsub.FactoryOptions{
-        Environment:   env,
-        KafkaBrokers:  config.Kafka.Brokers,
-        ConsumerGroup: "zensor-server",
+        Environment:      env,
+        KafkaBrokers:     config.Kafka.Brokers,
+        ConsumerGroup:    "zensor-server",
+        SchemaRegistryURL: config.Kafka.SchemaRegistry, // <-- added
     })
 }
 

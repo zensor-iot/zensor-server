@@ -2,18 +2,21 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 var _ usecases.EvaluationRuleRepository = (*EvaluationRuleRepository)(nil)
 
 func NewEvaluationRuleRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*EvaluationRuleRepository, error) {
-	publisher, err := publisherFactory.New("evaluation_rules", internal.EvaluationRule{})
+	publisher, err := publisherFactory.New("evaluation_rules", &avro.AvroEvaluationRule{})
 	if err != nil {
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
@@ -35,9 +38,23 @@ type EvaluationRuleRepository struct {
 }
 
 func (e *EvaluationRuleRepository) AddToDevice(ctx context.Context, device domain.Device, evaluationRule domain.EvaluationRule) error {
-	data := internal.FromEvaluationRule(evaluationRule)
-	data.DeviceID = string(device.ID)
-	err := e.publisher.Publish(ctx, pubsub.Key(evaluationRule.ID), data)
+	// Convert domain evaluation rule to Avro evaluation rule
+	avroEvaluationRule := &avro.AvroEvaluationRule{
+		ID:          evaluationRule.ID.String(),
+		DeviceID:    device.ID.String(),
+		Version:     int(evaluationRule.Version),
+		Description: evaluationRule.Description,
+		Kind:        evaluationRule.Kind,
+		Enabled:     evaluationRule.Enabled,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Convert parameters to JSON string
+	parametersJSON, _ := json.Marshal(evaluationRule.Parameters)
+	avroEvaluationRule.Parameters = string(parametersJSON)
+
+	err := e.publisher.Publish(ctx, pubsub.Key(evaluationRule.ID), avroEvaluationRule)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}

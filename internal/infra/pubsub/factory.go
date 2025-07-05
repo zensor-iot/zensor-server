@@ -22,16 +22,18 @@ func NewFactory(opts FactoryOptions) *Factory {
 	slog.Debug("kafka publisher initializing...")
 	return &Factory{
 		publisherFactory: NewKafkaPublisherFactory(KafkaPublisherFactoryOptions{
-			Brokers: opts.KafkaBrokers,
+			Brokers:           opts.KafkaBrokers,
+			SchemaRegistryURL: opts.SchemaRegistryURL,
 		}),
-		consumerFactory: NewKafkaConsumerFactory(opts.KafkaBrokers, opts.ConsumerGroup),
+		consumerFactory: NewKafkaConsumerFactory(opts.KafkaBrokers, opts.ConsumerGroup, opts.SchemaRegistryURL),
 	}
 }
 
 type FactoryOptions struct {
-	Environment   string
-	KafkaBrokers  []string
-	ConsumerGroup string
+	Environment       string
+	KafkaBrokers      []string
+	ConsumerGroup     string
+	SchemaRegistryURL string
 }
 
 // GetPublisherFactory returns the configured publisher factory

@@ -308,7 +308,8 @@ func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {
 
 func provideKafkaPublisherFactoryOptions(config2 config.AppConfig) pubsub.KafkaPublisherFactoryOptions {
 	return pubsub.KafkaPublisherFactoryOptions{
-		Brokers: config2.Kafka.Brokers,
+		Brokers:           config2.Kafka.Brokers,
+		SchemaRegistryURL: config2.Kafka.SchemaRegistry,
 	}
 }
 

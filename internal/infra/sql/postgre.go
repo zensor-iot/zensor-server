@@ -3,9 +3,6 @@ package sql
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -103,37 +100,37 @@ func (d *PostgreDatabase) Query(ctx context.Context, sql string, args ...any) ([
 }
 
 func (d *PostgreDatabase) Up(path string, replacements map[string]string) {
-	d.once.Do(func() {
-		files, err := os.ReadDir(path)
-		if err != nil {
-			panic(err)
-		}
+	// d.once.Do(func() {
+	// 	files, err := os.ReadDir(path)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
 
-		for _, file := range files {
-			if strings.Contains(file.Name(), upSuffix) {
-				slog.Info("applying migration", slog.String("file", file.Name()))
-				content, err := os.ReadFile(path + "/" + file.Name())
-				if err != nil {
-					panic(err)
-				}
+	// 	for _, file := range files {
+	// 		if strings.Contains(file.Name(), upSuffix) {
+	// 			slog.Info("applying migration", slog.String("file", file.Name()))
+	// 			content, err := os.ReadFile(path + "/" + file.Name())
+	// 			if err != nil {
+	// 				panic(err)
+	// 			}
 
-				statements := strings.Split(string(content), ";")
-				for _, statement := range statements {
-					for k, v := range replacements {
-						statement = strings.ReplaceAll(statement, fmt.Sprintf("${%s}", k), v)
-					}
+	// 			statements := strings.Split(string(content), ";")
+	// 			for _, statement := range statements {
+	// 				for k, v := range replacements {
+	// 					statement = strings.ReplaceAll(statement, fmt.Sprintf("${%s}", k), v)
+	// 				}
 
-					slog.Debug("applying migration",
-						slog.String("file", file.Name()),
-						slog.String("statement", statement),
-					)
+	// 				slog.Debug("applying migration",
+	// 					slog.String("file", file.Name()),
+	// 					slog.String("statement", statement),
+	// 				)
 
-					err = d.Command(statement)
-					if err != nil {
-						panic(fmt.Errorf("applying migration %s: %s", file.Name(), err.Error()))
-					}
-				}
-			}
-		}
-	})
+	// 				err = d.Command(statement)
+	// 				if err != nil {
+	// 					panic(fmt.Errorf("applying migration %s: %s", file.Name(), err.Error()))
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// })
 }

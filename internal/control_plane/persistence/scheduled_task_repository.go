@@ -2,13 +2,16 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 const (
@@ -16,7 +19,7 @@ const (
 )
 
 func NewScheduledTaskRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleScheduledTaskRepository, error) {
-	publisher, err := publisherFactory.New(_scheduledTasksTopic, internal.ScheduledTask{})
+	publisher, err := publisherFactory.New(_scheduledTasksTopic, &avro.AvroScheduledTask{})
 	if err != nil {
 		return nil, fmt.Errorf("creating scheduled task publisher: %w", err)
 	}
@@ -40,8 +43,33 @@ type SimpleScheduledTaskRepository struct {
 }
 
 func (r *SimpleScheduledTaskRepository) Create(ctx context.Context, scheduledTask domain.ScheduledTask) error {
-	data := internal.FromScheduledTask(scheduledTask)
-	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), data)
+	// Convert domain scheduled task to Avro scheduled task
+	avroScheduledTask := &avro.AvroScheduledTask{
+		ID:        scheduledTask.ID.String(),
+		Version:   int64(scheduledTask.Version),
+		TenantID:  scheduledTask.Tenant.ID.String(),
+		DeviceID:  scheduledTask.Device.ID.String(),
+		Schedule:  scheduledTask.Schedule,
+		IsActive:  scheduledTask.IsActive,
+		CreatedAt: scheduledTask.CreatedAt.Time,
+		UpdatedAt: scheduledTask.UpdatedAt.Time,
+	}
+
+	// Convert command templates to JSON string
+	commandTemplatesJSON, _ := json.Marshal(scheduledTask.CommandTemplates)
+	avroScheduledTask.CommandTemplates = string(commandTemplatesJSON)
+
+	if scheduledTask.LastExecutedAt != nil {
+		lastExecutedStr := scheduledTask.LastExecutedAt.Time
+		avroScheduledTask.LastExecutedAt = &lastExecutedStr
+	}
+
+	if scheduledTask.DeletedAt != nil {
+		deletedAtStr := scheduledTask.DeletedAt.Time.Format(time.RFC3339)
+		avroScheduledTask.DeletedAt = &deletedAtStr
+	}
+
+	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
 	if err != nil {
 		return fmt.Errorf("publishing scheduled task to kafka: %w", err)
 	}
@@ -127,8 +155,33 @@ func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]do
 }
 
 func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTask domain.ScheduledTask) error {
-	data := internal.FromScheduledTask(scheduledTask)
-	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), data)
+	// Convert domain scheduled task to Avro scheduled task
+	avroScheduledTask := &avro.AvroScheduledTask{
+		ID:        scheduledTask.ID.String(),
+		Version:   int64(scheduledTask.Version),
+		TenantID:  scheduledTask.Tenant.ID.String(),
+		DeviceID:  scheduledTask.Device.ID.String(),
+		Schedule:  scheduledTask.Schedule,
+		IsActive:  scheduledTask.IsActive,
+		CreatedAt: scheduledTask.CreatedAt.Time,
+		UpdatedAt: scheduledTask.UpdatedAt.Time,
+	}
+
+	// Convert command templates to JSON string
+	commandTemplatesJSON, _ := json.Marshal(scheduledTask.CommandTemplates)
+	avroScheduledTask.CommandTemplates = string(commandTemplatesJSON)
+
+	if scheduledTask.LastExecutedAt != nil {
+		lastExecutedStr := scheduledTask.LastExecutedAt.Time
+		avroScheduledTask.LastExecutedAt = &lastExecutedStr
+	}
+
+	if scheduledTask.DeletedAt != nil {
+		deletedAtStr := scheduledTask.DeletedAt.Time.Format(time.RFC3339)
+		avroScheduledTask.DeletedAt = &deletedAtStr
+	}
+
+	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
 	if err != nil {
 		return fmt.Errorf("publishing scheduled task update to kafka: %w", err)
 	}
@@ -147,8 +200,32 @@ func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID
 	scheduledTask.SoftDelete()
 
 	// Publish the soft-deleted scheduled task
-	data := internal.FromScheduledTask(scheduledTask)
-	err = r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), data)
+	avroScheduledTask := &avro.AvroScheduledTask{
+		ID:        scheduledTask.ID.String(),
+		Version:   int64(scheduledTask.Version),
+		TenantID:  scheduledTask.Tenant.ID.String(),
+		DeviceID:  scheduledTask.Device.ID.String(),
+		Schedule:  scheduledTask.Schedule,
+		IsActive:  scheduledTask.IsActive,
+		CreatedAt: scheduledTask.CreatedAt.Time,
+		UpdatedAt: scheduledTask.UpdatedAt.Time,
+	}
+
+	// Convert command templates to JSON string
+	commandTemplatesJSON, _ := json.Marshal(scheduledTask.CommandTemplates)
+	avroScheduledTask.CommandTemplates = string(commandTemplatesJSON)
+
+	if scheduledTask.LastExecutedAt != nil {
+		lastExecutedStr := scheduledTask.LastExecutedAt.Time
+		avroScheduledTask.LastExecutedAt = &lastExecutedStr
+	}
+
+	if scheduledTask.DeletedAt != nil {
+		deletedAtStr := scheduledTask.DeletedAt.Time.Format(time.RFC3339)
+		avroScheduledTask.DeletedAt = &deletedAtStr
+	}
+
+	err = r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
 	if err != nil {
 		return fmt.Errorf("publishing scheduled task deletion to kafka: %w", err)
 	}

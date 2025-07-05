@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 func NewTenantRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleTenantRepository, error) {
-	publisher, err := publisherFactory.New("tenants", internal.Tenant{})
+	publisher, err := publisherFactory.New("tenants", &avro.AvroTenant{})
 	if err != nil {
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
@@ -36,8 +38,24 @@ type SimpleTenantRepository struct {
 }
 
 func (r *SimpleTenantRepository) Create(ctx context.Context, tenant domain.Tenant) error {
-	data := internal.FromTenant(tenant)
-	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), data)
+	// Convert domain tenant to Avro tenant
+	avroTenant := &avro.AvroTenant{
+		ID:          tenant.ID.String(),
+		Version:     tenant.Version,
+		Name:        tenant.Name,
+		Email:       tenant.Email,
+		Description: tenant.Description,
+		IsActive:    tenant.IsActive,
+		CreatedAt:   tenant.CreatedAt,
+		UpdatedAt:   tenant.UpdatedAt,
+	}
+
+	if tenant.DeletedAt != nil {
+		deletedAtStr := tenant.DeletedAt.Format(time.RFC3339)
+		avroTenant.DeletedAt = &deletedAtStr
+	}
+
+	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), avroTenant)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
@@ -83,9 +101,24 @@ func (r *SimpleTenantRepository) GetByName(ctx context.Context, name string) (do
 }
 
 func (r *SimpleTenantRepository) Update(ctx context.Context, tenant domain.Tenant) error {
-	data := internal.FromTenant(tenant)
+	// Convert domain tenant to Avro tenant
+	avroTenant := &avro.AvroTenant{
+		ID:          tenant.ID.String(),
+		Version:     tenant.Version,
+		Name:        tenant.Name,
+		Email:       tenant.Email,
+		Description: tenant.Description,
+		IsActive:    tenant.IsActive,
+		CreatedAt:   tenant.CreatedAt,
+		UpdatedAt:   tenant.UpdatedAt,
+	}
 
-	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), data)
+	if tenant.DeletedAt != nil {
+		deletedAtStr := tenant.DeletedAt.Format(time.RFC3339)
+		avroTenant.DeletedAt = &deletedAtStr
+	}
+
+	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), avroTenant)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}

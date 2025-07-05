@@ -23,7 +23,7 @@ type TenantData struct {
 }
 
 func (TenantData) TableName() string {
-	return "tenants_final"
+	return "tenants"
 }
 
 // TenantHandler handles replication of tenant data

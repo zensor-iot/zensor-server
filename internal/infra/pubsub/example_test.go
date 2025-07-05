@@ -11,9 +11,10 @@ import (
 func ExampleFactory_usage() {
 	// Create factory with in-memory implementation
 	factory := NewFactory(FactoryOptions{
-		Environment:   "local",
-		KafkaBrokers:  []string{"localhost:9092"}, // Not used when Environment=local
-		ConsumerGroup: "test-group",
+		Environment:       "local",
+		KafkaBrokers:      []string{"localhost:9092"}, // Not used when Environment=local
+		ConsumerGroup:     "test-group",
+		SchemaRegistryURL: "http://localhost:8081", // Not used when Environment=local
 	})
 
 	// Get publisher factory
@@ -77,9 +78,10 @@ func ExampleFactory_usage() {
 func ExampleFactory_production() {
 	// Create factory with Kafka implementation
 	factory := NewFactory(FactoryOptions{
-		Environment:   "production",
-		KafkaBrokers:  []string{"kafka1:9092", "kafka2:9092"},
-		ConsumerGroup: "production-group",
+		Environment:       "production",
+		KafkaBrokers:      []string{"kafka1:9092", "kafka2:9092"},
+		ConsumerGroup:     "production-group",
+		SchemaRegistryURL: "http://schema-registry:8081",
 	})
 
 	// Get publisher factory (will be Kafka)
@@ -107,9 +109,10 @@ func ExampleFactory_production() {
 func TestFactoryBehavior(t *testing.T) {
 	// Test local environment
 	factory := NewFactory(FactoryOptions{
-		Environment:   "local",
-		KafkaBrokers:  []string{"localhost:9092"},
-		ConsumerGroup: "test-group",
+		Environment:       "local",
+		KafkaBrokers:      []string{"localhost:9092"},
+		ConsumerGroup:     "test-group",
+		SchemaRegistryURL: "http://localhost:8081",
 	})
 
 	// Should be memory implementations
@@ -123,9 +126,10 @@ func TestFactoryBehavior(t *testing.T) {
 
 	// Test production environment
 	factory = NewFactory(FactoryOptions{
-		Environment:   "production",
-		KafkaBrokers:  []string{"localhost:9092"},
-		ConsumerGroup: "test-group",
+		Environment:       "production",
+		KafkaBrokers:      []string{"localhost:9092"},
+		ConsumerGroup:     "test-group",
+		SchemaRegistryURL: "http://localhost:8081",
 	})
 
 	// Should be Kafka implementations

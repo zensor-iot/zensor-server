@@ -2,13 +2,29 @@ name: zensor-server-staging
 
 services:
 
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    configs:
+      - source: server
+        target: /config/server.yaml
+    ports:
+      - "3000:3000"
+    networks:
+      - zensor_v2
+    depends_on:
+      - kafka
+      - postgresql
+      - schema-registry
+
   kafka-console:
     image: docker.redpanda.com/redpandadata/console:latest
+    configs:
+      - source: kafka-connect
+        target: /tmp/config.yml
     environment:
-      - KAFKA_BROKERS=kafka:9092
-      - KAFKACONNECT_ENABLED=true
-      - KAFKACONNECT_CLUSTERS_0_NAME=local-connect
-      - KAFKACONNECT_CLUSTERS_0_URL=http://kafka-connect:8083
+      CONFIG_FILEPATH: /tmp/config.yml
     networks:
       - zensor_v2
     ports:
@@ -22,15 +38,18 @@ services:
       - KAFKA_KRAFT_CLUSTER_ID=101
       - KAFKA_CFG_NODE_ID=0
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:19092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    ports:
+      - "19092:19092"
     networks:
       - zensor_v2
 
   kafka-connect:
-    image: cp-kafka-connect:0.1.0
+    image: cp-kafka-connect:8.0.0-1
     ports:
       - "8083:8083"
     environment:
@@ -44,14 +63,28 @@ services:
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
-      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
       CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
-      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "true"
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
       CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
     networks:
       - zensor_v2
     depends_on:
       - kafka
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.1
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+    networks:
+      - zensor_v2
 
   postgresql:
     image: bitnami/postgresql:17.5.0
@@ -105,6 +138,38 @@ networks:
     driver: bridge
 
 configs:
+
+  server:
+    content: |
+      general:
+        log_level: info
+      mqtt:
+        broker: "localhost:1883"
+      database:
+        dsn: "host=postgresql user=postgres dbname=postgres port=5432 sslmode=disable"
+      kafka:
+        brokers:
+          - "kafka:9092"
+        group: "zensor-server"
+        schema_registry: "http://schema-registry:8081"
+      mqtt_client:
+        broker: nam1.cloud.thethings.network:1883
+        client_id: zensor_server_local
+
+  kafka-connect:
+    content: |
+      kafka:
+        brokers:
+          - "kafka:9092"
+      kafkaConnect:
+        enabled: true
+        clusters:
+          - name: my-local-cluster
+            url: "http://kafka-connect:8083"
+      schemaRegistry:
+        enabled: true
+        urls:
+          - "http://schema-registry:8081"
 
   otelcol:
     content: |

@@ -186,9 +186,10 @@ func providePubSubFactory(config config.AppConfig) *pubsub.Factory {
 	}
 
 	return pubsub.NewFactory(pubsub.FactoryOptions{
-		Environment:   env,
-		KafkaBrokers:  config.Kafka.Brokers,
-		ConsumerGroup: "zensor-server",
+		Environment:       env,
+		KafkaBrokers:      config.Kafka.Brokers,
+		ConsumerGroup:     "zensor-server",
+		SchemaRegistryURL: config.Kafka.SchemaRegistry,
 	})
 }
 
@@ -198,7 +199,8 @@ func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {
 
 func provideKafkaPublisherFactoryOptions(config config.AppConfig) pubsub.KafkaPublisherFactoryOptions {
 	return pubsub.KafkaPublisherFactoryOptions{
-		Brokers: config.Kafka.Brokers,
+		Brokers:           config.Kafka.Brokers,
+		SchemaRegistryURL: config.Kafka.SchemaRegistry,
 	}
 }
 

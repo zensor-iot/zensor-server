@@ -65,9 +65,10 @@ func TestMemoryPubSub(t *testing.T) {
 
 func TestMemoryPubSubFactory(t *testing.T) {
 	factory := NewFactory(FactoryOptions{
-		Environment:   "local",
-		KafkaBrokers:  []string{"localhost:9092"},
-		ConsumerGroup: "test-group",
+		Environment:       "local",
+		KafkaBrokers:      []string{"localhost:9092"},
+		ConsumerGroup:     "test-group",
+		SchemaRegistryURL: "http://localhost:8081",
 	})
 
 	// Verify we get memory implementations
@@ -87,9 +88,10 @@ func TestMemoryPubSubFactory(t *testing.T) {
 
 func TestMemoryPubSubNonLocal(t *testing.T) {
 	factory := NewFactory(FactoryOptions{
-		Environment:   "production",
-		KafkaBrokers:  []string{"localhost:9092"},
-		ConsumerGroup: "test-group",
+		Environment:       "production",
+		KafkaBrokers:      []string{"localhost:9092"},
+		ConsumerGroup:     "test-group",
+		SchemaRegistryURL: "http://localhost:8081",
 	})
 
 	// Verify we get Kafka implementations
