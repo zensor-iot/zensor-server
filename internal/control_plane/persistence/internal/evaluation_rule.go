@@ -22,7 +22,7 @@ type EvaluationRule struct {
 }
 
 func (EvaluationRule) TableName() string {
-	return "evaluation_rules_final"
+	return "evaluation_rules"
 }
 
 type Parameters map[string]any

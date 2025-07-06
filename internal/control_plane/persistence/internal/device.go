@@ -21,7 +21,7 @@ type Device struct {
 }
 
 func (Device) TableName() string {
-	return "devices_final"
+	return "devices"
 }
 
 func (s Device) ToDomain() domain.Device {

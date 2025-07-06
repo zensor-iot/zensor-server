@@ -47,7 +47,7 @@ func (v *CommandPayload) Scan(value any) error {
 }
 
 func (CommandData) TableName() string {
-	return "device_commands_final"
+	return "device_commands"
 }
 
 type CommandHandler struct {

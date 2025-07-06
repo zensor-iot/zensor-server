@@ -24,7 +24,7 @@ type DeviceData struct {
 }
 
 func (DeviceData) TableName() string {
-	return "devices_final"
+	return "devices"
 }
 
 type DeviceHandler struct {

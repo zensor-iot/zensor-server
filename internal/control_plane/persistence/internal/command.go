@@ -13,7 +13,7 @@ import (
 type CommandSet []Command
 
 func (CommandSet) TableName() string {
-	return "device_commands_final"
+	return "device_commands"
 }
 
 func (s CommandSet) ToDomain() []domain.Command {
@@ -42,7 +42,7 @@ type Command struct {
 }
 
 func (Command) TableName() string {
-	return "device_commands_final"
+	return "device_commands"
 }
 
 type CommandPayload struct {

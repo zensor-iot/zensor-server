@@ -28,7 +28,7 @@ type TestCommand struct {
 }
 
 func (t TestCommand) TableName() string {
-	return "device_commands_final"
+	return "device_commands"
 }
 
 // setupTestTables creates tables for testing that mimic the Materialized View structure
