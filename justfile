@@ -53,7 +53,7 @@ run: build
     if [ "${ENV}" = "local" ]; then
         echo "🌱 Local mode: skipping Docker dependencies"
     else
-        docker compose up -d
+        docker compose up -d --wait
     fi
     echo "🔧 starting opentelemetry collector..."
     ./otelcol --config otelcol_config.yaml > otelcol.log 2>&1 &

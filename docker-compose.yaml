@@ -39,6 +39,7 @@ services:
     environment:
       CONNECT_BOOTSTRAP_SERVERS: "kafka:9092"
       CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+      CONNECT_REST_PORT: "8083"
       CONNECT_GROUP_ID: "kafka-connect-cluster"
       CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
       CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
@@ -118,7 +119,7 @@ volumes:
     driver: local
 
 networks:
-  zensor_v2:
+  zensor:
     driver: bridge
 
 configs:

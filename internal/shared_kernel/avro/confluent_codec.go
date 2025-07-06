@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"time"
 
+	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel"
 
@@ -153,7 +154,7 @@ func (c *ConfluentAvroCodec) loadSchemaFromFile(schemaName string) (string, erro
 	}
 
 	// Read schema from file
-	schemaPath := "../../../schemas/" + fileName
+	schemaPath := "./schemas/" + fileName
 	schemaBytes, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return "", fmt.Errorf("reading schema file %s: %w", schemaPath, err)
@@ -284,7 +285,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 		}
 
 		if v.LastMessageReceivedAt != nil {
-			result["last_message_received_at"] = v.LastMessageReceivedAt
+			result["last_message_received_at"] = map[string]any{
+				"long.timestamp-millis": v.LastMessageReceivedAt.UnixMilli(),
+			}
 		} else {
 			result["last_message_received_at"] = nil
 		}
@@ -305,7 +308,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable last_executed_at field for Avro union type
 		if v.LastExecutedAt != nil {
-			result["last_executed_at"] = map[string]any{"string": *v.LastExecutedAt}
+			result["last_executed_at"] = map[string]any{
+				"long.timestamp-millis": v.LastExecutedAt.UnixMilli(),
+			}
 		} else {
 			result["last_executed_at"] = nil
 		}
@@ -403,7 +408,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 		}
 
 		if v.LastMessageReceivedAt != nil {
-			result["last_message_received_at"] = v.LastMessageReceivedAt
+			result["last_message_received_at"] = map[string]any{
+				"long.timestamp-millis": v.LastMessageReceivedAt.UnixMilli(),
+			}
 		} else {
 			result["last_message_received_at"] = nil
 		}
@@ -424,7 +431,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable last_executed_at field for Avro union type
 		if v.LastExecutedAt != nil {
-			result["last_executed_at"] = map[string]any{"string": *v.LastExecutedAt}
+			result["last_executed_at"] = map[string]any{
+				"long.timestamp-millis": v.LastExecutedAt.UnixMilli(),
+			}
 		} else {
 			result["last_executed_at"] = nil
 		}
@@ -814,6 +823,12 @@ func (c *ConfluentAvroCodec) convertInternalTenant(value any) (any, error) {
 }
 
 func (c *ConfluentAvroCodec) convertInternalDevice(value any) (any, error) {
+	// Try to convert domain Device first
+	if device, ok := value.(*domain.Device); ok {
+		return c.convertDomainDevice(device)
+	}
+
+	// Fall back to reflection-based conversion for other types
 	val := reflect.ValueOf(value)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -841,11 +856,44 @@ func (c *ConfluentAvroCodec) convertInternalDevice(value any) (any, error) {
 	if lastMessageField := val.FieldByName("LastMessageReceivedAt"); lastMessageField.IsValid() {
 		lastMessageTime := lastMessageField.FieldByName("Time").Interface().(time.Time)
 		if lastMessageTime != (time.Time{}) {
-			result["last_message_received_at"] = &lastMessageTime
+			// For Avro union types, non-nil values must be specified as map[string]interface{}
+			// with the type name as the key
+			result["last_message_received_at"] = map[string]any{
+				"long.timestamp-millis": lastMessageTime.UnixMilli(),
+			}
 		}
 	}
 
 	return result, nil
+}
+
+// convertDomainDevice converts a domain Device to AvroDevice with proper typing
+func (c *ConfluentAvroCodec) convertDomainDevice(device *domain.Device) (*AvroDevice, error) {
+	avroDevice := &AvroDevice{
+		ID:          device.ID.String(),
+		Version:     1, // Default version for domain devices
+		Name:        device.Name,
+		DisplayName: device.DisplayName,
+		AppEUI:      device.AppEUI,
+		DevEUI:      device.DevEUI,
+		AppKey:      device.AppKey,
+		CreatedAt:   time.Now(), // Default timestamp for domain devices
+		UpdatedAt:   time.Now(), // Default timestamp for domain devices
+	}
+
+	// Handle optional TenantID field
+	if device.TenantID != nil {
+		tenantID := device.TenantID.String()
+		avroDevice.TenantID = &tenantID
+	}
+
+	// Handle optional LastMessageReceivedAt field
+	if !device.LastMessageReceivedAt.IsZero() {
+		lastMessageTime := device.LastMessageReceivedAt.Time
+		avroDevice.LastMessageReceivedAt = &lastMessageTime
+	}
+
+	return avroDevice, nil
 }
 
 func (c *ConfluentAvroCodec) convertInternalTask(value any) (any, error) {
