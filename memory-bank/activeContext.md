@@ -51,6 +51,31 @@
 - Add metrics and monitoring for replication operations
 - Validate that data published to topics gets persisted to database
 - Test command flow in local mode to verify the fix works correctly
+- **🔄 PENDING: Remove reflection-based Avro mapping in favor of typed structures**
+
+## Pending Tasks
+### 🔄 Avro Mapping Refactoring
+- **Goal**: Replace all reflection-based Avro conversion with typed methods
+- **Current Status**: 
+  - ✅ `convertDomainDevice` implemented as typed method
+  - ✅ `convertInternalDevice` updated to use typed method when possible
+  - ⚠️ Other conversion methods still use reflection
+- **Remaining Work**:
+  - Create typed `convertDomainTask` method
+  - Create typed `convertDomainScheduledTask` method  
+  - Create typed `convertDomainTenant` method
+  - Create typed `convertDomainEvaluationRule` method
+  - Create typed `convertDomainCommand` method
+  - Update all `convertInternal*` methods to use typed versions
+  - Remove reflection-based fallback code
+  - Update tests to use typed methods
+  - Remove helper functions that are no longer needed (`getStringField`, `getIntField`, etc.)
+- **Benefits**:
+  - Better type safety
+  - Improved performance (no reflection overhead)
+  - Easier to maintain and debug
+  - Better IDE support and autocomplete
+  - Compile-time error detection
 
 ## Open Questions / Considerations
 - What additional topic handlers are needed?

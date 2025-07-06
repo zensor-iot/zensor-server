@@ -22,6 +22,10 @@
 - Performance optimization for high-throughput scenarios
 - Integration testing for replication module
 - Documentation for replication module usage
+- **Refactor Avro mapping to use typed structures instead of reflection**
+
+## Technical Debt & Improvements
+- **Avro Mapping Refactoring**: Replace reflection-based conversion with typed methods for better performance and type safety
 
 ## Current Status
 - **MVP**: Complete ✅
@@ -41,6 +45,8 @@
 - ✅ **Fixed command type mismatch issue**: Resolved LoraIntegrationWorker receiving internal.Command instead of shared_kernel.Command
 - ✅ **Implemented JSON-based command conversion**: Added generic conversion method to handle type differences
 - ✅ **Updated command consumption**: Modified worker to use generic map consumption with conversion
+- ✅ **Implemented typed Avro device conversion**: Created `convertDomainDevice` method that accepts `*domain.Device` and returns `*AvroDevice` for better type safety
+- ✅ **Fixed Avro union type serialization**: Corrected `last_message_received_at` field serialization to use proper union format for timestamp-millis
 - Implemented comprehensive replication module architecture
 - Created TopicHandler interface for flexible topic-specific replication
 - Built DeviceHandler and TenantHandler implementations
