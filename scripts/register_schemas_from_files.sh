@@ -22,10 +22,11 @@ register_schema() {
         return 1
     fi
     
-    # Register schema
-    response=$(curl -s -X POST \
+    # Register schema with proper JSON formatting
+    response=$(jq -n --arg schema "$(cat $SCHEMAS_DIR/$file_name)" '{"schema": $schema}' | \
+        curl -s -X POST \
         -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-        -d @$SCHEMAS_DIR/$file_name \
+        -d @- \
         "$SCHEMA_REGISTRY_URL/subjects/$subject/versions")
     
     if [ $? -eq 0 ]; then
