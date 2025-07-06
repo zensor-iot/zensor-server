@@ -100,7 +100,7 @@ type AvroEvaluationRule struct {
 // Conversion functions to convert from domain types to Avro types
 
 // ToAvroCommand converts a domain Command to AvroCommand
-func ToAvroCommand(cmd interface{}) *AvroCommand {
+func ToAvroCommand(cmd any) *AvroCommand {
 	// Use reflection to extract fields from the original command
 	val := reflect.ValueOf(cmd)
 	if val.Kind() == reflect.Ptr {
@@ -177,7 +177,7 @@ func ToAvroCommand(cmd interface{}) *AvroCommand {
 }
 
 // ToAvroTask converts a domain Task to AvroTask
-func ToAvroTask(task interface{}) *AvroTask {
+func ToAvroTask(task any) *AvroTask {
 	val := reflect.ValueOf(task)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -214,7 +214,7 @@ func ToAvroTask(task interface{}) *AvroTask {
 }
 
 // ToAvroDevice converts a domain Device to AvroDevice
-func ToAvroDevice(device interface{}) *AvroDevice {
+func ToAvroDevice(device any) *AvroDevice {
 	val := reflect.ValueOf(device)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -265,7 +265,7 @@ func ToAvroDevice(device interface{}) *AvroDevice {
 }
 
 // ToAvroScheduledTask converts a domain ScheduledTask to AvroScheduledTask
-func ToAvroScheduledTask(scheduledTask interface{}) *AvroScheduledTask {
+func ToAvroScheduledTask(scheduledTask any) *AvroScheduledTask {
 	val := reflect.ValueOf(scheduledTask)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -325,7 +325,7 @@ func ToAvroScheduledTask(scheduledTask interface{}) *AvroScheduledTask {
 }
 
 // ToAvroTenant converts a domain Tenant to AvroTenant
-func ToAvroTenant(tenant interface{}) *AvroTenant {
+func ToAvroTenant(tenant any) *AvroTenant {
 	val := reflect.ValueOf(tenant)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -367,7 +367,7 @@ func ToAvroTenant(tenant interface{}) *AvroTenant {
 }
 
 // ToAvroEvaluationRule converts a domain EvaluationRule to AvroEvaluationRule
-func ToAvroEvaluationRule(evaluationRule interface{}) *AvroEvaluationRule {
+func ToAvroEvaluationRule(evaluationRule any) *AvroEvaluationRule {
 	val := reflect.ValueOf(evaluationRule)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()

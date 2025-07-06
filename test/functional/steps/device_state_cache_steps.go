@@ -87,7 +87,7 @@ func (fc *FeatureContext) iShouldReceiveCachedDeviceStatesImmediately() error {
 		return fmt.Errorf("no cached device states received")
 	}
 
-	fc.responseData = map[string]interface{}{
+	fc.responseData = map[string]any{
 		"cached_states": messages,
 	}
 

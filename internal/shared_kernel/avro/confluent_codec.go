@@ -231,13 +231,13 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 	// Handle Avro-compatible structs directly by converting to map
 	switch v := value.(type) {
 	case *AvroCommand:
-		return map[string]interface{}{
+		return map[string]any{
 			"id":             v.ID,
 			"version":        v.Version,
 			"device_name":    v.DeviceName,
 			"device_id":      v.DeviceID,
 			"task_id":        v.TaskID,
-			"payload":        map[string]interface{}{"index": v.Payload.Index, "value": v.Payload.Value},
+			"payload":        map[string]any{"index": v.Payload.Index, "value": v.Payload.Value},
 			"dispatch_after": v.DispatchAfter,
 			"port":           v.Port,
 			"priority":       v.Priority,
@@ -247,7 +247,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"sent_at":        v.SentAt,
 		}, nil
 	case *AvroTask:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":         v.ID,
 			"device_id":  v.DeviceID,
 			"version":    v.Version,
@@ -257,14 +257,14 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable scheduled_task_id field for Avro union type
 		if v.ScheduledTaskID != nil {
-			result["scheduled_task_id"] = map[string]interface{}{"string": *v.ScheduledTaskID}
+			result["scheduled_task_id"] = map[string]any{"string": *v.ScheduledTaskID}
 		} else {
 			result["scheduled_task_id"] = nil
 		}
 
 		return result, nil
 	case *AvroDevice:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":           v.ID,
 			"version":      v.Version,
 			"name":         v.Name,
@@ -278,7 +278,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable tenant_id field for Avro union type
 		if v.TenantID != nil {
-			result["tenant_id"] = map[string]interface{}{"string": *v.TenantID}
+			result["tenant_id"] = map[string]any{"string": *v.TenantID}
 		} else {
 			result["tenant_id"] = nil
 		}
@@ -294,7 +294,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		return result, nil
 	case *AvroScheduledTask:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":                v.ID,
 			"version":           v.Version,
 			"tenant_id":         v.TenantID,
@@ -308,21 +308,21 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable last_executed_at field for Avro union type
 		if v.LastExecutedAt != nil {
-			result["last_executed_at"] = map[string]interface{}{"string": *v.LastExecutedAt}
+			result["last_executed_at"] = map[string]any{"string": *v.LastExecutedAt}
 		} else {
 			result["last_executed_at"] = nil
 		}
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]interface{}{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
 		} else {
 			result["deleted_at"] = nil
 		}
 
 		return result, nil
 	case *AvroTenant:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":          v.ID,
 			"version":     v.Version,
 			"name":        v.Name,
@@ -335,14 +335,14 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]interface{}{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
 		} else {
 			result["deleted_at"] = nil
 		}
 
 		return result, nil
 	case *AvroEvaluationRule:
-		return map[string]interface{}{
+		return map[string]any{
 			"id":          v.ID,
 			"device_id":   v.DeviceID,
 			"version":     v.Version,
@@ -354,13 +354,13 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"updated_at":  v.UpdatedAt,
 		}, nil
 	case AvroCommand:
-		return map[string]interface{}{
+		return map[string]any{
 			"id":             v.ID,
 			"version":        v.Version,
 			"device_name":    v.DeviceName,
 			"device_id":      v.DeviceID,
 			"task_id":        v.TaskID,
-			"payload":        map[string]interface{}{"index": v.Payload.Index, "value": v.Payload.Value},
+			"payload":        map[string]any{"index": v.Payload.Index, "value": v.Payload.Value},
 			"dispatch_after": v.DispatchAfter,
 			"port":           v.Port,
 			"priority":       v.Priority,
@@ -370,7 +370,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"sent_at":        v.SentAt,
 		}, nil
 	case AvroTask:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":         v.ID,
 			"device_id":  v.DeviceID,
 			"version":    v.Version,
@@ -380,14 +380,14 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable scheduled_task_id field for Avro union type
 		if v.ScheduledTaskID != nil {
-			result["scheduled_task_id"] = map[string]interface{}{"string": *v.ScheduledTaskID}
+			result["scheduled_task_id"] = map[string]any{"string": *v.ScheduledTaskID}
 		} else {
 			result["scheduled_task_id"] = nil
 		}
 
 		return result, nil
 	case AvroDevice:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":           v.ID,
 			"version":      v.Version,
 			"name":         v.Name,
@@ -401,7 +401,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable tenant_id field for Avro union type
 		if v.TenantID != nil {
-			result["tenant_id"] = map[string]interface{}{"string": *v.TenantID}
+			result["tenant_id"] = map[string]any{"string": *v.TenantID}
 		} else {
 			result["tenant_id"] = nil
 		}
@@ -417,7 +417,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		return result, nil
 	case AvroScheduledTask:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":                v.ID,
 			"version":           v.Version,
 			"tenant_id":         v.TenantID,
@@ -431,21 +431,21 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable last_executed_at field for Avro union type
 		if v.LastExecutedAt != nil {
-			result["last_executed_at"] = map[string]interface{}{"string": *v.LastExecutedAt}
+			result["last_executed_at"] = map[string]any{"string": *v.LastExecutedAt}
 		} else {
 			result["last_executed_at"] = nil
 		}
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]interface{}{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
 		} else {
 			result["deleted_at"] = nil
 		}
 
 		return result, nil
 	case AvroTenant:
-		result := map[string]interface{}{
+		result := map[string]any{
 			"id":          v.ID,
 			"version":     v.Version,
 			"name":        v.Name,
@@ -458,14 +458,14 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]interface{}{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
 		} else {
 			result["deleted_at"] = nil
 		}
 
 		return result, nil
 	case AvroEvaluationRule:
-		return map[string]interface{}{
+		return map[string]any{
 			"id":          v.ID,
 			"device_id":   v.DeviceID,
 			"version":     v.Version,
@@ -481,13 +481,13 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 	// Convert original structs to Avro structs
 	switch v := value.(type) {
 	case *shared_kernel.Command:
-		return map[string]interface{}{
+		return map[string]any{
 			"id":             v.ID,
 			"version":        v.Version,
 			"device_name":    v.DeviceName,
 			"device_id":      v.DeviceID,
 			"task_id":        v.TaskID,
-			"payload":        map[string]interface{}{"index": int(v.Payload.Index), "value": int(v.Payload.Value)},
+			"payload":        map[string]any{"index": int(v.Payload.Index), "value": int(v.Payload.Value)},
 			"dispatch_after": v.DispatchAfter.Time.Format(time.RFC3339),
 			"port":           int(v.Port),
 			"priority":       v.Priority,
@@ -525,8 +525,8 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 // convertFromAvroStruct converts Avro struct back to original struct
 func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
-	// Handle map[string]interface{} from Avro decoding
-	if mapValue, ok := value.(map[string]interface{}); ok {
+	// Handle map[string]any from Avro decoding
+	if mapValue, ok := value.(map[string]any); ok {
 		// Try to determine the type from the map structure
 		if _, hasID := mapValue["id"]; hasID {
 			if _, hasDeviceName := mapValue["device_name"]; hasDeviceName {
@@ -712,7 +712,7 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 }
 
 // Helper functions for map conversion
-func getString(m map[string]interface{}, key string) string {
+func getString(m map[string]any, key string) string {
 	if v, ok := m[key]; ok {
 		if s, ok := v.(string); ok {
 			return s
@@ -742,10 +742,10 @@ func parseTimePtrRFC3339(s *string) *time.Time {
 	return &t
 }
 
-func getStringPtr(m map[string]interface{}, key string) *string {
+func getStringPtr(m map[string]any, key string) *string {
 	if v, ok := m[key]; ok {
-		// Handle Avro union type format: map[string]interface{}{"string": "value"}
-		if unionMap, ok := v.(map[string]interface{}); ok {
+		// Handle Avro union type format: map[string]any{"string": "value"}
+		if unionMap, ok := v.(map[string]any); ok {
 			if s, ok := unionMap["string"].(string); ok {
 				return &s
 			}
@@ -758,7 +758,7 @@ func getStringPtr(m map[string]interface{}, key string) *string {
 	return nil
 }
 
-func getInt(m map[string]interface{}, key string) int {
+func getInt(m map[string]any, key string) int {
 	if v, ok := m[key]; ok {
 		if i, ok := v.(int); ok {
 			return i
@@ -770,7 +770,7 @@ func getInt(m map[string]interface{}, key string) int {
 	return 0
 }
 
-func getInt64(m map[string]interface{}, key string) int64 {
+func getInt64(m map[string]any, key string) int64 {
 	if v, ok := m[key]; ok {
 		if i, ok := v.(int64); ok {
 			return i
@@ -782,7 +782,7 @@ func getInt64(m map[string]interface{}, key string) int64 {
 	return 0
 }
 
-func getBool(m map[string]interface{}, key string) bool {
+func getBool(m map[string]any, key string) bool {
 	if v, ok := m[key]; ok {
 		if b, ok := v.(bool); ok {
 			return b
@@ -799,7 +799,7 @@ func (c *ConfluentAvroCodec) convertInternalTenant(value any) (any, error) {
 		val = val.Elem()
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":          getStringField(val, "ID"),
 		"version":     getIntField(val, "Version"),
 		"name":        getStringField(val, "Name"),
@@ -826,7 +826,7 @@ func (c *ConfluentAvroCodec) convertInternalDevice(value any) (any, error) {
 		val = val.Elem()
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":           getStringField(val, "ID"),
 		"version":      getIntField(val, "Version"),
 		"name":         getStringField(val, "Name"),
@@ -863,7 +863,7 @@ func (c *ConfluentAvroCodec) convertInternalTask(value any) (any, error) {
 		val = val.Elem()
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":         getStringField(val, "ID"),
 		"device_id":  getStringField(val, "DeviceID"),
 		"version":    int64(getUintField(val, "Version")),
@@ -885,7 +885,7 @@ func (c *ConfluentAvroCodec) convertInternalScheduledTask(value any) (any, error
 		val = val.Elem()
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":                getStringField(val, "ID"),
 		"version":           int64(getUintField(val, "Version")),
 		"tenant_id":         getStringField(val, "TenantID"),
@@ -930,7 +930,7 @@ func (c *ConfluentAvroCodec) convertInternalEvaluationRule(value any) (any, erro
 		}
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":          getStringField(val, "ID"),
 		"device_id":   getStringField(val, "DeviceID"),
 		"version":     getIntField(val, "Version"),
@@ -960,13 +960,13 @@ func (c *ConfluentAvroCodec) convertInternalCommand(value any) (any, error) {
 		payloadValue = int(payloadField.FieldByName("Value").Interface().(uint8))
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":             getStringField(val, "ID"),
 		"version":        getIntField(val, "Version"),
 		"device_name":    getStringField(val, "DeviceName"),
 		"device_id":      getStringField(val, "DeviceID"),
 		"task_id":        getStringField(val, "TaskID"),
-		"payload":        map[string]interface{}{"index": payloadIndex, "value": payloadValue},
+		"payload":        map[string]any{"index": payloadIndex, "value": payloadValue},
 		"dispatch_after": getTimeField(val, "DispatchAfter").Format(time.RFC3339),
 		"port":           int(getUint8Field(val, "Port")),
 		"priority":       getStringField(val, "Priority"),
