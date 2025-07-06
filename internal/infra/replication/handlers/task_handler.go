@@ -20,7 +20,7 @@ type TaskData struct {
 }
 
 func (TaskData) TableName() string {
-	return "tasks_final"
+	return "tasks"
 }
 
 // TaskHandler handles replication of task data

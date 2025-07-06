@@ -26,7 +26,7 @@ type ScheduledTaskData struct {
 }
 
 func (ScheduledTaskData) TableName() string {
-	return "scheduled_tasks_final"
+	return "scheduled_tasks"
 }
 
 // ScheduledTaskHandler handles replication of scheduled task data

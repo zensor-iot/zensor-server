@@ -72,7 +72,7 @@ type ScheduledTask struct {
 }
 
 func (ScheduledTask) TableName() string {
-	return "scheduled_tasks_final"
+	return "scheduled_tasks"
 }
 
 func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {

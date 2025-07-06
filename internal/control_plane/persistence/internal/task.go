@@ -16,7 +16,7 @@ type Task struct {
 }
 
 func (Task) TableName() string {
-	return "tasks_final"
+	return "tasks"
 }
 
 func FromTask(value domain.Task) Task {
