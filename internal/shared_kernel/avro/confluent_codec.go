@@ -283,11 +283,8 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			result["tenant_id"] = nil
 		}
 
-		// Handle nullable last_message_received_at field for Avro union type
 		if v.LastMessageReceivedAt != nil {
-			// Convert to Unix timestamp in milliseconds for Avro timestamp-millis logical type
-			lastMessageMillis := v.LastMessageReceivedAt.UnixMilli()
-			result["last_message_received_at"] = &lastMessageMillis
+			result["last_message_received_at"] = v.LastMessageReceivedAt
 		} else {
 			result["last_message_received_at"] = nil
 		}
@@ -399,18 +396,14 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"updated_at":   v.UpdatedAt,
 		}
 
-		// Handle nullable tenant_id field for Avro union type
 		if v.TenantID != nil {
 			result["tenant_id"] = map[string]any{"string": *v.TenantID}
 		} else {
 			result["tenant_id"] = nil
 		}
 
-		// Handle nullable last_message_received_at field for Avro union type
 		if v.LastMessageReceivedAt != nil {
-			// Convert to Unix timestamp in milliseconds for Avro timestamp-millis logical type
-			lastMessageMillis := v.LastMessageReceivedAt.UnixMilli()
-			result["last_message_received_at"] = &lastMessageMillis
+			result["last_message_received_at"] = v.LastMessageReceivedAt
 		} else {
 			result["last_message_received_at"] = nil
 		}
@@ -848,9 +841,7 @@ func (c *ConfluentAvroCodec) convertInternalDevice(value any) (any, error) {
 	if lastMessageField := val.FieldByName("LastMessageReceivedAt"); lastMessageField.IsValid() {
 		lastMessageTime := lastMessageField.FieldByName("Time").Interface().(time.Time)
 		if lastMessageTime != (time.Time{}) {
-			// Convert to Unix timestamp in milliseconds for Avro timestamp-millis logical type
-			lastMessageMillis := lastMessageTime.UnixMilli()
-			result["last_message_received_at"] = &lastMessageMillis
+			result["last_message_received_at"] = &lastMessageTime
 		}
 	}
 
