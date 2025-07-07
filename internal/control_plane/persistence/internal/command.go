@@ -26,19 +26,20 @@ func (s CommandSet) ToDomain() []domain.Command {
 }
 
 type Command struct {
-	ID            string         `json:"id" gorm:"primaryKey"`
-	Version       int            `json:"version"`
-	DeviceName    string         `json:"device_name"`
-	DeviceID      string         `json:"device_id"`
-	TaskID        string         `json:"task_id" gorm:"foreignKey:task_id"`
-	Payload       CommandPayload `json:"payload" gorm:"type:json"`
-	DispatchAfter utils.Time     `json:"dispatch_after"`
-	Port          uint8          `json:"port"`
-	Priority      string         `json:"priority"`
-	CreatedAt     utils.Time     `json:"created_at"`
-	Ready         bool           `json:"ready"`
-	Sent          bool           `json:"sent"`
-	SentAt        utils.Time     `json:"sent_at"`
+	ID            string     `json:"id" gorm:"primaryKey"`
+	Version       int        `json:"version"`
+	DeviceName    string     `json:"device_name"`
+	DeviceID      string     `json:"device_id"`
+	TaskID        string     `json:"task_id" gorm:"foreignKey:task_id"`
+	PayloadIndex  int        `json:"payload_index" gorm:"column:payload_index"`
+	PayloadValue  int        `json:"payload_value" gorm:"column:payload_value"`
+	DispatchAfter utils.Time `json:"dispatch_after"`
+	Port          uint8      `json:"port"`
+	Priority      string     `json:"priority"`
+	CreatedAt     utils.Time `json:"created_at"`
+	Ready         bool       `json:"ready"`
+	Sent          bool       `json:"sent"`
+	SentAt        utils.Time `json:"sent_at"`
 }
 
 func (Command) TableName() string {
@@ -80,8 +81,8 @@ func (c Command) ToDomain() domain.Command {
 		Port:     domain.Port(c.Port),
 		Priority: domain.CommandPriority(c.Priority),
 		Payload: domain.CommandPayload{
-			Index: domain.Index(c.Payload.Index),
-			Value: domain.CommandValue(c.Payload.Data),
+			Index: domain.Index(c.PayloadIndex),
+			Value: domain.CommandValue(c.PayloadValue),
 		},
 		DispatchAfter: c.DispatchAfter,
 		Ready:         c.Ready,
@@ -92,15 +93,13 @@ func (c Command) ToDomain() domain.Command {
 
 func FromCommand(cmd domain.Command) Command {
 	return Command{
-		ID:         cmd.ID.String(),
-		Version:    int(cmd.Version),
-		DeviceID:   cmd.Device.ID.String(),
-		DeviceName: cmd.Device.Name,
-		TaskID:     cmd.Task.ID.String(),
-		Payload: CommandPayload{
-			Index: uint8(cmd.Payload.Index),
-			Data:  uint8(cmd.Payload.Value),
-		},
+		ID:            cmd.ID.String(),
+		Version:       int(cmd.Version),
+		DeviceID:      cmd.Device.ID.String(),
+		DeviceName:    cmd.Device.Name,
+		TaskID:        cmd.Task.ID.String(),
+		PayloadIndex:  int(cmd.Payload.Index),
+		PayloadValue:  int(cmd.Payload.Value),
 		DispatchAfter: cmd.DispatchAfter,
 		Port:          uint8(cmd.Port),
 		Priority:      string(cmd.Priority),
