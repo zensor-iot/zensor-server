@@ -118,8 +118,8 @@ func (h *CommandHandler) extractCommandFields(message pubsub.Message) CommandDat
 		DeviceID:   avroCommand.DeviceID,
 		TaskID:     avroCommand.TaskID,
 		Payload: CommandPayload{
-			Index: uint8(avroCommand.Payload.Index),
-			Data:  uint8(avroCommand.Payload.Value),
+			Index: uint8(avroCommand.PayloadIndex),
+			Data:  uint8(avroCommand.PayloadValue),
 		},
 		DispatchAfter: utils.Time{Time: avroCommand.DispatchAfter},
 		Port:          uint8(avroCommand.Port),

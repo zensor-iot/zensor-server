@@ -141,14 +141,12 @@ func TestCommandHandler_extractCommandFields(t *testing.T) {
 	timeNow := time.Now()
 
 	cmd := &avro.AvroCommand{
-		ID:         "cmd-1",
-		DeviceName: "dev",
-		DeviceID:   "dev-1",
-		TaskID:     "task-1",
-		Payload: avro.AvroCommandPayload{
-			Index: 1,
-			Value: 2,
-		},
+		ID:            "cmd-1",
+		DeviceName:    "dev",
+		DeviceID:      "dev-1",
+		TaskID:        "task-1",
+		PayloadIndex:  1,
+		PayloadValue:  1,
 		DispatchAfter: timeNow,
 		Port:          3,
 		Priority:      "high",

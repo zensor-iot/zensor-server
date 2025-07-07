@@ -41,7 +41,7 @@ register_schema() {
 # Register all schemas
 echo "=== Registering schemas ==="
 
-register_schema "commands" "command.avsc"
+register_schema "device_commands" "device_command.avsc"
 register_schema "tasks" "task.avsc"
 register_schema "devices" "device.avsc"
 register_schema "scheduled_tasks" "scheduled_task.avsc"

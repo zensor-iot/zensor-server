@@ -10,25 +10,20 @@ import (
 
 // AvroCommand represents the Avro-compatible Command message
 type AvroCommand struct {
-	ID            string             `avro:"id"`
-	Version       int                `avro:"version"`
-	DeviceName    string             `avro:"device_name"`
-	DeviceID      string             `avro:"device_id"`
-	TaskID        string             `avro:"task_id"`
-	Payload       AvroCommandPayload `avro:"payload"`
-	DispatchAfter time.Time          `avro:"dispatch_after"`
-	Port          int                `avro:"port"`
-	Priority      string             `avro:"priority"`
-	CreatedAt     time.Time          `avro:"created_at"`
-	Ready         bool               `avro:"ready"`
-	Sent          bool               `avro:"sent"`
-	SentAt        time.Time          `avro:"sent_at"`
-}
-
-// AvroCommandPayload represents the Avro-compatible CommandPayload
-type AvroCommandPayload struct {
-	Index int `avro:"index"`
-	Value int `avro:"value"`
+	ID            string    `avro:"id"`
+	Version       int       `avro:"version"`
+	DeviceName    string    `avro:"device_name"`
+	DeviceID      string    `avro:"device_id"`
+	TaskID        string    `avro:"task_id"`
+	PayloadIndex  int       `avro:"payload_index"`
+	PayloadValue  int       `avro:"payload_value"`
+	DispatchAfter time.Time `avro:"dispatch_after"`
+	Port          int       `avro:"port"`
+	Priority      string    `avro:"priority"`
+	CreatedAt     time.Time `avro:"created_at"`
+	Ready         bool      `avro:"ready"`
+	Sent          bool      `avro:"sent"`
+	SentAt        time.Time `avro:"sent_at"`
 }
 
 // AvroTask represents the Avro-compatible Task message
@@ -155,7 +150,7 @@ func ToAvroCommand(cmd any) *AvroCommand {
 		}
 	}
 
-	// Handle payload
+	// Handle payload fields
 	if payloadField := val.FieldByName("Payload"); payloadField.IsValid() {
 		payload := payloadField.Interface()
 		payloadVal := reflect.ValueOf(payload)
@@ -163,14 +158,12 @@ func ToAvroCommand(cmd any) *AvroCommand {
 			payloadVal = payloadVal.Elem()
 		}
 
-		avroPayload := &AvroCommandPayload{}
 		if indexField := payloadVal.FieldByName("Index"); indexField.IsValid() {
-			avroPayload.Index = int(indexField.Interface().(uint8))
+			avroCmd.PayloadIndex = int(indexField.Interface().(uint8))
 		}
 		if valueField := payloadVal.FieldByName("Value"); valueField.IsValid() {
-			avroPayload.Value = int(valueField.Interface().(uint8))
+			avroCmd.PayloadValue = int(valueField.Interface().(uint8))
 		}
-		avroCmd.Payload = *avroPayload
 	}
 
 	return avroCmd
