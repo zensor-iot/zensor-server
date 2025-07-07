@@ -3,10 +3,10 @@ package communication
 import (
 	"context"
 	"fmt"
-	"zensor-server/internal/control_plane/communication/internal"
 	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 const (
@@ -14,7 +14,7 @@ const (
 )
 
 func NewCommandPublisher(factory pubsub.PublisherFactory) (*CommandPublisher, error) {
-	publisher, err := factory.New(_deviceCommandsTopic, internal.Command{})
+	publisher, err := factory.New(_deviceCommandsTopic, &avro.AvroCommand{})
 	if err != nil {
 		return nil, fmt.Errorf("creating publisher: %w", err)
 	}
@@ -30,9 +30,9 @@ type CommandPublisher struct {
 }
 
 func (p *CommandPublisher) Dispatch(ctx context.Context, cmd domain.Command) error {
-	internalCmd := internal.FromCommand(cmd)
-	internalCmd.Version++
-	err := p.publisher.Publish(ctx, pubsub.Key(cmd.ID), internalCmd)
+	avroCmd := avro.ToAvroCommand(cmd)
+	avroCmd.Version++
+	err := p.publisher.Publish(ctx, pubsub.Key(cmd.ID), avroCmd)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
