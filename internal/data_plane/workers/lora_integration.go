@@ -8,15 +8,15 @@ import (
 	"regexp"
 	"sync"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/device"
+	"zensor-server/internal/shared_kernel/domain"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -317,16 +317,16 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 	)
 }
 
-func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*shared_kernel.Command, error) {
+func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*device.Command, error) {
 	// Try to convert directly from AvroCommand
 	if avroCmd, ok := msg.(*avro.AvroCommand); ok {
-		return &shared_kernel.Command{
+		return &device.Command{
 			ID:         avroCmd.ID,
 			Version:    avroCmd.Version,
 			DeviceID:   avroCmd.DeviceID,
 			DeviceName: avroCmd.DeviceName,
 			TaskID:     avroCmd.TaskID,
-			Payload: shared_kernel.CommandPayload{
+			Payload: device.CommandPayload{
 				Index: uint8(avroCmd.PayloadIndex),
 				Value: uint8(avroCmd.PayloadValue),
 			},
@@ -346,10 +346,10 @@ func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*s
 		return nil, fmt.Errorf("marshaling message to JSON: %w", err)
 	}
 
-	var command shared_kernel.Command
+	var command device.Command
 	err = json.Unmarshal(jsonData, &command)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshaling to shared_kernel.Command: %w", err)
+		return nil, fmt.Errorf("unmarshaling to device.Command: %w", err)
 	}
 
 	return &command, nil

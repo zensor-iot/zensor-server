@@ -10,7 +10,7 @@ import (
 
 	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel"
+	"zensor-server/internal/shared_kernel/device"
 	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/linkedin/goavro/v2"
@@ -492,7 +492,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 	// Convert original structs to Avro structs
 	switch v := value.(type) {
-	case *shared_kernel.Command:
+	case *device.Command:
 		return map[string]any{
 			"id":             v.ID,
 			"version":        v.Version,
@@ -563,13 +563,13 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 				createdAt, _ := time.Parse(time.RFC3339, getString(mapValue, "created_at"))
 				sentAt, _ := time.Parse(time.RFC3339, getString(mapValue, "sent_at"))
 
-				return &shared_kernel.Command{
+				return &device.Command{
 					ID:            getString(mapValue, "id"),
 					Version:       getInt(mapValue, "version"),
 					DeviceName:    getString(mapValue, "device_name"),
 					DeviceID:      getString(mapValue, "device_id"),
 					TaskID:        getString(mapValue, "task_id"),
-					Payload:       shared_kernel.CommandPayload{Index: uint8(getInt(mapValue, "payload_index")), Value: uint8(getInt(mapValue, "payload_value"))},
+					Payload:       device.CommandPayload{Index: uint8(getInt(mapValue, "payload_index")), Value: uint8(getInt(mapValue, "payload_value"))},
 					DispatchAfter: utils.Time{Time: dispatchAfter},
 					Port:          uint8(getInt(mapValue, "port")),
 					Priority:      getString(mapValue, "priority"),
@@ -658,13 +658,13 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 	// Handle Avro structs directly
 	switch v := value.(type) {
 	case *AvroCommand:
-		return &shared_kernel.Command{
+		return &device.Command{
 			ID:            v.ID,
 			Version:       v.Version,
 			DeviceName:    v.DeviceName,
 			DeviceID:      v.DeviceID,
 			TaskID:        v.TaskID,
-			Payload:       shared_kernel.CommandPayload{Index: uint8(v.PayloadIndex), Value: uint8(v.PayloadValue)},
+			Payload:       device.CommandPayload{Index: uint8(v.PayloadIndex), Value: uint8(v.PayloadValue)},
 			DispatchAfter: utils.Time{Time: v.DispatchAfter},
 			Port:          uint8(v.Port),
 			Priority:      v.Priority,

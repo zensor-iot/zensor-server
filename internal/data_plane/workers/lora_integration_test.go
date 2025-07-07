@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/device"
 )
 
 func TestLoraIntegrationWorker_ConvertToSharedCommand(t *testing.T) {
@@ -71,14 +71,14 @@ func TestLoraIntegrationWorker_ConvertToSharedCommand(t *testing.T) {
 func TestLoraIntegrationWorker_ConvertToSharedCommand_WithStructMessage(t *testing.T) {
 	worker := &LoraIntegrationWorker{}
 
-	// Test with shared_kernel.Command (fallback case)
-	structMessage := shared_kernel.Command{
+	// Test with device.Command (fallback case)
+	structMessage := device.Command{
 		ID:         "test-456",
 		Version:    2,
 		DeviceID:   "device-456",
 		DeviceName: "test-device-2",
 		TaskID:     "task-456",
-		Payload: shared_kernel.CommandPayload{
+		Payload: device.CommandPayload{
 			Index: 2,
 			Value: 200,
 		},

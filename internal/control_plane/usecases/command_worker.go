@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"sync"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel"
+	"zensor-server/internal/shared_kernel/device"
+	"zensor-server/internal/shared_kernel/domain"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -67,7 +67,7 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 			}
 			wg.Add(1)
 			procCtx := context.Background()
-			w.handleCommandSent(procCtx, msg.Value.(shared_kernel.Command), wg.Done)
+			w.handleCommandSent(procCtx, msg.Value.(device.Command), wg.Done)
 		case <-w.ticker.C:
 			wg.Add(1)
 			tickCtx := context.Background()
@@ -119,7 +119,7 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 	w.metricCounters[_metricKeyCommands].Add(ctx, 1, metric.WithAttributes(attributes...))
 }
 
-func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd shared_kernel.Command, done func()) {
+func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Command, done func()) {
 	defer done()
 	domainCmd := domain.Command{
 		ID: domain.ID(cmd.ID),
