@@ -2,9 +2,8 @@ package internal
 
 import (
 	"fmt"
-	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 
 	"database/sql/driver"
 	"encoding/json"
@@ -85,6 +84,7 @@ func (c Command) ToDomain() domain.Command {
 			Value: domain.CommandValue(c.PayloadValue),
 		},
 		DispatchAfter: c.DispatchAfter,
+		CreatedAt:     c.CreatedAt,
 		Ready:         c.Ready,
 		Sent:          c.Sent,
 		SentAt:        c.SentAt,
@@ -103,7 +103,7 @@ func FromCommand(cmd domain.Command) Command {
 		DispatchAfter: cmd.DispatchAfter,
 		Port:          uint8(cmd.Port),
 		Priority:      string(cmd.Priority),
-		CreatedAt:     utils.Time{Time: time.Now()},
+		CreatedAt:     cmd.CreatedAt,
 		Ready:         cmd.Ready,
 		Sent:          cmd.Sent,
 		SentAt:        cmd.SentAt,

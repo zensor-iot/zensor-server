@@ -29,6 +29,7 @@ type Command struct {
 	Priority      CommandPriority
 	Payload       CommandPayload
 	DispatchAfter utils.Time
+	CreatedAt     utils.Time
 	Ready         bool
 	Sent          bool
 	SentAt        utils.Time
@@ -111,11 +112,12 @@ func (b *commandBuilder) WithDispatchAfter(value utils.Time) *commandBuilder {
 
 func (b *commandBuilder) Build() (Command, error) {
 	result := Command{
-		ID:      ID(utils.GenerateUUID()),
-		Version: 1,
-		Ready:   false,
-		Sent:    false,
-		Port:    _defaultPort,
+		ID:        ID(utils.GenerateUUID()),
+		Version:   1,
+		Ready:     false,
+		Sent:      false,
+		Port:      _defaultPort,
+		CreatedAt: utils.Time{Time: time.Now()},
 	}
 	for _, a := range b.actions {
 		if err := a(&result); err != nil {
