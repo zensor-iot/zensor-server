@@ -242,7 +242,7 @@ func TestConfluentAvroCodec_ConvertDomainDevice(t *testing.T) {
 	}
 
 	// Test the typed conversion
-	avroDevice, err := codec.convertDomainDevice(device)
+	avroDevice, err := codec.convertInternalDevice(device)
 	assert.NoError(t, err)
 	assert.NotNil(t, avroDevice)
 	assert.Equal(t, "dev-123", avroDevice.ID)
@@ -268,7 +268,7 @@ func TestConfluentAvroCodec_ConvertDomainDevice(t *testing.T) {
 		LastMessageReceivedAt: utils.Time{},
 	}
 
-	avroDeviceWithTenant, err := codec.convertDomainDevice(deviceWithTenant)
+	avroDeviceWithTenant, err := codec.convertInternalDevice(deviceWithTenant)
 	assert.NoError(t, err)
 	assert.NotNil(t, avroDeviceWithTenant)
 	assert.Equal(t, "dev-124", avroDeviceWithTenant.ID)
@@ -287,12 +287,69 @@ func TestConfluentAvroCodec_ConvertDomainDevice(t *testing.T) {
 		LastMessageReceivedAt: utils.Time{Time: lastMessageTime},
 	}
 
-	avroDeviceWithLastMessage, err := codec.convertDomainDevice(deviceWithLastMessage)
+	avroDeviceWithLastMessage, err := codec.convertInternalDevice(deviceWithLastMessage)
 	assert.NoError(t, err)
 	assert.NotNil(t, avroDeviceWithLastMessage)
 	assert.Equal(t, "dev-125", avroDeviceWithLastMessage.ID)
 	assert.NotNil(t, avroDeviceWithLastMessage.LastMessageReceivedAt)
 	assert.Equal(t, lastMessageTime, *avroDeviceWithLastMessage.LastMessageReceivedAt)
+}
+
+func TestConfluentAvroCodec_SerializeCommandTemplates(t *testing.T) {
+	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	codec := NewConfluentAvroCodec(&AvroScheduledTask{}, schemaRegistry)
+
+	// Test empty templates
+	emptyResult := codec.serializeCommandTemplates([]domain.CommandTemplate{})
+	assert.Equal(t, "[]", emptyResult)
+
+	// Test with one template
+	device := domain.Device{
+		ID:   domain.ID("dev-123"),
+		Name: "test-device",
+	}
+
+	template := domain.CommandTemplate{
+		Device:   device,
+		Port:     15,
+		Priority: "NORMAL",
+		Payload: domain.CommandPayload{
+			Index: 1,
+			Value: 100,
+		},
+		WaitFor: 5 * time.Second,
+	}
+
+	templates := []domain.CommandTemplate{template}
+	result := codec.serializeCommandTemplates(templates)
+
+	// Verify the JSON structure
+	assert.Contains(t, result, `"device":{"id":"dev-123"}`)
+	assert.Contains(t, result, `"port":15`)
+	assert.Contains(t, result, `"priority":"NORMAL"`)
+	assert.Contains(t, result, `"payload":{"index":1,"value":100}`)
+	assert.Contains(t, result, `"wait_for":"5s"`)
+
+	// Test with multiple templates
+	template2 := domain.CommandTemplate{
+		Device:   device,
+		Port:     16,
+		Priority: "HIGH",
+		Payload: domain.CommandPayload{
+			Index: 2,
+			Value: 200,
+		},
+		WaitFor: 10 * time.Second,
+	}
+
+	multipleTemplates := []domain.CommandTemplate{template, template2}
+	multipleResult := codec.serializeCommandTemplates(multipleTemplates)
+
+	// Should contain both templates
+	assert.Contains(t, multipleResult, `"port":15`)
+	assert.Contains(t, multipleResult, `"port":16`)
+	assert.Contains(t, multipleResult, `"priority":"NORMAL"`)
+	assert.Contains(t, multipleResult, `"priority":"HIGH"`)
 }
 
 // MockSchemaRegistry is a mock implementation of SchemaRegistry for testing

@@ -146,7 +146,7 @@ func TestCommandHandler_extractCommandFields(t *testing.T) {
 		DeviceID:      "dev-1",
 		TaskID:        "task-1",
 		PayloadIndex:  1,
-		PayloadValue:  1,
+		PayloadValue:  2,
 		DispatchAfter: timeNow,
 		Port:          3,
 		Priority:      "high",

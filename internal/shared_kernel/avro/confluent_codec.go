@@ -514,15 +514,30 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 	case "Tenant":
 		return c.convertInternalTenant(value)
 	case "Device":
-		return c.convertInternalDevice(value)
+		if device, ok := value.(*domain.Device); ok {
+			return c.convertInternalDevice(device)
+		}
+		return nil, fmt.Errorf("expected *domain.Device, got %T", value)
 	case "Task":
-		return c.convertInternalTask(value)
+		if task, ok := value.(*domain.Task); ok {
+			return c.convertInternalTask(task)
+		}
+		return nil, fmt.Errorf("expected *domain.Task, got %T", value)
 	case "ScheduledTask":
-		return c.convertInternalScheduledTask(value)
+		if st, ok := value.(*domain.ScheduledTask); ok {
+			return c.convertInternalScheduledTask(st)
+		}
+		return nil, fmt.Errorf("expected *domain.ScheduledTask, got %T", value)
 	case "EvaluationRule":
-		return c.convertInternalEvaluationRule(value)
+		if er, ok := value.(*domain.EvaluationRule); ok {
+			return c.convertInternalEvaluationRule(er)
+		}
+		return nil, fmt.Errorf("expected *domain.EvaluationRule, got %T", value)
 	case "Command":
-		return c.convertInternalCommand(value)
+		if cmd, ok := value.(*domain.Command); ok {
+			return c.convertInternalCommand(cmd)
+		}
+		return nil, fmt.Errorf("expected *domain.Command, got %T", value)
 	default:
 		return nil, fmt.Errorf("unsupported type for Avro conversion: %T", value)
 	}
@@ -825,53 +840,7 @@ func (c *ConfluentAvroCodec) convertInternalTenant(value any) (any, error) {
 	return result, nil
 }
 
-func (c *ConfluentAvroCodec) convertInternalDevice(value any) (any, error) {
-	// Try to convert domain Device first
-	if device, ok := value.(*domain.Device); ok {
-		return c.convertDomainDevice(device)
-	}
-
-	// Fall back to reflection-based conversion for other types
-	val := reflect.ValueOf(value)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-
-	result := map[string]any{
-		"id":           getStringField(val, "ID"),
-		"version":      getIntField(val, "Version"),
-		"name":         getStringField(val, "Name"),
-		"display_name": getStringField(val, "DisplayName"),
-		"app_eui":      getStringField(val, "AppEUI"),
-		"dev_eui":      getStringField(val, "DevEUI"),
-		"app_key":      getStringField(val, "AppKey"),
-		"created_at":   getTimeField(val, "CreatedAt").Format(time.RFC3339),
-		"updated_at":   getTimeField(val, "UpdatedAt").Format(time.RFC3339),
-	}
-
-	// Handle optional TenantID field
-	if tenantIDField := val.FieldByName("TenantID"); tenantIDField.IsValid() && !tenantIDField.IsNil() {
-		tenantID := tenantIDField.Elem().Interface().(string)
-		result["tenant_id"] = &tenantID
-	}
-
-	// Handle optional LastMessageReceivedAt field
-	if lastMessageField := val.FieldByName("LastMessageReceivedAt"); lastMessageField.IsValid() {
-		lastMessageTime := lastMessageField.FieldByName("Time").Interface().(time.Time)
-		if lastMessageTime != (time.Time{}) {
-			// For Avro union types, non-nil values must be specified as map[string]interface{}
-			// with the type name as the key
-			result["last_message_received_at"] = map[string]any{
-				"long.timestamp-millis": lastMessageTime.UnixMilli(),
-			}
-		}
-	}
-
-	return result, nil
-}
-
-// convertDomainDevice converts a domain Device to AvroDevice with proper typing
-func (c *ConfluentAvroCodec) convertDomainDevice(device *domain.Device) (*AvroDevice, error) {
+func (c *ConfluentAvroCodec) convertInternalDevice(device *domain.Device) (*AvroDevice, error) {
 	avroDevice := &AvroDevice{
 		ID:          device.ID.String(),
 		Version:     1, // Default version for domain devices
@@ -899,127 +868,112 @@ func (c *ConfluentAvroCodec) convertDomainDevice(device *domain.Device) (*AvroDe
 	return avroDevice, nil
 }
 
-func (c *ConfluentAvroCodec) convertInternalTask(value any) (any, error) {
-	val := reflect.ValueOf(value)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+func (c *ConfluentAvroCodec) convertInternalTask(task *domain.Task) (*AvroTask, error) {
+	avroTask := &AvroTask{
+		ID:        task.ID.String(),
+		DeviceID:  task.Device.ID.String(),
+		Version:   int64(task.Version),
+		CreatedAt: task.CreatedAt.Time,
+		UpdatedAt: task.CreatedAt.Time, // No UpdatedAt in domain.Task, use CreatedAt
 	}
-
-	result := map[string]any{
-		"id":         getStringField(val, "ID"),
-		"device_id":  getStringField(val, "DeviceID"),
-		"version":    int64(getUintField(val, "Version")),
-		"created_at": getTimeField(val, "CreatedAt").Format(time.RFC3339),
-		"updated_at": getTimeField(val, "UpdatedAt").Format(time.RFC3339),
+	if task.ScheduledTask != nil {
+		id := task.ScheduledTask.ID.String()
+		avroTask.ScheduledTaskID = &id
 	}
-
-	// Handle optional ScheduledTaskID field
-	if scheduledTaskID := getStringField(val, "ScheduledTaskID"); scheduledTaskID != "" {
-		result["scheduled_task_id"] = &scheduledTaskID
-	}
-
-	return result, nil
+	return avroTask, nil
 }
 
-func (c *ConfluentAvroCodec) convertInternalScheduledTask(value any) (any, error) {
-	val := reflect.ValueOf(value)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+func (c *ConfluentAvroCodec) convertInternalScheduledTask(st *domain.ScheduledTask) (*AvroScheduledTask, error) {
+	avroST := &AvroScheduledTask{
+		ID:               st.ID.String(),
+		Version:          int64(st.Version),
+		TenantID:         st.Tenant.ID.String(),
+		DeviceID:         st.Device.ID.String(),
+		CommandTemplates: c.serializeCommandTemplates(st.CommandTemplates),
+		Schedule:         st.Schedule,
+		IsActive:         st.IsActive,
+		CreatedAt:        st.CreatedAt.Time,
+		UpdatedAt:        st.UpdatedAt.Time,
 	}
-
-	result := map[string]any{
-		"id":                getStringField(val, "ID"),
-		"version":           int64(getUintField(val, "Version")),
-		"tenant_id":         getStringField(val, "TenantID"),
-		"device_id":         getStringField(val, "DeviceID"),
-		"command_templates": getStringField(val, "CommandTemplates"),
-		"schedule":          getStringField(val, "Schedule"),
-		"is_active":         getBoolField(val, "IsActive"),
-		"created_at":        getTimeField(val, "CreatedAt").Format(time.RFC3339),
-		"updated_at":        getTimeField(val, "UpdatedAt").Format(time.RFC3339),
+	if st.LastExecutedAt != nil {
+		t := st.LastExecutedAt.Time
+		avroST.LastExecutedAt = &t
 	}
-
-	// Handle optional LastExecutedAt field
-	if lastExecutedField := val.FieldByName("LastExecutedAt"); lastExecutedField.IsValid() && !lastExecutedField.IsNil() {
-		lastExecutedTime := lastExecutedField.Elem().FieldByName("Time").Interface().(time.Time)
-		lastExecutedStr := lastExecutedTime.Format(time.RFC3339)
-		result["last_executed_at"] = &lastExecutedStr
+	if st.DeletedAt != nil {
+		t := st.DeletedAt.Time
+		avroST.DeletedAt = &t
 	}
-
-	// Handle optional DeletedAt field
-	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() && !deletedAtField.IsNil() {
-		deletedAtTime := deletedAtField.Elem().FieldByName("Time").Interface().(time.Time)
-		deletedAtStr := deletedAtTime.Format(time.RFC3339)
-		result["deleted_at"] = &deletedAtStr
-	}
-
-	return result, nil
+	return avroST, nil
 }
 
-func (c *ConfluentAvroCodec) convertInternalEvaluationRule(value any) (any, error) {
-	val := reflect.ValueOf(value)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+func (c *ConfluentAvroCodec) convertInternalEvaluationRule(er *domain.EvaluationRule) (*AvroEvaluationRule, error) {
+	paramsJSON, _ := json.Marshal(er.Parameters) // You may want to handle error
+	avroER := &AvroEvaluationRule{
+		ID:          er.ID.String(),
+		DeviceID:    "", // Not present in domain.EvaluationRule, set as needed
+		Version:     int(er.Version),
+		Description: er.Description,
+		Kind:        er.Kind,
+		Enabled:     er.Enabled,
+		Parameters:  string(paramsJSON),
+		CreatedAt:   time.Time{}, // Not present in domain.EvaluationRule
+		UpdatedAt:   time.Time{}, // Not present in domain.EvaluationRule
+	}
+	return avroER, nil
+}
+
+func (c *ConfluentAvroCodec) convertInternalCommand(cmd *domain.Command) (*AvroCommand, error) {
+	avroCmd := &AvroCommand{
+		ID:            cmd.ID.String(),
+		Version:       int(cmd.Version),
+		DeviceName:    cmd.Device.Name,
+		DeviceID:      cmd.Device.ID.String(),
+		TaskID:        cmd.Task.ID.String(),
+		PayloadIndex:  int(cmd.Payload.Index),
+		PayloadValue:  int(cmd.Payload.Value),
+		DispatchAfter: cmd.DispatchAfter.Time,
+		Port:          int(cmd.Port),
+		Priority:      string(cmd.Priority),
+		CreatedAt:     cmd.DispatchAfter.Time, // No CreatedAt in domain.Command, use DispatchAfter
+		Ready:         cmd.Ready,
+		Sent:          cmd.Sent,
+		SentAt:        cmd.SentAt.Time,
+	}
+	return avroCmd, nil
+}
+
+// serializeCommandTemplates converts a slice of CommandTemplate to a JSON string
+func (c *ConfluentAvroCodec) serializeCommandTemplates(templates []domain.CommandTemplate) string {
+	if len(templates) == 0 {
+		return "[]"
 	}
 
-	// Get parameters field and marshal it to JSON
-	parametersField := val.FieldByName("Parameters")
-	var parametersStr string
-	if parametersField.IsValid() {
-		parameters := parametersField.Interface()
-		if parametersBytes, err := json.Marshal(parameters); err == nil {
-			parametersStr = string(parametersBytes)
+	// Create a slice of maps to represent the command templates
+	var templateMaps []map[string]any
+	for _, template := range templates {
+		templateMap := map[string]any{
+			"device": map[string]any{
+				"id": template.Device.ID.String(),
+			},
+			"port":     int(template.Port),
+			"priority": string(template.Priority),
+			"payload": map[string]any{
+				"index": int(template.Payload.Index),
+				"value": int(template.Payload.Value),
+			},
+			"wait_for": template.WaitFor.String(),
 		}
+		templateMaps = append(templateMaps, templateMap)
 	}
 
-	result := map[string]any{
-		"id":          getStringField(val, "ID"),
-		"device_id":   getStringField(val, "DeviceID"),
-		"version":     getIntField(val, "Version"),
-		"description": getStringField(val, "Description"),
-		"kind":        getStringField(val, "Kind"),
-		"enabled":     getBoolField(val, "Enabled"),
-		"parameters":  parametersStr,
-		"created_at":  getTimeField(val, "CreatedAt").Format(time.RFC3339),
-		"updated_at":  getTimeField(val, "UpdatedAt").Format(time.RFC3339),
+	// Marshal to JSON
+	jsonData, err := json.Marshal(templateMaps)
+	if err != nil {
+		// Return empty array if marshaling fails
+		return "[]"
 	}
 
-	return result, nil
-}
-
-func (c *ConfluentAvroCodec) convertInternalCommand(value any) (any, error) {
-	val := reflect.ValueOf(value)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-
-	// Get payload field
-	payloadField := val.FieldByName("Payload")
-	payloadIndex := 0
-	payloadValue := 0
-	if payloadField.IsValid() {
-		payloadIndex = int(payloadField.FieldByName("Index").Interface().(uint8))
-		payloadValue = int(payloadField.FieldByName("Value").Interface().(uint8))
-	}
-
-	result := map[string]any{
-		"id":             getStringField(val, "ID"),
-		"version":        getIntField(val, "Version"),
-		"device_name":    getStringField(val, "DeviceName"),
-		"device_id":      getStringField(val, "DeviceID"),
-		"task_id":        getStringField(val, "TaskID"),
-		"payload_index":  payloadIndex,
-		"payload_value":  payloadValue,
-		"dispatch_after": getTimeField(val, "DispatchAfter").Format(time.RFC3339),
-		"port":           int(getUint8Field(val, "Port")),
-		"priority":       getStringField(val, "Priority"),
-		"created_at":     getTimeField(val, "CreatedAt").Format(time.RFC3339),
-		"ready":          getBoolField(val, "Ready"),
-		"sent":           getBoolField(val, "Sent"),
-		"sent_at":        getTimeField(val, "SentAt").Format(time.RFC3339),
-	}
-
-	return result, nil
+	return string(jsonData)
 }
 
 // Helper functions for reflection-based field access
