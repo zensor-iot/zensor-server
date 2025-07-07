@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"time"
 
 	"zensor-server/internal/infra/cache"
@@ -39,7 +40,7 @@ type ConfluentAvroCodec struct {
 }
 
 // NewConfluentAvroCodec creates a new Confluent Avro codec with schema registry
-func NewConfluentAvroCodec(prototype any, schemaRegistry SchemaRegistry) *ConfluentAvroCodec {
+func NewConfluentAvroCodec(_ any, schemaRegistry SchemaRegistry) *ConfluentAvroCodec {
 	// Create schema cache with 1-minute TTL
 	schemaCache, _ := cache.New(&cache.CacheConfig{
 		MaxCost:     1 << 20, // 1MB
@@ -55,7 +56,6 @@ func NewConfluentAvroCodec(prototype any, schemaRegistry SchemaRegistry) *Conflu
 	})
 
 	return &ConfluentAvroCodec{
-		prototype:      prototype,
 		schemaRegistry: schemaRegistry,
 		subjectSuffix:  "-value",
 		schemaCache:    schemaCache,
@@ -559,24 +559,25 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 		if _, hasID := mapValue["id"]; hasID {
 			if _, hasDeviceName := mapValue["device_name"]; hasDeviceName {
 				// Command
-				dispatchAfter, _ := time.Parse(time.RFC3339, getString(mapValue, "dispatch_after"))
-				createdAt, _ := time.Parse(time.RFC3339, getString(mapValue, "created_at"))
-				sentAt, _ := time.Parse(time.RFC3339, getString(mapValue, "sent_at"))
+				dispatchAfter := getTime(mapValue, "dispatch_after")
+				createdAt := getTime(mapValue, "created_at")
+				sentAt := getTime(mapValue, "sent_at")
 
-				return &device.Command{
+				return &AvroCommand{
 					ID:            getString(mapValue, "id"),
 					Version:       getInt(mapValue, "version"),
 					DeviceName:    getString(mapValue, "device_name"),
 					DeviceID:      getString(mapValue, "device_id"),
 					TaskID:        getString(mapValue, "task_id"),
-					Payload:       device.CommandPayload{Index: uint8(getInt(mapValue, "payload_index")), Value: uint8(getInt(mapValue, "payload_value"))},
-					DispatchAfter: utils.Time{Time: dispatchAfter},
-					Port:          uint8(getInt(mapValue, "port")),
+					PayloadIndex:  getInt(mapValue, "payload_index"),
+					PayloadValue:  getInt(mapValue, "payload_value"),
+					DispatchAfter: dispatchAfter,
+					Port:          getInt(mapValue, "port"),
 					Priority:      getString(mapValue, "priority"),
-					CreatedAt:     utils.Time{Time: createdAt},
+					CreatedAt:     createdAt,
 					Ready:         getBool(mapValue, "ready"),
 					Sent:          getBool(mapValue, "sent"),
-					SentAt:        utils.Time{Time: sentAt},
+					SentAt:        sentAt,
 				}, nil
 			} else if _, hasDeviceID := mapValue["device_id"]; hasDeviceID {
 				if _, hasScheduledTaskID := mapValue["scheduled_task_id"]; hasScheduledTaskID {
@@ -749,6 +750,25 @@ func getString(m map[string]any, key string) string {
 	return ""
 }
 
+// parseTimeFlexible tries multiple time formats and returns the first successful parse
+func parseTimeFlexible(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+
+	// Try RFC3339 format first
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t
+	}
+
+	// Try Go's default format
+	if t, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", s); err == nil {
+		return t
+	}
+
+	return time.Time{}
+}
+
 // parseTimeRFC3339 returns a time.Time parsed from s, or zero time if s is empty or invalid.
 func parseTimeRFC3339(s string) time.Time {
 	t, err := time.Parse(time.RFC3339, s)
@@ -788,11 +808,19 @@ func getStringPtr(m map[string]any, key string) *string {
 
 func getInt(m map[string]any, key string) int {
 	if v, ok := m[key]; ok {
-		if i, ok := v.(int); ok {
-			return i
-		}
-		if f, ok := v.(float64); ok {
-			return int(f)
+		switch val := v.(type) {
+		case int:
+			return val
+		case int32:
+			return int(val)
+		case int64:
+			return int(val)
+		case float64:
+			return int(val)
+		case string:
+			if i, err := strconv.Atoi(val); err == nil {
+				return i
+			}
 		}
 	}
 	return 0
@@ -817,6 +845,15 @@ func getBool(m map[string]any, key string) bool {
 		}
 	}
 	return false
+}
+
+func getTime(m map[string]any, key string) time.Time {
+	if v, ok := m[key]; ok {
+		if t, ok := v.(time.Time); ok {
+			return t
+		}
+	}
+	return time.Time{}
 }
 
 // Helper methods for converting internal persistence types using reflection

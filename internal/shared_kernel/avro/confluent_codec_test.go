@@ -385,6 +385,94 @@ func (m *MockSchemaRegistry) GetSchema(schemaID int) (*srclient.Schema, error) {
 	return nil, fmt.Errorf("schema not found for ID: %d", schemaID)
 }
 
+func TestConfluentAvroCodec_MapConversion(t *testing.T) {
+	// Test the map conversion path in convertFromAvroStruct
+	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
+
+	// Create a map that represents an AvroCommand (similar to what comes from JSON unmarshaling)
+	mapValue := map[string]any{
+		"id":             "aba023e5-fd87-4fd9-a4a4-b22058415cb5",
+		"version":        2,
+		"device_name":    "wireless-stick-seba",
+		"device_id":      "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7",
+		"task_id":        "",
+		"payload_index":  1,
+		"payload_value":  0,
+		"dispatch_after": "2025-07-07T15:28:15.4Z",
+		"port":           15,
+		"priority":       "NORMAL",
+		"created_at":     "2025-07-07T15:23:15.533Z",
+		"ready":          false,
+		"sent":           false,
+		"sent_at":        "0001-01-01T00:00:00Z",
+	}
+
+	// Test the conversion
+	result, err := codec.convertFromAvroStruct(mapValue)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Check that it's an AvroCommand
+	avroCmd, ok := result.(*AvroCommand)
+	assert.True(t, ok, "Result should be *AvroCommand")
+	assert.Equal(t, "aba023e5-fd87-4fd9-a4a4-b22058415cb5", avroCmd.ID)
+	assert.Equal(t, 2, avroCmd.Version)
+	assert.Equal(t, "wireless-stick-seba", avroCmd.DeviceName)
+	assert.Equal(t, "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7", avroCmd.DeviceID)
+	assert.Equal(t, "", avroCmd.TaskID)
+	assert.Equal(t, 1, avroCmd.PayloadIndex)
+	assert.Equal(t, 0, avroCmd.PayloadValue)
+	assert.Equal(t, 15, avroCmd.Port)
+	assert.Equal(t, "NORMAL", avroCmd.Priority)
+	assert.False(t, avroCmd.Ready)
+	assert.False(t, avroCmd.Sent)
+}
+
+func TestConfluentAvroCodec_MapConversionWithInt32(t *testing.T) {
+	// Test the map conversion path with int32 values (the actual issue)
+	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
+
+	// Create a map with int32 values (like what comes from Avro decoding)
+	mapValue := map[string]any{
+		"id":             "aba023e5-fd87-4fd9-a4a4-b22058415cb5",
+		"version":        int32(2),
+		"device_name":    "wireless-stick-seba",
+		"device_id":      "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7",
+		"task_id":        "",
+		"payload_index":  int32(1),
+		"payload_value":  int32(0),
+		"dispatch_after": "2025-07-07T15:28:15.4Z",
+		"port":           int32(15),
+		"priority":       "NORMAL",
+		"created_at":     "2025-07-07T15:23:15.533Z",
+		"ready":          false,
+		"sent":           false,
+		"sent_at":        "0001-01-01T00:00:00Z",
+	}
+
+	// Test the conversion
+	result, err := codec.convertFromAvroStruct(mapValue)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Check that it's an AvroCommand
+	avroCmd, ok := result.(*AvroCommand)
+	assert.True(t, ok, "Result should be *AvroCommand")
+	assert.Equal(t, "aba023e5-fd87-4fd9-a4a4-b22058415cb5", avroCmd.ID)
+	assert.Equal(t, 2, avroCmd.Version)
+	assert.Equal(t, "wireless-stick-seba", avroCmd.DeviceName)
+	assert.Equal(t, "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7", avroCmd.DeviceID)
+	assert.Equal(t, "", avroCmd.TaskID)
+	assert.Equal(t, 1, avroCmd.PayloadIndex)
+	assert.Equal(t, 0, avroCmd.PayloadValue)
+	assert.Equal(t, 15, avroCmd.Port)
+	assert.Equal(t, "NORMAL", avroCmd.Priority)
+	assert.False(t, avroCmd.Ready)
+	assert.False(t, avroCmd.Sent)
+}
+
 func TestConfluentAvroCodec_WithMockSchemaRegistry(t *testing.T) {
 	// Create a mock schema registry
 	mockRegistry := NewMockSchemaRegistry()

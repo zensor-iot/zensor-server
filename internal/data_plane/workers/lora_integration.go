@@ -110,7 +110,7 @@ func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototy
 	}
 
 	go func() {
-		err := w.pubsubConsumer.Consume(PubSubTopicDeviceCommands, handler, map[string]any{})
+		err := w.pubsubConsumer.Consume(PubSubTopicDeviceCommands, handler, &avro.AvroCommand{})
 		if err != nil {
 			slog.Error("failed to consume commands", slog.String("error", err.Error()))
 		}
@@ -318,6 +318,9 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 }
 
 func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*device.Command, error) {
+
+	slog.Info("converting to shared command", slog.String("type", fmt.Sprintf("%T", msg)))
+
 	// Try to convert directly from AvroCommand
 	if avroCmd, ok := msg.(*avro.AvroCommand); ok {
 		return &device.Command{

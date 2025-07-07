@@ -3,10 +3,10 @@ package communication
 import (
 	"context"
 	"fmt"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 const (

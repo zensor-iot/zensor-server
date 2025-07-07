@@ -96,6 +96,7 @@ func (w *CommandWorker) reconciliation(ctx context.Context, done func()) {
 	}
 
 	for _, cmd := range commands {
+
 		w.handle(ctx, cmd)
 	}
 	slog.Debug("reconciliation end", slog.Time("time", time.Now()))
@@ -141,7 +142,9 @@ func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Comman
 		Sent:          true,
 		SentAt:        utils.Time{Time: time.Now()},
 	}
-	w.publisher.Dispatch(ctx, domainCmd)
+	if err := w.publisher.Dispatch(ctx, domainCmd); err != nil {
+		slog.Warn("failed to dispatch command", slog.Any("error", err))
+	}
 
 	attributes := []attribute.KeyValue{
 		semconv.ServiceNameKey.String("zensor_server"),
