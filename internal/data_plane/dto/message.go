@@ -12,6 +12,15 @@ type Envelop struct {
 	ReceivedAt     time.Time     `json:"received_at"`
 	UplinkMessage  UplinkMessage `json:"uplink_message"`
 	CorrelationIDs []string      `json:"correlation_ids"`
+	Error          Error         `json:"error"`
+}
+
+type Error struct {
+	Namespace     string `json:"namespace"`
+	Name          string `json:"name"`
+	MessageFormat string `json:"message_format"`
+	CorrelationID string `json:"correlation_id"`
+	Code          int    `json:"code"`
 }
 
 type EndDeviceIDs struct {

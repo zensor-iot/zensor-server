@@ -178,10 +178,26 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 		switch topicSuffix {
 		case "up":
 			w.uplinkMessageHandler(ctx, msg)
+		case "down/failed":
+			w.downlinkFailedHandler(ctx, msg)
 		default:
 			slog.Warn("topic handler not yet implemented", slog.String("topic", topicSuffix))
 		}
 	}
+}
+
+func (w *LoraIntegrationWorker) downlinkFailedHandler(_ context.Context, msg mqtt.Message) {
+	var envelop dto.Envelop
+	err := json.Unmarshal(msg.Payload(), &envelop)
+	if err != nil {
+		slog.Error("failed to unmarshal message", slog.String("error", err.Error()))
+		return
+	}
+
+	slog.Error("downlink failed",
+		slog.String("topic", msg.Topic()),
+		slog.String("error", envelop.Error.MessageFormat),
+	)
 }
 
 func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mqtt.Message) {
