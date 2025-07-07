@@ -2,8 +2,9 @@ package avro
 
 import (
 	"encoding/json"
-	"reflect"
 	"time"
+
+	"zensor-server/internal/control_plane/domain"
 )
 
 // Avro-compatible message structs that match the Avro schemas
@@ -94,315 +95,177 @@ type AvroEvaluationRule struct {
 
 // Conversion functions to convert from domain types to Avro types
 
-// ToAvroCommand converts a domain Command to AvroCommand
-func ToAvroCommand(cmd any) *AvroCommand {
-	// Use reflection to extract fields from the original command
-	val := reflect.ValueOf(cmd)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-
-	avroCmd := &AvroCommand{}
-
-	// Extract basic fields
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		avroCmd.ID = idField.Interface().(string)
-	}
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		avroCmd.Version = versionField.Interface().(int)
-	}
-	if deviceNameField := val.FieldByName("DeviceName"); deviceNameField.IsValid() {
-		avroCmd.DeviceName = deviceNameField.Interface().(string)
-	}
-	if deviceIDField := val.FieldByName("DeviceID"); deviceIDField.IsValid() {
-		avroCmd.DeviceID = deviceIDField.Interface().(string)
-	}
-	if taskIDField := val.FieldByName("TaskID"); taskIDField.IsValid() {
-		avroCmd.TaskID = taskIDField.Interface().(string)
-	}
-	if portField := val.FieldByName("Port"); portField.IsValid() {
-		avroCmd.Port = int(portField.Interface().(uint8))
-	}
-	if priorityField := val.FieldByName("Priority"); priorityField.IsValid() {
-		avroCmd.Priority = priorityField.Interface().(string)
-	}
-	if readyField := val.FieldByName("Ready"); readyField.IsValid() {
-		avroCmd.Ready = readyField.Interface().(bool)
-	}
-	if sentField := val.FieldByName("Sent"); sentField.IsValid() {
-		avroCmd.Sent = sentField.Interface().(bool)
-	}
-
-	// Handle time fields - convert to time.Time
-	if dispatchAfterField := val.FieldByName("DispatchAfter"); dispatchAfterField.IsValid() {
-		if timeField, ok := dispatchAfterField.Interface().(interface{ Time() time.Time }); ok {
-			avroCmd.DispatchAfter = timeField.Time()
-		}
-	}
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		if timeField, ok := createdAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroCmd.CreatedAt = timeField.Time()
-		}
-	}
-	if sentAtField := val.FieldByName("SentAt"); sentAtField.IsValid() {
-		if timeField, ok := sentAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroCmd.SentAt = timeField.Time()
-		}
-	}
-
-	// Handle payload fields
-	if payloadField := val.FieldByName("Payload"); payloadField.IsValid() {
-		payload := payloadField.Interface()
-		payloadVal := reflect.ValueOf(payload)
-		if payloadVal.Kind() == reflect.Ptr {
-			payloadVal = payloadVal.Elem()
-		}
-
-		if indexField := payloadVal.FieldByName("Index"); indexField.IsValid() {
-			avroCmd.PayloadIndex = int(indexField.Interface().(uint8))
-		}
-		if valueField := payloadVal.FieldByName("Value"); valueField.IsValid() {
-			avroCmd.PayloadValue = int(valueField.Interface().(uint8))
-		}
+// ToAvroCommand converts a domain.Command to an AvroCommand for serialization
+func ToAvroCommand(cmd domain.Command) *AvroCommand {
+	avroCmd := &AvroCommand{
+		ID:            string(cmd.ID),
+		Version:       int(cmd.Version),
+		DeviceName:    cmd.Device.Name,
+		DeviceID:      string(cmd.Device.ID),
+		TaskID:        string(cmd.Task.ID),
+		PayloadIndex:  int(cmd.Payload.Index),
+		PayloadValue:  int(cmd.Payload.Value),
+		DispatchAfter: cmd.DispatchAfter.Time,
+		Port:          int(cmd.Port),
+		Priority:      string(cmd.Priority),
+		CreatedAt:     time.Now(), // Note: domain.Command doesn't have CreatedAt, using current time
+		Ready:         cmd.Ready,
+		Sent:          cmd.Sent,
+		SentAt:        cmd.SentAt.Time,
 	}
 
 	return avroCmd
 }
 
-// ToAvroTask converts a domain Task to AvroTask
-func ToAvroTask(task any) *AvroTask {
-	val := reflect.ValueOf(task)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+// ToAvroTask converts a domain.Task to AvroTask
+func ToAvroTask(task domain.Task) *AvroTask {
+	avroTask := &AvroTask{
+		ID:        string(task.ID),
+		DeviceID:  string(task.Device.ID),
+		Version:   int64(task.Version),
+		CreatedAt: task.CreatedAt.Time,
+		UpdatedAt: task.CreatedAt.Time, // Note: domain.Task doesn't have UpdatedAt, using CreatedAt
 	}
 
-	avroTask := &AvroTask{}
-
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		avroTask.ID = idField.Interface().(string)
-	}
-	if deviceIDField := val.FieldByName("DeviceID"); deviceIDField.IsValid() {
-		avroTask.DeviceID = deviceIDField.Interface().(string)
-	}
-	if scheduledTaskIDField := val.FieldByName("ScheduledTaskID"); scheduledTaskIDField.IsValid() {
-		if scheduledTaskID := scheduledTaskIDField.Interface().(string); scheduledTaskID != "" {
-			avroTask.ScheduledTaskID = &scheduledTaskID
-		}
-	}
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		avroTask.Version = int64(versionField.Interface().(uint))
-	}
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		if timeField, ok := createdAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroTask.CreatedAt = timeField.Time()
-		}
-	}
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		if timeField, ok := updatedAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroTask.UpdatedAt = timeField.Time()
-		}
+	// Handle optional ScheduledTaskID
+	if task.ScheduledTask != nil {
+		scheduledTaskID := string(task.ScheduledTask.ID)
+		avroTask.ScheduledTaskID = &scheduledTaskID
 	}
 
 	return avroTask
 }
 
-// ToAvroDevice converts a domain Device to AvroDevice
-func ToAvroDevice(device any) *AvroDevice {
-	val := reflect.ValueOf(device)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+// ToAvroDevice converts a domain.Device to AvroDevice
+func ToAvroDevice(device domain.Device) *AvroDevice {
+	avroDevice := &AvroDevice{
+		ID:          string(device.ID),
+		Version:     1, // Note: domain.Device doesn't have Version, using default
+		Name:        device.Name,
+		DisplayName: device.DisplayName,
+		AppEUI:      device.AppEUI,
+		DevEUI:      device.DevEUI,
+		AppKey:      device.AppKey,
+		CreatedAt:   time.Now(), // Note: domain.Device doesn't have CreatedAt, using current time
+		UpdatedAt:   time.Now(), // Note: domain.Device doesn't have UpdatedAt, using current time
 	}
 
-	avroDevice := &AvroDevice{}
+	// Handle optional TenantID
+	if device.TenantID != nil {
+		tenantID := string(*device.TenantID)
+		avroDevice.TenantID = &tenantID
+	}
 
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		avroDevice.ID = idField.Interface().(string)
-	}
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		avroDevice.Version = versionField.Interface().(int)
-	}
-	if nameField := val.FieldByName("Name"); nameField.IsValid() {
-		avroDevice.Name = nameField.Interface().(string)
-	}
-	if displayNameField := val.FieldByName("DisplayName"); displayNameField.IsValid() {
-		avroDevice.DisplayName = displayNameField.Interface().(string)
-	}
-	if appEUIField := val.FieldByName("AppEUI"); appEUIField.IsValid() {
-		avroDevice.AppEUI = appEUIField.Interface().(string)
-	}
-	if devEUIField := val.FieldByName("DevEUI"); devEUIField.IsValid() {
-		avroDevice.DevEUI = devEUIField.Interface().(string)
-	}
-	if appKeyField := val.FieldByName("AppKey"); appKeyField.IsValid() {
-		avroDevice.AppKey = appKeyField.Interface().(string)
-	}
-	if tenantIDField := val.FieldByName("TenantID"); tenantIDField.IsValid() {
-		if tenantID := tenantIDField.Interface().(*string); tenantID != nil {
-			avroDevice.TenantID = tenantID
-		}
-	}
-	if lastMessageReceivedAtField := val.FieldByName("LastMessageReceivedAt"); lastMessageReceivedAtField.IsValid() {
-		if timeField, ok := lastMessageReceivedAtField.Interface().(interface{ Time() time.Time }); ok {
-			timeVal := timeField.Time()
-			avroDevice.LastMessageReceivedAt = &timeVal
-		}
-	}
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		avroDevice.CreatedAt = createdAtField.Interface().(time.Time)
-	}
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		avroDevice.UpdatedAt = updatedAtField.Interface().(time.Time)
+	// Handle optional LastMessageReceivedAt
+	if !device.LastMessageReceivedAt.IsZero() {
+		lastMessageTime := device.LastMessageReceivedAt.Time
+		avroDevice.LastMessageReceivedAt = &lastMessageTime
 	}
 
 	return avroDevice
 }
 
-// ToAvroScheduledTask converts a domain ScheduledTask to AvroScheduledTask
-func ToAvroScheduledTask(scheduledTask any) *AvroScheduledTask {
-	val := reflect.ValueOf(scheduledTask)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+// serializeCommandTemplates converts a slice of CommandTemplate to a JSON string
+func serializeCommandTemplates(templates []domain.CommandTemplate) string {
+	if len(templates) == 0 {
+		return "[]"
 	}
 
-	avroScheduledTask := &AvroScheduledTask{}
+	// Create a slice of maps to represent the command templates
+	var templateMaps []map[string]any
+	for _, template := range templates {
+		templateMap := map[string]any{
+			"device": map[string]any{
+				"id": template.Device.ID.String(),
+			},
+			"port":     int(template.Port),
+			"priority": string(template.Priority),
+			"payload": map[string]any{
+				"index": int(template.Payload.Index),
+				"value": int(template.Payload.Value),
+			},
+			"wait_for": template.WaitFor.String(),
+		}
+		templateMaps = append(templateMaps, templateMap)
+	}
 
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		avroScheduledTask.ID = idField.Interface().(string)
+	// Marshal to JSON
+	jsonData, err := json.Marshal(templateMaps)
+	if err != nil {
+		// Return empty array if marshaling fails
+		return "[]"
 	}
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		avroScheduledTask.Version = int64(versionField.Interface().(uint))
+
+	return string(jsonData)
+}
+
+// ToAvroScheduledTask converts a domain.ScheduledTask to AvroScheduledTask
+func ToAvroScheduledTask(scheduledTask domain.ScheduledTask) *AvroScheduledTask {
+	avroScheduledTask := &AvroScheduledTask{
+		ID:        string(scheduledTask.ID),
+		Version:   int64(scheduledTask.Version),
+		TenantID:  string(scheduledTask.Tenant.ID),
+		DeviceID:  string(scheduledTask.Device.ID),
+		Schedule:  scheduledTask.Schedule,
+		IsActive:  scheduledTask.IsActive,
+		CreatedAt: scheduledTask.CreatedAt.Time,
+		UpdatedAt: scheduledTask.UpdatedAt.Time,
 	}
-	if tenantIDField := val.FieldByName("TenantID"); tenantIDField.IsValid() {
-		avroScheduledTask.TenantID = tenantIDField.Interface().(string)
+
+	// Handle CommandTemplates serialization
+	avroScheduledTask.CommandTemplates = serializeCommandTemplates(scheduledTask.CommandTemplates)
+
+	// Handle optional LastExecutedAt
+	if scheduledTask.LastExecutedAt != nil {
+		lastExecutedTime := scheduledTask.LastExecutedAt.Time
+		avroScheduledTask.LastExecutedAt = &lastExecutedTime
 	}
-	if deviceIDField := val.FieldByName("DeviceID"); deviceIDField.IsValid() {
-		avroScheduledTask.DeviceID = deviceIDField.Interface().(string)
-	}
-	if commandTemplatesField := val.FieldByName("CommandTemplates"); commandTemplatesField.IsValid() {
-		avroScheduledTask.CommandTemplates = commandTemplatesField.Interface().(string)
-	}
-	if scheduleField := val.FieldByName("Schedule"); scheduleField.IsValid() {
-		avroScheduledTask.Schedule = scheduleField.Interface().(string)
-	}
-	if isActiveField := val.FieldByName("IsActive"); isActiveField.IsValid() {
-		avroScheduledTask.IsActive = isActiveField.Interface().(bool)
-	}
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		if timeField, ok := createdAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroScheduledTask.CreatedAt = timeField.Time()
-		}
-	}
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		if timeField, ok := updatedAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroScheduledTask.UpdatedAt = timeField.Time()
-		}
-	}
-	if lastExecutedAtField := val.FieldByName("LastExecutedAt"); lastExecutedAtField.IsValid() {
-		if lastExecutedAt := lastExecutedAtField.Interface().(*interface{ Time() time.Time }); lastExecutedAt != nil {
-			if timeField, ok := (*lastExecutedAt).(interface{ Time() time.Time }); ok {
-				timeVal := timeField.Time()
-				avroScheduledTask.LastExecutedAt = &timeVal
-			}
-		}
-	}
-	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
-		if deletedAt := deletedAtField.Interface().(*interface{ Time() time.Time }); deletedAt != nil {
-			if timeField, ok := (*deletedAt).(interface{ Time() time.Time }); ok {
-				timeVal := timeField.Time()
-				avroScheduledTask.DeletedAt = &timeVal
-			}
-		}
+
+	// Handle optional DeletedAt
+	if scheduledTask.DeletedAt != nil {
+		deletedTime := scheduledTask.DeletedAt.Time
+		avroScheduledTask.DeletedAt = &deletedTime
 	}
 
 	return avroScheduledTask
 }
 
-// ToAvroTenant converts a domain Tenant to AvroTenant
-func ToAvroTenant(tenant any) *AvroTenant {
-	val := reflect.ValueOf(tenant)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+// ToAvroTenant converts a domain.Tenant to AvroTenant
+func ToAvroTenant(tenant domain.Tenant) *AvroTenant {
+	avroTenant := &AvroTenant{
+		ID:          string(tenant.ID),
+		Version:     tenant.Version,
+		Name:        tenant.Name,
+		Email:       tenant.Email,
+		Description: tenant.Description,
+		IsActive:    tenant.IsActive,
+		CreatedAt:   tenant.CreatedAt,
+		UpdatedAt:   tenant.UpdatedAt,
 	}
 
-	avroTenant := &AvroTenant{}
-
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		avroTenant.ID = idField.Interface().(string)
-	}
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		avroTenant.Version = versionField.Interface().(int)
-	}
-	if nameField := val.FieldByName("Name"); nameField.IsValid() {
-		avroTenant.Name = nameField.Interface().(string)
-	}
-	if emailField := val.FieldByName("Email"); emailField.IsValid() {
-		avroTenant.Email = emailField.Interface().(string)
-	}
-	if descriptionField := val.FieldByName("Description"); descriptionField.IsValid() {
-		avroTenant.Description = descriptionField.Interface().(string)
-	}
-	if isActiveField := val.FieldByName("IsActive"); isActiveField.IsValid() {
-		avroTenant.IsActive = isActiveField.Interface().(bool)
-	}
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		avroTenant.CreatedAt = createdAtField.Interface().(time.Time)
-	}
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		avroTenant.UpdatedAt = updatedAtField.Interface().(time.Time)
-	}
-	if deletedAtField := val.FieldByName("DeletedAt"); deletedAtField.IsValid() {
-		if deletedAt := deletedAtField.Interface().(*time.Time); deletedAt != nil {
-			avroTenant.DeletedAt = deletedAt
-		}
+	// Handle optional DeletedAt
+	if tenant.DeletedAt != nil {
+		avroTenant.DeletedAt = tenant.DeletedAt
 	}
 
 	return avroTenant
 }
 
-// ToAvroEvaluationRule converts a domain EvaluationRule to AvroEvaluationRule
-func ToAvroEvaluationRule(evaluationRule any) *AvroEvaluationRule {
-	val := reflect.ValueOf(evaluationRule)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
+// ToAvroEvaluationRule converts a domain.EvaluationRule to AvroEvaluationRule
+func ToAvroEvaluationRule(evaluationRule domain.EvaluationRule) *AvroEvaluationRule {
+	// Serialize parameters to JSON
+	paramsJSON, _ := json.Marshal(evaluationRule.Parameters)
 
-	avroEvaluationRule := &AvroEvaluationRule{}
-
-	if idField := val.FieldByName("ID"); idField.IsValid() {
-		avroEvaluationRule.ID = idField.Interface().(string)
-	}
-	if deviceIDField := val.FieldByName("DeviceID"); deviceIDField.IsValid() {
-		avroEvaluationRule.DeviceID = deviceIDField.Interface().(string)
-	}
-	if versionField := val.FieldByName("Version"); versionField.IsValid() {
-		avroEvaluationRule.Version = versionField.Interface().(int)
-	}
-	if descriptionField := val.FieldByName("Description"); descriptionField.IsValid() {
-		avroEvaluationRule.Description = descriptionField.Interface().(string)
-	}
-	if kindField := val.FieldByName("Kind"); kindField.IsValid() {
-		avroEvaluationRule.Kind = kindField.Interface().(string)
-	}
-	if enabledField := val.FieldByName("Enabled"); enabledField.IsValid() {
-		avroEvaluationRule.Enabled = enabledField.Interface().(bool)
-	}
-	if parametersField := val.FieldByName("Parameters"); parametersField.IsValid() {
-		// Convert parameters to JSON string
-		if params, ok := parametersField.Interface().(map[string]any); ok {
-			if jsonData, err := json.Marshal(params); err == nil {
-				avroEvaluationRule.Parameters = string(jsonData)
-			}
-		}
-	}
-	if createdAtField := val.FieldByName("CreatedAt"); createdAtField.IsValid() {
-		if timeField, ok := createdAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroEvaluationRule.CreatedAt = timeField.Time()
-		}
-	}
-	if updatedAtField := val.FieldByName("UpdatedAt"); updatedAtField.IsValid() {
-		if timeField, ok := updatedAtField.Interface().(interface{ Time() time.Time }); ok {
-			avroEvaluationRule.UpdatedAt = timeField.Time()
-		}
+	avroEvaluationRule := &AvroEvaluationRule{
+		ID:          string(evaluationRule.ID),
+		DeviceID:    "", // Note: domain.EvaluationRule doesn't have DeviceID, using empty string
+		Version:     int(evaluationRule.Version),
+		Description: evaluationRule.Description,
+		Kind:        evaluationRule.Kind,
+		Enabled:     evaluationRule.Enabled,
+		Parameters:  string(paramsJSON),
+		CreatedAt:   time.Now(), // Note: domain.EvaluationRule doesn't have CreatedAt, using current time
+		UpdatedAt:   time.Now(), // Note: domain.EvaluationRule doesn't have UpdatedAt, using current time
 	}
 
 	return avroEvaluationRule
