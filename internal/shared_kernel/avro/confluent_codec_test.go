@@ -17,9 +17,9 @@ func TestNewConfluentAvroCodec(t *testing.T) {
 	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
 	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
 	assert.NotNil(t, codec)
-	assert.NotNil(t, codec.schemas)
-	assert.NotNil(t, codec.codecs)
-	assert.NotNil(t, codec.subjectToID)
+	assert.NotNil(t, codec.schemaCache)
+	assert.NotNil(t, codec.codecCache)
+	assert.Equal(t, "-value", codec.subjectSuffix)
 }
 
 func TestConfluentAvroCodec_StructValidation(t *testing.T) {

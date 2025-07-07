@@ -9,11 +9,17 @@ import (
 	"time"
 
 	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel"
 
 	"github.com/linkedin/goavro/v2"
 	"github.com/riferrei/srclient"
+)
+
+const (
+	_defaultSchemaCacheTTL = 5 * time.Minute
+	_defaultCodecCacheTTL  = 5 * time.Minute
 )
 
 // SchemaRegistry defines the interface for schema registry operations
@@ -26,24 +32,34 @@ type SchemaRegistry interface {
 // ConfluentAvroCodec implements Codec interface using Confluent Avro wire format and Schema Registry
 type ConfluentAvroCodec struct {
 	prototype      any
-	schemas        map[string]string
-	codecs         map[string]*goavro.Codec
 	schemaRegistry SchemaRegistry
-	subjectToID    map[string]int
-	idToCodec      map[int]*goavro.Codec
 	subjectSuffix  string
+	schemaCache    cache.Cache
+	codecCache     cache.Cache
 }
 
 // NewConfluentAvroCodec creates a new Confluent Avro codec with schema registry
 func NewConfluentAvroCodec(prototype any, schemaRegistry SchemaRegistry) *ConfluentAvroCodec {
+	// Create schema cache with 1-minute TTL
+	schemaCache, _ := cache.New(&cache.CacheConfig{
+		MaxCost:     1 << 20, // 1MB
+		NumCounters: 1e6,     // 1M
+		BufferItems: 64,
+	})
+
+	// Create codec cache with 1-minute TTL
+	codecCache, _ := cache.New(&cache.CacheConfig{
+		MaxCost:     1 << 20, // 1MB
+		NumCounters: 1e6,     // 1M
+		BufferItems: 64,
+	})
+
 	return &ConfluentAvroCodec{
 		prototype:      prototype,
-		schemas:        make(map[string]string),
-		codecs:         make(map[string]*goavro.Codec),
 		schemaRegistry: schemaRegistry,
-		subjectToID:    make(map[string]int),
-		idToCodec:      make(map[int]*goavro.Codec),
 		subjectSuffix:  "-value",
+		schemaCache:    schemaCache,
+		codecCache:     codecCache,
 	}
 }
 
@@ -57,17 +73,17 @@ func (c *ConfluentAvroCodec) getSchemaForMessage(message any) (string, error) {
 	schemaName := messageType.Name()
 	switch schemaName {
 	case "Command", "AvroCommand":
-		return "commands", nil
+		return "device_commands", nil
 	case "Task", "AvroTask":
 		return "tasks", nil
 	case "Device", "AvroDevice":
 		return "devices", nil
 	case "ScheduledTask", "AvroScheduledTask":
-		return "scheduled-tasks", nil
+		return "scheduled_tasks", nil
 	case "Tenant", "AvroTenant":
 		return "tenants", nil
 	case "EvaluationRule", "AvroEvaluationRule":
-		return "evaluation-rules", nil
+		return "evaluation_rules", nil
 	default:
 		return "", fmt.Errorf("no Avro schema found for message type: %s", schemaName)
 	}
@@ -76,54 +92,45 @@ func (c *ConfluentAvroCodec) getSchemaForMessage(message any) (string, error) {
 // getOrRegisterSchemaID gets or registers the schema in the registry and returns its ID
 func (c *ConfluentAvroCodec) getOrRegisterSchemaID(schemaName string) (int, error) {
 	subject := schemaName + c.subjectSuffix
-	if id, ok := c.subjectToID[subject]; ok {
-		return id, nil
+
+	if cached, found := c.schemaCache.Get(subject); found {
+		if id, ok := cached.(int); ok {
+			return id, nil
+		}
 	}
 
-	// Try to get existing schema from registry
 	registered, err := c.schemaRegistry.GetLatestSchema(subject)
 	if err == nil && registered != nil {
-		c.subjectToID[subject] = registered.ID()
-		c.schemas[schemaName] = registered.Schema()
-
-		// Create codec for this schema
-		codec, err := goavro.NewCodec(registered.Schema())
-		if err == nil {
-			c.idToCodec[registered.ID()] = codec
-			c.codecs[schemaName] = codec
-		}
+		c.schemaCache.SetWithTTL(subject, registered.ID(), _defaultSchemaCacheTTL)
+		c.schemaCache.Wait() // Ensure value is available
 		return registered.ID(), nil
 	}
 
-	// If schema doesn't exist, we need to load it from the schemas folder
 	schema, err := c.loadSchemaFromFile(schemaName)
 	if err != nil {
 		return 0, fmt.Errorf("loading schema from file: %w", err)
 	}
 
-	// Register new schema
 	newSchema, err := c.schemaRegistry.CreateSchema(subject, schema, srclient.Avro)
 	if err != nil {
 		return 0, fmt.Errorf("registering schema: %w", err)
 	}
 
-	c.subjectToID[subject] = newSchema.ID()
-	c.schemas[schemaName] = schema
-
-	codec, err := goavro.NewCodec(schema)
-	if err == nil {
-		c.idToCodec[newSchema.ID()] = codec
-		c.codecs[schemaName] = codec
-	}
-
+	c.schemaCache.SetWithTTL(subject, newSchema.ID(), _defaultSchemaCacheTTL)
+	c.schemaCache.Wait() // Ensure value is available
 	return newSchema.ID(), nil
 }
 
 // getCodecByID fetches the codec for a schema ID from the registry if not cached
 func (c *ConfluentAvroCodec) getCodecByID(schemaID int) (*goavro.Codec, error) {
-	if codec, ok := c.idToCodec[schemaID]; ok {
-		return codec, nil
+	schemaIDKey := fmt.Sprintf("schema_%d", schemaID)
+
+	if cached, found := c.codecCache.Get(schemaIDKey); found {
+		if codec, ok := cached.(*goavro.Codec); ok {
+			return codec, nil
+		}
 	}
+
 	schema, err := c.schemaRegistry.GetSchema(schemaID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching schema from registry: %w", err)
@@ -132,7 +139,8 @@ func (c *ConfluentAvroCodec) getCodecByID(schemaID int) (*goavro.Codec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating codec from schema: %w", err)
 	}
-	c.idToCodec[schemaID] = codec
+	c.codecCache.SetWithTTL(schemaIDKey, codec, _defaultCodecCacheTTL)
+	c.codecCache.Wait() // Ensure value is available
 	return codec, nil
 }
 
