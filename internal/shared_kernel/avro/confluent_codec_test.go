@@ -8,8 +8,8 @@ import (
 	"github.com/riferrei/srclient"
 	"github.com/stretchr/testify/assert"
 
-	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 func TestNewConfluentAvroCodec(t *testing.T) {

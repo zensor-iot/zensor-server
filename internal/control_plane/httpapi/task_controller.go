@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"

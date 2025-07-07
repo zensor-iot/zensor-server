@@ -3,7 +3,7 @@ package internal
 import (
 	"fmt"
 	"time"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/utils"
 
 	"database/sql/driver"

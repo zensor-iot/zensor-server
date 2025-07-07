@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 // Avro-compatible message structs that match the Avro schemas

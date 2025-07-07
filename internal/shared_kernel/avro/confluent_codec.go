@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"time"
 
-	"zensor-server/internal/control_plane/domain"
 	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel"
+	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/linkedin/goavro/v2"
 	"github.com/riferrei/srclient"
@@ -148,12 +148,12 @@ func (c *ConfluentAvroCodec) getCodecByID(schemaID int) (*goavro.Codec, error) {
 func (c *ConfluentAvroCodec) loadSchemaFromFile(schemaName string) (string, error) {
 	// Map schema names to file names
 	schemaFileMap := map[string]string{
-		"commands":         "command.avsc",
 		"tasks":            "task.avsc",
 		"devices":          "device.avsc",
 		"scheduled-tasks":  "scheduled_task.avsc",
 		"tenants":          "tenant.avsc",
 		"evaluation-rules": "evaluation_rule.avsc",
+		"device_commands":  "device_command.avsc",
 	}
 
 	fileName, exists := schemaFileMap[schemaName]

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/utils"
 )
 

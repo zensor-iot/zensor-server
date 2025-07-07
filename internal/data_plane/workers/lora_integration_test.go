@@ -6,61 +6,72 @@ import (
 
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel"
+	"zensor-server/internal/shared_kernel/avro"
 )
 
 func TestLoraIntegrationWorker_ConvertToSharedCommand(t *testing.T) {
 	worker := &LoraIntegrationWorker{}
 
-	// Test with a map (old format or schema payload)
-	mapMessage := map[string]any{
-		"id":          "test-123",
-		"version":     1,
-		"device_id":   "device-123",
-		"device_name": "test-device",
-		"task_id":     "task-123",
-		"payload": map[string]any{
-			"index": 1,
-			"value": 100,
-		},
-		"dispatch_after": "2023-01-01T00:00:00Z",
-		"port":           15,
-		"priority":       "NORMAL",
-		"created_at":     "2023-01-01T00:00:00Z",
-		"ready":          true,
-		"sent":           false,
-		"sent_at":        "2023-01-01T00:00:00Z",
+	// Test with AvroCommand
+	avroCmd := &avro.AvroCommand{
+		ID:            "test-command-id",
+		Version:       2,
+		DeviceID:      "test-device-id",
+		DeviceName:    "test-device",
+		TaskID:        "test-task-id",
+		PayloadIndex:  5,
+		PayloadValue:  123,
+		DispatchAfter: time.Now(),
+		Port:          16,
+		Priority:      "HIGH",
+		CreatedAt:     time.Now(),
+		Ready:         true,
+		Sent:          false,
+		SentAt:        time.Time{},
 	}
 
-	command, err := worker.convertToSharedCommand(mapMessage)
+	command, err := worker.convertToSharedCommand(avroCmd)
 	if err != nil {
-		t.Fatalf("Failed to convert map message: %v", err)
+		t.Fatalf("Failed to convert AvroCommand: %v", err)
 	}
 
-	if command.ID != "test-123" {
-		t.Errorf("Expected ID 'test-123', got %s", command.ID)
+	// Verify that all fields are preserved correctly
+	if command.ID != "test-command-id" {
+		t.Errorf("Expected ID 'test-command-id', got %s", command.ID)
+	}
+	if command.DeviceID != "test-device-id" {
+		t.Errorf("Expected DeviceID 'test-device-id', got %s", command.DeviceID)
 	}
 	if command.DeviceName != "test-device" {
 		t.Errorf("Expected DeviceName 'test-device', got %s", command.DeviceName)
 	}
-	if command.Payload.Index != 1 {
-		t.Errorf("Expected Payload.Index 1, got %d", command.Payload.Index)
+	if command.TaskID != "test-task-id" {
+		t.Errorf("Expected TaskID 'test-task-id', got %s", command.TaskID)
 	}
-	if command.Payload.Value != 100 {
-		t.Errorf("Expected Payload.Value 100, got %d", command.Payload.Value)
+	if command.Payload.Index != 5 {
+		t.Errorf("Expected Payload.Index 5, got %d", command.Payload.Index)
 	}
+	if command.Payload.Value != 123 {
+		t.Errorf("Expected Payload.Value 123, got %d", command.Payload.Value)
+	}
+	if command.Port != 16 {
+		t.Errorf("Expected Port 16, got %d", command.Port)
+	}
+	if command.Priority != "HIGH" {
+		t.Errorf("Expected Priority 'HIGH', got %s", command.Priority)
+	}
+	if command.Ready != true {
+		t.Errorf("Expected Ready true, got %t", command.Ready)
+	}
+	if command.Sent != false {
+		t.Errorf("Expected Sent false, got %t", command.Sent)
+	}
+}
 
-	// Test with a pointer to map
-	mapPtrMessage := &mapMessage
-	command, err = worker.convertToSharedCommand(mapPtrMessage)
-	if err != nil {
-		t.Fatalf("Failed to convert map pointer message: %v", err)
-	}
+func TestLoraIntegrationWorker_ConvertToSharedCommand_WithStructMessage(t *testing.T) {
+	worker := &LoraIntegrationWorker{}
 
-	if command.ID != "test-123" {
-		t.Errorf("Expected ID 'test-123', got %s", command.ID)
-	}
-
-	// Test with a struct (new format)
+	// Test with shared_kernel.Command (fallback case)
 	structMessage := shared_kernel.Command{
 		ID:         "test-456",
 		Version:    2,
@@ -80,7 +91,7 @@ func TestLoraIntegrationWorker_ConvertToSharedCommand(t *testing.T) {
 		SentAt:        utils.Time{Time: time.Now()},
 	}
 
-	command, err = worker.convertToSharedCommand(structMessage)
+	command, err := worker.convertToSharedCommand(structMessage)
 	if err != nil {
 		t.Fatalf("Failed to convert struct message: %v", err)
 	}
@@ -96,5 +107,8 @@ func TestLoraIntegrationWorker_ConvertToSharedCommand(t *testing.T) {
 	}
 	if command.Payload.Value != 200 {
 		t.Errorf("Expected Payload.Value 200, got %d", command.Payload.Value)
+	}
+	if command.Port != 16 {
+		t.Errorf("Expected Port 16, got %d", command.Port)
 	}
 }

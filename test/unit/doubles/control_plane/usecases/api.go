@@ -12,7 +12,7 @@ package mock_usecases
 import (
 	context "context"
 	reflect "reflect"
-	domain "zensor-server/internal/control_plane/domain"
+	domain "zensor-server/internal/shared_kernel/domain"
 
 	gomock "go.uber.org/mock/gomock"
 )

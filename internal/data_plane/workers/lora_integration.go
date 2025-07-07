@@ -8,13 +8,15 @@ import (
 	"regexp"
 	"sync"
 	"time"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel"
+	"zensor-server/internal/shared_kernel/avro"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -316,6 +318,29 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 }
 
 func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*shared_kernel.Command, error) {
+	// Try to convert directly from AvroCommand
+	if avroCmd, ok := msg.(*avro.AvroCommand); ok {
+		return &shared_kernel.Command{
+			ID:         avroCmd.ID,
+			Version:    avroCmd.Version,
+			DeviceID:   avroCmd.DeviceID,
+			DeviceName: avroCmd.DeviceName,
+			TaskID:     avroCmd.TaskID,
+			Payload: shared_kernel.CommandPayload{
+				Index: uint8(avroCmd.PayloadIndex),
+				Value: uint8(avroCmd.PayloadValue),
+			},
+			DispatchAfter: utils.Time{Time: avroCmd.DispatchAfter},
+			Port:          uint8(avroCmd.Port),
+			Priority:      avroCmd.Priority,
+			CreatedAt:     utils.Time{Time: avroCmd.CreatedAt},
+			Ready:         avroCmd.Ready,
+			Sent:          avroCmd.Sent,
+			SentAt:        utils.Time{Time: avroCmd.SentAt},
+		}, nil
+	}
+
+	// Fallback to JSON marshaling/unmarshaling for other types
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message to JSON: %w", err)

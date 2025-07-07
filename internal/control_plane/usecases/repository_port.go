@@ -3,7 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 var (

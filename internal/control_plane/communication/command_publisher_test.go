@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/avro"

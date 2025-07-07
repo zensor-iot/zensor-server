@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 func NewTaskService(repository TaskRepository, commandRepository CommandRepository, deviceRepository DeviceRepository) *SimpleTaskService {

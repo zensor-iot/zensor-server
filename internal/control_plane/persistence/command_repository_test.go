@@ -3,7 +3,7 @@ package persistence
 import (
 	"context"
 	"testing"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/sql"
 
 	"github.com/stretchr/testify/assert"

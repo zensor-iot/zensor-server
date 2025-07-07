@@ -2,7 +2,7 @@ package internal
 
 import (
 	"time"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 type Tenant struct {

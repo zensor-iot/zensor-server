@@ -2,7 +2,7 @@ package usecases
 
 import (
 	"context"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 //go:generate mockgen -source=./api.go -destination=../../../test/unit/doubles/control_plane/usecases/api.go

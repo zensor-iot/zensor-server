@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"zensor-server/internal/control_plane/domain"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 var (
