@@ -255,6 +255,14 @@ func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*h
 	return nil, nil
 }
 
+func InitializeDeviceSpecificWebSocketController(broker async.InternalBroker) (*httpapi.DeviceSpecificWebSocketController, error) {
+	wire.Build(
+		provideDeviceStateCacheService,
+		httpapi.NewDeviceSpecificWebSocketController,
+	)
+	return nil, nil
+}
+
 func InitializeReplicationService() (*replication.Service, error) {
 	wire.Build(
 		provideAppConfig,

@@ -54,6 +54,7 @@ func main() {
 		handleWireInjector(wire.InitializeTenantController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeScheduledTaskController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
+		handleWireInjector(wire.InitializeDeviceSpecificWebSocketController(internalBroker)).(httpserver.Controller),
 	)
 
 	appCtx, cancelFn := context.WithCancel(context.Background())

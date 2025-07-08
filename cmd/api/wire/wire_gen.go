@@ -240,6 +240,12 @@ func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*h
 	return deviceMessageWebSocketController, nil
 }
 
+func InitializeDeviceSpecificWebSocketController(broker async.InternalBroker) (*httpapi.DeviceSpecificWebSocketController, error) {
+	usecasesDeviceStateCacheService := provideDeviceStateCacheService()
+	deviceSpecificWebSocketController := httpapi.NewDeviceSpecificWebSocketController(broker, usecasesDeviceStateCacheService)
+	return deviceSpecificWebSocketController, nil
+}
+
 func InitializeReplicationService() (*replication.Service, error) {
 	consumerFactory := provideMemoryConsumerFactory()
 	appConfig := provideAppConfig()

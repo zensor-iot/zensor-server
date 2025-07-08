@@ -55,7 +55,7 @@ paths:
   /ws/device-messages:
     get:
       summary: Device messages WebSocket
-      description: WebSocket endpoint for real-time device messages
+      description: WebSocket endpoint for real-time device messages from all devices
       tags:
         - WebSocket
       responses:
@@ -70,6 +70,44 @@ paths:
               schema:
                 type: string
                 example: "Upgrade"
+
+  /ws/devices/{device_id}/messages:
+    get:
+      summary: Device-specific messages WebSocket
+      description: WebSocket endpoint for real-time messages from a specific device
+      tags:
+        - WebSocket
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          description: The ID of the device to subscribe to
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '101':
+          description: WebSocket connection established
+          headers:
+            Upgrade:
+              schema:
+                type: string
+                example: "websocket"
+            Connection:
+              schema:
+                type: string
+                example: "Upgrade"
+        '400':
+          description: Bad request - device_id is required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "device_id is required"
 
   # Tenants
   /v1/tenants:
