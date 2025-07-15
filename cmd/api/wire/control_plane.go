@@ -354,7 +354,7 @@ var (
 // provideDeviceStateCacheService provides a singleton instance of the device state cache service
 func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 	deviceStateCacheOnce.Do(func() {
-		deviceStateCacheService = usecases.NewDeviceStateCacheService()
+		deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
 		slog.Info("device state cache service singleton created")
 	})
 	return deviceStateCacheService

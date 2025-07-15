@@ -10,15 +10,11 @@ import (
 
 // Cache defines the interface for a generic cache with TTL support
 type Cache interface {
-	Get(key string) (any, bool)
-	Set(key string, value any) bool
-	SetWithTTL(key string, value any, ttl time.Duration) bool
-	Delete(key string)
-	Clear()
-	GetOrSet(key string, ttl time.Duration, loader func() (any, error)) (any, error)
-	GetOrSetWithContext(ctx context.Context, key string, ttl time.Duration, loader func() (any, error)) (any, error)
-	Close()
-	Wait()
+	Get(ctx context.Context, key string) (any, bool)
+	Set(ctx context.Context, key string, value any, ttl time.Duration) bool
+	Delete(ctx context.Context, key string)
+	GetOrSet(ctx context.Context, key string, ttl time.Duration, loader func() (any, error)) (any, error)
+	Keys(ctx context.Context, pattern string) ([]string, error)
 }
 
 // RistrettoCache provides a generic caching implementation with TTL support using Ristretto
@@ -71,73 +67,53 @@ func New(config *CacheConfig) (*RistrettoCache, error) {
 	}
 
 	// Wait for the cache to be ready
-	cache.Wait()
+	cache.store.Wait()
 
 	return cache, nil
 }
 
 // Get retrieves a value from the cache
-func (c *RistrettoCache) Get(key string) (any, bool) {
+func (c *RistrettoCache) Get(ctx context.Context, key string) (any, bool) {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, false
+	default:
+	}
 	return c.store.Get(key)
 }
 
-// Set stores a value in the cache with the default TTL
-func (c *RistrettoCache) Set(key string, value any) bool {
-	return c.store.Set(key, value, 1)
-}
-
-// SetWithTTL stores a value in the cache with a custom TTL
-func (c *RistrettoCache) SetWithTTL(key string, value any, ttl time.Duration) bool {
+// Set stores a value in the cache with TTL
+func (c *RistrettoCache) Set(ctx context.Context, key string, value any, ttl time.Duration) bool {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
 	return c.store.SetWithTTL(key, value, 1, ttl)
 }
 
 // Delete removes a value from the cache
-func (c *RistrettoCache) Delete(key string) {
+func (c *RistrettoCache) Delete(ctx context.Context, key string) {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	c.store.Del(key)
-}
-
-// Clear removes all values from the cache
-func (c *RistrettoCache) Clear() {
-	c.store.Clear()
 }
 
 // GetOrSet retrieves a value from the cache, or sets it if not found
 // This method uses singleflight to prevent cache stampede
-func (c *RistrettoCache) GetOrSet(key string, ttl time.Duration, loader func() (any, error)) (any, error) {
+func (c *RistrettoCache) GetOrSet(ctx context.Context, key string, ttl time.Duration, loader func() (any, error)) (any, error) {
 	// Try to get from cache first
-	if value, found := c.Get(key); found {
+	if value, found := c.Get(ctx, key); found {
 		return value, nil
 	}
 
 	// Use singleflight to prevent multiple concurrent loads of the same key
-	value, err, _ := c.singleGroup.Do(key, func() (any, error) {
-		// Double-check cache after acquiring the lock
-		if value, found := c.Get(key); found {
-			return value, nil
-		}
-
-		// Load the value
-		value, err := loader()
-		if err != nil {
-			return nil, err
-		}
-
-		// Store in cache
-		c.SetWithTTL(key, value, ttl)
-		return value, nil
-	})
-
-	return value, err
-}
-
-// GetOrSetWithContext is like GetOrSet but accepts a context for cancellation
-func (c *RistrettoCache) GetOrSetWithContext(ctx context.Context, key string, ttl time.Duration, loader func() (any, error)) (any, error) {
-	// Try to get from cache first
-	if value, found := c.Get(key); found {
-		return value, nil
-	}
-
-	// Use singleflight with context
 	value, err, _ := c.singleGroup.Do(key, func() (any, error) {
 		// Check context cancellation
 		select {
@@ -147,7 +123,7 @@ func (c *RistrettoCache) GetOrSetWithContext(ctx context.Context, key string, tt
 		}
 
 		// Double-check cache after acquiring the lock
-		if value, found := c.Get(key); found {
+		if value, found := c.Get(ctx, key); found {
 			return value, nil
 		}
 
@@ -158,19 +134,21 @@ func (c *RistrettoCache) GetOrSetWithContext(ctx context.Context, key string, tt
 		}
 
 		// Store in cache
-		c.SetWithTTL(key, value, ttl)
+		c.Set(ctx, key, value, ttl)
 		return value, nil
 	})
 
 	return value, err
 }
 
-// Close closes the cache and frees resources
-func (c *RistrettoCache) Close() {
-	c.store.Close()
-}
-
-// Wait waits for the cache to be ready
-func (c *RistrettoCache) Wait() {
-	c.store.Wait()
+// Keys returns all keys matching the pattern (not supported by Ristretto)
+func (c *RistrettoCache) Keys(ctx context.Context, pattern string) ([]string, error) {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	// Ristretto doesn't support key enumeration, return empty slice
+	return []string{}, nil
 }

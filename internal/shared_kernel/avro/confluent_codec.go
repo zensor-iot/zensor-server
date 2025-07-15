@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -93,7 +94,8 @@ func (c *ConfluentAvroCodec) getSchemaForMessage(message any) (string, error) {
 func (c *ConfluentAvroCodec) getOrRegisterSchemaID(schemaName string) (int, error) {
 	subject := schemaName + c.subjectSuffix
 
-	if cached, found := c.schemaCache.Get(subject); found {
+	ctx := context.Background()
+	if cached, found := c.schemaCache.Get(ctx, subject); found {
 		if id, ok := cached.(int); ok {
 			return id, nil
 		}
@@ -101,8 +103,7 @@ func (c *ConfluentAvroCodec) getOrRegisterSchemaID(schemaName string) (int, erro
 
 	registered, err := c.schemaRegistry.GetLatestSchema(subject)
 	if err == nil && registered != nil {
-		c.schemaCache.SetWithTTL(subject, registered.ID(), _defaultSchemaCacheTTL)
-		c.schemaCache.Wait() // Ensure value is available
+		c.schemaCache.Set(ctx, subject, registered.ID(), _defaultSchemaCacheTTL)
 		return registered.ID(), nil
 	}
 
@@ -116,16 +117,16 @@ func (c *ConfluentAvroCodec) getOrRegisterSchemaID(schemaName string) (int, erro
 		return 0, fmt.Errorf("registering schema: %w", err)
 	}
 
-	c.schemaCache.SetWithTTL(subject, newSchema.ID(), _defaultSchemaCacheTTL)
-	c.schemaCache.Wait() // Ensure value is available
+	c.schemaCache.Set(ctx, subject, newSchema.ID(), _defaultSchemaCacheTTL)
 	return newSchema.ID(), nil
 }
 
 // getCodecByID fetches the codec for a schema ID from the registry if not cached
 func (c *ConfluentAvroCodec) getCodecByID(schemaID int) (*goavro.Codec, error) {
+	ctx := context.Background()
 	schemaIDKey := fmt.Sprintf("schema_%d", schemaID)
 
-	if cached, found := c.codecCache.Get(schemaIDKey); found {
+	if cached, found := c.codecCache.Get(ctx, schemaIDKey); found {
 		if codec, ok := cached.(*goavro.Codec); ok {
 			return codec, nil
 		}
@@ -139,8 +140,7 @@ func (c *ConfluentAvroCodec) getCodecByID(schemaID int) (*goavro.Codec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating codec from schema: %w", err)
 	}
-	c.codecCache.SetWithTTL(schemaIDKey, codec, _defaultCodecCacheTTL)
-	c.codecCache.Wait() // Ensure value is available
+	c.codecCache.Set(ctx, schemaIDKey, codec, _defaultCodecCacheTTL)
 	return codec, nil
 }
 

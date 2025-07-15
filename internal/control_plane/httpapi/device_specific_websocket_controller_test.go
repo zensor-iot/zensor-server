@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
 
@@ -17,7 +17,7 @@ import (
 func TestDeviceSpecificWebSocketController_HandleWebSocket(t *testing.T) {
 	// Create mock dependencies
 	broker := async.NewLocalBroker()
-	stateCache := usecases.NewDeviceStateCacheService()
+	stateCache := persistence.NewSimpleDeviceStateCacheService()
 
 	// Create controller
 	controller := NewDeviceSpecificWebSocketController(broker, stateCache)
@@ -80,7 +80,7 @@ func TestDeviceSpecificWebSocketController_HandleWebSocket(t *testing.T) {
 func TestDeviceSpecificWebSocketController_MessageRouting(t *testing.T) {
 	// Create mock dependencies
 	broker := async.NewLocalBroker()
-	stateCache := usecases.NewDeviceStateCacheService()
+	stateCache := persistence.NewSimpleDeviceStateCacheService()
 
 	// Create controller
 	controller := NewDeviceSpecificWebSocketController(broker, stateCache)
@@ -163,7 +163,7 @@ func TestDeviceSpecificWebSocketController_MessageRouting(t *testing.T) {
 func TestDeviceSpecificWebSocketController_CachedState(t *testing.T) {
 	// Create mock dependencies
 	broker := async.NewLocalBroker()
-	stateCache := usecases.NewDeviceStateCacheService()
+	stateCache := persistence.NewSimpleDeviceStateCacheService()
 
 	// Set up cached state for a device
 	deviceID := "test-device"

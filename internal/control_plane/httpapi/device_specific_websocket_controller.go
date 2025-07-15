@@ -114,10 +114,17 @@ func (wsc *DeviceSpecificWebSocketController) handleWebSocket() http.HandlerFunc
 
 func (wsc *DeviceSpecificWebSocketController) handleClient(conn *websocket.Conn) {
 	defer func() {
+		// Check if context is done before trying to send to channel
 		select {
-		case wsc.unregister <- conn:
+		case <-wsc.ctx.Done():
+			// Controller is shutting down, just close the connection
 		default:
-			// Channel might be closed during shutdown
+			// Try to unregister the client
+			select {
+			case wsc.unregister <- conn:
+			default:
+				// Channel might be full, but that's okay
+			}
 		}
 		conn.Close()
 	}()
