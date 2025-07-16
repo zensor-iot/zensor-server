@@ -329,7 +329,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{
+				"long.timestamp-millis": v.DeletedAt.UnixMilli(),
+			}
 		} else {
 			result["deleted_at"] = nil
 		}
@@ -349,7 +351,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{
+				"long.timestamp-millis": v.DeletedAt.UnixMilli(),
+			}
 		} else {
 			result["deleted_at"] = nil
 		}
@@ -453,7 +457,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{
+				"long.timestamp-millis": v.DeletedAt.UnixMilli(),
+			}
 		} else {
 			result["deleted_at"] = nil
 		}
@@ -473,7 +479,9 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 
 		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
-			result["deleted_at"] = map[string]any{"string": *v.DeletedAt}
+			result["deleted_at"] = map[string]any{
+				"long.timestamp-millis": v.DeletedAt.UnixMilli(),
+			}
 		} else {
 			result["deleted_at"] = nil
 		}

@@ -23,7 +23,7 @@ done
 
 HEADER_TOKEN=""
 if [[ -n "$TOKEN" ]]; then
-  HEADER_TOKEN="-H X-Auth-Token: $TOKEN"
+  HEADER_TOKEN="-H \"X-Auth-Token: $TOKEN\""
 fi
 
 echo "Registering schemas from $SCHEMAS_DIR to $SCHEMA_REGISTRY_URL"
@@ -42,19 +42,36 @@ register_schema() {
         return 1
     fi
     
+    # Prepare payload
+    payload=$(jq -n --arg schema "$(jq -c . < $SCHEMAS_DIR/$file_name)" '{"schema": $schema}')
+
+    # Debug output for the first schema only
+    if [ "$subject" = "device_commands-value" ]; then
+        echo "--- DEBUG: Payload for $subject ---"
+        echo "$payload"
+        echo "--- DEBUG: Curl command ---"
+        echo "curl -s -X POST -H 'Content-Type: application/vnd.schemaregistry.v1+json' $HEADER_TOKEN -d @payload.json '$SCHEMA_REGISTRY_URL/subjects/$subject/versions'"
+    fi
+
     # Register schema with proper JSON formatting
-    response=$(jq -n --arg schema "$(cat $SCHEMAS_DIR/$file_name)" '{"schema": $schema}' | \
-        curl -s -X POST \
+    response=$(echo "$payload" | \
+        eval curl -s -X POST \
         -H "Content-Type: application/vnd.schemaregistry.v1+json" \
         $HEADER_TOKEN \
         -d @- \
         "$SCHEMA_REGISTRY_URL/subjects/$subject/versions")
     
-    if [ $? -eq 0 ]; then
+    # Check if response contains an error
+    if echo "$response" | grep -q "error_code\|Unauthorized\|Forbidden"; then
+        echo "Failed to register $subject"
+        echo "Response: $response"
+        return 1
+    elif echo "$response" | grep -q "id"; then
         echo "Successfully registered $subject"
         echo "Response: $response"
     else
-        echo "Failed to register $subject"
+        echo "Unexpected response for $subject"
+        echo "Response: $response"
         return 1
     fi
 }
@@ -68,9 +85,10 @@ register_schema "devices" "device.avsc"
 register_schema "scheduled_tasks" "scheduled_task.avsc"
 register_schema "tenants" "tenant.avsc"
 register_schema "evaluation_rules" "evaluation_rule.avsc"
+register_schema "tenant_configurations" "tenant_configuration.avsc"
 
 echo "=== Schema registration complete ==="
 
 # List all subjects
 echo "=== Current subjects in registry ==="
-curl -s $HEADER_TOKEN "$SCHEMA_REGISTRY_URL/subjects" | jq '.[]' 2>/dev/null || echo "No subjects found or jq not available" 
+eval curl -s $HEADER_TOKEN "$SCHEMA_REGISTRY_URL/subjects" | jq '.[]' 2>/dev/null || echo "No subjects found or jq not available" 
