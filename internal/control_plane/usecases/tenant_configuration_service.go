@@ -15,9 +15,9 @@ var (
 
 type TenantConfigurationService interface {
 	CreateTenantConfiguration(ctx context.Context, config domain.TenantConfiguration) error
-	GetTenantConfiguration(ctx context.Context, tenantID domain.ID) (domain.TenantConfiguration, error)
+	GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error)
 	UpdateTenantConfiguration(ctx context.Context, config domain.TenantConfiguration) error
-	GetOrCreateTenantConfiguration(ctx context.Context, tenantID domain.ID, defaultTimezone string) (domain.TenantConfiguration, error)
+	GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error)
 }
 
 func NewTenantConfigurationService(repository TenantConfigurationRepository) *SimpleTenantConfigurationService {
@@ -58,8 +58,8 @@ func (s *SimpleTenantConfigurationService) CreateTenantConfiguration(ctx context
 	return nil
 }
 
-func (s *SimpleTenantConfigurationService) GetTenantConfiguration(ctx context.Context, tenantID domain.ID) (domain.TenantConfiguration, error) {
-	config, err := s.repository.GetByTenantID(ctx, tenantID)
+func (s *SimpleTenantConfigurationService) GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error) {
+	config, err := s.repository.GetByTenantID(ctx, tenant.ID)
 	if err != nil {
 		if errors.Is(err, ErrTenantConfigurationNotFound) {
 			return domain.TenantConfiguration{}, ErrTenantConfigurationNotFound
@@ -99,13 +99,13 @@ func (s *SimpleTenantConfigurationService) UpdateTenantConfiguration(ctx context
 	return nil
 }
 
-func (s *SimpleTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenantID domain.ID, defaultTimezone string) (domain.TenantConfiguration, error) {
-	config, err := s.repository.GetByTenantID(ctx, tenantID)
+func (s *SimpleTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error) {
+	config, err := s.repository.GetByTenantID(ctx, tenant.ID)
 	if err != nil {
 		if errors.Is(err, ErrTenantConfigurationNotFound) {
 			// Create default configuration
 			newConfig, err := domain.NewTenantConfigurationBuilder().
-				WithTenantID(tenantID).
+				WithTenantID(tenant.ID).
 				WithTimezone(defaultTimezone).
 				Build()
 			if err != nil {
@@ -120,7 +120,7 @@ func (s *SimpleTenantConfigurationService) GetOrCreateTenantConfiguration(ctx co
 			}
 
 			slog.Info("default tenant configuration created",
-				slog.String("tenant_id", tenantID.String()),
+				slog.String("tenant_id", tenant.ID.String()),
 				slog.String("timezone", defaultTimezone))
 
 			return newConfig, nil

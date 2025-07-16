@@ -132,7 +132,7 @@ The service accepts any string as a timezone value. In a production environment,
 The `GetOrCreateTenantConfiguration` method allows creating a default configuration if one doesn't exist:
 
 ```go
-config, err := service.GetOrCreateTenantConfiguration(ctx, tenantID, "UTC")
+config, err := service.GetOrCreateTenantConfiguration(ctx, tenant, "UTC")
 ```
 
 ### Optimistic Locking

@@ -33,6 +33,7 @@
 - Use struct embedding for code reuse, not inheritance.
 - All configuration should be loaded from environment variables or config files, never hardcoded.
 - Always use any instead of interface{}
+- Always prefer passing the whole structure as method arguments instead of single fields.
 
 # Go Testing
 
@@ -42,3 +43,4 @@
 - Avoid test dependencies on external systems; use mocks or test servers.
 - Use table-driven tests for multiple cases.
 - Run `go test -race` to check for race conditions.
+- Always use a suffix _test package for unit testing to only test public methods.

@@ -134,8 +134,8 @@ func (m *MockTenantConfigurationService) CreateTenantConfiguration(ctx context.C
 	return args.Error(0)
 }
 
-func (m *MockTenantConfigurationService) GetTenantConfiguration(ctx context.Context, tenantID domain.ID) (domain.TenantConfiguration, error) {
-	args := m.Called(ctx, tenantID)
+func (m *MockTenantConfigurationService) GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error) {
+	args := m.Called(ctx, tenant)
 	return args.Get(0).(domain.TenantConfiguration), args.Error(1)
 }
 
@@ -144,8 +144,8 @@ func (m *MockTenantConfigurationService) UpdateTenantConfiguration(ctx context.C
 	return args.Error(0)
 }
 
-func (m *MockTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenantID domain.ID, defaultTimezone string) (domain.TenantConfiguration, error) {
-	args := m.Called(ctx, tenantID, defaultTimezone)
+func (m *MockTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error) {
+	args := m.Called(ctx, tenant, defaultTimezone)
 	return args.Get(0).(domain.TenantConfiguration), args.Error(1)
 }
 
@@ -230,8 +230,14 @@ func TestScheduledTaskWorker_ShouldExecuteSchedule_WithTimezone(t *testing.T) {
 				WithTimezone(tt.tenantTimezone).
 				Build()
 
+			// Create test tenant
+			testTenant := domain.Tenant{
+				ID:   domain.ID("test-tenant"),
+				Name: "Test Tenant",
+			}
+
 			// Setup mock expectations
-			mockTenantConfigService.On("GetOrCreateTenantConfiguration", mock.Anything, domain.ID("test-tenant"), "UTC").
+			mockTenantConfigService.On("GetOrCreateTenantConfiguration", mock.Anything, testTenant, "UTC").
 				Return(tenantConfig, nil)
 
 			// Create worker
@@ -245,7 +251,7 @@ func TestScheduledTaskWorker_ShouldExecuteSchedule_WithTimezone(t *testing.T) {
 			}
 
 			// Test the method
-			result, err := worker.shouldExecuteSchedule(tt.schedule, tt.lastExecuted, domain.ID("test-tenant"))
+			result, err := worker.shouldExecuteSchedule(context.Background(), tt.schedule, tt.lastExecuted, testTenant)
 
 			// Assertions
 			assert.NoError(t, err)
@@ -265,8 +271,14 @@ func TestScheduledTaskWorker_ShouldExecuteSchedule_WithTenantConfigurationError(
 	mockDeviceService := &MockDeviceService{}
 	mockBroker := &MockInternalBroker{}
 
+	// Create test tenant
+	testTenant := domain.Tenant{
+		ID:   domain.ID("test-tenant"),
+		Name: "Test Tenant",
+	}
+
 	// Setup mock to return error
-	mockTenantConfigService.On("GetOrCreateTenantConfiguration", mock.Anything, domain.ID("test-tenant"), "UTC").
+	mockTenantConfigService.On("GetOrCreateTenantConfiguration", mock.Anything, testTenant, "UTC").
 		Return(domain.TenantConfiguration{}, assert.AnError)
 
 	// Create worker
@@ -280,7 +292,7 @@ func TestScheduledTaskWorker_ShouldExecuteSchedule_WithTenantConfigurationError(
 	}
 
 	// Test the method - should fallback to UTC
-	result, err := worker.shouldExecuteSchedule("00 04 * * *", time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC), domain.ID("test-tenant"))
+	result, err := worker.shouldExecuteSchedule(context.Background(), "00 04 * * *", time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC), testTenant)
 
 	// Assertions
 	assert.NoError(t, err)

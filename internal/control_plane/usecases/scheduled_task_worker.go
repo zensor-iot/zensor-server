@@ -97,74 +97,70 @@ func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()
 
 	slog.Debug("found scheduled tasks", slog.Int("count", len(scheduledTasks)))
 	for _, scheduledTask := range scheduledTasks {
-		slog.Debug("evaluating scheduled task", slog.String("scheduled_task_id", scheduledTask.ID.String()))
-		if !scheduledTask.IsActive {
-			continue
-		}
-
-		// Determine the last executed time for evaluation
-		var lastExecuted time.Time
-		if scheduledTask.LastExecutedAt != nil {
-			lastExecuted = scheduledTask.LastExecutedAt.Time
-		}
-		if lastExecuted.IsZero() {
-			lastExecuted = scheduledTask.CreatedAt.Time
-		}
-
-		shouldExecute, err := w.shouldExecuteSchedule(scheduledTask.Schedule, lastExecuted, scheduledTask.Tenant.ID)
-		if err != nil {
-			slog.Error("evaluating schedule",
-				slog.String("scheduled_task_id", scheduledTask.ID.String()),
-				slog.String("schedule", scheduledTask.Schedule),
-				slog.Any("error", err))
-			continue
-		}
-
-		if shouldExecute {
-			w.createTaskFromScheduledTask(ctx, scheduledTask)
-		}
+		w.evaluateAndMaybeCreateTask(ctx, scheduledTask)
 	}
 
 	slog.Debug("scheduled task evaluation completed", slog.Time("time", time.Now()))
 }
 
-func (w *ScheduledTaskWorker) shouldExecuteSchedule(schedule string, lastExecuted time.Time, tenantID domain.ID) (bool, error) {
+func (w *ScheduledTaskWorker) evaluateAndMaybeCreateTask(ctx context.Context, scheduledTask domain.ScheduledTask) {
+	slog.Debug("evaluating scheduled task", slog.String("scheduled_task_id", scheduledTask.ID.String()))
+	if !scheduledTask.IsActive {
+		return
+	}
+
+	var lastExecuted time.Time
+	if scheduledTask.LastExecutedAt != nil {
+		lastExecuted = scheduledTask.LastExecutedAt.Time
+	}
+	if lastExecuted.IsZero() {
+		lastExecuted = scheduledTask.CreatedAt.Time
+	}
+
+	shouldExecute, err := w.shouldExecuteSchedule(ctx, scheduledTask.Schedule, lastExecuted, scheduledTask.Tenant)
+	if err != nil {
+		slog.Error("evaluating schedule",
+			slog.String("scheduled_task_id", scheduledTask.ID.String()),
+			slog.String("schedule", scheduledTask.Schedule),
+			slog.Any("error", err))
+		return
+	}
+
+	if shouldExecute {
+		w.createTaskFromScheduledTask(ctx, scheduledTask)
+	}
+}
+
+func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedule string, lastExecuted time.Time, tenant domain.Tenant) (bool, error) {
 	scheduleSpec, err := w.cronParser.Parse(schedule)
 	if err != nil {
 		return false, fmt.Errorf("parsing cron schedule: %w", err)
 	}
 
-	// Get tenant configuration to determine timezone
-	tenantConfig, err := w.tenantConfigurationService.GetOrCreateTenantConfiguration(context.Background(), tenantID, _defaultTimezone)
+	tenantConfig, err := w.tenantConfigurationService.GetOrCreateTenantConfiguration(ctx, tenant, _defaultTimezone)
 	if err != nil {
 		slog.Error("getting tenant configuration for timezone",
-			slog.String("tenant_id", tenantID.String()),
+			slog.String("tenant_id", tenant.ID.String()),
 			slog.String("error", err.Error()))
-		// Fallback to UTC if we can't get tenant configuration
 		tenantConfig, _ = domain.NewTenantConfigurationBuilder().
-			WithTenantID(tenantID).
+			WithTenantID(tenant.ID).
 			WithTimezone(_defaultTimezone).
 			Build()
 	}
 
-	// Load the timezone location
 	location, err := time.LoadLocation(tenantConfig.Timezone)
 	if err != nil {
 		slog.Error("loading timezone location",
 			slog.String("timezone", tenantConfig.Timezone),
-			slog.String("tenant_id", tenantID.String()),
+			slog.String("tenant_id", tenant.ID.String()),
 			slog.String("error", err.Error()))
-		// Fallback to UTC if timezone is invalid
 		location = time.UTC
 	}
 
-	// Get current time in the tenant's timezone
 	now := time.Now().In(location)
 
-	// Convert lastExecuted to the tenant's timezone for comparison
 	lastExecutedInTZ := lastExecuted.In(location)
 
-	// Calculate next run time based on the last executed time in the tenant's timezone
 	nextRun := scheduleSpec.Next(lastExecutedInTZ)
 
 	slog.Debug("evaluating schedule with timezone",
@@ -179,7 +175,6 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(schedule string, lastExecute
 }
 
 func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, scheduledTask domain.ScheduledTask) {
-	// Get the current device to ensure it exists and is up to date
 	device, err := w.deviceService.GetDevice(ctx, scheduledTask.Device.ID)
 	if err != nil {
 		slog.Error("getting device for scheduled task",

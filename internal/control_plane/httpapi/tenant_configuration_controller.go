@@ -44,7 +44,8 @@ func (c *TenantConfigurationController) getTenantConfiguration() http.HandlerFun
 			return
 		}
 
-		config, err := c.service.GetTenantConfiguration(r.Context(), domain.ID(tenantID))
+		tenant := domain.Tenant{ID: domain.ID(tenantID)}
+		config, err := c.service.GetTenantConfiguration(r.Context(), tenant)
 		if errors.Is(err, usecases.ErrTenantConfigurationNotFound) {
 			http.Error(w, tenantConfigurationNotFoundErrMessage, http.StatusNotFound)
 			return
@@ -119,6 +120,7 @@ func (c *TenantConfigurationController) updateTenantConfiguration() http.Handler
 		}
 
 		// Create a configuration object with the update data (version handled internally)
+		tenant := domain.Tenant{ID: domain.ID(tenantID)}
 		config := domain.TenantConfiguration{
 			TenantID: domain.ID(tenantID),
 			Timezone: body.Timezone,
@@ -140,7 +142,7 @@ func (c *TenantConfigurationController) updateTenantConfiguration() http.Handler
 		}
 
 		// Get updated configuration to return
-		config, err = c.service.GetTenantConfiguration(r.Context(), domain.ID(tenantID))
+		config, err = c.service.GetTenantConfiguration(r.Context(), tenant)
 		if err != nil {
 			slog.Error("getting updated tenant configuration", slog.String("error", err.Error()))
 			http.Error(w, getTenantConfigurationErrMessage, http.StatusInternalServerError)

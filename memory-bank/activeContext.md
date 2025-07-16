@@ -17,6 +17,14 @@
 - Next: Test replication functionality with actual data flow
 
 ## Recent Changes
+- ✅ **TenantConfigurationService Interface Update**: Updated GetTenantConfiguration and GetOrCreateTenantConfiguration to receive domain.Tenant instead of domain.ID
+  - Modified interface to accept full tenant object for better context
+  - Updated implementation to use tenant.ID internally
+  - Updated ScheduledTaskWorker to pass tenant object instead of just ID
+  - Updated HTTP controller to create tenant objects from ID for service calls
+  - Updated unit tests to create test tenant objects
+  - Updated documentation to reflect the change
+  - All functional tests continue to pass with the updated interface
 - ✅ **Timezone-Aware Task Creation**: Implemented timezone-aware scheduling for task creation based on scheduled tasks
   - Modified ScheduledTaskWorker to include TenantConfigurationService dependency
   - Updated shouldExecuteSchedule method to use tenant configuration timezone for cron schedule evaluation
@@ -196,6 +204,21 @@
   - Easier to maintain and debug
   - Better IDE support and autocomplete
   - Compile-time error detection
+
+### 🔄 Unit Testing Package Structure
+- **Goal**: Always use a suffix _test package for unit testing to only test public methods
+- **Current Status**: Some tests use internal package testing
+- **Remaining Work**:
+  - Review all existing unit tests
+  - Convert tests that use internal package to use _test package suffix
+  - Ensure all tests only test public methods and interfaces
+  - Update test imports and package declarations
+  - Verify test coverage remains comprehensive
+- **Benefits**:
+  - Better encapsulation testing
+  - Tests only public API surface
+  - More realistic testing scenarios
+  - Better separation of concerns
 
 ## Open Questions / Considerations
 - What additional topic handlers are needed?
