@@ -190,3 +190,32 @@ func (d *APIDriver) CreateTaskFromScheduledTask(tenantID, deviceID, scheduledTas
 	}
 	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s/tasks", d.baseURL, tenantID, deviceID, scheduledTaskID), "application/json", bytes.NewBuffer(reqBody))
 }
+
+func (d *APIDriver) CreateTenantConfiguration(tenantID, timezone string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"timezone": timezone,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/configuration", d.baseURL, tenantID), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) GetTenantConfiguration(tenantID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/configuration", d.baseURL, tenantID))
+}
+
+func (d *APIDriver) UpdateTenantConfiguration(tenantID, timezone string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"timezone": timezone,
+	})
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s/configuration", d.baseURL, tenantID), bytes.NewBuffer(reqBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return d.client.Do(req)
+}

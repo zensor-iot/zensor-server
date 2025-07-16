@@ -93,6 +93,16 @@ type AvroEvaluationRule struct {
 	UpdatedAt   time.Time `avro:"updated_at"`
 }
 
+// AvroTenantConfiguration represents the Avro-compatible TenantConfiguration message
+type AvroTenantConfiguration struct {
+	ID        string    `avro:"id"`
+	TenantID  string    `avro:"tenant_id"`
+	Timezone  string    `avro:"timezone"`
+	Version   int       `avro:"version"`
+	CreatedAt time.Time `avro:"created_at"`
+	UpdatedAt time.Time `avro:"updated_at"`
+}
+
 // Conversion functions to convert from domain types to Avro types
 
 // ToAvroCommand converts a domain.Command to an AvroCommand for serialization
@@ -267,4 +277,18 @@ func ToAvroEvaluationRule(evaluationRule domain.EvaluationRule) *AvroEvaluationR
 	}
 
 	return avroEvaluationRule
+}
+
+// ToAvroTenantConfiguration converts a domain.TenantConfiguration to AvroTenantConfiguration
+func ToAvroTenantConfiguration(config domain.TenantConfiguration) *AvroTenantConfiguration {
+	avroConfig := &AvroTenantConfiguration{
+		ID:        string(config.ID),
+		TenantID:  string(config.TenantID),
+		Timezone:  config.Timezone,
+		Version:   config.Version,
+		CreatedAt: config.CreatedAt,
+		UpdatedAt: config.UpdatedAt,
+	}
+
+	return avroConfig
 }

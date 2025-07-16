@@ -52,6 +52,7 @@ func main() {
 		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTaskController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTenantController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializeTenantConfigurationController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeScheduledTaskController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceSpecificWebSocketController(internalBroker)).(httpserver.Controller),

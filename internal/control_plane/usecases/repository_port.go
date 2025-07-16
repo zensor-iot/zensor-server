@@ -7,9 +7,10 @@ import (
 )
 
 var (
-	ErrDeviceNotFound   = errors.New("device not found")
-	ErrDeviceDuplicated = errors.New("device already exists")
-	ErrCommandOverlap   = errors.New("command overlap detected")
+	ErrDeviceNotFound              = errors.New("device not found")
+	ErrDeviceDuplicated            = errors.New("device already exists")
+	ErrCommandOverlap              = errors.New("command overlap detected")
+	ErrTenantConfigurationNotFound = errors.New("tenant configuration not found")
 )
 
 // Pagination encapsulates pagination parameters for repository queries
@@ -54,4 +55,10 @@ type ScheduledTaskRepository interface {
 	Update(context.Context, domain.ScheduledTask) error
 	GetByID(context.Context, domain.ID) (domain.ScheduledTask, error)
 	Delete(context.Context, domain.ID) error
+}
+
+type TenantConfigurationRepository interface {
+	Create(context.Context, domain.TenantConfiguration) error
+	GetByTenantID(context.Context, domain.ID) (domain.TenantConfiguration, error)
+	Update(context.Context, domain.TenantConfiguration) error
 }

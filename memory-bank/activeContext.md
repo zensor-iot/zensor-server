@@ -1,6 +1,10 @@
 # Active Context
 
 ## Current Focus
+- ✅ **Tenant Configuration Entity Implementation Completed**
+- ✅ **Wire Configuration Integration Completed**
+- ✅ **Database Migration Setup Completed**
+- ✅ **Integration Testing Framework Completed**
 - ✅ Fixed command type mismatch issue in LoraIntegrationWorker
 - ✅ Replication module implementation completed
 - ✅ Replication service wiring completed for local environment
@@ -12,6 +16,46 @@
 - Next: Test replication functionality with actual data flow
 
 ## Recent Changes
+- ✅ **Avro Codec Fix**: Added TenantConfiguration support to Avro serialization
+  - Added TenantConfiguration case to getSchemaForMessage function
+  - Added tenant_configurations schema file mapping
+  - Added AvroTenantConfiguration conversion cases to convertToAvroStruct
+  - Created convertInternalTenantConfiguration method
+  - Fixed Avro serialization error for TenantConfiguration creation
+- ✅ **Timezone Validation Implementation**: Added comprehensive timezone validation for TenantConfiguration
+  - Created timezone validation utility in `internal/infra/utils/timezone.go`
+  - Added validation to domain layer with proper error handling
+  - Updated service layer to handle invalid timezone errors
+  - Added error handling in HTTP API controller for invalid timezones
+  - Created comprehensive tests for timezone validation
+  - Added functional test scenarios for invalid timezone handling
+  - Timezone format: IANA timezone names (e.g., "America/New_York", "Europe/London", "UTC")
+- ✅ **Version Handling Fix**: Removed version from external API for TenantConfiguration
+  - Removed version field from TenantConfigurationUpdateRequest
+  - Updated controller to not pass version from request
+  - Modified service to handle version internally for optimistic locking
+  - Updated functional test step definitions and API driver
+  - Version is now handled internally by the domain model and persistence layer
+- ✅ **Wire Configuration Integration**: Added TenantConfiguration components to dependency injection
+  - Added `InitializeTenantConfigurationController` to wire configuration
+  - Updated main.go to register the new controller
+  - Regenerated wire_gen.go successfully
+- ✅ **Database Migration Setup**: Configured auto-migration for tenant_configurations table
+  - GORM auto-migration is enabled and will create the table on startup
+  - Table structure defined with proper constraints and indexes
+- ✅ **Integration Testing Framework**: Created comprehensive functional tests
+  - Added tenant_configuration.feature with 7 test scenarios
+  - Created step definitions following established patterns
+  - Added APIDriver methods for tenant configuration operations
+  - Registered all step definitions in feature context
+- ✅ **Tenant Configuration Entity**: Created complete implementation including:
+  - Domain model with timezone support and builder pattern
+  - Avro schema and message types
+  - Persistence layer with internal models and repository
+  - Service layer with business logic
+  - HTTP API controller as tenant subresource
+  - Kafka Connect configuration
+  - Comprehensive test coverage
 - ✅ **Task creation response fix verified**: Functional tests confirm commands are now included in task creation response
 - ✅ **Fixed task creation response**: Updated task controller to include commands in the response
 - ✅ **Updated test API driver**: Fixed CreateScheduledTask to use new commands format instead of task
@@ -44,6 +88,9 @@
 - ✅ Updated main.go to properly initialize and start replication service
 
 ## Next Steps
+- **🔄 PENDING: Runtime Testing**: Test TenantConfiguration endpoints with running server
+- **🔄 PENDING: Database Verification**: Verify tenant_configurations table creation
+- **🔄 PENDING: Event Streaming Test**: Verify Kafka messages are published correctly
 - Test the scheduled task refactoring with actual data flow
 - Test the replication module with actual data flow
 - Add more topic handlers (evaluation rules, scheduled tasks)
@@ -53,12 +100,64 @@
 - Test command flow in local mode to verify the fix works correctly
 - **🔄 PENDING: Remove reflection-based Avro mapping in favor of typed structures**
 
+## Tenant Configuration Implementation Status
+- ✅ **Domain Model**: Created TenantConfiguration with timezone support and builder pattern
+- ✅ **Avro Schema**: Created tenant_configuration.avsc with proper field mapping
+- ✅ **Avro Messages**: Added AvroTenantConfiguration struct and conversion function
+- ✅ **Persistence Layer**: Created internal models and repository with ORM integration
+- ✅ **Service Layer**: Implemented TenantConfigurationService with business logic
+- ✅ **HTTP API**: Created controller with GET, POST, PUT endpoints as tenant subresource
+- ✅ **Kafka Connect**: Created postgres-tenant_configurations-sink.json configuration
+- ✅ **Error Handling**: Added ErrTenantConfigurationNotFound and proper error responses
+- ✅ **Testing**: Created comprehensive test coverage for domain and persistence layers
+- ✅ **Wire Configuration**: Added components to dependency injection system
+- ✅ **Database Migration**: Configured auto-migration for tenant_configurations table
+- ✅ **Integration Testing**: Created functional tests with step definitions
+- ⚠️ **Runtime Testing**: Need to test with actual running server
+- ⚠️ **Event Streaming Verification**: Need to verify Kafka message publishing
+
 ## Pending Tasks
+### 🔄 Runtime Testing
+- **Goal**: Test TenantConfiguration endpoints with running server
+- **Current Status**: Integration tests created but need running server
+- **Remaining Work**:
+  - Start the application server
+  - Run functional tests against live endpoints
+  - Verify CRUD operations work correctly
+  - Test error scenarios and edge cases
+- **Benefits**:
+  - End-to-end validation of functionality
+  - Confidence in API behavior
+  - Verification of database persistence
+
+### 🔄 Database Verification
+- **Goal**: Verify tenant_configurations table creation and structure
+- **Current Status**: Auto-migration configured
+- **Remaining Work**:
+  - Start application and verify table creation
+  - Check table structure and constraints
+  - Verify indexes are created correctly
+- **Benefits**:
+  - Confirmation of database setup
+  - Data integrity verification
+
+### 🔄 Event Streaming Test
+- **Goal**: Verify Kafka messages are published correctly
+- **Current Status**: Kafka Connect configuration created
+- **Remaining Work**:
+  - Start Kafka and Schema Registry
+  - Verify messages are published to tenant_configurations topic
+  - Check message format and content
+- **Benefits**:
+  - Validation of event streaming
+  - Confirmation of data replication
+
 ### 🔄 Avro Mapping Refactoring
 - **Goal**: Replace all reflection-based Avro conversion with typed methods
 - **Current Status**: 
   - ✅ `convertDomainDevice` implemented as typed method
   - ✅ `convertInternalDevice` updated to use typed method when possible
+  - ✅ `ToAvroTenantConfiguration` implemented as typed method
   - ⚠️ Other conversion methods still use reflection
 - **Remaining Work**:
   - Create typed `convertDomainTask` method
@@ -84,6 +183,8 @@
 - Should we add support for custom replication strategies?
 - Should we consider creating a shared command interface to avoid type conversion issues?
 - How to handle scheduled task execution history and cleanup?
+- Should we add validation for timezone strings in the API layer?
+- Should we add support for additional configuration options beyond timezone?
 
 ## Scheduled Task Refactoring Status
 - ✅ **Domain Model Changes**: Updated ScheduledTask to use Commands instead of Task
@@ -121,6 +222,9 @@
 - ✅ **PUT /v1/devices/{id}**: Update device display name
 - ✅ **POST /v1/devices/{id}/commands**: Send command to device
 - ✅ **Scheduled Task APIs**: Updated to work with commands instead of task
+- ✅ **GET /v1/tenants/{id}/configuration**: Get tenant configuration (newly implemented)
+- ✅ **POST /v1/tenants/{id}/configuration**: Create tenant configuration (newly implemented)
+- ✅ **PUT /v1/tenants/{id}/configuration**: Update tenant configuration (newly implemented)
 
 ---
 

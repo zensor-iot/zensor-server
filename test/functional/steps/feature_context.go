@@ -121,6 +121,20 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^I should receive cached device states immediately$`, fc.iShouldReceiveCachedDeviceStatesImmediately)
 	ctx.Then(`^the cached states should contain the device data$`, fc.theCachedStatesShouldContainTheDeviceData)
 
+	// Tenant Configuration steps
+	ctx.When(`^I create a tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iCreateATenantConfigurationForTenantWithTimezone)
+	ctx.When(`^I get the tenant configuration for tenant "([^"]*)"$`, fc.iGetTheTenantConfigurationForTenant)
+	ctx.When(`^I update the tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iUpdateTheTenantConfigurationForTenantWithTimezone)
+	ctx.When(`^I update the tenant configuration for tenant "([^"]*)" with timezone "([^"]*)" and version (\d+)$`, fc.iUpdateTheTenantConfigurationForTenantWithTimezoneAndVersion)
+	ctx.Then(`^the tenant configuration should be created successfully$`, fc.theTenantConfigurationShouldBeCreatedSuccessfully)
+	ctx.Then(`^the tenant configuration should be retrieved successfully$`, fc.theTenantConfigurationShouldBeRetrievedSuccessfully)
+	ctx.Then(`^the tenant configuration should be updated successfully$`, fc.theTenantConfigurationShouldBeUpdatedSuccessfully)
+	ctx.Then(`^the response should contain timezone "([^"]*)"$`, fc.theResponseShouldContainTimezone)
+	ctx.Then(`^the response should contain tenant_id "([^"]*)"$`, fc.theResponseShouldContainTenantID)
+	ctx.Given(`^I have a tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iHaveATenantConfigurationForTenantWithTimezone)
+	ctx.Then(`^the response should be "([^"]*)"$`, fc.theResponseShouldBe)
+	ctx.Then(`^the error message should be "([^"]*)"$`, fc.theErrorMessageShouldBe)
+
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
 		fc.require = require.New(fc.t)

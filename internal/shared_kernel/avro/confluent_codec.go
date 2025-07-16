@@ -85,6 +85,8 @@ func (c *ConfluentAvroCodec) getSchemaForMessage(message any) (string, error) {
 		return "tenants", nil
 	case "EvaluationRule", "AvroEvaluationRule":
 		return "evaluation_rules", nil
+	case "TenantConfiguration", "AvroTenantConfiguration":
+		return "tenant_configurations", nil
 	default:
 		return "", fmt.Errorf("no Avro schema found for message type: %s", schemaName)
 	}
@@ -148,12 +150,13 @@ func (c *ConfluentAvroCodec) getCodecByID(schemaID int) (*goavro.Codec, error) {
 func (c *ConfluentAvroCodec) loadSchemaFromFile(schemaName string) (string, error) {
 	// Map schema names to file names
 	schemaFileMap := map[string]string{
-		"tasks":            "task.avsc",
-		"devices":          "device.avsc",
-		"scheduled_tasks":  "scheduled_task.avsc",
-		"tenants":          "tenant.avsc",
-		"evaluation_rules": "evaluation_rule.avsc",
-		"device_commands":  "device_command.avsc",
+		"tasks":                 "task.avsc",
+		"devices":               "device.avsc",
+		"scheduled_tasks":       "scheduled_task.avsc",
+		"tenants":               "tenant.avsc",
+		"evaluation_rules":      "evaluation_rule.avsc",
+		"device_commands":       "device_command.avsc",
+		"tenant_configurations": "tenant_configuration.avsc",
 	}
 
 	fileName, exists := schemaFileMap[schemaName]
@@ -488,6 +491,24 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"created_at":  v.CreatedAt,
 			"updated_at":  v.UpdatedAt,
 		}, nil
+	case *AvroTenantConfiguration:
+		return map[string]any{
+			"id":         v.ID,
+			"tenant_id":  v.TenantID,
+			"timezone":   v.Timezone,
+			"version":    v.Version,
+			"created_at": v.CreatedAt,
+			"updated_at": v.UpdatedAt,
+		}, nil
+	case AvroTenantConfiguration:
+		return map[string]any{
+			"id":         v.ID,
+			"tenant_id":  v.TenantID,
+			"timezone":   v.Timezone,
+			"version":    v.Version,
+			"created_at": v.CreatedAt,
+			"updated_at": v.UpdatedAt,
+		}, nil
 	}
 
 	// Convert original structs to Avro structs
@@ -546,6 +567,11 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			return c.convertInternalCommand(cmd)
 		}
 		return nil, fmt.Errorf("expected *domain.Command, got %T", value)
+	case "TenantConfiguration":
+		if config, ok := value.(*domain.TenantConfiguration); ok {
+			return c.convertInternalTenantConfiguration(config)
+		}
+		return nil, fmt.Errorf("expected *domain.TenantConfiguration, got %T", value)
 	default:
 		return nil, fmt.Errorf("unsupported type for Avro conversion: %T", value)
 	}
@@ -969,22 +995,36 @@ func (c *ConfluentAvroCodec) convertInternalEvaluationRule(er *domain.Evaluation
 
 func (c *ConfluentAvroCodec) convertInternalCommand(cmd *domain.Command) (*AvroCommand, error) {
 	avroCmd := &AvroCommand{
-		ID:            cmd.ID.String(),
+		ID:            string(cmd.ID),
 		Version:       int(cmd.Version),
 		DeviceName:    cmd.Device.Name,
-		DeviceID:      cmd.Device.ID.String(),
-		TaskID:        cmd.Task.ID.String(),
+		DeviceID:      string(cmd.Device.ID),
+		TaskID:        string(cmd.Task.ID),
 		PayloadIndex:  int(cmd.Payload.Index),
 		PayloadValue:  int(cmd.Payload.Value),
 		DispatchAfter: cmd.DispatchAfter.Time,
 		Port:          int(cmd.Port),
 		Priority:      string(cmd.Priority),
-		CreatedAt:     cmd.DispatchAfter.Time, // No CreatedAt in domain.Command, use DispatchAfter
+		CreatedAt:     time.Now(), // Note: domain.Command doesn't have CreatedAt, using current time
 		Ready:         cmd.Ready,
 		Sent:          cmd.Sent,
 		SentAt:        cmd.SentAt.Time,
 	}
+
 	return avroCmd, nil
+}
+
+func (c *ConfluentAvroCodec) convertInternalTenantConfiguration(config *domain.TenantConfiguration) (*AvroTenantConfiguration, error) {
+	avroConfig := &AvroTenantConfiguration{
+		ID:        string(config.ID),
+		TenantID:  string(config.TenantID),
+		Timezone:  config.Timezone,
+		Version:   config.Version,
+		CreatedAt: config.CreatedAt,
+		UpdatedAt: config.UpdatedAt,
+	}
+
+	return avroConfig, nil
 }
 
 // serializeCommandTemplates converts a slice of CommandTemplate to a JSON string
