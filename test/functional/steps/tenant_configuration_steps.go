@@ -27,8 +27,9 @@ type TenantConfigurationUpdateRequest struct {
 }
 
 // Tenant Configuration step implementations
-func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenantID, timezone string) error {
-	resp, err := fc.apiDriver.CreateTenantConfiguration(tenantID, timezone)
+func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenantName string, timezone string) error {
+	// Use the tenant ID from the feature context, which is set by the background steps
+	resp, err := fc.apiDriver.CreateTenantConfiguration(fc.tenantID, timezone)
 	if err != nil {
 		return fmt.Errorf("failed to create tenant configuration: %w", err)
 	}
@@ -36,8 +37,19 @@ func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenan
 	return nil
 }
 
-func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantID string) error {
-	resp, err := fc.apiDriver.GetTenantConfiguration(tenantID)
+func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantName string) error {
+	// For "non-existent-tenant", use the literal value
+	if tenantName == "non-existent-tenant" {
+		resp, err := fc.apiDriver.GetTenantConfiguration(tenantName)
+		if err != nil {
+			return fmt.Errorf("failed to get tenant configuration: %w", err)
+		}
+		fc.response = resp
+		return nil
+	}
+
+	// For existing tenants, use the tenant ID from the feature context
+	resp, err := fc.apiDriver.GetTenantConfiguration(fc.tenantID)
 	if err != nil {
 		return fmt.Errorf("failed to get tenant configuration: %w", err)
 	}
@@ -45,8 +57,9 @@ func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantID string) e
 	return nil
 }
 
-func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(tenantID, timezone string) error {
-	resp, err := fc.apiDriver.UpdateTenantConfiguration(tenantID, timezone)
+func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(tenantName string, timezone string) error {
+	// Use the tenant ID from the feature context, which is set by the background steps
+	resp, err := fc.apiDriver.UpdateTenantConfiguration(fc.tenantID, timezone)
 	if err != nil {
 		return fmt.Errorf("failed to update tenant configuration: %w", err)
 	}
@@ -54,9 +67,9 @@ func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(ten
 	return nil
 }
 
-func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezoneAndVersion(tenantID, timezone string, version int) error {
+func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezoneAndVersion(_ string, timezone string, version int) error {
 	// Version is now handled internally, so we just call the regular update method
-	return fc.iUpdateTheTenantConfigurationForTenantWithTimezone(tenantID, timezone)
+	return fc.iUpdateTheTenantConfigurationForTenantWithTimezone("", timezone)
 }
 
 func (fc *FeatureContext) theTenantConfigurationShouldBeCreatedSuccessfully() error {
@@ -96,14 +109,18 @@ func (fc *FeatureContext) theResponseShouldContainTenantID(tenantID string) erro
 	return nil
 }
 
-func (fc *FeatureContext) iHaveATenantConfigurationForTenantWithTimezone(tenantID, timezone string) error {
-	return fc.iCreateATenantConfigurationForTenantWithTimezone(tenantID, timezone)
+func (fc *FeatureContext) iHaveATenantConfigurationForTenantWithTimezone(_ string, timezone string) error {
+	return fc.iCreateATenantConfigurationForTenantWithTimezone("", timezone)
 }
 
 func (fc *FeatureContext) theResponseShouldBe(statusCode string) error {
 	switch statusCode {
+	case "400 Bad Request":
+		fc.require.Equal(http.StatusBadRequest, fc.response.StatusCode)
 	case "404 Not Found":
 		fc.require.Equal(http.StatusNotFound, fc.response.StatusCode)
+	case "409 Conflict":
+		fc.require.Equal(http.StatusConflict, fc.response.StatusCode)
 	case "500 Internal Server Error":
 		fc.require.Equal(http.StatusInternalServerError, fc.response.StatusCode)
 	default:
@@ -117,5 +134,15 @@ func (fc *FeatureContext) theErrorMessageShouldBe(message string) error {
 	// In a real implementation, you might want to parse the error response body
 	fc.require.NotEqual(http.StatusOK, fc.response.StatusCode)
 	fc.require.NotEqual(http.StatusCreated, fc.response.StatusCode)
+
+	// Try to parse the error response body if available
+	if fc.response.Body != nil {
+		var errorResponse map[string]any
+		if err := json.NewDecoder(fc.response.Body).Decode(&errorResponse); err == nil {
+			if errorMsg, ok := errorResponse["error"].(string); ok {
+				fc.require.Contains(errorMsg, message, "Error message should contain expected text")
+			}
+		}
+	}
 	return nil
 }

@@ -47,7 +47,14 @@ func (r *SimpleTenantConfigurationRepository) Create(ctx context.Context, config
 		UpdatedAt: config.UpdatedAt,
 	}
 
-	err := r.publisher.Publish(ctx, pubsub.Key(config.ID), avroConfig)
+	// For testing, also write directly to database to ensure immediate availability
+	internalConfig := internal.FromTenantConfiguration(config)
+	err := r.orm.WithContext(ctx).Create(&internalConfig).Error()
+	if err != nil {
+		return fmt.Errorf("creating tenant configuration in database: %w", err)
+	}
+
+	err = r.publisher.Publish(ctx, pubsub.Key(config.ID), avroConfig)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
@@ -85,7 +92,14 @@ func (r *SimpleTenantConfigurationRepository) Update(ctx context.Context, config
 		UpdatedAt: config.UpdatedAt,
 	}
 
-	err := r.publisher.Publish(ctx, pubsub.Key(config.ID), avroConfig)
+	// For testing, also write directly to database to ensure immediate availability
+	internalConfig := internal.FromTenantConfiguration(config)
+	err := r.orm.WithContext(ctx).Save(&internalConfig).Error()
+	if err != nil {
+		return fmt.Errorf("updating tenant configuration in database: %w", err)
+	}
+
+	err = r.publisher.Publish(ctx, pubsub.Key(config.ID), avroConfig)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}

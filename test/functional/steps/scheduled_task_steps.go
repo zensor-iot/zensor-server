@@ -235,7 +235,7 @@ func (fc *FeatureContext) theOperationShouldFailWithAnError() error {
 // Background step definitions for scheduled task tasks feature
 
 func (fc *FeatureContext) aTenantWithId(tenantID string) error {
-	// Create a tenant with the specified ID
+	// Create a tenant with the specified name (not ID, since IDs are auto-generated)
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for scheduled task tasks")
 	fc.require.NoError(err)
 
@@ -246,15 +246,26 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 		fc.require.NoError(err)
 		fc.tenantID = data["id"].(string)
 	} else if resp.StatusCode == http.StatusConflict {
-		// If tenant already exists, try to get it
-		getResp, err := fc.apiDriver.GetTenant(tenantID)
+		// If tenant already exists, find it by listing all tenants
+		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
-		fc.require.Equal(http.StatusOK, getResp.StatusCode)
+		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
-		var data map[string]any
-		err = fc.decodeBody(getResp.Body, &data)
+		var listData struct {
+			Data []map[string]any `json:"data"`
+		}
+		err = fc.decodeBody(listResp.Body, &listData)
 		fc.require.NoError(err)
-		fc.tenantID = data["id"].(string)
+
+		// Find the tenant with the given name
+		for _, tenant := range listData.Data {
+			if tenant["name"] == tenantID {
+				fc.tenantID = tenant["id"].(string)
+				return nil
+			}
+		}
+		fc.require.Fail("Tenant with name " + tenantID + " not found in list")
+		return nil
 	} else {
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating tenant")
 	}
@@ -262,7 +273,7 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 }
 
 func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID string) error {
-	// Create a device with the specified ID
+	// Create a device with the specified name (not ID, since IDs are auto-generated)
 	resp, err := fc.apiDriver.CreateDevice(deviceID, deviceID+" Display Name")
 	fc.require.NoError(err)
 
@@ -273,15 +284,26 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 		fc.require.NoError(err)
 		fc.deviceID = data["id"].(string)
 	} else if resp.StatusCode == http.StatusConflict {
-		// If device already exists, try to get it
-		getResp, err := fc.apiDriver.GetDevice(deviceID)
+		// If device already exists, find it by listing all devices
+		listResp, err := fc.apiDriver.ListDevices()
 		fc.require.NoError(err)
-		fc.require.Equal(http.StatusOK, getResp.StatusCode)
+		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
-		var data map[string]any
-		err = fc.decodeBody(getResp.Body, &data)
+		var listData struct {
+			Data []map[string]any `json:"data"`
+		}
+		err = fc.decodeBody(listResp.Body, &listData)
 		fc.require.NoError(err)
-		fc.deviceID = data["id"].(string)
+
+		// Find the device with the given name
+		for _, device := range listData.Data {
+			if device["name"] == deviceID {
+				fc.deviceID = device["id"].(string)
+				return nil
+			}
+		}
+		fc.require.Fail("Device with name " + deviceID + " not found in list")
+		return nil
 	} else {
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating device")
 	}

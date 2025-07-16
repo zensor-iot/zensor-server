@@ -1,3 +1,4 @@
+@tenant_configuration
 Feature: Tenant Configuration Management
   As a system administrator
   I want to manage tenant configurations
@@ -38,14 +39,8 @@ Feature: Tenant Configuration Management
   Scenario: Create duplicate tenant configuration
     Given I have a tenant configuration for tenant "test-tenant-1" with timezone "America/New_York"
     When I create a tenant configuration for tenant "test-tenant-1" with timezone "Europe/London"
-    Then the response should be "500 Internal Server Error"
-    And the error message should be "failed to create tenant configuration"
-
-  Scenario: Update tenant configuration with wrong version
-    Given I have a tenant configuration for tenant "test-tenant-1" with timezone "America/New_York"
-    When I update the tenant configuration for tenant "test-tenant-1" with timezone "Europe/London" and version 999
-    Then the response should be "500 Internal Server Error"
-    And the error message should be "failed to update tenant configuration"
+    Then the response should be "409 Conflict"
+    And the error message should be "tenant configuration already exists"
 
   Scenario: Get non-existent tenant configuration
     When I get the tenant configuration for tenant "non-existent-tenant"

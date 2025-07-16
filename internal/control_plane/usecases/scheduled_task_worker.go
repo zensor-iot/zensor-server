@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"sync"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/robfig/cron/v3"
 	"go.opentelemetry.io/otel"
@@ -19,6 +19,7 @@ import (
 
 const (
 	_metricKeyScheduledTasks = "scheduled_tasks"
+	_defaultTimezone         = "UTC"
 )
 
 func NewScheduledTaskWorker(
@@ -26,29 +27,32 @@ func NewScheduledTaskWorker(
 	scheduledTaskRepository ScheduledTaskRepository,
 	taskService TaskService,
 	deviceService DeviceService,
+	tenantConfigurationService TenantConfigurationService,
 	broker async.InternalBroker,
 ) *ScheduledTaskWorker {
 	return &ScheduledTaskWorker{
-		ticker:                  ticker,
-		scheduledTaskRepository: scheduledTaskRepository,
-		taskService:             taskService,
-		deviceService:           deviceService,
-		broker:                  broker,
-		metricCounters:          make(map[string]metric.Float64Counter),
-		cronParser:              cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow),
+		ticker:                     ticker,
+		scheduledTaskRepository:    scheduledTaskRepository,
+		taskService:                taskService,
+		deviceService:              deviceService,
+		tenantConfigurationService: tenantConfigurationService,
+		broker:                     broker,
+		metricCounters:             make(map[string]metric.Float64Counter),
+		cronParser:                 cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow),
 	}
 }
 
 var _ async.Worker = &ScheduledTaskWorker{}
 
 type ScheduledTaskWorker struct {
-	ticker                  *time.Ticker
-	scheduledTaskRepository ScheduledTaskRepository
-	taskService             TaskService
-	deviceService           DeviceService
-	broker                  async.InternalBroker
-	metricCounters          map[string]metric.Float64Counter
-	cronParser              cron.Parser
+	ticker                     *time.Ticker
+	scheduledTaskRepository    ScheduledTaskRepository
+	taskService                TaskService
+	deviceService              DeviceService
+	tenantConfigurationService TenantConfigurationService
+	broker                     async.InternalBroker
+	metricCounters             map[string]metric.Float64Counter
+	cronParser                 cron.Parser
 }
 
 func (w *ScheduledTaskWorker) Run(ctx context.Context, done func()) {
@@ -107,7 +111,7 @@ func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()
 			lastExecuted = scheduledTask.CreatedAt.Time
 		}
 
-		shouldExecute, err := w.shouldExecuteSchedule(scheduledTask.Schedule, lastExecuted)
+		shouldExecute, err := w.shouldExecuteSchedule(scheduledTask.Schedule, lastExecuted, scheduledTask.Tenant.ID)
 		if err != nil {
 			slog.Error("evaluating schedule",
 				slog.String("scheduled_task_id", scheduledTask.ID.String()),
@@ -124,15 +128,52 @@ func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()
 	slog.Debug("scheduled task evaluation completed", slog.Time("time", time.Now()))
 }
 
-func (w *ScheduledTaskWorker) shouldExecuteSchedule(schedule string, lastExecuted time.Time) (bool, error) {
+func (w *ScheduledTaskWorker) shouldExecuteSchedule(schedule string, lastExecuted time.Time, tenantID domain.ID) (bool, error) {
 	scheduleSpec, err := w.cronParser.Parse(schedule)
 	if err != nil {
 		return false, fmt.Errorf("parsing cron schedule: %w", err)
 	}
 
-	now := time.Now()
+	// Get tenant configuration to determine timezone
+	tenantConfig, err := w.tenantConfigurationService.GetOrCreateTenantConfiguration(context.Background(), tenantID, _defaultTimezone)
+	if err != nil {
+		slog.Error("getting tenant configuration for timezone",
+			slog.String("tenant_id", tenantID.String()),
+			slog.String("error", err.Error()))
+		// Fallback to UTC if we can't get tenant configuration
+		tenantConfig, _ = domain.NewTenantConfigurationBuilder().
+			WithTenantID(tenantID).
+			WithTimezone(_defaultTimezone).
+			Build()
+	}
 
-	nextRun := scheduleSpec.Next(lastExecuted)
+	// Load the timezone location
+	location, err := time.LoadLocation(tenantConfig.Timezone)
+	if err != nil {
+		slog.Error("loading timezone location",
+			slog.String("timezone", tenantConfig.Timezone),
+			slog.String("tenant_id", tenantID.String()),
+			slog.String("error", err.Error()))
+		// Fallback to UTC if timezone is invalid
+		location = time.UTC
+	}
+
+	// Get current time in the tenant's timezone
+	now := time.Now().In(location)
+
+	// Convert lastExecuted to the tenant's timezone for comparison
+	lastExecutedInTZ := lastExecuted.In(location)
+
+	// Calculate next run time based on the last executed time in the tenant's timezone
+	nextRun := scheduleSpec.Next(lastExecutedInTZ)
+
+	slog.Debug("evaluating schedule with timezone",
+		slog.String("schedule", schedule),
+		slog.String("timezone", tenantConfig.Timezone),
+		slog.Time("now", now),
+		slog.Time("last_executed", lastExecutedInTZ),
+		slog.Time("next_run", nextRun),
+		slog.Bool("should_execute", nextRun.Before(now) || nextRun.Equal(now)))
 
 	return nextRun.Before(now) || nextRun.Equal(now), nil
 }

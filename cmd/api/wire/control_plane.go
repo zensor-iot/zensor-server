@@ -127,6 +127,10 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
 		usecases.NewDeviceService,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		persistence.NewTenantConfigurationRepository,
+		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
+		usecases.NewTenantConfigurationService,
+		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
 		usecases.NewScheduledTaskWorker,
 	)
 	return nil, nil

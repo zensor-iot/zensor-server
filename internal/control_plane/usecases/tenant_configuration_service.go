@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	ErrInvalidTimezone = errors.New("invalid timezone")
+	ErrInvalidTimezone                  = errors.New("invalid timezone")
+	ErrTenantConfigurationAlreadyExists = errors.New("tenant configuration already exists")
 )
 
 type TenantConfigurationService interface {
@@ -41,7 +42,7 @@ func (s *SimpleTenantConfigurationService) CreateTenantConfiguration(ctx context
 
 	if existingConfig.ID != "" {
 		slog.Warn("tenant configuration already exists", slog.String("tenant_id", config.TenantID.String()))
-		return fmt.Errorf("tenant configuration already exists for tenant %s", config.TenantID.String())
+		return ErrTenantConfigurationAlreadyExists
 	}
 
 	err = s.repository.Create(ctx, config)

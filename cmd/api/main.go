@@ -133,6 +133,7 @@ func initializeReplicationService() *replication.Service {
 	taskHandler := handleWireInjector(wire.InitializeTaskHandler()).(*handlers.TaskHandler)
 	commandHandler := handleWireInjector(wire.InitializeCommandHandler()).(*handlers.CommandHandler)
 	scheduledTaskHandler := handleWireInjector(wire.InitializeScheduledTaskHandler()).(*handlers.ScheduledTaskHandler)
+	tenantConfigurationHandler := handleWireInjector(wire.InitializeTenantConfigurationHandler()).(*handlers.TenantConfigurationHandler)
 
 	if err := replicationService.RegisterHandler(deviceHandler); err != nil {
 		slog.Error("failed to register device handler", slog.Any("error", err))
@@ -156,6 +157,11 @@ func initializeReplicationService() *replication.Service {
 
 	if err := replicationService.RegisterHandler(scheduledTaskHandler); err != nil {
 		slog.Error("failed to register scheduled task handler", slog.Any("error", err))
+		panic(err)
+	}
+
+	if err := replicationService.RegisterHandler(tenantConfigurationHandler); err != nil {
+		slog.Error("failed to register tenant configuration handler", slog.Any("error", err))
 		panic(err)
 	}
 

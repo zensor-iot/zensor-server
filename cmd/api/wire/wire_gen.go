@@ -158,7 +158,12 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 		return nil, err
 	}
 	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, commandPublisher)
-	scheduledTaskWorker := usecases.NewScheduledTaskWorker(ticker, simpleScheduledTaskRepository, simpleTaskService, simpleDeviceService, broker)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository)
+	scheduledTaskWorker := usecases.NewScheduledTaskWorker(ticker, simpleScheduledTaskRepository, simpleTaskService, simpleDeviceService, simpleTenantConfigurationService, broker)
 	return scheduledTaskWorker, nil
 }
 

@@ -87,6 +87,10 @@ func (c *TenantConfigurationController) createTenantConfiguration() http.Handler
 		}
 
 		err = c.service.CreateTenantConfiguration(r.Context(), config)
+		if errors.Is(err, usecases.ErrTenantConfigurationAlreadyExists) {
+			http.Error(w, createTenantConfigurationErrMessage, http.StatusConflict)
+			return
+		}
 		if err != nil {
 			slog.Error("creating tenant configuration", slog.String("error", err.Error()))
 			http.Error(w, createTenantConfigurationErrMessage, http.StatusInternalServerError)

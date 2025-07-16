@@ -1,6 +1,7 @@
 # Active Context
 
 ## Current Focus
+- ✅ **Timezone-Aware Task Creation Implementation Completed**
 - ✅ **Tenant Configuration Entity Implementation Completed**
 - ✅ **Wire Configuration Integration Completed**
 - ✅ **Database Migration Setup Completed**
@@ -16,6 +17,15 @@
 - Next: Test replication functionality with actual data flow
 
 ## Recent Changes
+- ✅ **Timezone-Aware Task Creation**: Implemented timezone-aware scheduling for task creation based on scheduled tasks
+  - Modified ScheduledTaskWorker to include TenantConfigurationService dependency
+  - Updated shouldExecuteSchedule method to use tenant configuration timezone for cron schedule evaluation
+  - Added fallback to UTC when tenant configuration doesn't exist or timezone is invalid
+  - Updated wire configuration to include tenant configuration service in scheduled task worker
+  - Created comprehensive unit tests for timezone-aware scheduling functionality
+  - Added debug logging for timezone evaluation process
+  - Timezone format: IANA timezone names (e.g., "America/New_York", "Europe/London", "UTC")
+  - Default timezone: UTC when tenant configuration is not available
 - ✅ **Avro Codec Fix**: Added TenantConfiguration support to Avro serialization
   - Added TenantConfiguration case to getSchemaForMessage function
   - Added tenant_configurations schema file mapping
@@ -99,6 +109,17 @@
 - Validate that data published to topics gets persisted to database
 - Test command flow in local mode to verify the fix works correctly
 - **🔄 PENDING: Remove reflection-based Avro mapping in favor of typed structures**
+
+## Timezone-Aware Task Creation Implementation Status
+- ✅ **ScheduledTaskWorker Enhancement**: Added TenantConfigurationService dependency
+- ✅ **Timezone Evaluation**: Updated shouldExecuteSchedule method to use tenant configuration timezone
+- ✅ **Fallback Mechanism**: Implemented UTC fallback when tenant configuration is unavailable
+- ✅ **Wire Configuration**: Updated dependency injection to include tenant configuration service
+- ✅ **Error Handling**: Added proper error handling for timezone loading and tenant configuration retrieval
+- ✅ **Debug Logging**: Added comprehensive debug logging for timezone evaluation process
+- ✅ **Unit Testing**: Created comprehensive unit tests for timezone-aware scheduling functionality
+- ✅ **Build Verification**: Confirmed project builds successfully with new dependencies
+- ⚠️ **Functional Testing**: Need to test with actual running server and scheduled tasks
 
 ## Tenant Configuration Implementation Status
 - ✅ **Domain Model**: Created TenantConfiguration with timezone support and builder pattern
@@ -194,6 +215,7 @@
 - ✅ **Worker Updates**: Modified scheduled task worker to create tasks from commands
 - ✅ **API Updates**: Updated HTTP controller and internal models
 - ✅ **Repository Methods**: Added FindAllByScheduledTask for tracking executions
+- ✅ **Timezone Integration**: Added timezone-aware scheduling using tenant configuration
 - ⚠️ Testing and validation pending
 
 ## Replication Module Status

@@ -106,6 +106,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	// Background steps for scheduled task tasks feature
 	ctx.Given(`^a tenant with id "([^"]*)"$`, fc.aTenantWithId)
+	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.aTenantWithId)
 	ctx.Given(`^a device with id "([^"]*)" belonging to tenant "([^"]*)"$`, fc.aDeviceWithIdBelongingToTenant)
 	ctx.Given(`^a scheduled task with id "([^"]*)" for device "([^"]*)" with schedule "([^"]*)"$`, fc.aScheduledTaskWithIdForDeviceWithSchedule)
 
@@ -126,14 +127,13 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I get the tenant configuration for tenant "([^"]*)"$`, fc.iGetTheTenantConfigurationForTenant)
 	ctx.When(`^I update the tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iUpdateTheTenantConfigurationForTenantWithTimezone)
 	ctx.When(`^I update the tenant configuration for tenant "([^"]*)" with timezone "([^"]*)" and version (\d+)$`, fc.iUpdateTheTenantConfigurationForTenantWithTimezoneAndVersion)
-	ctx.Then(`^the tenant configuration should be created successfully$`, fc.theTenantConfigurationShouldBeCreatedSuccessfully)
-	ctx.Then(`^the tenant configuration should be retrieved successfully$`, fc.theTenantConfigurationShouldBeRetrievedSuccessfully)
-	ctx.Then(`^the tenant configuration should be updated successfully$`, fc.theTenantConfigurationShouldBeUpdatedSuccessfully)
-	ctx.Then(`^the response should contain timezone "([^"]*)"$`, fc.theResponseShouldContainTimezone)
-	ctx.Then(`^the response should contain tenant_id "([^"]*)"$`, fc.theResponseShouldContainTenantID)
 	ctx.Given(`^I have a tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iHaveATenantConfigurationForTenantWithTimezone)
 	ctx.Then(`^the response should be "([^"]*)"$`, fc.theResponseShouldBe)
 	ctx.Then(`^the error message should be "([^"]*)"$`, fc.theErrorMessageShouldBe)
+	ctx.Then(`^the response should contain timezone "([^"]*)"$`, fc.theResponseShouldContainTimezone)
+	ctx.Then(`^the tenant configuration should be created successfully$`, fc.theTenantConfigurationShouldBeCreatedSuccessfully)
+	ctx.Then(`^the tenant configuration should be retrieved successfully$`, fc.theTenantConfigurationShouldBeRetrievedSuccessfully)
+	ctx.Then(`^the tenant configuration should be updated successfully$`, fc.theTenantConfigurationShouldBeUpdatedSuccessfully)
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
