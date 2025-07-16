@@ -19,6 +19,7 @@ import (
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/workers"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
@@ -383,8 +384,34 @@ var (
 // provideDeviceStateCacheService provides a singleton instance of the device state cache service
 func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 	deviceStateCacheOnce.Do(func() {
-		deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
-		slog.Info("device state cache service singleton created")
+		appConfig := provideAppConfig()
+
+		redisCache, err := cache.NewRedisCache(&cache.RedisConfig{
+			Addr:     appConfig.Redis.Addr,
+			Password: appConfig.Redis.Password,
+			DB:       appConfig.Redis.DB,
+		})
+		if err != nil {
+			slog.Error("failed to create Redis cache", slog.String("error", err.Error()))
+
+			deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
+			slog.Info("falling back to simple device state cache service")
+			return
+		}
+
+		deviceStateCacheService, err = persistence.NewRedisDeviceStateCacheService(&persistence.RedisDeviceStateCacheConfig{
+			Cache:      redisCache,
+			KeyPrefix:  "device_state:",
+			DefaultTTL: 24 * time.Hour,
+		})
+		if err != nil {
+			slog.Error("failed to create Redis device state cache service", slog.String("error", err.Error()))
+
+			deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
+			slog.Info("falling back to simple device state cache service")
+			return
+		}
+		slog.Info("Redis device state cache service singleton created")
 	})
 	return deviceStateCacheService
 }

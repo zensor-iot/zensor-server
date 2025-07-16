@@ -150,9 +150,9 @@ func (c *ConfluentAvroCodec) loadSchemaFromFile(schemaName string) (string, erro
 	schemaFileMap := map[string]string{
 		"tasks":            "task.avsc",
 		"devices":          "device.avsc",
-		"scheduled-tasks":  "scheduled_task.avsc",
+		"scheduled_tasks":  "scheduled_task.avsc",
 		"tenants":          "tenant.avsc",
-		"evaluation-rules": "evaluation_rule.avsc",
+		"evaluation_rules": "evaluation_rule.avsc",
 		"device_commands":  "device_command.avsc",
 	}
 
@@ -988,6 +988,7 @@ func (c *ConfluentAvroCodec) convertInternalCommand(cmd *domain.Command) (*AvroC
 }
 
 // serializeCommandTemplates converts a slice of CommandTemplate to a JSON string
+// using only the essential template data without device information
 func (c *ConfluentAvroCodec) serializeCommandTemplates(templates []domain.CommandTemplate) string {
 	if len(templates) == 0 {
 		return "[]"
@@ -997,9 +998,6 @@ func (c *ConfluentAvroCodec) serializeCommandTemplates(templates []domain.Comman
 	var templateMaps []map[string]any
 	for _, template := range templates {
 		templateMap := map[string]any{
-			"device": map[string]any{
-				"id": template.Device.ID.String(),
-			},
 			"port":     int(template.Port),
 			"priority": string(template.Priority),
 			"payload": map[string]any{

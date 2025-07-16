@@ -2,15 +2,14 @@ package persistence
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 const (
@@ -42,29 +41,29 @@ type SimpleScheduledTaskRepository struct {
 }
 
 func (r *SimpleScheduledTaskRepository) Create(ctx context.Context, scheduledTask domain.ScheduledTask) error {
-	// Convert domain scheduled task to Avro scheduled task
+	// Convert domain scheduled task to persistence format
+	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
+
+	// Convert to Avro format
 	avroScheduledTask := &avro.AvroScheduledTask{
-		ID:        scheduledTask.ID.String(),
-		Version:   int64(scheduledTask.Version),
-		TenantID:  scheduledTask.Tenant.ID.String(),
-		DeviceID:  scheduledTask.Device.ID.String(),
-		Schedule:  scheduledTask.Schedule,
-		IsActive:  scheduledTask.IsActive,
-		CreatedAt: scheduledTask.CreatedAt.Time,
-		UpdatedAt: scheduledTask.UpdatedAt.Time,
+		ID:               persistenceScheduledTask.ID,
+		Version:          int64(persistenceScheduledTask.Version),
+		TenantID:         persistenceScheduledTask.TenantID,
+		DeviceID:         persistenceScheduledTask.DeviceID,
+		CommandTemplates: persistenceScheduledTask.CommandTemplates,
+		Schedule:         persistenceScheduledTask.Schedule,
+		IsActive:         persistenceScheduledTask.IsActive,
+		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
+		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
 	}
 
-	// Convert command templates to JSON string
-	commandTemplatesJSON, _ := json.Marshal(scheduledTask.CommandTemplates)
-	avroScheduledTask.CommandTemplates = string(commandTemplatesJSON)
-
-	if scheduledTask.LastExecutedAt != nil {
-		lastExecutedStr := scheduledTask.LastExecutedAt.Time
+	if persistenceScheduledTask.LastExecutedAt != nil {
+		lastExecutedStr := persistenceScheduledTask.LastExecutedAt.Time
 		avroScheduledTask.LastExecutedAt = &lastExecutedStr
 	}
 
-	if scheduledTask.DeletedAt != nil {
-		deletedAtStr := scheduledTask.DeletedAt.Time
+	if persistenceScheduledTask.DeletedAt != nil {
+		deletedAtStr := persistenceScheduledTask.DeletedAt.Time
 		avroScheduledTask.DeletedAt = &deletedAtStr
 	}
 
@@ -154,29 +153,29 @@ func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]do
 }
 
 func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTask domain.ScheduledTask) error {
-	// Convert domain scheduled task to Avro scheduled task
+	// Convert domain scheduled task to persistence format
+	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
+
+	// Convert to Avro format
 	avroScheduledTask := &avro.AvroScheduledTask{
-		ID:        scheduledTask.ID.String(),
-		Version:   int64(scheduledTask.Version),
-		TenantID:  scheduledTask.Tenant.ID.String(),
-		DeviceID:  scheduledTask.Device.ID.String(),
-		Schedule:  scheduledTask.Schedule,
-		IsActive:  scheduledTask.IsActive,
-		CreatedAt: scheduledTask.CreatedAt.Time,
-		UpdatedAt: scheduledTask.UpdatedAt.Time,
+		ID:               persistenceScheduledTask.ID,
+		Version:          int64(persistenceScheduledTask.Version),
+		TenantID:         persistenceScheduledTask.TenantID,
+		DeviceID:         persistenceScheduledTask.DeviceID,
+		CommandTemplates: persistenceScheduledTask.CommandTemplates,
+		Schedule:         persistenceScheduledTask.Schedule,
+		IsActive:         persistenceScheduledTask.IsActive,
+		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
+		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
 	}
 
-	// Convert command templates to JSON string
-	commandTemplatesJSON, _ := json.Marshal(scheduledTask.CommandTemplates)
-	avroScheduledTask.CommandTemplates = string(commandTemplatesJSON)
-
-	if scheduledTask.LastExecutedAt != nil {
-		lastExecutedStr := scheduledTask.LastExecutedAt.Time
+	if persistenceScheduledTask.LastExecutedAt != nil {
+		lastExecutedStr := persistenceScheduledTask.LastExecutedAt.Time
 		avroScheduledTask.LastExecutedAt = &lastExecutedStr
 	}
 
-	if scheduledTask.DeletedAt != nil {
-		deletedAtStr := scheduledTask.DeletedAt.Time
+	if persistenceScheduledTask.DeletedAt != nil {
+		deletedAtStr := persistenceScheduledTask.DeletedAt.Time
 		avroScheduledTask.DeletedAt = &deletedAtStr
 	}
 
@@ -198,29 +197,29 @@ func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID
 	// Soft delete the scheduled task
 	scheduledTask.SoftDelete()
 
-	// Publish the soft-deleted scheduled task
+	// Convert domain scheduled task to persistence format
+	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
+
+	// Convert to Avro format
 	avroScheduledTask := &avro.AvroScheduledTask{
-		ID:        scheduledTask.ID.String(),
-		Version:   int64(scheduledTask.Version),
-		TenantID:  scheduledTask.Tenant.ID.String(),
-		DeviceID:  scheduledTask.Device.ID.String(),
-		Schedule:  scheduledTask.Schedule,
-		IsActive:  scheduledTask.IsActive,
-		CreatedAt: scheduledTask.CreatedAt.Time,
-		UpdatedAt: scheduledTask.UpdatedAt.Time,
+		ID:               persistenceScheduledTask.ID,
+		Version:          int64(persistenceScheduledTask.Version),
+		TenantID:         persistenceScheduledTask.TenantID,
+		DeviceID:         persistenceScheduledTask.DeviceID,
+		CommandTemplates: persistenceScheduledTask.CommandTemplates,
+		Schedule:         persistenceScheduledTask.Schedule,
+		IsActive:         persistenceScheduledTask.IsActive,
+		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
+		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
 	}
 
-	// Convert command templates to JSON string
-	commandTemplatesJSON, _ := json.Marshal(scheduledTask.CommandTemplates)
-	avroScheduledTask.CommandTemplates = string(commandTemplatesJSON)
-
-	if scheduledTask.LastExecutedAt != nil {
-		lastExecutedStr := scheduledTask.LastExecutedAt.Time
+	if persistenceScheduledTask.LastExecutedAt != nil {
+		lastExecutedStr := persistenceScheduledTask.LastExecutedAt.Time
 		avroScheduledTask.LastExecutedAt = &lastExecutedStr
 	}
 
-	if scheduledTask.DeletedAt != nil {
-		deletedAtStr := scheduledTask.DeletedAt.Time
+	if persistenceScheduledTask.DeletedAt != nil {
+		deletedAtStr := persistenceScheduledTask.DeletedAt.Time
 		avroScheduledTask.DeletedAt = &deletedAtStr
 	}
 

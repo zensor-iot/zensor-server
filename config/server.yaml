@@ -9,6 +9,10 @@ kafka:
     - "localhost:19092"
   group: "zensor-server"
   schema_registry: "http://localhost:8081"
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
 mqtt_client:
   broker: nam1.cloud.thethings.network:1883
   client_id: zensor_server_local

@@ -43,6 +43,11 @@ func LoadConfig() AppConfig {
 				Group:          viper.GetString("kafka.group"),
 				SchemaRegistry: viper.GetString("kafka.schema_registry"),
 			},
+			Redis: RedisConfig{
+				Addr:     viper.GetString("redis.addr"),
+				Password: viper.GetString("redis.password"),
+				DB:       viper.GetInt("redis.db"),
+			},
 		}
 	})
 
@@ -55,6 +60,7 @@ type AppConfig struct {
 	MQTTClient MQTTClientConfig
 	Kafka      KafkaConfig
 	Postgresql PostgresqlConfig
+	Redis      RedisConfig
 }
 
 type GeneralConfig struct {
@@ -80,4 +86,10 @@ type KafkaConfig struct {
 
 type PostgresqlConfig struct {
 	DSN string
+}
+
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       int
 }

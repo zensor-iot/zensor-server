@@ -47,7 +47,7 @@ func TestScheduledTaskHandler_Create(t *testing.T) {
 		Version:          1,
 		TenantID:         "tenant-1",
 		DeviceID:         "device-1",
-		CommandTemplates: `[{"device":{"id":"device-1"},"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
+		CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
 		Schedule:         "* * * * *",
 		IsActive:         true,
 		CreatedAt:        utils.Time{Time: time.Now()},
@@ -106,7 +106,7 @@ func TestScheduledTaskHandler_Update(t *testing.T) {
 		Version:          2,
 		TenantID:         "tenant-1",
 		DeviceID:         "device-1",
-		CommandTemplates: `[{"device":{"id":"device-1"},"port":15,"priority":"HIGH","payload":{"index":2,"value":200},"wait_for":"10s"}]`,
+		CommandTemplates: `[{"port":15,"priority":"HIGH","payload":{"index":2,"value":200},"wait_for":"10s"}]`,
 		Schedule:         "*/5 * * * *",
 		IsActive:         false,
 		CreatedAt:        utils.Time{Time: time.Now()},
@@ -134,7 +134,7 @@ func TestScheduledTaskHandler_ExtractScheduledTaskFields(t *testing.T) {
 		Version:          1,
 		TenantID:         "tenant-1",
 		DeviceID:         "device-1",
-		CommandTemplates: `[{"device":{"id":"device-1"},"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
+		CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
 		Schedule:         "* * * * *",
 		IsActive:         true,
 		CreatedAt:        createdAt.Time,
@@ -147,7 +147,7 @@ func TestScheduledTaskHandler_ExtractScheduledTaskFields(t *testing.T) {
 	assert.Equal(t, 1, result.Version)
 	assert.Equal(t, "tenant-1", result.TenantID)
 	assert.Equal(t, "device-1", result.DeviceID)
-	assert.Equal(t, `[{"device":{"id":"device-1"},"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`, result.CommandTemplates)
+	assert.Equal(t, `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`, result.CommandTemplates)
 	assert.Equal(t, "* * * * *", result.Schedule)
 	assert.True(t, result.IsActive)
 	assert.Equal(t, createdAt, result.CreatedAt)
@@ -163,7 +163,7 @@ func TestScheduledTaskHandler_ToDomainScheduledTask(t *testing.T) {
 		Version:          1,
 		TenantID:         "tenant-1",
 		DeviceID:         "device-1",
-		CommandTemplates: `[{"device":{"id":"device-1"},"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
+		CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
 		Schedule:         "* * * * *",
 		IsActive:         true,
 		CreatedAt:        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
@@ -179,7 +179,7 @@ func TestScheduledTaskHandler_ToDomainScheduledTask(t *testing.T) {
 		"version":           1,
 		"tenant_id":         "tenant-1",
 		"device_id":         "device-1",
-		"command_templates": `[{"device":{"id":"device-1"},"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
+		"command_templates": `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
 		"schedule":          "* * * * *",
 		"is_active":         true,
 		"created_at":        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},

@@ -33,7 +33,7 @@ services:
       - zensor
 
   kafka-connect:
-    image: cp-kafka-connect:8.0.0-1
+    image: ghcr.io/zensor-iot/zensor-infra/kafka-connect:0.3.0
     ports:
       - "8083:8083"
     environment:
@@ -60,7 +60,7 @@ services:
       - kafka
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.1
+    image: ghcr.io/zensor-iot/zensor-infra/schema-registry:0.5.2
     depends_on:
       - kafka
     ports:
@@ -80,6 +80,17 @@ services:
       - pgdata:/bitnami/postgresql
     ports:
       - "5432:5432"
+    networks:
+      - zensor
+
+  redis:
+    image: bitnami/valkey:8.1.3
+    environment:
+      ALLOW_EMPTY_PASSWORD: true
+    volumes:
+      - redisdata:/bitnami/redis
+    ports:
+      - "6379:6379"
     networks:
       - zensor
 
@@ -117,6 +128,8 @@ services:
 volumes:
   pgdata:
     driver: local
+  redisdata:
+    driver: local
 
 networks:
   zensor:
@@ -137,6 +150,10 @@ configs:
           - "kafka:9092"
         group: "zensor-server"
         schema_registry: "http://schema-registry:8081"
+      redis:
+        addr: "redis:6379"
+        password: ""
+        db: 0
       mqtt_client:
         broker: nam1.cloud.thethings.network:1883
         client_id: zensor_server_local

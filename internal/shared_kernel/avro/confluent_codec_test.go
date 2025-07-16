@@ -323,8 +323,8 @@ func TestConfluentAvroCodec_SerializeCommandTemplates(t *testing.T) {
 	templates := []domain.CommandTemplate{template}
 	result := codec.serializeCommandTemplates(templates)
 
-	// Verify the JSON structure
-	assert.Contains(t, result, `"device":{"id":"dev-123"}`)
+	// Verify the JSON structure (new format without device information)
+	assert.NotContains(t, result, `"device"`) // Should not contain device information
 	assert.Contains(t, result, `"port":15`)
 	assert.Contains(t, result, `"priority":"NORMAL"`)
 	assert.Contains(t, result, `"payload":{"index":1,"value":100}`)

@@ -166,6 +166,7 @@ func ToAvroDevice(device domain.Device) *AvroDevice {
 }
 
 // serializeCommandTemplates converts a slice of CommandTemplate to a JSON string
+// using only the essential template data without device information
 func serializeCommandTemplates(templates []domain.CommandTemplate) string {
 	if len(templates) == 0 {
 		return "[]"
@@ -175,9 +176,6 @@ func serializeCommandTemplates(templates []domain.CommandTemplate) string {
 	var templateMaps []map[string]any
 	for _, template := range templates {
 		templateMap := map[string]any{
-			"device": map[string]any{
-				"id": template.Device.ID.String(),
-			},
 			"port":     int(template.Port),
 			"priority": string(template.Priority),
 			"payload": map[string]any{
