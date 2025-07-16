@@ -243,12 +243,12 @@ func (wsc *DeviceSpecificWebSocketController) run() {
 
 func (wsc *DeviceSpecificWebSocketController) sendMessageToDeviceClients(deviceID string, message DeviceSpecificMessage) {
 	wsc.clientsMux.RLock()
-	defer wsc.clientsMux.RUnlock()
-
+	clientsToRemove := make([]*websocket.Conn, 0)
 	for conn, clientSub := range wsc.clients {
 		if clientSub.deviceID == deviceID {
 			select {
 			case <-wsc.ctx.Done():
+				wsc.clientsMux.RUnlock()
 				return
 			default:
 				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
@@ -256,11 +256,31 @@ func (wsc *DeviceSpecificWebSocketController) sendMessageToDeviceClients(deviceI
 					slog.Error("failed to write message to device-specific websocket client",
 						slog.String("device_id", deviceID),
 						slog.String("error", err.Error()))
-					conn.Close()
-					delete(wsc.clients, conn)
+					clientsToRemove = append(clientsToRemove, conn)
 				}
 			}
 		}
+	}
+	wsc.clientsMux.RUnlock()
+
+	// Remove failed clients with proper synchronization
+	if len(clientsToRemove) > 0 {
+		wsc.clientsMux.Lock()
+		for _, conn := range clientsToRemove {
+			if _, ok := wsc.clients[conn]; ok {
+				delete(wsc.clients, conn)
+				// Close connection in a safe way
+				go func(c *websocket.Conn) {
+					defer func() {
+						if r := recover(); r != nil {
+							slog.Warn("recovered from panic while closing websocket", slog.Any("panic", r))
+						}
+					}()
+					c.Close()
+				}(conn)
+			}
+		}
+		wsc.clientsMux.Unlock()
 	}
 }
 

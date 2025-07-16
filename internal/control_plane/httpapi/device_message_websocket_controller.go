@@ -183,6 +183,7 @@ func (wsc *DeviceMessageWebSocketController) run() {
 
 		case message := <-wsc.broadcast:
 			wsc.clientsMux.RLock()
+			clientsToRemove := make([]*websocket.Conn, 0)
 			for client := range wsc.clients {
 				select {
 				case <-wsc.ctx.Done():
@@ -192,12 +193,31 @@ func (wsc *DeviceMessageWebSocketController) run() {
 					client.SetWriteDeadline(time.Now().Add(10 * time.Second))
 					if err := client.WriteJSON(message); err != nil {
 						slog.Error("failed to write message to websocket client", slog.String("error", err.Error()))
-						client.Close()
-						delete(wsc.clients, client)
+						clientsToRemove = append(clientsToRemove, client)
 					}
 				}
 			}
 			wsc.clientsMux.RUnlock()
+
+			// Remove failed clients with proper synchronization
+			if len(clientsToRemove) > 0 {
+				wsc.clientsMux.Lock()
+				for _, client := range clientsToRemove {
+					if _, ok := wsc.clients[client]; ok {
+						delete(wsc.clients, client)
+						// Close connection in a safe way
+						go func(c *websocket.Conn) {
+							defer func() {
+								if r := recover(); r != nil {
+									slog.Warn("recovered from panic while closing websocket", slog.Any("panic", r))
+								}
+							}()
+							c.Close()
+						}(client)
+					}
+				}
+				wsc.clientsMux.Unlock()
+			}
 
 		case brokerMsg := <-subscription.Receiver:
 			if brokerMsg.Event == "uplink" {

@@ -17,6 +17,18 @@
 - Next: Test replication functionality with actual data flow
 
 ## Recent Changes
+- ✅ **Critical WebSocket Race Condition Fix**: Fixed panic-inducing race condition in websocket controllers
+  - **Problem**: Multiple goroutines could simultaneously write to the same websocket connection, causing panics when one goroutine closed the connection while another was still writing
+  - **Root Cause**: In broadcast message handling, failed connections were immediately closed and removed from the clients map while holding only a read lock, allowing concurrent access
+  - **Solution**: 
+    - Collect failed clients in a slice during read-locked iteration
+    - Release read lock before modifying the clients map
+    - Acquire write lock to safely remove clients from the map
+    - Close connections in separate goroutines with panic recovery
+  - **Files Fixed**: 
+    - `device_message_websocket_controller.go` - Fixed broadcast message handling
+    - `device_specific_websocket_controller.go` - Fixed device-specific message handling
+  - **Impact**: Prevents application crashes in production when multiple websocket connections are active
 - ✅ **TenantConfigurationService Interface Update**: Updated GetTenantConfiguration and GetOrCreateTenantConfiguration to receive domain.Tenant instead of domain.ID
   - Modified interface to accept full tenant object for better context
   - Updated implementation to use tenant.ID internally
