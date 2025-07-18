@@ -26,6 +26,27 @@ type TenantConfigurationUpdateRequest struct {
 	Timezone string `json:"timezone"`
 }
 
+// iHaveATenantWithIdForConfiguration is a simplified version for tenant configuration tests
+func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) error {
+	// Create a tenant with the specified ID
+	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for configuration")
+	fc.require.NoError(err)
+
+	// Accept both 201 (Created) and 409 (Conflict - already exists)
+	if resp.StatusCode == http.StatusCreated {
+		var data map[string]any
+		err = fc.decodeBody(resp.Body, &data)
+		fc.require.NoError(err)
+		fc.tenantID = data["id"].(string)
+	} else if resp.StatusCode == http.StatusConflict {
+		// If tenant already exists, just use the provided ID
+		fc.tenantID = tenantID
+	} else {
+		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating tenant")
+	}
+	return nil
+}
+
 // Tenant Configuration step implementations
 func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenantName string, timezone string) error {
 	// Use the tenant ID from the feature context, which is set by the background steps

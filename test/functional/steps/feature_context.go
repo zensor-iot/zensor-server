@@ -106,7 +106,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	// Background steps for scheduled task tasks feature
 	ctx.Given(`^a tenant with id "([^"]*)"$`, fc.aTenantWithId)
-	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.aTenantWithId)
+	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.iHaveATenantWithIdForConfiguration)
 	ctx.Given(`^a device with id "([^"]*)" belonging to tenant "([^"]*)"$`, fc.aDeviceWithIdBelongingToTenant)
 	ctx.Given(`^a scheduled task with id "([^"]*)" for device "([^"]*)" with schedule "([^"]*)"$`, fc.aScheduledTaskWithIdForDeviceWithSchedule)
 
@@ -123,6 +123,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the cached states should contain the device data$`, fc.theCachedStatesShouldContainTheDeviceData)
 
 	// Tenant Configuration steps
+	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.iHaveATenantWithIdForConfiguration)
 	ctx.When(`^I create a tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iCreateATenantConfigurationForTenantWithTimezone)
 	ctx.When(`^I get the tenant configuration for tenant "([^"]*)"$`, fc.iGetTheTenantConfigurationForTenant)
 	ctx.When(`^I update the tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iUpdateTheTenantConfigurationForTenantWithTimezone)

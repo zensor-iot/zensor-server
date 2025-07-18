@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 var (
@@ -16,19 +16,19 @@ var (
 
 func NewDeviceService(
 	repository DeviceRepository,
-	publisher CommandPublisher,
+	commandRepository CommandRepository,
 ) *SimpleDeviceService {
 	return &SimpleDeviceService{
 		repository,
-		publisher,
+		commandRepository,
 	}
 }
 
 var _ DeviceService = &SimpleDeviceService{}
 
 type SimpleDeviceService struct {
-	repository DeviceRepository
-	publisher  CommandPublisher
+	repository        DeviceRepository
+	commandRepository CommandRepository
 }
 
 func (s *SimpleDeviceService) CreateDevice(ctx context.Context, device domain.Device) error {
@@ -118,7 +118,7 @@ func (s *SimpleDeviceService) QueueCommand(ctx context.Context, cmd domain.Comma
 	}
 
 	cmd.Device = device
-	err = s.publisher.Dispatch(ctx, cmd)
+	err = s.commandRepository.Create(ctx, cmd)
 	if err != nil {
 		return fmt.Errorf("dispatch event: %w", err)
 	}

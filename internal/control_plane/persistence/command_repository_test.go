@@ -3,8 +3,12 @@ package persistence
 import (
 	"context"
 	"testing"
-	"zensor-server/internal/shared_kernel/domain"
+	"time"
+	"zensor-server/internal/control_plane/persistence/internal"
+	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,7 +49,10 @@ func TestNewCommandRepository(t *testing.T) {
 	err = setupTestTables(orm)
 	require.NoError(t, err)
 
-	repo, err := NewCommandRepository(orm)
+	// Create a mock publisher factory for testing
+	mockFactory := pubsub.NewMemoryPublisherFactory()
+
+	repo, err := NewCommandRepository(orm, mockFactory)
 	require.NoError(t, err)
 	assert.NotNil(t, repo)
 }
@@ -58,7 +65,10 @@ func TestSimpleCommandRepository_FindAllPending(t *testing.T) {
 	err = setupTestTables(orm)
 	require.NoError(t, err)
 
-	repo, err := NewCommandRepository(orm)
+	// Create a mock publisher factory for testing
+	mockFactory := pubsub.NewMemoryPublisherFactory()
+
+	repo, err := NewCommandRepository(orm, mockFactory)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -75,7 +85,10 @@ func TestSimpleCommandRepository_FindPendingByDevice(t *testing.T) {
 	err = setupTestTables(orm)
 	require.NoError(t, err)
 
-	repo, err := NewCommandRepository(orm)
+	// Create a mock publisher factory for testing
+	mockFactory := pubsub.NewMemoryPublisherFactory()
+
+	repo, err := NewCommandRepository(orm, mockFactory)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -93,7 +106,10 @@ func TestSimpleCommandRepository_FindByTaskID(t *testing.T) {
 	err = setupTestTables(orm)
 	require.NoError(t, err)
 
-	repo, err := NewCommandRepository(orm)
+	// Create a mock publisher factory for testing
+	mockFactory := pubsub.NewMemoryPublisherFactory()
+
+	repo, err := NewCommandRepository(orm, mockFactory)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -101,4 +117,130 @@ func TestSimpleCommandRepository_FindByTaskID(t *testing.T) {
 	commands, err := repo.FindByTaskID(ctx, taskID)
 	require.NoError(t, err)
 	assert.Empty(t, commands)
+}
+
+func TestSimpleCommandRepository_Create(t *testing.T) {
+	orm, err := sql.NewMemoryORM("migrations")
+	require.NoError(t, err)
+
+	// Create test tables
+	err = setupTestTables(orm)
+	require.NoError(t, err)
+
+	// Create a mock publisher factory for testing
+	mockFactory := pubsub.NewMemoryPublisherFactory()
+
+	repo, err := NewCommandRepository(orm, mockFactory)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	cmd := domain.Command{
+		ID:       domain.ID("test-command-id"),
+		Version:  domain.Version(1),
+		Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
+		Task:     domain.Task{ID: domain.ID("test-task-id-create")},
+		Port:     domain.Port(15),
+		Priority: domain.CommandPriority("NORMAL"),
+		Payload: domain.CommandPayload{
+			Index: domain.Index(0),
+			Value: domain.CommandValue(100),
+		},
+		DispatchAfter: utils.Time{Time: time.Now()},
+		Ready:         false,
+		Sent:          false,
+		CreatedAt:     utils.Time{Time: time.Now()},
+	}
+
+	err = repo.Create(ctx, cmd)
+	require.NoError(t, err)
+
+	// Note: In the event-driven architecture, the database update happens through
+	// the replication layer consuming Kafka events, not directly in the repository
+}
+
+func TestSimpleCommandRepository_Update(t *testing.T) {
+	orm, err := sql.NewMemoryORM("migrations")
+	require.NoError(t, err)
+
+	// Create test tables
+	err = setupTestTables(orm)
+	require.NoError(t, err)
+
+	// Create a mock publisher factory for testing
+	mockFactory := pubsub.NewMemoryPublisherFactory()
+
+	repo, err := NewCommandRepository(orm, mockFactory)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	cmd := domain.Command{
+		ID:       domain.ID("test-command-id-update"),
+		Version:  domain.Version(1),
+		Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
+		Task:     domain.Task{ID: domain.ID("test-task-id-update")},
+		Port:     domain.Port(15),
+		Priority: domain.CommandPriority("NORMAL"),
+		Payload: domain.CommandPayload{
+			Index: domain.Index(0),
+			Value: domain.CommandValue(100),
+		},
+		DispatchAfter: utils.Time{Time: time.Now()},
+		Ready:         false,
+		Sent:          false,
+		CreatedAt:     utils.Time{Time: time.Now()},
+	}
+
+	// First create the command in the database (simulating replication layer)
+	internalCmd := internal.FromCommand(cmd)
+	err = orm.WithContext(ctx).Create(&internalCmd).Error()
+	require.NoError(t, err)
+
+	// Now update it through the repository (which publishes to Kafka)
+	cmd.Ready = true
+	cmd.Sent = true
+	cmd.SentAt = utils.Time{Time: time.Now()}
+
+	err = repo.Update(ctx, cmd)
+	require.NoError(t, err)
+
+	// Note: In the event-driven architecture, the database update happens through
+	// the replication layer consuming Kafka events, not directly in the repository
+}
+
+func TestSimpleCommandRepository_Update_NotFound(t *testing.T) {
+	orm, err := sql.NewMemoryORM("migrations")
+	require.NoError(t, err)
+
+	// Create test tables
+	err = setupTestTables(orm)
+	require.NoError(t, err)
+
+	// Create a mock publisher factory for testing
+	mockFactory := pubsub.NewMemoryPublisherFactory()
+
+	repo, err := NewCommandRepository(orm, mockFactory)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	cmd := domain.Command{
+		ID:       domain.ID("non-existent-command-id"),
+		Version:  domain.Version(1),
+		Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
+		Task:     domain.Task{ID: domain.ID("test-task-id")},
+		Port:     domain.Port(15),
+		Priority: domain.CommandPriority("NORMAL"),
+		Payload: domain.CommandPayload{
+			Index: domain.Index(0),
+			Value: domain.CommandValue(100),
+		},
+		DispatchAfter: utils.Time{Time: time.Now()},
+		Ready:         true,
+		Sent:          true,
+		CreatedAt:     utils.Time{Time: time.Now()},
+	}
+
+	// Try to update a non-existent command
+	err = repo.Update(ctx, cmd)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "command not found")
 }

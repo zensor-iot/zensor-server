@@ -24,13 +24,11 @@ const (
 func NewCommandWorker(
 	ticker *time.Ticker,
 	commandRepository CommandRepository,
-	publisher CommandPublisher,
 	broker async.InternalBroker,
 ) *CommandWorker {
 	return &CommandWorker{
 		ticker:            ticker,
 		commandRepository: commandRepository,
-		publisher:         publisher,
 		broker:            broker,
 		metricCounters:    make(map[string]metric.Float64Counter),
 	}
@@ -39,7 +37,6 @@ func NewCommandWorker(
 type CommandWorker struct {
 	ticker            *time.Ticker
 	commandRepository CommandRepository
-	publisher         CommandPublisher
 	broker            async.InternalBroker
 	metricCounters    map[string]metric.Float64Counter
 }
@@ -109,7 +106,11 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 	}
 
 	cmd.Ready = true
-	w.publisher.Dispatch(ctx, cmd)
+	err := w.commandRepository.Update(ctx, cmd)
+	if err != nil {
+		slog.Error("failed to update command", slog.Any("error", err))
+		return
+	}
 
 	slog.Debug("new message ready to be sent", slog.String("id", cmd.ID.String()))
 
@@ -142,8 +143,10 @@ func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Comman
 		Sent:          true,
 		SentAt:        utils.Time{Time: time.Now()},
 	}
-	if err := w.publisher.Dispatch(ctx, domainCmd); err != nil {
-		slog.Warn("failed to dispatch command", slog.Any("error", err))
+
+	err := w.commandRepository.Update(ctx, domainCmd)
+	if err != nil {
+		slog.Warn("failed to update command", slog.Any("error", err))
 	}
 
 	attributes := []attribute.KeyValue{

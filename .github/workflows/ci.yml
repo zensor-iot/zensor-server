@@ -91,6 +91,7 @@ jobs:
           just functional "@task"
           just functional "@device"
           just functional "@scheduled_task"
+          just functional "@tenant_configuration"
         env:
           ENV: local
 

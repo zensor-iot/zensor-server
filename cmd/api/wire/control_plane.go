@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 	"zensor-server/cmd/config"
-	"zensor-server/internal/control_plane/communication"
 	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/usecases"
@@ -28,7 +27,6 @@ import (
 func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, error) {
 	wire.Build(
 		provideAppConfig,
-		providePublisherFactoryForEnvironment,
 		persistence.NewEvaluationRuleRepository,
 		wire.Bind(new(usecases.EvaluationRuleRepository), new(*persistence.EvaluationRuleRepository)),
 		DeviceServiceSet,
@@ -43,7 +41,6 @@ func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, er
 func InitializeDeviceController() (*httpapi.DeviceController, error) {
 	wire.Build(
 		provideAppConfig,
-		providePublisherFactoryForEnvironment,
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		httpapi.NewDeviceController,
@@ -60,8 +57,6 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 		persistence.NewTaskRepository,
 		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
 		provideDatabase,
-		communication.NewCommandPublisher,
-		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
 		persistence.NewDeviceRepository,
 		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
 		persistence.NewCommandRepository,
@@ -85,8 +80,6 @@ func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, erro
 		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
 		persistence.NewDeviceRepository,
 		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
-		communication.NewCommandPublisher,
-		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
 		usecases.NewDeviceService,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		persistence.NewTenantRepository,
@@ -123,8 +116,6 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleCommandRepository)),
 		usecases.NewTaskService,
 		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
-		communication.NewCommandPublisher,
-		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
 		usecases.NewDeviceService,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		persistence.NewTenantConfigurationRepository,
@@ -139,7 +130,6 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 func InitializeTenantController() (*httpapi.TenantController, error) {
 	wire.Build(
 		provideAppConfig,
-		providePublisherFactoryForEnvironment,
 		persistence.NewTenantRepository,
 		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
 		DeviceServiceSet,
@@ -170,7 +160,6 @@ func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationCont
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	wire.Build(
 		provideAppConfig,
-		providePublisherFactoryForEnvironment,
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 	)
@@ -181,7 +170,6 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker, consumerFactory pubsub.ConsumerFactory) (*workers.LoraIntegrationWorker, error) {
 	wire.Build(
 		provideAppConfig,
-		providePublisherFactoryForEnvironment,
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		provideDeviceStateCacheService,
@@ -194,8 +182,9 @@ var DeviceServiceSet = wire.NewSet(
 	provideDatabase,
 	persistence.NewDeviceRepository,
 	wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
-	communication.NewCommandPublisher,
-	wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
+	providePublisherFactoryForEnvironment,
+	persistence.NewCommandRepository,
+	wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleCommandRepository)),
 	usecases.NewDeviceService,
 )
 
@@ -253,8 +242,6 @@ func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWork
 		provideTicker,
 		provideDatabase,
 		providePublisherFactoryForEnvironment,
-		communication.NewCommandPublisher,
-		wire.Bind(new(usecases.CommandPublisher), new(*communication.CommandPublisher)),
 		persistence.NewCommandRepository,
 		wire.Bind(new(usecases.CommandRepository), new(*persistence.SimpleCommandRepository)),
 		usecases.NewCommandWorker,

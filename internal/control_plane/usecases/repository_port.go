@@ -31,6 +31,8 @@ type DeviceRepository interface {
 }
 
 type CommandRepository interface {
+	Create(context.Context, domain.Command) error
+	Update(context.Context, domain.Command) error
 	FindAllPending(context.Context) ([]domain.Command, error)
 	FindPendingByDevice(context.Context, domain.ID) ([]domain.Command, error)
 	FindByTaskID(context.Context, domain.ID) ([]domain.Command, error)
