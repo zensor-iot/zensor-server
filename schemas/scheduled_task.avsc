@@ -12,6 +12,6 @@
     {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
     {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
     {"name": "last_executed_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}]},
-    {"name": "deleted_at", "type": ["null", "string", {"type": "long", "logicalType": "timestamp-millis"}]}
+    {"name": "deleted_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}]}
   ]
 } 
