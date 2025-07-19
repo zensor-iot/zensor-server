@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // In-memory implementation for testing
@@ -33,7 +36,15 @@ type MemoryPublisher struct {
 }
 
 func (p *MemoryPublisher) Publish(ctx context.Context, key Key, message Message) error {
-	slog.Debug("publishing message", slog.String("key", string(key)))
+	span := trace.SpanFromContext(ctx)
+	slog.Debug("publishing message",
+		slog.String("key", string(key)),
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
+	)
+
+	// For memory implementation, we don't wrap messages since there are no headers
+	// but we still log trace information for debugging
 	return p.broker.Publish(p.topic, key, message)
 }
 
@@ -195,8 +206,18 @@ func (b *MemoryBroker) processSubscribers(topicChan *TopicChannel, event Message
 						}
 					}()
 
+					// Create a new context with a span for message processing
+					ctx, span := CreateChildSpan(context.Background(), "memory.message.process",
+						trace.WithAttributes(
+							attribute.String("memory.topic", string(event.Topic)),
+							attribute.String("memory.key", string(event.Key)),
+						),
+					)
+					defer span.End()
+
 					// Call the handler with context, key and message
-					if err := c.Handler(context.Background(), event.Key, event.Message); err != nil {
+					if err := c.Handler(ctx, event.Key, event.Message); err != nil {
+						span.RecordError(err)
 						fmt.Printf("error in message handler: %v\n", err)
 					}
 				}(consumer)

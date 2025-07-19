@@ -1,194 +1,155 @@
-# PubSub Infrastructure
+# PubSub Package
 
-This package provides a pubsub infrastructure with support for both Kafka and in-memory implementations.
+This package provides a unified interface for publish-subscribe messaging with support for both Kafka and in-memory implementations.
 
-## Overview
+## Features
 
-The pubsub package includes:
-- **Kafka implementation**: For production use with real Kafka brokers
-- **In-memory implementation**: For testing and local development without external dependencies
-- **Factory pattern**: Switches between implementations based on environment parameter
+- **Unified Interface**: Common interfaces for publishers and consumers
+- **Multiple Backends**: Support for Kafka (via Goka) and in-memory messaging
+- **OpenTelemetry Integration**: Automatic trace propagation through Kafka headers
+- **Schema Support**: Avro schema registry integration for Kafka
+- **Factory Pattern**: Easy creation of publishers and consumers
 
-## Usage
+## OpenTelemetry Trace Propagation
 
-### Basic Usage
+The package automatically propagates OpenTelemetry trace context through Kafka messages using Kafka headers. This enables distributed tracing across services that communicate via Kafka.
+
+### How it Works
+
+1. **Publishing**: When a message is published, the current trace context is extracted and serialized into Kafka headers
+2. **Consuming**: When a message is consumed, the trace context is extracted from Kafka headers and injected into the consumer context
+3. **Child Spans**: Each message processing creates a child span for observability
+
+### Usage
+
+#### Publishing with Trace Context
 
 ```go
-import "zensor-server/internal/infra/pubsub"
+// Create a context with a span
+ctx, span := tracer.Start(context.Background(), "publish.message")
+defer span.End()
 
-// Create a factory
-factory := pubsub.NewFactory(pubsub.FactoryOptions{
-    Environment:       "local", // or "production"
-    KafkaBrokers:      []string{"localhost:9092"},
-    ConsumerGroup:     "my-app",
-    SchemaRegistryURL: "http://localhost:8081", // Required for Kafka environments
-})
+// Publish message - trace context is automatically included in Kafka headers
+err := publisher.Publish(ctx, "message-key", message)
+```
 
-// Get publisher factory
-publisherFactory := factory.GetPublisherFactory()
+#### Consuming with Trace Context
 
-// Create a publisher
-publisher, err := publisherFactory.New("my-topic", "message-type")
-if err != nil {
-    // handle error
-}
-
-// Publish a message
-err = publisher.Publish(context.Background(), "key", "message")
-if err != nil {
-    // handle error
-}
-
-// Get consumer factory
-consumerFactory := factory.GetConsumerFactory()
-
-// Create a consumer
-consumer := consumerFactory.New()
-
-// Define message handler
-handler := func(prototype pubsub.Prototype) error {
+```go
+// The handler receives a context with trace context already injected
+handler := func(ctx context.Context, key pubsub.Key, message pubsub.Prototype) error {
+    // Create a child span for message processing
+    spanCtx, span := pubsub.CreateChildSpan(ctx, "process.message")
+    defer span.End()
+    
+    // Add custom attributes
+    span.SetAttributes(attribute.String("message.key", string(key)))
+    
     // Process the message
-    fmt.Printf("Received: %v\n", prototype)
-    return nil
+    return processMessage(spanCtx, message)
 }
 
-// Start consuming
-err = consumer.Consume("my-topic", handler, "message-type")
-if err != nil {
-    // handle error
-}
+// Start consuming - trace context is automatically extracted from headers
+err := consumer.Consume("topic-name", handler, &MyMessage{})
 ```
 
-### Environment-Based Implementation Selection
-
-The factory selects the appropriate implementation based on the `Environment` parameter:
-
-- **`"local"`**: Uses in-memory implementation (no external dependencies)
-- **Any other value**: Uses Kafka implementation
-
-### Testing with In-Memory Implementation
-
-The in-memory implementation is perfect for testing as it:
-- Has no external dependencies
-- Provides immediate message delivery
-- Supports multiple consumers per topic
-- Includes helper methods for testing
-
-```go
-func TestMyPubSub(t *testing.T) {
-    factory := pubsub.NewFactory(pubsub.FactoryOptions{
-        Environment:       "local",
-        KafkaBrokers:      []string{"localhost:9092"}, // Not used when Environment=local
-        ConsumerGroup:     "test-group",
-        SchemaRegistryURL: "http://localhost:8081", // Not used when Environment=local
-    })
-    
-    // Use factory as normal - it will use in-memory implementation
-    publisherFactory := factory.GetPublisherFactory()
-    consumerFactory := factory.GetConsumerFactory()
-    
-    // ... rest of test
-}
-```
-
-### In-Memory Implementation Features
-
-The in-memory implementation provides several features useful for testing:
-
-#### Message Buffering
-Messages are buffered in channels with a capacity of 100 messages per topic.
-
-#### Concurrent Processing
-Messages are processed concurrently using goroutines.
-
-#### Consumer Groups
-Supports consumer groups similar to Kafka (though all consumers in a group receive messages for simplicity).
-
-#### Testing Helpers
-
-```go
-// Get the memory broker for testing
-broker := pubsub.GetMemoryBroker()
-
-// Reset all topics and consumers
-broker.Reset()
-
-// Get message count for a topic
-count := broker.GetMessageCount("my-topic")
-```
-
-### Wire Integration
-
-To use the factory with Google Wire dependency injection:
-
-```go
-// In your wire configuration
-func providePubSubFactory(config config.AppConfig) *pubsub.Factory {
-    env := os.Getenv("ENV")
-    if env == "" {
-        env = "production" // default to production if not set
-    }
-    
-    return pubsub.NewFactory(pubsub.FactoryOptions{
-        Environment:      env,
-        KafkaBrokers:     config.Kafka.Brokers,
-        ConsumerGroup:    "zensor-server",
-        SchemaRegistryURL: config.Kafka.SchemaRegistry, // <-- added
-    })
-}
-
-func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {
-    return factory.GetPublisherFactory()
-}
-
-// In your wire.Build
-wire.Build(
-    providePubSubFactory,
-    providePublisherFactory,
-    // ... other dependencies
-)
-```
-
-## Architecture
-
-### Interfaces
-
-- `PublisherFactory`: Creates publishers for specific topics
-- `Publisher`: Publishes messages to topics
-- `ConsumerFactory`: Creates consumers
-- `Consumer`: Consumes messages from topics
-
-### Implementations
+### Implementation Details
 
 #### Kafka Implementation
-- Uses the Goka library for Kafka integration
-- Supports retry logic for connection failures
-- Provides JSON encoding/decoding
 
-#### In-Memory Implementation
-- Uses Go channels for message passing
-- Singleton broker pattern for shared state
-- Thread-safe operations with mutexes
-- Async message processing
+- Uses `EmitSyncWithHeaders` to include trace context in Kafka headers
+- Extracts trace context from `Context.Headers()` in consumer callbacks
+- Headers include: `trace_id`, `span_id`, `trace_flags`
 
-### Message Flow
+#### Memory Implementation
 
-1. **Publisher**: Creates a publisher for a specific topic and message type
-2. **Publish**: Sends a message with a key to the topic
-3. **Broker**: Routes the message to all subscribers of the topic
-4. **Consumer**: Receives the message and calls the handler function
-5. **Handler**: Processes the message according to business logic
+- Since memory doesn't support headers, trace context is logged for debugging
+- Each message processing creates a new span for observability
+- No trace propagation between memory publishers/consumers
 
-## Error Handling
+### Trace Headers Format
 
-The in-memory implementation includes robust error handling:
-- Panic recovery in message handlers
-- Buffer overflow protection
-- Graceful shutdown support
+```go
+type TraceHeaders struct {
+    TraceID    string `json:"trace_id"`    // OpenTelemetry trace ID
+    SpanID     string `json:"span_id"`     // OpenTelemetry span ID  
+    TraceFlags string `json:"trace_flags"` // OpenTelemetry trace flags
+}
+```
 
-## Performance Considerations
+### Error Handling
 
-- In-memory implementation is suitable for testing and development
-- For production, use Kafka implementation for scalability and persistence
-- Message handlers should be non-blocking for best performance
-- Consider using timeouts for long-running operations 
+- Invalid trace headers are gracefully ignored
+- Missing trace context doesn't prevent message processing
+- Errors during message processing are recorded on the span
+
+## Basic Usage
+
+### Creating Publishers
+
+```go
+// Kafka publisher
+kafkaFactory := pubsub.NewKafkaPublisherFactory(brokers, schemaRegistry)
+publisher, err := kafkaFactory.New("my-topic", &MyMessage{})
+
+// Memory publisher (for testing)
+memoryFactory := pubsub.NewMemoryPublisherFactory()
+publisher, err := memoryFactory.New("my-topic", &MyMessage{})
+```
+
+### Creating Consumers
+
+```go
+// Kafka consumer
+kafkaFactory := pubsub.NewKafkaConsumerFactory(brokers, "my-group", schemaRegistry)
+consumer := kafkaFactory.New()
+
+// Memory consumer (for testing)
+memoryFactory := pubsub.NewMemoryConsumerFactory("my-group")
+consumer := memoryFactory.New()
+```
+
+### Message Handler
+
+```go
+func handleMessage(ctx context.Context, key pubsub.Key, message pubsub.Prototype) error {
+    // Cast to your message type
+    myMsg := message.(*MyMessage)
+    
+    // Process the message
+    return processMyMessage(ctx, myMsg)
+}
+```
+
+## Testing
+
+The package includes comprehensive tests for both Kafka and memory implementations:
+
+```bash
+# Run all tests
+go test ./internal/infra/pubsub -v
+
+# Run specific test
+go test ./internal/infra/pubsub -run TestTracePropagation
+```
+
+## Configuration
+
+### Kafka Configuration
+
+- **Brokers**: List of Kafka broker addresses
+- **Schema Registry**: Avro schema registry for message serialization
+- **Consumer Groups**: For load balancing and fault tolerance
+
+### Memory Configuration
+
+- **Groups**: For simulating consumer group behavior
+- **Buffers**: Configurable message buffers for testing
+
+## Best Practices
+
+1. **Always use context**: Pass context through your application for proper trace propagation
+2. **Create child spans**: Use `CreateChildSpan` for message processing to maintain trace hierarchy
+3. **Add attributes**: Include relevant business data as span attributes for better observability
+4. **Handle errors**: Record errors on spans using `span.RecordError(err)`
+5. **Test with memory**: Use memory implementation for unit tests to avoid Kafka dependencies 

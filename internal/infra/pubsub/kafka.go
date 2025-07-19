@@ -11,6 +11,7 @@ import (
 	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/lovoo/goka"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -99,7 +100,12 @@ func (p *SimpleKafkaPublisher) Publish(ctx context.Context, key Key, message Mes
 		slog.String("trace_id", span.SpanContext().TraceID().String()),
 		slog.String("span_id", span.SpanContext().SpanID().String()),
 	)
-	err := p.emitter.EmitSync(string(key), message)
+
+	// Extract trace context and serialize to headers
+	traceHeaders := ExtractTraceFromContext(ctx)
+	kafkaHeaders := SerializeTraceHeaders(traceHeaders)
+
+	err := p.emitter.EmitSyncWithHeaders(string(key), message, kafkaHeaders)
 	if err != nil {
 		slog.Error("emitting message",
 			slog.String("error", err.Error()),
@@ -176,10 +182,26 @@ type SimpleKafkaConsumer struct {
 func (c *SimpleKafkaConsumer) Consume(topic Topic, handler MessageHandler, prototype Prototype) error {
 	cb := func(ctx goka.Context, msg any) {
 		key := Key(ctx.Key())
-		if err := handler(context.Background(), key, msg); err != nil {
+
+		// Extract trace context from Kafka headers and inject into context
+		traceCtx := ExtractTraceFromKafkaHeaders(context.Background(), ctx.Headers())
+
+		// Create a child span for message processing
+		spanCtx, span := CreateChildSpan(traceCtx, "kafka.message.process",
+			trace.WithAttributes(
+				attribute.String("kafka.topic", string(topic)),
+				attribute.String("kafka.key", string(key)),
+			),
+		)
+		defer span.End()
+
+		if err := handler(spanCtx, key, msg); err != nil {
+			span.RecordError(err)
 			slog.Error("error handling message",
 				slog.String("error", err.Error()),
 				slog.String("key", string(key)),
+				slog.String("trace_id", span.SpanContext().TraceID().String()),
+				slog.String("span_id", span.SpanContext().SpanID().String()),
 			)
 		}
 	}
