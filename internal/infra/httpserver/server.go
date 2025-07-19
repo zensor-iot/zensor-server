@@ -62,13 +62,14 @@ func NewServer(controllers ...Controller) *StandardServer {
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	})
 
-	// Create tracing middleware
+	// Create middleware
 	tracingMiddleware := createTracingMiddleware()
+	metricsMiddleware := MetricsMiddleware()
 
 	server := &StandardServer{
 		&http.Server{
 			Addr:    ":3000",
-			Handler: c.Handler(tracingMiddleware(router)),
+			Handler: c.Handler(metricsMiddleware(tracingMiddleware(router))),
 		},
 	}
 

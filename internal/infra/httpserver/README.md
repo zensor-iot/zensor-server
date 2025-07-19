@@ -1,10 +1,11 @@
-# HTTP Server with OpenTelemetry Tracing
+# HTTP Server with OpenTelemetry Tracing and Metrics
 
-This package provides an HTTP server with built-in OpenTelemetry tracing middleware.
+This package provides an HTTP server with built-in OpenTelemetry tracing and metrics middleware.
 
 ## Features
 
 - **Automatic Request Tracing**: Every HTTP request automatically creates a new span with request details
+- **Automatic Request Metrics**: HTTP request metrics are automatically collected and exposed
 - **Context Propagation**: Spans are automatically added to the request context
 - **Helper Functions**: Easy access to spans from request context
 - **Custom Attributes**: Controllers can add custom attributes and events to spans
@@ -13,7 +14,7 @@ This package provides an HTTP server with built-in OpenTelemetry tracing middlew
 
 ### Basic Setup
 
-The tracing middleware is automatically applied to all requests when using `httpserver.NewServer()`:
+The tracing and metrics middleware are automatically applied to all requests when using `httpserver.NewServer()`:
 
 ```go
 server := httpserver.NewServer(controllers...)
@@ -43,12 +44,31 @@ func (c *MyController) handleRequest() http.HandlerFunc {
 
 ### Span Attributes
 
-The middleware automatically adds the following attributes to each request span:
+The tracing middleware automatically adds the following attributes to each request span:
 
 - `http.method`: The HTTP method (GET, POST, etc.)
 - `http.url`: The full request URL
 - `http.user_agent`: The User-Agent header
 - `http.remote_addr`: The client's IP address
+
+### Metrics
+
+The metrics middleware automatically collects the following HTTP metrics:
+
+- **http_request_duration_seconds**: Histogram of request duration in seconds
+- **http_requests_total**: Counter of total requests with attributes:
+  - `http.method`: HTTP method (GET, POST, etc.)
+  - `http.endpoint`: Endpoint name (extracted from URL path)
+  - `http.status_code`: HTTP response status code
+- **http_requests_active**: Up-down counter of currently active requests with attributes:
+  - `http.method`: HTTP method
+  - `http.endpoint`: Endpoint name
+
+#### Metric Attributes
+
+- **http.method**: The HTTP method (GET, POST, PUT, DELETE, etc.)
+- **http.endpoint**: The endpoint name extracted from the URL path (e.g., "api", "healthz", "metrics")
+- **http.status_code**: The HTTP response status code (200, 404, 500, etc.)
 
 ### Custom Attributes
 
@@ -78,7 +98,7 @@ if err != nil {
 
 ## Configuration
 
-The tracing middleware uses the global OpenTelemetry tracer provider configured in your application. Make sure to initialize OpenTelemetry tracing in your main function:
+The tracing and metrics middleware use the global OpenTelemetry tracer and meter providers configured in your application. Make sure to initialize OpenTelemetry in your main function:
 
 ```go
 // In main.go
@@ -88,11 +108,13 @@ defer shutdownOtel()
 
 ## Testing
 
-The package includes tests that demonstrate proper usage of the tracing middleware. Tests use a test trace provider to verify span creation and context propagation.
+The package includes tests that demonstrate proper usage of the tracing and metrics middleware. Tests use test providers to verify span creation, context propagation, and metrics collection.
 
 ## Dependencies
 
 - `go.opentelemetry.io/otel`: Core OpenTelemetry functionality
 - `go.opentelemetry.io/otel/trace`: Tracing interfaces
+- `go.opentelemetry.io/otel/metric`: Metrics interfaces
 - `go.opentelemetry.io/otel/attribute`: Span attributes
-- `go.opentelemetry.io/otel/sdk/trace`: Trace provider implementation 
+- `go.opentelemetry.io/otel/sdk/trace`: Trace provider implementation
+- `go.opentelemetry.io/otel/sdk/metric`: Metrics provider implementation 
