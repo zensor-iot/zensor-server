@@ -22,5 +22,10 @@ type Consumer interface {
 }
 
 type Topic string
-type MessageHandler func(Key, Prototype) error
+type MessageHandler func(context.Context, Key, Prototype) error
+type ConsumedMessage struct {
+	Ctx   context.Context
+	Key   Key
+	Value Prototype
+}
 type Prototype any

@@ -1,6 +1,7 @@
 package replication
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -230,7 +231,7 @@ func BenchmarkReplicator_HandleMessage(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		replicator.handleMessage(pubsub.Topic("test-topic"), handler, key, message)
+		replicator.handleMessage(context.Background(), pubsub.Topic("test-topic"), handler, key, message)
 	}
 }
 

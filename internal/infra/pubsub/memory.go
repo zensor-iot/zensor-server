@@ -195,8 +195,8 @@ func (b *MemoryBroker) processSubscribers(topicChan *TopicChannel, event Message
 						}
 					}()
 
-					// Call the handler with both key and message
-					if err := c.Handler(event.Key, event.Message); err != nil {
+					// Call the handler with context, key and message
+					if err := c.Handler(context.Background(), event.Key, event.Message); err != nil {
 						fmt.Printf("error in message handler: %v\n", err)
 					}
 				}(consumer)

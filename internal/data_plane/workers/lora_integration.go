@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -76,10 +77,17 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 		case <-w.ticker.C:
 			wg.Add(1)
 			tickCtx := context.Background()
+			tickCtx, _ = otel.Tracer("zensor_server").Start(tickCtx, "device_command_handler")
 			go w.reconciliation(tickCtx, wg.Done)
 		case msg := <-commandsChannel:
 			wg.Add(1)
+			span := trace.SpanFromContext(msg.Ctx)
 			procCtx := context.Background()
+			if span.SpanContext().HasSpanID() {
+				procCtx = trace.ContextWithSpan(procCtx, span)
+			} else {
+				procCtx, _ = otel.Tracer("zensor_server").Start(procCtx, "device_command_handler")
+			}
 			go w.deviceCommandHandler(procCtx, msg, wg.Done)
 		}
 	}
@@ -102,10 +110,14 @@ func (w *LoraIntegrationWorker) setupOtelCounters() {
 	w.metricCounters[_metricKeyWaterFlow] = waterFlowGauge
 }
 
-func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototype {
-	out := make(chan pubsub.Prototype, 1)
-	handler := func(key pubsub.Key, msg pubsub.Prototype) error {
-		out <- msg
+func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.ConsumedMessage {
+	out := make(chan pubsub.ConsumedMessage, 1)
+	handler := func(ctx context.Context, key pubsub.Key, msg pubsub.Prototype) error {
+		out <- pubsub.ConsumedMessage{
+			Ctx:   ctx,
+			Key:   key,
+			Value: msg,
+		}
 		return nil
 	}
 
@@ -120,10 +132,16 @@ func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.Prototy
 
 func (w *LoraIntegrationWorker) reconciliation(ctx context.Context, done func()) {
 	slog.Debug("reconciliation start...", slog.Time("time", time.Now()))
+	span := trace.SpanFromContext(ctx)
+
 	defer done()
 	devices, err := w.service.AllDevices(ctx)
 	if err != nil {
-		slog.Error("getting all devices", slog.Any("error", err))
+		slog.Error("getting all devices",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+			slog.Any("error", err),
+		)
 		return
 	}
 
@@ -148,15 +166,28 @@ var (
 )
 
 func (w *LoraIntegrationWorker) handleDevice(ctx context.Context, device domain.Device) {
-	slog.Debug("handle device", slog.Any("device", device))
+	span := trace.SpanFromContext(ctx)
+	slog.Debug("handle device",
+		slog.String("device", device.Name),
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
+	)
 	if _, exists := w.devices.Load(device.ID); exists {
-		slog.Debug("device is already configured", slog.String("device", device.Name))
+		slog.Debug("device is already configured",
+			slog.String("device", device.Name),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 		return
 	}
 	w.devices.Store(device.ID, device)
 	for _, suffix := range topics {
 		topic := fmt.Sprintf("%s/%s/%s", topicBase, device.Name, suffix)
-		slog.Debug("final topic", slog.String("value", topic))
+		slog.Debug("final topic",
+			slog.String("value", topic),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 		w.mqttClient.Subscribe(topic, qos, w.messageHandler(ctx))
 	}
 }
@@ -165,14 +196,21 @@ var topicRegex = regexp.MustCompile(`^.*/devices/[\w-_]*/(.*)$`)
 
 func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.MessageHandler {
 	return func(client mqtt.Client, msg mqtt.Message) {
+		span := trace.SpanFromContext(ctx)
 		slog.Info("message received",
 			slog.String("topic", msg.Topic()),
 			slog.Uint64("message_id", uint64(msg.MessageID())),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
 		)
 
 		result := topicRegex.FindStringSubmatch(msg.Topic())
 		if len(result) < 2 {
-			slog.Error("invalid topic", slog.String("topic", msg.Topic()))
+			slog.Error("invalid topic",
+				slog.String("topic", msg.Topic()),
+				slog.String("trace_id", span.SpanContext().TraceID().String()),
+				slog.String("span_id", span.SpanContext().SpanID().String()),
+			)
 			return
 		}
 
@@ -183,30 +221,46 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 		case "down/failed":
 			w.downlinkFailedHandler(ctx, msg)
 		default:
-			slog.Warn("topic handler not yet implemented", slog.String("topic", topicSuffix))
+			slog.Warn("topic handler not yet implemented",
+				slog.String("topic", topicSuffix),
+				slog.String("trace_id", span.SpanContext().TraceID().String()),
+				slog.String("span_id", span.SpanContext().SpanID().String()),
+			)
 		}
 	}
 }
 
-func (w *LoraIntegrationWorker) downlinkFailedHandler(_ context.Context, msg mqtt.Message) {
+func (w *LoraIntegrationWorker) downlinkFailedHandler(ctx context.Context, msg mqtt.Message) {
+	span := trace.SpanFromContext(ctx)
 	var envelop dto.Envelop
 	err := json.Unmarshal(msg.Payload(), &envelop)
 	if err != nil {
-		slog.Error("failed to unmarshal message", slog.String("error", err.Error()))
+		slog.Error("failed to unmarshal message",
+			slog.String("error", err.Error()),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 		return
 	}
 
 	slog.Error("downlink failed",
 		slog.String("topic", msg.Topic()),
 		slog.String("error", envelop.Error.MessageFormat),
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
 	)
 }
 
 func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mqtt.Message) {
+	span := trace.SpanFromContext(ctx)
 	var envelop dto.Envelop
 	err := json.Unmarshal(msg.Payload(), &envelop)
 	if err != nil {
-		slog.Error("failed to unmarshal message", slog.String("error", err.Error()))
+		slog.Error("failed to unmarshal message",
+			slog.String("error", err.Error()),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 		return
 	}
 
@@ -217,7 +271,10 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	if err != nil {
 		slog.Error("failed to update device last message timestamp",
 			slog.String("device_name", deviceName),
-			slog.String("error", err.Error()))
+			slog.String("error", err.Error()),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 	}
 
 	// Update device state cache with new sensor data
@@ -225,7 +282,10 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	if err != nil {
 		slog.Error("failed to update device state cache",
 			slog.String("device_name", deviceName),
-			slog.String("error", err.Error()))
+			slog.String("error", err.Error()),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 	}
 
 	brokerMsg := async.BrokerMessage{
@@ -262,21 +322,32 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	}
 }
 
-func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pubsub.Prototype, done func()) {
+func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pubsub.ConsumedMessage, done func()) {
 	defer done()
+	span := trace.SpanFromContext(ctx)
 
-	command, err := w.convertToSharedCommand(msg)
+	command, err := w.convertToSharedCommand(ctx, msg.Value)
 	if err != nil {
-		slog.Error("converting message to command", slog.String("error", err.Error()))
+		slog.Error("converting message to command",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+			slog.String("error", err.Error()),
+		)
 		return
 	}
 
 	if !command.Ready {
-		slog.Warn("command won't be send because is not ready")
+		slog.Warn("command won't be send because is not ready",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 		return
 	}
 	if command.Sent {
-		slog.Warn("command won't be send because is was already sent")
+		slog.Warn("command won't be send because is was already sent",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 		return
 	}
 
@@ -284,6 +355,8 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 	rawPayload, err := command.Payload.ToMessagePack()
 	if err != nil {
 		slog.Error("converting to message pack failed",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
 			slog.String("error", err.Error()),
 		)
 		return
@@ -298,11 +371,18 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 	)
 	err = w.mqttClient.Publish(topic, ttnMsg)
 	if err != nil {
-		slog.Error("publishing command", slog.String("device_id", command.DeviceID), slog.String("error", err.Error()))
+		slog.Error("publishing command",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+			slog.String("device_id", command.DeviceID),
+			slog.String("error", err.Error()),
+		)
 		return
 	}
 
 	slog.Debug("message published",
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
 		slog.String("device_id", command.DeviceID),
 		slog.String("topic", topic),
 	)
@@ -317,9 +397,13 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 	)
 }
 
-func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*device.Command, error) {
-
-	slog.Info("converting to shared command", slog.String("type", fmt.Sprintf("%T", msg)))
+func (w *LoraIntegrationWorker) convertToSharedCommand(ctx context.Context, msg pubsub.Prototype) (*device.Command, error) {
+	span := trace.SpanFromContext(ctx)
+	slog.Info("converting to shared command",
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
+		slog.String("type", fmt.Sprintf("%T", msg)),
+	)
 
 	// Try to convert directly from AvroCommand
 	if avroCmd, ok := msg.(*avro.AvroCommand); ok {
@@ -359,5 +443,5 @@ func (w *LoraIntegrationWorker) convertToSharedCommand(msg pubsub.Prototype) (*d
 }
 
 func (w *LoraIntegrationWorker) Shutdown() {
-	panic("implement me")
+	slog.Error("implement me")
 }

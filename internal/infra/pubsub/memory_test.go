@@ -29,7 +29,7 @@ func TestMemoryPubSub(t *testing.T) {
 	var receivedMessage any
 
 	// Message handler
-	handler := func(key Key, prototype Prototype) error {
+	handler := func(_ context.Context, key Key, prototype Prototype) error {
 		receivedMessage = prototype
 		messageReceived <- true
 		return nil

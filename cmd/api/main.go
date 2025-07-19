@@ -22,7 +22,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 var (
@@ -215,13 +219,53 @@ func otelStart(ctx context.Context) (ShutdownFunc, error) {
 		return nil, err
 	}
 
+	traceShutdownFunc, err := startTraceProvider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return func() error {
 		if err := metricsShutdownFunc(); err != nil {
 			return err
 		}
-
+		if err := traceShutdownFunc(); err != nil {
+			return err
+		}
 		return nil
 	}, nil
+}
+
+func startTraceProvider(ctx context.Context) (ShutdownFunc, error) {
+	exp, err := newTraceExporter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := trace.NewTracerProvider(
+		trace.WithBatcher(exp),
+		trace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("zensor-server"),
+		)),
+	)
+	otel.SetTracerProvider(tp)
+
+	return func() error {
+		return tp.Shutdown(ctx)
+	}, nil
+}
+
+func newTraceExporter(ctx context.Context) (trace.SpanExporter, error) {
+	endpoint := _defautlEndpoint
+	if value, ok := os.LookupEnv("ZENSOR_SERVER_OTELCOL_ENDPOINT"); ok {
+		endpoint = value
+	}
+
+	return otlptracegrpc.New(
+		ctx,
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithInsecure(),
+	)
 }
 
 func startMetricsProvider(ctx context.Context) (ShutdownFunc, error) {

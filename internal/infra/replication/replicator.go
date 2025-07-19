@@ -85,8 +85,8 @@ func (r *Replicator) replicateTopic(topic pubsub.Topic, handler TopicHandler) {
 	defer r.wg.Done()
 
 	consumer := r.consumerFactory.New()
-	messageHandler := func(key pubsub.Key, msg pubsub.Prototype) error {
-		return r.handleMessage(topic, handler, key, msg.(pubsub.Message))
+	messageHandler := func(ctx context.Context, key pubsub.Key, msg pubsub.Prototype) error {
+		return r.handleMessage(ctx, topic, handler, key, msg.(pubsub.Message))
 	}
 
 	// Use the topic name as the consumer group to ensure proper partitioning
@@ -106,9 +106,7 @@ func (r *Replicator) replicateTopic(topic pubsub.Topic, handler TopicHandler) {
 }
 
 // handleMessage processes a single message for replication
-func (r *Replicator) handleMessage(topic pubsub.Topic, handler TopicHandler, key pubsub.Key, msg pubsub.Message) error {
-	ctx := r.ctx
-
+func (r *Replicator) handleMessage(ctx context.Context, topic pubsub.Topic, handler TopicHandler, key pubsub.Key, msg pubsub.Message) error {
 	slog.Debug("replicating message",
 		slog.String("topic", string(topic)),
 		slog.String("key", string(key)))

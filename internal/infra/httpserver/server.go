@@ -6,6 +6,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	_ "net/http/pprof"
 )
@@ -59,10 +62,13 @@ func NewServer(controllers ...Controller) *StandardServer {
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	})
 
+	// Create tracing middleware
+	tracingMiddleware := createTracingMiddleware()
+
 	server := &StandardServer{
 		&http.Server{
 			Addr:    ":3000",
-			Handler: c.Handler(router),
+			Handler: c.Handler(tracingMiddleware(router)),
 		},
 	}
 
@@ -76,8 +82,37 @@ func NewServer(controllers ...Controller) *StandardServer {
 	return server
 }
 
+// createTracingMiddleware creates a middleware that adds OpenTelemetry tracing to all requests
+func createTracingMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Create a new span for this request
+			tracer := otel.Tracer("zensor-server")
+			ctx, span := tracer.Start(r.Context(), "http.request",
+				trace.WithAttributes(
+					attribute.String("http.method", r.Method),
+					attribute.String("http.url", r.URL.String()),
+					attribute.String("http.user_agent", r.UserAgent()),
+					attribute.String("http.remote_addr", r.RemoteAddr),
+				),
+			)
+			defer span.End()
+
+			// Add the span to the request context
+			r = r.WithContext(ctx)
+
+			// Call the next handler
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func getHealthz() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get the current span from the request context
+		span := GetSpanFromContext(r)
+		span.SetAttributes(attribute.String("endpoint", "healthz"))
+
 		output := map[string]string{"status": "success"}
 		ReplyJSONResponse(w, http.StatusOK, output)
 	}

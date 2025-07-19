@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"zensor-server/internal/shared_kernel/domain"
@@ -52,10 +51,6 @@ func (s *SimpleTaskService) validateCommandOverlaps(ctx context.Context, newTask
 	}
 
 	return nil
-}
-
-func (s *SimpleTaskService) Run(_ context.Context, task domain.Task) error {
-	return errors.New("implement me")
 }
 
 func (s *SimpleTaskService) FindAllByDevice(ctx context.Context, deviceID domain.ID, pagination Pagination) ([]domain.Task, int, error) {

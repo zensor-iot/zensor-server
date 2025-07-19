@@ -5,11 +5,13 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -41,22 +43,32 @@ func (c *TaskController) AddRoutes(router *http.ServeMux) {
 
 func (c *TaskController) create() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get the current span from the request context
+		span := httpserver.GetSpanFromContext(r)
+
 		id := r.PathValue("id")
+		span.SetAttributes(attribute.String("device.id", id))
+
 		device, err := c.deviceService.GetDevice(r.Context(), domain.ID(id))
 		if err != nil {
+			span.RecordError(err)
 			slog.Error("get device failed", slog.String("error", err.Error()))
 			http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
 			return
-
 		}
 
 		var body internal.TaskCreateRequest
 		err = httpserver.DecodeJSONBody(r, &body)
 		if err != nil {
+			span.RecordError(err)
 			slog.Error("decoding json body", slog.String("error", err.Error()))
 			http.Error(w, createTaskErrMessage, http.StatusBadRequest)
 			return
 		}
+
+		span.SetAttributes(
+			attribute.Int("task.commands.count", len(body.Commands)),
+		)
 
 		cmds := make([]domain.Command, len(body.Commands))
 		for i, item := range body.Commands {
@@ -71,6 +83,7 @@ func (c *TaskController) create() http.HandlerFunc {
 				WithDispatchAfter(utils.Time{Time: time.Now().Add(time.Duration(item.WaitFor))}).
 				Build()
 			if err != nil {
+				span.RecordError(err)
 				slog.Error("build command", slog.String("error", err.Error()))
 				http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
 				return
@@ -84,6 +97,7 @@ func (c *TaskController) create() http.HandlerFunc {
 			WithCommands(cmds).
 			Build()
 		if err != nil {
+			span.RecordError(err)
 			slog.Error("build task", slog.String("error", err.Error()))
 			http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
 			return
@@ -96,14 +110,18 @@ func (c *TaskController) create() http.HandlerFunc {
 
 		err = c.service.Create(r.Context(), task)
 		if errors.Is(err, usecases.ErrCommandOverlap) {
+			span.SetAttributes(attribute.String("error.type", "command_overlap"))
 			http.Error(w, commandOverlapErrMessage, http.StatusConflict)
 			return
 		}
 		if err != nil {
+			span.RecordError(err)
 			slog.Error("create task failed", slog.String("error", err.Error()))
 			http.Error(w, createTaskErrMessage, http.StatusInternalServerError)
 			return
 		}
+
+		span.SetAttributes(attribute.String("task.id", task.ID.String()))
 
 		// Convert domain commands to API command responses
 		commandResponses := make([]internal.TaskCommandResponse, len(task.Commands))
@@ -139,16 +157,32 @@ func (c *TaskController) create() http.HandlerFunc {
 
 func (c *TaskController) getByDevice() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get the current span from the request context
+		span := httpserver.GetSpanFromContext(r)
+
 		id := r.PathValue("id")
+		span.SetAttributes(attribute.String("device.id", id))
+
 		params := httpserver.ExtractPaginationParams(r)
 		pagination := usecases.Pagination{Limit: params.Limit, Offset: (params.Page - 1) * params.Limit}
 
+		span.SetAttributes(
+			attribute.Int("pagination.limit", params.Limit),
+			attribute.Int("pagination.page", params.Page),
+		)
+
 		tasks, total, err := c.service.FindAllByDevice(r.Context(), domain.ID(id), pagination)
 		if err != nil {
+			span.RecordError(err)
 			slog.Error("get tasks by device failed", slog.String("error", err.Error()))
 			http.Error(w, "failed to get tasks", http.StatusInternalServerError)
 			return
 		}
+
+		span.SetAttributes(
+			attribute.Int("tasks.count", len(tasks)),
+			attribute.Int("tasks.total", total),
+		)
 
 		responses := make([]internal.TaskResponse, len(tasks))
 		for i, task := range tasks {

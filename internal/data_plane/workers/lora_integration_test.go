@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func TestLoraIntegrationWorker_ConvertToSharedCommand(t *testing.T) {
 		SentAt:        time.Time{},
 	}
 
-	command, err := worker.convertToSharedCommand(avroCmd)
+	command, err := worker.convertToSharedCommand(context.TODO(), avroCmd)
 	if err != nil {
 		t.Fatalf("Failed to convert AvroCommand: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestLoraIntegrationWorker_ConvertToSharedCommand_WithStructMessage(t *testi
 		SentAt:        utils.Time{Time: time.Now()},
 	}
 
-	command, err := worker.convertToSharedCommand(structMessage)
+	command, err := worker.convertToSharedCommand(context.TODO(), structMessage)
 	if err != nil {
 		t.Fatalf("Failed to convert struct message: %v", err)
 	}

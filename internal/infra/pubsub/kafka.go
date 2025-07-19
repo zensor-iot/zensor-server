@@ -11,6 +11,7 @@ import (
 	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/lovoo/goka"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -91,11 +92,20 @@ type SimpleKafkaPublisher struct {
 	emitter *goka.Emitter
 }
 
-func (p *SimpleKafkaPublisher) Publish(_ context.Context, key Key, message Message) error {
-	slog.Debug("publishing message", slog.String("key", string(key)))
+func (p *SimpleKafkaPublisher) Publish(ctx context.Context, key Key, message Message) error {
+	span := trace.SpanFromContext(ctx)
+	slog.Debug("publishing message",
+		slog.String("key", string(key)),
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
+	)
 	err := p.emitter.EmitSync(string(key), message)
 	if err != nil {
-		slog.Error("emitting message", slog.String("error", err.Error()))
+		slog.Error("emitting message",
+			slog.String("error", err.Error()),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
 		return err
 	}
 
@@ -113,7 +123,6 @@ type consumerKey struct {
 type consumerInstance struct {
 	consumer *SimpleKafkaConsumer
 	once     sync.Once
-	err      error
 }
 
 // consumersMap stores singleton instances of consumers
@@ -166,9 +175,13 @@ type SimpleKafkaConsumer struct {
 
 func (c *SimpleKafkaConsumer) Consume(topic Topic, handler MessageHandler, prototype Prototype) error {
 	cb := func(ctx goka.Context, msg any) {
-		slog.Debug("message received", slog.Any("msg", msg))
 		key := Key(ctx.Key())
-		handler(key, msg)
+		if err := handler(context.Background(), key, msg); err != nil {
+			slog.Error("error handling message",
+				slog.String("error", err.Error()),
+				slog.String("key", string(key)),
+			)
+		}
 	}
 	stream := goka.Stream(topic)
 
@@ -183,6 +196,9 @@ func (c *SimpleKafkaConsumer) Consume(topic Topic, handler MessageHandler, proto
 		return nil
 	}
 
-	p.Run(context.Background())
+	err = p.Run(context.Background())
+	if err != nil {
+		return fmt.Errorf("run kafka consumer: %w", err)
+	}
 	return nil
 }

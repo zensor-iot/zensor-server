@@ -300,7 +300,7 @@ func TestReplicator_handleMessage_CreateNewRecord(t *testing.T) {
 	message := map[string]any{"id": "test-key", "name": "test-device"}
 	key := pubsub.Key("test-key")
 
-	err := replicator.handleMessage(pubsub.Topic("test-topic"), handler, key, message)
+	err := replicator.handleMessage(context.Background(), pubsub.Topic("test-topic"), handler, key, message)
 
 	assert.NoError(t, err)
 	handler.AssertExpectations(t)
@@ -318,7 +318,7 @@ func TestReplicator_handleMessage_UpdateExistingRecord(t *testing.T) {
 	message := map[string]any{"id": "test-key", "name": "test-device"}
 	key := pubsub.Key("test-key")
 
-	err := replicator.handleMessage(pubsub.Topic("test-topic"), handler, key, message)
+	err := replicator.handleMessage(context.Background(), pubsub.Topic("test-topic"), handler, key, message)
 
 	assert.NoError(t, err)
 	handler.AssertExpectations(t)
@@ -336,7 +336,7 @@ func TestReplicator_handleMessage_CreateError(t *testing.T) {
 	message := map[string]any{"id": "test-key", "name": "test-device"}
 	key := pubsub.Key("test-key")
 
-	err := replicator.handleMessage(pubsub.Topic("test-topic"), handler, key, message)
+	err := replicator.handleMessage(context.Background(), pubsub.Topic("test-topic"), handler, key, message)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creating record")
@@ -355,7 +355,7 @@ func TestReplicator_handleMessage_UpdateError(t *testing.T) {
 	message := map[string]any{"id": "test-key", "name": "test-device"}
 	key := pubsub.Key("test-key")
 
-	err := replicator.handleMessage(pubsub.Topic("test-topic"), handler, key, message)
+	err := replicator.handleMessage(context.Background(), pubsub.Topic("test-topic"), handler, key, message)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "updating record")

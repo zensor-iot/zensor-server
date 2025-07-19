@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ErrorResponse struct {
@@ -116,4 +118,10 @@ func GetQueryParamMapKeyValue(r *http.Request, name string) (string, string) {
 	}
 
 	return kv[1], kv[2]
+}
+
+// GetSpanFromContext extracts the current span from the request context
+// This is useful for adding custom attributes or events to the current span
+func GetSpanFromContext(r *http.Request) trace.Span {
+	return trace.SpanFromContext(r.Context())
 }
