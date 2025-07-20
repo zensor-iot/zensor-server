@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -47,7 +48,7 @@ func initMetrics() {
 	// Initialize HTTP request duration histogram
 	var err error
 	httpRequestDuration, err = meter.Float64Histogram(
-		"http_request_duration_seconds",
+		fmt.Sprintf("%s.%s", "zensor_server", "http.request.duration.seconds"),
 		metric.WithDescription("Duration of HTTP requests"),
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
@@ -58,7 +59,7 @@ func initMetrics() {
 
 	// Initialize HTTP request total counter
 	httpRequestTotal, err = meter.Int64Counter(
-		"http_requests_total",
+		fmt.Sprintf("%s.%s", "zensor_server", "http.requests.total"),
 		metric.WithDescription("Total number of HTTP requests"),
 	)
 	if err != nil {
@@ -67,7 +68,7 @@ func initMetrics() {
 
 	// Initialize HTTP request active up-down counter
 	httpRequestActive, err = meter.Int64UpDownCounter(
-		"http_requests_active",
+		fmt.Sprintf("%s.%s", "zensor_server", "http.requests.active"),
 		metric.WithDescription("Number of HTTP requests currently being processed"),
 	)
 	if err != nil {
@@ -87,7 +88,8 @@ func MetricsMiddleware() func(http.Handler) http.Handler {
 			start := time.Now()
 
 			// Extract endpoint from request path
-			endpoint := extractEndpoint(r.URL.Path)
+			// endpoint := extractEndpoint(r.URL.Path)
+			endpoint := r.URL.Path
 
 			// Increment active requests counter
 			httpRequestActive.Add(r.Context(), 1,

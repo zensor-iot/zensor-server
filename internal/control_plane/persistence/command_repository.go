@@ -50,16 +50,14 @@ func (r *SimpleCommandRepository) Create(ctx context.Context, cmd domain.Command
 }
 
 func (r *SimpleCommandRepository) Update(ctx context.Context, cmd domain.Command) error {
-	// First, check if the command exists in the database
 	var existingCmd internal.Command
 	err := r.orm.WithContext(ctx).First(&existingCmd, "id = ?", cmd.ID.String()).Error()
 	if err != nil {
 		return fmt.Errorf("command not found in database: %w", err)
 	}
 
-	// Publish to Kafka - the replication layer will handle the database update
 	avroCmd := avro.ToAvroCommand(cmd)
-	avroCmd.Version++ // Increment version for update
+	avroCmd.Version++
 	err = r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), avroCmd)
 	if err != nil {
 		return fmt.Errorf("publishing command update to kafka: %w", err)
@@ -72,7 +70,7 @@ func (r *SimpleCommandRepository) FindAllPending(ctx context.Context) ([]domain.
 	var entities internal.CommandSet
 	err := r.orm.
 		WithContext(ctx).
-		Where("sent = ?", false).
+		Where("sent = ? AND ready = ?", false, false).
 		Find(&entities).
 		Error()
 

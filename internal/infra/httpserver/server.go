@@ -68,8 +68,12 @@ func NewServer(controllers ...Controller) *StandardServer {
 
 	server := &StandardServer{
 		&http.Server{
-			Addr:    ":3000",
-			Handler: c.Handler(metricsMiddleware(tracingMiddleware(router))),
+			Addr: ":3000",
+			Handler: c.Handler(
+				metricsMiddleware(
+					tracingMiddleware(router),
+				),
+			),
 		},
 	}
 

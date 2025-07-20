@@ -55,8 +55,6 @@ run: build
     else
         docker compose up -d --wait
     fi
-    echo "🔧 starting opentelemetry collector..."
-    ./otelcol --config otelcol_config.yaml > otelcol.log 2>&1 &
     echo "🚀 starting zensor server with hot reload..."
     find . -type f -name '*.go' | entr ./server
 

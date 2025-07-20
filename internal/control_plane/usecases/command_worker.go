@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -68,6 +69,7 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 		case <-w.ticker.C:
 			wg.Add(1)
 			tickCtx := context.Background()
+			tickCtx, _ = otel.Tracer("zensor_server").Start(tickCtx, "reconciliation")
 			w.reconciliation(tickCtx, wg.Done)
 		}
 	}
@@ -84,31 +86,44 @@ func (w *CommandWorker) setupOtelCounters() {
 }
 
 func (w *CommandWorker) reconciliation(ctx context.Context, done func()) {
+	span := trace.SpanFromContext(ctx)
 	slog.Debug("reconciliation start...", slog.Time("time", time.Now()))
 	defer done()
 	commands, err := w.commandRepository.FindAllPending(ctx)
 	if err != nil {
-		slog.Error("finding all pending commands", slog.Any("error", err))
+		slog.Error("finding all pending commands",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+			slog.Any("error", err),
+		)
 		return
 	}
 
 	for _, cmd := range commands {
-
 		w.handle(ctx, cmd)
 	}
 	slog.Debug("reconciliation end", slog.Time("time", time.Now()))
 }
 
 func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
+	span := trace.SpanFromContext(ctx)
 	if cmd.DispatchAfter.After(time.Now()) {
-		slog.Warn("command is not ready to be sent", slog.Time("dispatch_after", cmd.DispatchAfter.Time))
+		slog.Warn("command is not ready to be sent",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+			slog.Time("dispatch_after", cmd.DispatchAfter.Time),
+		)
 		return
 	}
 
 	cmd.Ready = true
 	err := w.commandRepository.Update(ctx, cmd)
 	if err != nil {
-		slog.Error("failed to update command", slog.Any("error", err))
+		slog.Error("failed to update command",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+			slog.Any("error", err),
+		)
 		return
 	}
 

@@ -122,6 +122,9 @@ services:
     configs:
       - source: otelcol
         target: /config/otelcol.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
     networks:
       - zensor
 
