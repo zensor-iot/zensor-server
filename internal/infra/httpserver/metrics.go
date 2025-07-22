@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"bufio"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -145,6 +147,14 @@ func (rw *responseWriter) WriteHeader(code int) {
 
 func (rw *responseWriter) Write(b []byte) (int, error) {
 	return rw.ResponseWriter.Write(b)
+}
+
+// Hijack implements http.Hijacker interface for websocket support
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hijacker, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		return hijacker.Hijack()
+	}
+	return nil, nil, fmt.Errorf("underlying ResponseWriter does not support hijacking")
 }
 
 // extractEndpoint extracts a clean endpoint name from the request path

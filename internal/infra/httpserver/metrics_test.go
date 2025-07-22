@@ -103,3 +103,18 @@ func TestResponseWriter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test", recorder.Body.String())
 }
+
+func TestResponseWriterHijacker(t *testing.T) {
+	// Create a test response writer that implements http.Hijacker
+	recorder := httptest.NewRecorder()
+	wrappedWriter := &responseWriter{ResponseWriter: recorder, statusCode: http.StatusOK}
+
+	// Test that our wrapper implements http.Hijacker interface
+	_, isHijacker := interface{}(wrappedWriter).(http.Hijacker)
+	assert.True(t, isHijacker, "responseWriter should implement http.Hijacker interface")
+
+	// Test calling Hijack (it should return an error since httptest.ResponseRecorder doesn't support hijacking)
+	_, _, err := wrappedWriter.Hijack()
+	assert.Error(t, err, "Hijack should return an error when underlying writer doesn't support hijacking")
+	assert.Contains(t, err.Error(), "underlying ResponseWriter does not support hijacking")
+}
