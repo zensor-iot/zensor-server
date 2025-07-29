@@ -2,6 +2,8 @@ package pubsub
 
 import "context"
 
+//go:generate mockgen -source=pubsub.go -destination=../../../test/unit/doubles/infra/pubsub/pubsub_mock.go -package=pubsub -mock_names=ConsumerFactory=MockConsumerFactory,Consumer=MockConsumer,PublisherFactory=MockPublisherFactory,Publisher=MockPublisher
+
 type PublisherFactory interface {
 	New(Topic, Message) (Publisher, error)
 }
