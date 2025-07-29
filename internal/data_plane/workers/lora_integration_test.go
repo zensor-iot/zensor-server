@@ -2,114 +2,91 @@ package workers
 
 import (
 	"context"
-	"testing"
 	"time"
-
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/device"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestLoraIntegrationWorker_ConvertToSharedCommand(t *testing.T) {
-	worker := &LoraIntegrationWorker{}
+var _ = ginkgo.Describe("LoraIntegrationWorker", func() {
+	ginkgo.Context("ConvertToSharedCommand", func() {
+		var worker *LoraIntegrationWorker
 
-	// Test with AvroCommand
-	avroCmd := &avro.AvroCommand{
-		ID:            "test-command-id",
-		Version:       2,
-		DeviceID:      "test-device-id",
-		DeviceName:    "test-device",
-		TaskID:        "test-task-id",
-		PayloadIndex:  5,
-		PayloadValue:  123,
-		DispatchAfter: time.Now(),
-		Port:          16,
-		Priority:      "HIGH",
-		CreatedAt:     time.Now(),
-		Ready:         true,
-		Sent:          false,
-		SentAt:        time.Time{},
-	}
+		ginkgo.BeforeEach(func() {
+			worker = &LoraIntegrationWorker{}
+		})
 
-	command, err := worker.convertToSharedCommand(context.TODO(), avroCmd)
-	if err != nil {
-		t.Fatalf("Failed to convert AvroCommand: %v", err)
-	}
+		ginkgo.When("converting AvroCommand to shared command", func() {
+			ginkgo.It("should convert AvroCommand correctly", func() {
+				// Test with AvroCommand
+				avroCmd := &avro.AvroCommand{
+					ID:            "test-command-id",
+					Version:       2,
+					DeviceID:      "test-device-id",
+					DeviceName:    "test-device",
+					TaskID:        "test-task-id",
+					PayloadIndex:  5,
+					PayloadValue:  123,
+					DispatchAfter: time.Now(),
+					Port:          16,
+					Priority:      "HIGH",
+					CreatedAt:     time.Now(),
+					Ready:         true,
+					Sent:          false,
+					SentAt:        time.Time{},
+				}
 
-	// Verify that all fields are preserved correctly
-	if command.ID != "test-command-id" {
-		t.Errorf("Expected ID 'test-command-id', got %s", command.ID)
-	}
-	if command.DeviceID != "test-device-id" {
-		t.Errorf("Expected DeviceID 'test-device-id', got %s", command.DeviceID)
-	}
-	if command.DeviceName != "test-device" {
-		t.Errorf("Expected DeviceName 'test-device', got %s", command.DeviceName)
-	}
-	if command.TaskID != "test-task-id" {
-		t.Errorf("Expected TaskID 'test-task-id', got %s", command.TaskID)
-	}
-	if command.Payload.Index != 5 {
-		t.Errorf("Expected Payload.Index 5, got %d", command.Payload.Index)
-	}
-	if command.Payload.Value != 123 {
-		t.Errorf("Expected Payload.Value 123, got %d", command.Payload.Value)
-	}
-	if command.Port != 16 {
-		t.Errorf("Expected Port 16, got %d", command.Port)
-	}
-	if command.Priority != "HIGH" {
-		t.Errorf("Expected Priority 'HIGH', got %s", command.Priority)
-	}
-	if command.Ready != true {
-		t.Errorf("Expected Ready true, got %t", command.Ready)
-	}
-	if command.Sent != false {
-		t.Errorf("Expected Sent false, got %t", command.Sent)
-	}
-}
+				command, err := worker.convertToSharedCommand(context.TODO(), avroCmd)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-func TestLoraIntegrationWorker_ConvertToSharedCommand_WithStructMessage(t *testing.T) {
-	worker := &LoraIntegrationWorker{}
+				// Verify that all fields are preserved correctly
+				gomega.Expect(command.ID).To(gomega.Equal("test-command-id"))
+				gomega.Expect(command.DeviceID).To(gomega.Equal("test-device-id"))
+				gomega.Expect(command.DeviceName).To(gomega.Equal("test-device"))
+				gomega.Expect(command.TaskID).To(gomega.Equal("test-task-id"))
+				gomega.Expect(command.Payload.Index).To(gomega.Equal(5))
+				gomega.Expect(command.Payload.Value).To(gomega.Equal(123))
+				gomega.Expect(command.Port).To(gomega.Equal(16))
+				gomega.Expect(command.Priority).To(gomega.Equal("HIGH"))
+				gomega.Expect(command.Ready).To(gomega.BeTrue())
+				gomega.Expect(command.Sent).To(gomega.BeFalse())
+			})
+		})
 
-	// Test with device.Command (fallback case)
-	structMessage := device.Command{
-		ID:         "test-456",
-		Version:    2,
-		DeviceID:   "device-456",
-		DeviceName: "test-device-2",
-		TaskID:     "task-456",
-		Payload: device.CommandPayload{
-			Index: 2,
-			Value: 200,
-		},
-		DispatchAfter: utils.Time{Time: time.Now()},
-		Port:          16,
-		Priority:      "HIGH",
-		CreatedAt:     utils.Time{Time: time.Now()},
-		Ready:         false,
-		Sent:          true,
-		SentAt:        utils.Time{Time: time.Now()},
-	}
+		ginkgo.When("converting struct message to shared command", func() {
+			ginkgo.It("should convert device.Command correctly", func() {
+				// Test with device.Command (fallback case)
+				structMessage := device.Command{
+					ID:         "test-456",
+					Version:    2,
+					DeviceID:   "device-456",
+					DeviceName: "test-device-2",
+					TaskID:     "task-456",
+					Payload: device.CommandPayload{
+						Index: 2,
+						Value: 200,
+					},
+					DispatchAfter: utils.Time{Time: time.Now()},
+					Port:          16,
+					Priority:      "HIGH",
+					CreatedAt:     utils.Time{Time: time.Now()},
+					Ready:         false,
+					Sent:          true,
+					SentAt:        utils.Time{Time: time.Now()},
+				}
 
-	command, err := worker.convertToSharedCommand(context.TODO(), structMessage)
-	if err != nil {
-		t.Fatalf("Failed to convert struct message: %v", err)
-	}
+				command, err := worker.convertToSharedCommand(context.TODO(), structMessage)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	if command.ID != "test-456" {
-		t.Errorf("Expected ID 'test-456', got %s", command.ID)
-	}
-	if command.DeviceName != "test-device-2" {
-		t.Errorf("Expected DeviceName 'test-device-2', got %s", command.DeviceName)
-	}
-	if command.Payload.Index != 2 {
-		t.Errorf("Expected Payload.Index 2, got %d", command.Payload.Index)
-	}
-	if command.Payload.Value != 200 {
-		t.Errorf("Expected Payload.Value 200, got %d", command.Payload.Value)
-	}
-	if command.Port != 16 {
-		t.Errorf("Expected Port 16, got %d", command.Port)
-	}
-}
+				gomega.Expect(command.ID).To(gomega.Equal("test-456"))
+				gomega.Expect(command.DeviceName).To(gomega.Equal("test-device-2"))
+				gomega.Expect(command.Payload.Index).To(gomega.Equal(2))
+				gomega.Expect(command.Payload.Value).To(gomega.Equal(200))
+				gomega.Expect(command.Port).To(gomega.Equal(16))
+			})
+		})
+	})
+})

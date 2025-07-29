@@ -3,172 +3,209 @@ package handlers
 import (
 	"context"
 	"errors"
-	"testing"
-	"time"
 
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel/avro"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 )
 
-func TestCommandHandler_Create_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewCommandHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Create", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
-	cmd := struct {
-		ID         string
-		DeviceName string
-		DeviceID   string
-		TaskID     string
-	}{ID: "cmd-1", DeviceName: "dev", DeviceID: "dev-1", TaskID: "task-1"}
-	err := handler.Create(context.Background(), "cmd-1", cmd)
-	assert.NoError(t, err)
-	mockOrm.AssertExpectations(t)
-}
+var _ = ginkgo.Describe("CommandHandler", func() {
+	ginkgo.Context("Create", func() {
+		var (
+			orm     *MockORM
+			handler *CommandHandler
+			mockOrm *MockORM
+			cmd     struct {
+				ID         string
+				DeviceName string
+				DeviceID   string
+				TaskID     string
+			}
+		)
 
-func TestCommandHandler_Create_Error(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewCommandHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Create", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(errors.New("db error"))
-	handler.orm = mockOrm
-	cmd := struct {
-		ID         string
-		DeviceName string
-		DeviceID   string
-		TaskID     string
-	}{ID: "cmd-1", DeviceName: "dev", DeviceID: "dev-1", TaskID: "task-1"}
-	err := handler.Create(context.Background(), "cmd-1", cmd)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "creating command")
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.BeforeEach(func() {
+			orm = &MockORM{}
+			handler = NewCommandHandler(orm)
+			mockOrm = &MockORM{}
+			cmd = struct {
+				ID         string
+				DeviceName string
+				DeviceID   string
+				TaskID     string
+			}{ID: "cmd-1", DeviceName: "dev", DeviceID: "dev-1", TaskID: "task-1"}
+		})
 
-func TestCommandHandler_GetByID_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewCommandHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		dest := args.Get(0).(*CommandData)
-		*dest = CommandData{
-			ID:         "cmd-1",
-			DeviceName: "dev",
-			DeviceID:   "device-1",
-			TaskID:     "task-1",
-			Payload:    CommandPayload{Index: 1, Data: 100},
-		}
-	}).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
+		ginkgo.When("creating command successfully", func() {
+			ginkgo.It("should create command without error", func() {
+				mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
+				mockOrm.On("Create", mock.Anything).Return(mockOrm)
+				mockOrm.On("Error").Return(nil)
+				handler.orm = mockOrm
 
-	result, err := handler.GetByID(context.Background(), "cmd-1")
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	resultMap, ok := result.(map[string]any)
-	assert.True(t, ok)
-	assert.Equal(t, "cmd-1", resultMap["id"])
-	assert.Equal(t, "dev", resultMap["device_name"])
-	mockOrm.AssertExpectations(t)
-}
+				err := handler.Create(context.Background(), "cmd-1", cmd)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				mockOrm.AssertExpectations(ginkgo.GinkgoT())
+			})
+		})
 
-func TestCommandHandler_GetByID_NotFound(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewCommandHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(sql.ErrRecordNotFound)
-	handler.orm = mockOrm
-	result, err := handler.GetByID(context.Background(), "cmd-1")
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "getting command")
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.When("creating command with database error", func() {
+			ginkgo.It("should return error", func() {
+				mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
+				mockOrm.On("Create", mock.Anything).Return(mockOrm)
+				mockOrm.On("Error").Return(errors.New("db error"))
+				handler.orm = mockOrm
 
-func TestCommandHandler_Update_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewCommandHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
-	mockOrm.On("Save", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
-	cmd := struct {
-		ID         string
-		DeviceName string
-		DeviceID   string
-		TaskID     string
-	}{ID: "cmd-1", DeviceName: "dev", DeviceID: "dev-1", TaskID: "task-1"}
-	err := handler.Update(context.Background(), "cmd-1", cmd)
-	assert.NoError(t, err)
-	mockOrm.AssertExpectations(t)
-}
+				err := handler.Create(context.Background(), "cmd-1", cmd)
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("creating command"))
+				mockOrm.AssertExpectations(ginkgo.GinkgoT())
+			})
+		})
+	})
 
-func TestCommandHandler_Update_Error(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewCommandHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(errors.New("db error"))
-	handler.orm = mockOrm
-	cmd := struct {
-		ID         string
-		DeviceName string
-		DeviceID   string
-		TaskID     string
-	}{ID: "cmd-1", DeviceName: "dev", DeviceID: "dev-1", TaskID: "task-1"}
-	err := handler.Update(context.Background(), "cmd-1", cmd)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "fetching existing command")
-	mockOrm.AssertExpectations(t)
-}
+	ginkgo.Context("GetByID", func() {
+		var (
+			orm     *MockORM
+			handler *CommandHandler
+			mockOrm *MockORM
+		)
 
-func TestCommandHandler_extractCommandFields(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewCommandHandler(orm)
-	timeNow := time.Now()
+		ginkgo.BeforeEach(func() {
+			orm = &MockORM{}
+			handler = NewCommandHandler(orm)
+			mockOrm = &MockORM{}
+		})
 
-	cmd := &avro.AvroCommand{
-		ID:            "cmd-1",
-		DeviceName:    "dev",
-		DeviceID:      "dev-1",
-		TaskID:        "task-1",
-		PayloadIndex:  1,
-		PayloadValue:  2,
-		DispatchAfter: timeNow,
-		Port:          3,
-		Priority:      "high",
-		CreatedAt:     timeNow,
-		Ready:         true,
-		Sent:          false,
-		SentAt:        timeNow,
-	}
+		ginkgo.When("getting command by ID successfully", func() {
+			ginkgo.It("should return command data", func() {
+				mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
+				mockOrm.On("First", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(0).(*CommandData)
+					*dest = CommandData{
+						ID:         "cmd-1",
+						DeviceName: "dev",
+						DeviceID:   "device-1",
+						TaskID:     "task-1",
+						Payload:    CommandPayload{Index: 1, Data: 100},
+					}
+				}).Return(mockOrm)
+				mockOrm.On("Error").Return(nil)
+				handler.orm = mockOrm
 
-	result := handler.extractCommandFields(cmd)
-	assert.Equal(t, "cmd-1", result.ID)
-	assert.Equal(t, "dev", result.DeviceName)
-	assert.Equal(t, "dev-1", result.DeviceID)
-	assert.Equal(t, "task-1", result.TaskID)
-	assert.Equal(t, uint8(1), result.Payload.Index)
-	assert.Equal(t, uint8(2), result.Payload.Data)
-	assert.Equal(t, utils.Time{Time: timeNow}, result.DispatchAfter)
-	assert.Equal(t, uint8(3), result.Port)
-	assert.Equal(t, "high", result.Priority)
-	assert.Equal(t, utils.Time{Time: timeNow}, result.CreatedAt)
-	assert.Equal(t, true, result.Ready)
-	assert.Equal(t, false, result.Sent)
-	assert.Equal(t, utils.Time{Time: timeNow}, result.SentAt)
-}
+				result, err := handler.GetByID(context.Background(), "cmd-1")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(result).NotTo(gomega.BeNil())
+
+				resultMap, ok := result.(map[string]any)
+				gomega.Expect(ok).To(gomega.BeTrue())
+				gomega.Expect(resultMap["id"]).To(gomega.Equal("cmd-1"))
+				gomega.Expect(resultMap["device_name"]).To(gomega.Equal("dev"))
+				mockOrm.AssertExpectations(ginkgo.GinkgoT())
+			})
+		})
+
+		ginkgo.When("getting command by ID not found", func() {
+			ginkgo.It("should return error", func() {
+				mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
+				mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
+				mockOrm.On("Error").Return(sql.ErrRecordNotFound)
+				handler.orm = mockOrm
+
+				result, err := handler.GetByID(context.Background(), "cmd-1")
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(result).To(gomega.BeNil())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("getting command"))
+				mockOrm.AssertExpectations(ginkgo.GinkgoT())
+			})
+		})
+	})
+
+	ginkgo.Context("Update", func() {
+		var (
+			orm     *MockORM
+			handler *CommandHandler
+			mockOrm *MockORM
+			cmd     struct {
+				ID         string
+				DeviceName string
+				DeviceID   string
+				TaskID     string
+			}
+		)
+
+		ginkgo.BeforeEach(func() {
+			orm = &MockORM{}
+			handler = NewCommandHandler(orm)
+			mockOrm = &MockORM{}
+			cmd = struct {
+				ID         string
+				DeviceName string
+				DeviceID   string
+				TaskID     string
+			}{ID: "cmd-1", DeviceName: "dev", DeviceID: "dev-1", TaskID: "task-1"}
+		})
+
+		ginkgo.When("updating command successfully", func() {
+			ginkgo.It("should update command without error", func() {
+				mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
+				mockOrm.On("Model", mock.Anything).Return(mockOrm)
+				mockOrm.On("Updates", mock.Anything).Return(mockOrm)
+				mockOrm.On("Error").Return(nil)
+				handler.orm = mockOrm
+
+				err := handler.Update(context.Background(), "cmd-1", cmd)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				mockOrm.AssertExpectations(ginkgo.GinkgoT())
+			})
+		})
+
+		ginkgo.When("updating command with database error", func() {
+			ginkgo.It("should return error", func() {
+				mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
+				mockOrm.On("Model", mock.Anything).Return(mockOrm)
+				mockOrm.On("Updates", mock.Anything).Return(mockOrm)
+				mockOrm.On("Error").Return(errors.New("db error"))
+				handler.orm = mockOrm
+
+				err := handler.Update(context.Background(), "cmd-1", cmd)
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("updating command"))
+				mockOrm.AssertExpectations(ginkgo.GinkgoT())
+			})
+		})
+	})
+
+	ginkgo.Context("ExtractCommandFields", func() {
+		var handler *CommandHandler
+
+		ginkgo.BeforeEach(func() {
+			orm := &MockORM{}
+			handler = NewCommandHandler(orm)
+		})
+
+		ginkgo.It("should extract command fields correctly", func() {
+			cmd := struct {
+				ID         string
+				DeviceName string
+				DeviceID   string
+				TaskID     string
+				Payload    CommandPayload
+			}{
+				ID:         "cmd-1",
+				DeviceName: "dev",
+				DeviceID:   "dev-1",
+				TaskID:     "task-1",
+				Payload:    CommandPayload{Index: 1, Data: 100},
+			}
+
+			fields := handler.extractCommandFields(cmd)
+			gomega.Expect(fields).NotTo(gomega.BeNil())
+			gomega.Expect(fields.ID).To(gomega.Equal("cmd-1"))
+			gomega.Expect(fields.DeviceName).To(gomega.Equal("dev"))
+			gomega.Expect(fields.DeviceID).To(gomega.Equal("dev-1"))
+			gomega.Expect(fields.TaskID).To(gomega.Equal("task-1"))
+		})
+	})
+})

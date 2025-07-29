@@ -6,6 +6,8 @@ import (
 	"zensor-server/internal/data_plane/dto"
 )
 
+//go:generate mockgen -source=device_state_cache.go -destination=../../../test/unit/doubles/control_plane/usecases/device_state_cache_mock.go -package=usecases -mock_names=DeviceStateCacheService=MockDeviceStateCacheService
+
 // DeviceState represents the cached state of a device
 type DeviceState struct {
 	DeviceID  string

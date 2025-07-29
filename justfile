@@ -24,6 +24,12 @@ install-deps: install-otelcol
     else \
         echo "   - arch-go already installed."; \
     fi
+    @if ! command -v mockgen &> /dev/null; then \
+        echo "   - mockgen not found, installing..."; \
+        go install go.uber.org/mock/mockgen@latest; \
+    else \
+        echo "   - mockgen already installed."; \
+    fi
     @echo "✅ All dependencies installed."
 
 install-otelcol:
@@ -102,8 +108,47 @@ docker-build: build
 wire:
     cd cmd/api/wire && wire
 
-mock:
-    go generate ./internal/...
+mock: install-mockgen
+    @echo "🔧 Generating mocks with comments..."
+    @go generate ./internal/...
+    @echo "✅ Mocks generated successfully!"
+
+install-mockgen:
+    @if ! command -v mockgen &> /dev/null; then \
+        echo "📦 Installing mockgen..."; \
+        go install go.uber.org/mock/mockgen@latest; \
+    fi
+
+mock-clean:
+    @echo "🧹 Cleaning generated mocks..."
+    @find . -name "*_mock.go" -type f -delete
+    @echo "✅ Mocks cleaned!"
+
+mock-interface interface path="internal":
+    @echo "🔧 Generating mock for interface: {{interface}}"
+    @mockgen -source={{path}} -destination={{path}}_mock.go -package=$(basename {{path}}) -mock_names={{interface}}=Mock{{interface}}
+
+mock-example:
+    @echo "📝 Example of using generated mocks:"
+    @echo ""
+    @echo "import ("
+    @echo "    'github.com/onsi/ginkgo/v2'"
+    @echo "    'github.com/onsi/gomega'"
+    @echo "    'go.uber.org/mock/gomock'"
+    @echo "    'zensor-server/test/unit/doubles/control_plane/usecases'"
+    @echo ")"
+    @echo ""
+    @echo "var _ = ginkgo.Describe('Example', func() {"
+    @echo "    ginkgo.It('should use mock', func() {"
+    @echo "        ctrl := gomock.NewController(ginkgo.GinkgoT())"
+    @echo "        defer ctrl.Finish()"
+    @echo ""
+    @echo "        mockRepo := usecases.NewMockCommandRepository(ctrl)"
+    @echo "        mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)"
+    @echo ""
+    @echo "        // Use mockRepo in your test..."
+    @echo "    })"
+    @echo "})"
 
 lint:
     golangci-lint run --max-issues-per-linter=0 --max-same-issues=0 --config=./build/ci/golangci.yml --timeout 7m

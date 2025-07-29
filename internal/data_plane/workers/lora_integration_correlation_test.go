@@ -2,9 +2,7 @@ package workers
 
 import (
 	"context"
-	"testing"
 	"time"
-
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
@@ -14,7 +12,8 @@ import (
 	"zensor-server/internal/shared_kernel/device"
 	"zensor-server/internal/shared_kernel/domain"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -146,155 +145,146 @@ func (m *MockPubSubConsumer) Consume(topic pubsub.Topic, handler pubsub.MessageH
 	return args.Error(0)
 }
 
-func TestLoraIntegrationWorker_CorrelationIDInTTNMessage(t *testing.T) {
-	// Create mock services
-	mockDeviceService := &MockDeviceService{}
-	mockStateCache := &MockDeviceStateCacheService{}
-	mockMQTTClient := &MockMQTTClient{}
-	mockBroker := &MockInternalBroker{}
-	mockConsumer := &MockPubSubConsumer{}
+var _ = ginkgo.Describe("LoraIntegrationWorker", func() {
+	ginkgo.Context("CorrelationID", func() {
+		var (
+			mockDeviceService *MockDeviceService
+			mockStateCache    *MockDeviceStateCacheService
+			mockMQTTClient    *MockMQTTClient
+			mockBroker        *MockInternalBroker
+			mockConsumer      *MockPubSubConsumer
+			worker            *LoraIntegrationWorker
+		)
 
-	// Create a test command
-	testCommand := &device.Command{
-		ID:         "test-command-123",
-		Version:    1,
-		DeviceID:   "test-device-id",
-		DeviceName: "test-device",
-		TaskID:     "test-task-id",
-		Payload: device.CommandPayload{
-			Index: 1,
-			Value: 100,
-		},
-		DispatchAfter: utils.Time{Time: time.Now()},
-		Port:          15,
-		Priority:      "NORMAL",
-		CreatedAt:     utils.Time{Time: time.Now()},
-		Ready:         true,
-		Sent:          false,
-	}
+		ginkgo.BeforeEach(func() {
+			// Create mock services
+			mockDeviceService = &MockDeviceService{}
+			mockStateCache = &MockDeviceStateCacheService{}
+			mockMQTTClient = &MockMQTTClient{}
+			mockBroker = &MockInternalBroker{}
+			mockConsumer = &MockPubSubConsumer{}
 
-	// Set up mock expectations
-	mockMQTTClient.On("Publish", mock.AnythingOfType("string"), mock.AnythingOfType("dto.TTNMessage")).Return(nil)
-	mockBroker.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			// Create the worker
+			worker = &LoraIntegrationWorker{
+				service:        mockDeviceService,
+				stateCache:     mockStateCache,
+				mqttClient:     mockMQTTClient,
+				broker:         mockBroker,
+				pubsubConsumer: mockConsumer,
+			}
+		})
 
-	// Create the worker
-	worker := &LoraIntegrationWorker{
-		service:        mockDeviceService,
-		stateCache:     mockStateCache,
-		mqttClient:     mockMQTTClient,
-		broker:         mockBroker,
-		pubsubConsumer: mockConsumer,
-	}
+		ginkgo.When("handling TTN message with correlation ID", func() {
+			ginkgo.It("should include correlation ID in TTN message", func() {
+				// Create a test command
+				testCommand := &device.Command{
+					ID:         "test-command-123",
+					Version:    1,
+					DeviceID:   "test-device-id",
+					DeviceName: "test-device",
+					TaskID:     "test-task-id",
+					Payload: device.CommandPayload{
+						Index: 1,
+						Value: 100,
+					},
+					DispatchAfter: utils.Time{Time: time.Now()},
+					Port:          15,
+					Priority:      "NORMAL",
+					CreatedAt:     utils.Time{Time: time.Now()},
+					Ready:         true,
+					Sent:          false,
+				}
 
-	// Test the deviceCommandHandler method
-	ctx := context.Background()
-	msg := pubsub.ConsumedMessage{
-		Ctx:   ctx,
-		Key:   "test-key",
-		Value: testCommand,
-	}
+				// Set up mock expectations
+				mockMQTTClient.On("Publish", mock.AnythingOfType("string"), mock.AnythingOfType("dto.TTNMessage")).Return(nil)
+				mockBroker.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	// Call the handler
-	worker.deviceCommandHandler(ctx, msg, func() {})
+				// Test the deviceCommandHandler method
+				ctx := context.Background()
+				msg := pubsub.ConsumedMessage{
+					Ctx:   ctx,
+					Key:   "test-key",
+					Value: testCommand,
+				}
 
-	// Verify that Publish was called with a TTN message containing correlation IDs
-	mockMQTTClient.AssertExpectations(t)
+				// Call the handler
+				worker.deviceCommandHandler(ctx, msg, func() {})
 
-	// Get the actual TTN message that was published
-	calls := mockMQTTClient.Calls
-	assert.Greater(t, len(calls), 0, "Publish should have been called")
+				// Verify that Publish was called with a TTN message containing correlation IDs
+				mockMQTTClient.AssertExpectations(ginkgo.GinkgoT())
 
-	// Extract the TTN message from the call
-	ttnMsg := calls[0].Arguments[1].(dto.TTNMessage)
-	assert.Equal(t, 1, len(ttnMsg.Downlinks), "Should have one downlink")
-	assert.Equal(t, []string{"zensor:test-command-123"}, ttnMsg.Downlinks[0].CorrelationIDs, "Correlation IDs should contain the command ID with zensor prefix")
-}
+				// Get the actual TTN message that was published
+				calls := mockMQTTClient.Calls
+				gomega.Expect(len(calls)).To(gomega.BeNumerically(">", 0))
 
-func TestLoraIntegrationWorker_UpdateCommandStatusWithCorrelationID(t *testing.T) {
-	// Create mock services
-	mockDeviceService := &MockDeviceService{}
-	mockStateCache := &MockDeviceStateCacheService{}
-	mockMQTTClient := &MockMQTTClient{}
-	mockBroker := &MockInternalBroker{}
-	mockConsumer := &MockPubSubConsumer{}
+				// Extract the TTN message from the call
+				ttnMsg := calls[0].Arguments[1].(dto.TTNMessage)
+				gomega.Expect(len(ttnMsg.Downlinks)).To(gomega.Equal(1))
+				gomega.Expect(ttnMsg.Downlinks[0].CorrelationIDs).To(gomega.Equal([]string{"zensor:test-command-123"}))
+			})
+		})
 
-	// Create the worker
-	worker := &LoraIntegrationWorker{
-		service:        mockDeviceService,
-		stateCache:     mockStateCache,
-		mqttClient:     mockMQTTClient,
-		broker:         mockBroker,
-		pubsubConsumer: mockConsumer,
-	}
+		ginkgo.Context("UpdateCommandStatus", func() {
+			ginkgo.When("updating command status with correlation ID", func() {
+				ginkgo.It("should extract command ID from correlation IDs", func() {
+					// Create a test envelope with correlation IDs
+					envelop := dto.Envelop{
+						EndDeviceIDs: dto.EndDeviceIDs{
+							DeviceID: "test-device",
+						},
+						CorrelationIDs: []string{"zensor:test-command-123"},
+					}
 
-	// Create a test envelope with correlation IDs
-	envelop := dto.Envelop{
-		EndDeviceIDs: dto.EndDeviceIDs{
-			DeviceID: "test-device",
-		},
-		CorrelationIDs: []string{"zensor:test-command-123"},
-	}
+					// Set up mock expectations
+					mockBroker.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	// Set up mock expectations
-	mockBroker.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+					// Test the updateCommandStatus method
+					ctx := context.Background()
+					status := domain.CommandStatusQueued
+					var errorMessage *string
 
-	// Test the updateCommandStatus method
-	ctx := context.Background()
-	status := domain.CommandStatusQueued
-	var errorMessage *string
+					worker.updateCommandStatus(ctx, envelop, status, errorMessage)
 
-	worker.updateCommandStatus(ctx, envelop, status, errorMessage)
+					// Verify that Publish was called with the correct status update
+					mockBroker.AssertExpectations(ginkgo.GinkgoT())
 
-	// Verify that Publish was called with the correct status update
-	mockBroker.AssertExpectations(t)
+					// Get the actual status update that was published
+					calls := mockBroker.Calls
+					gomega.Expect(len(calls)).To(gomega.BeNumerically(">", 0))
 
-	// Get the actual status update that was published
-	calls := mockBroker.Calls
-	assert.Greater(t, len(calls), 0, "Publish should have been called")
+					// Extract the broker message from the call
+					brokerMsg := calls[0].Arguments[2].(async.BrokerMessage)
+					gomega.Expect(brokerMsg.Event).To(gomega.Equal("command_status_update"))
 
-	// Extract the broker message from the call
-	brokerMsg := calls[0].Arguments[2].(async.BrokerMessage)
-	assert.Equal(t, "command_status_update", brokerMsg.Event, "Event should be command_status_update")
+					// Verify the status update contains the command ID
+					statusUpdate := brokerMsg.Value.(domain.CommandStatusUpdate)
+					gomega.Expect(statusUpdate.CommandID).To(gomega.Equal("test-command-123"))
+					gomega.Expect(statusUpdate.DeviceName).To(gomega.Equal("test-device"))
+					gomega.Expect(statusUpdate.Status).To(gomega.Equal(status))
+				})
+			})
 
-	// Verify the status update contains the command ID
-	statusUpdate := brokerMsg.Value.(domain.CommandStatusUpdate)
-	assert.Equal(t, "test-command-123", statusUpdate.CommandID, "Command ID should be extracted from correlation IDs")
-	assert.Equal(t, "test-device", statusUpdate.DeviceName, "Device name should be preserved")
-	assert.Equal(t, status, statusUpdate.Status, "Status should be preserved")
-}
+			ginkgo.When("updating command status without correlation ID", func() {
+				ginkgo.It("should not publish when no correlation IDs are present", func() {
+					// Create a test envelope without correlation IDs (backward compatibility)
+					envelop := dto.Envelop{
+						EndDeviceIDs: dto.EndDeviceIDs{
+							DeviceID: "test-device",
+						},
+						CorrelationIDs: []string{}, // Empty correlation IDs
+					}
 
-func TestLoraIntegrationWorker_UpdateCommandStatusWithoutCorrelationID(t *testing.T) {
-	// Create mock services
-	mockDeviceService := &MockDeviceService{}
-	mockStateCache := &MockDeviceStateCacheService{}
-	mockMQTTClient := &MockMQTTClient{}
-	mockBroker := &MockInternalBroker{}
-	mockConsumer := &MockPubSubConsumer{}
+					// Test the updateCommandStatus method
+					ctx := context.Background()
+					status := domain.CommandStatusQueued
+					var errorMessage *string
 
-	// Create the worker
-	worker := &LoraIntegrationWorker{
-		service:        mockDeviceService,
-		stateCache:     mockStateCache,
-		mqttClient:     mockMQTTClient,
-		broker:         mockBroker,
-		pubsubConsumer: mockConsumer,
-	}
+					worker.updateCommandStatus(ctx, envelop, status, errorMessage)
 
-	// Create a test envelope without correlation IDs (backward compatibility)
-	envelop := dto.Envelop{
-		EndDeviceIDs: dto.EndDeviceIDs{
-			DeviceID: "test-device",
-		},
-		CorrelationIDs: []string{}, // Empty correlation IDs
-	}
-
-	// Test the updateCommandStatus method
-	ctx := context.Background()
-	status := domain.CommandStatusQueued
-	var errorMessage *string
-
-	worker.updateCommandStatus(ctx, envelop, status, errorMessage)
-
-	// Verify that Publish was NOT called when there are no correlation IDs
-	mockBroker.AssertNotCalled(t, "Publish")
-}
+					// Verify that Publish was NOT called when there are no correlation IDs
+					mockBroker.AssertNotCalled(ginkgo.GinkgoT(), "Publish")
+				})
+			})
+		})
+	})
+})

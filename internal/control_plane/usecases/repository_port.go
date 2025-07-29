@@ -6,6 +6,8 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
+//go:generate mockgen -source=repository_port.go -destination=../../../test/unit/doubles/control_plane/usecases/repository_port_mock.go -package=usecases -mock_names=DeviceRepository=MockDeviceRepository,CommandRepository=MockCommandRepository,EvaluationRuleRepository=MockEvaluationRuleRepository,TaskRepository=MockTaskRepository,ScheduledTaskRepository=MockScheduledTaskRepository,TenantConfigurationRepository=MockTenantConfigurationRepository
+
 var (
 	ErrDeviceNotFound              = errors.New("device not found")
 	ErrDeviceDuplicated            = errors.New("device already exists")

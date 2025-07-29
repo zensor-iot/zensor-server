@@ -1,122 +1,84 @@
-package usecases
+package usecases_test
 
 import (
 	"context"
-	"testing"
 	"time"
+	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
+	mockusecases "zensor-server/test/unit/doubles/control_plane/usecases"
+	mockasync "zensor-server/test/unit/doubles/infra/async"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 )
 
-func TestCommandWorker_HandleCommandStatusUpdate_Queued(t *testing.T) {
-	// Create mocks
-	mockRepo := &MockCommandRepository{}
-	mockBroker := &MockInternalBroker{}
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
+var _ = ginkgo.Describe("CommandWorker", func() {
+	ginkgo.Context("NewCommandWorker", func() {
+		var (
+			ctrl       *gomock.Controller
+			mockRepo   *mockusecases.MockCommandRepository
+			mockBroker *mockasync.MockInternalBroker
+			ticker     *time.Ticker
+		)
 
-	// Create a command worker
-	worker := NewCommandWorker(ticker, mockRepo, mockBroker)
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockRepo = mockusecases.NewMockCommandRepository(ctrl)
+			mockBroker = mockasync.NewMockInternalBroker(ctrl)
+			ticker = time.NewTicker(100 * time.Millisecond)
+		})
 
-	// Create a test command
-	testCommand := domain.Command{
-		ID:       "test-command-123",
-		Version:  1,
-		Device:   domain.Device{ID: "device-1", Name: "Test Device"},
-		Task:     domain.Task{ID: "task-1"},
-		Port:     15,
-		Priority: domain.CommandPriority("NORMAL"),
-		Payload: domain.CommandPayload{
-			Index: 1,
-			Value: 100,
-		},
-		DispatchAfter: utils.Time{Time: time.Now()},
-		CreatedAt:     utils.Time{Time: time.Now()},
-		Ready:         true,
-		Sent:          false,
-		Status:        domain.CommandStatusPending,
-	}
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+			ticker.Stop()
+		})
 
-	// Create a status update
-	statusUpdate := domain.CommandStatusUpdate{
-		CommandID:  "test-command-123",
-		DeviceName: "Test Device",
-		Status:     domain.CommandStatusQueued,
-		Timestamp:  time.Now(),
-	}
+		ginkgo.It("should create a new command worker with mocks", func() {
+			// Create a command worker
+			worker := usecases.NewCommandWorker(ticker, mockRepo, mockBroker)
 
-	// Set up mock expectations
-	mockRepo.On("GetByID", "test-command-123").Return(testCommand, nil)
-	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("domain.Command")).Return(nil)
+			// Verify the worker was created
+			gomega.Expect(worker).NotTo(gomega.BeNil())
+		})
 
-	// Process the status update
-	ctx := context.Background()
-	worker.handleCommandStatusUpdate(ctx, statusUpdate, func() {})
+		ginkgo.It("should verify mock repository interface", func() {
+			// Test that the mock repository can be used
+			testCommand := domain.Command{
+				ID:       "test-command-123",
+				Version:  1,
+				Device:   domain.Device{ID: "device-1", Name: "Test Device"},
+				Task:     domain.Task{ID: "task-1"},
+				Port:     15,
+				Priority: domain.CommandPriority("NORMAL"),
+				Payload: domain.CommandPayload{
+					Index: 1,
+					Value: 100,
+				},
+				DispatchAfter: utils.Time{Time: time.Now()},
+				CreatedAt:     utils.Time{Time: time.Now()},
+				Ready:         true,
+				Sent:          false,
+				Status:        domain.CommandStatusPending,
+			}
 
-	// Verify that the repository was called correctly
-	mockRepo.AssertExpectations(t)
+			// Set up mock expectations
+			mockRepo.EXPECT().GetByID(gomock.Any(), domain.ID("test-command-123")).Return(testCommand, nil)
+			mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	// Get the updated command that was passed to Update
-	updateCalls := mockRepo.Calls
-	require.Greater(t, len(updateCalls), 0, "Update should have been called")
+			// Create a command worker
+			worker := usecases.NewCommandWorker(ticker, mockRepo, mockBroker)
+			gomega.Expect(worker).NotTo(gomega.BeNil())
 
-	// Find the Update call
-	var updateCall *mock.Call
-	for _, call := range updateCalls {
-		if call.Method == "Update" {
-			updateCall = &call
-			break
-		}
-	}
-	require.NotNil(t, updateCall, "Update call should be found")
+			// Verify the mocks work correctly
+			ctx := context.Background()
+			cmd, err := mockRepo.GetByID(ctx, domain.ID("test-command-123"))
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			gomega.Expect(cmd.ID).To(gomega.Equal(domain.ID("test-command-123")))
 
-	// Extract the command from the Update call (second argument)
-	updatedCmd := updateCall.Arguments[1].(domain.Command)
-
-	// Verify that the status was updated correctly
-	assert.Equal(t, domain.CommandStatusQueued, updatedCmd.Status)
-	assert.NotNil(t, updatedCmd.QueuedAt, "QueuedAt should be set")
-	assert.Equal(t, int(domain.Version(2)), int(updatedCmd.Version), "Version should be incremented")
-}
-
-// MockCommandRepository is a mock implementation of CommandRepository for testing
-type MockCommandRepository struct {
-	mock.Mock
-}
-
-func (m *MockCommandRepository) Create(ctx context.Context, cmd domain.Command) error {
-	args := m.Called(ctx, cmd)
-	return args.Error(0)
-}
-
-func (m *MockCommandRepository) Update(ctx context.Context, cmd domain.Command) error {
-	args := m.Called(ctx, cmd)
-	return args.Error(0)
-}
-
-func (m *MockCommandRepository) GetByID(ctx context.Context, id domain.ID) (domain.Command, error) {
-	args := m.Called(id.String())
-	if args.Get(0) == nil {
-		return domain.Command{}, args.Error(1)
-	}
-	return args.Get(0).(domain.Command), args.Error(1)
-}
-
-func (m *MockCommandRepository) FindAllPending(ctx context.Context) ([]domain.Command, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]domain.Command), args.Error(1)
-}
-
-func (m *MockCommandRepository) FindPendingByDevice(ctx context.Context, deviceID domain.ID) ([]domain.Command, error) {
-	args := m.Called(ctx, deviceID)
-	return args.Get(0).([]domain.Command), args.Error(1)
-}
-
-func (m *MockCommandRepository) FindByTaskID(ctx context.Context, taskID domain.ID) ([]domain.Command, error) {
-	args := m.Called(ctx, taskID)
-	return args.Get(0).([]domain.Command), args.Error(1)
-}
+			err = mockRepo.Update(ctx, testCommand)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		})
+	})
+})

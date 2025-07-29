@@ -2,357 +2,388 @@ package avro
 
 import (
 	"fmt"
-	"testing"
 	"time"
 
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/riferrei/srclient"
-	"github.com/stretchr/testify/assert"
 
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-func TestNewConfluentAvroCodec(t *testing.T) {
-	// Test that ConfluentAvroCodec can be created
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
-	assert.NotNil(t, codec)
-	assert.NotNil(t, codec.schemaCache)
-	assert.NotNil(t, codec.codecCache)
-	assert.Equal(t, "-value", codec.subjectSuffix)
-}
-
-func TestConfluentAvroCodec_StructValidation(t *testing.T) {
-	// Test that all Avro structs can be created and validated
-	t.Run("AvroCommand", func(t *testing.T) {
-		cmd := &AvroCommand{
-			ID:            "cmd-123",
-			Version:       1,
-			DeviceName:    "test-device",
-			DeviceID:      "dev-123",
-			TaskID:        "task-123",
-			PayloadIndex:  1,
-			PayloadValue:  100,
-			DispatchAfter: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			Port:          80,
-			Priority:      "high",
-			CreatedAt:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			Ready:         true,
-			Sent:          false,
-			SentAt:        time.Time{},
-		}
-		assert.Equal(t, "cmd-123", cmd.ID)
-		assert.Equal(t, 1, cmd.Version)
-		assert.Equal(t, "test-device", cmd.DeviceName)
+var _ = ginkgo.Describe("ConfluentAvroCodec", func() {
+	ginkgo.Context("NewConfluentAvroCodec", func() {
+		ginkgo.It("should create a new ConfluentAvroCodec", func() {
+			// Test that ConfluentAvroCodec can be created
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
+			gomega.Expect(codec).NotTo(gomega.BeNil())
+			gomega.Expect(codec.schemaCache).NotTo(gomega.BeNil())
+			gomega.Expect(codec.codecCache).NotTo(gomega.BeNil())
+			gomega.Expect(codec.subjectSuffix).To(gomega.Equal("-value"))
+		})
 	})
 
-	t.Run("AvroTask", func(t *testing.T) {
-		scheduledTaskID := "scheduled-task-123"
-		task := &AvroTask{
-			ID:              "task-123",
-			DeviceID:        "dev-123",
-			ScheduledTaskID: &scheduledTaskID,
-			Version:         1,
-			CreatedAt:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			UpdatedAt:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		}
-		assert.Equal(t, "task-123", task.ID)
-		assert.Equal(t, "dev-123", task.DeviceID)
-		assert.Equal(t, &scheduledTaskID, task.ScheduledTaskID)
+	ginkgo.Context("StructValidation", func() {
+		ginkgo.When("validating AvroCommand", func() {
+			ginkgo.It("should validate AvroCommand struct", func() {
+				cmd := &AvroCommand{
+					ID:            "cmd-123",
+					Version:       1,
+					DeviceName:    "test-device",
+					DeviceID:      "dev-123",
+					TaskID:        "task-123",
+					PayloadIndex:  1,
+					PayloadValue:  100,
+					DispatchAfter: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					Port:          80,
+					Priority:      "high",
+					CreatedAt:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					Ready:         true,
+					Sent:          false,
+					SentAt:        time.Time{},
+				}
+				gomega.Expect(cmd.ID).To(gomega.Equal("cmd-123"))
+				gomega.Expect(cmd.Version).To(gomega.Equal(1))
+				gomega.Expect(cmd.DeviceName).To(gomega.Equal("test-device"))
+			})
+		})
+
+		ginkgo.When("validating AvroTask", func() {
+			ginkgo.It("should validate AvroTask struct", func() {
+				scheduledTaskID := "scheduled-task-123"
+				task := &AvroTask{
+					ID:              "task-123",
+					DeviceID:        "dev-123",
+					ScheduledTaskID: &scheduledTaskID,
+					Version:         1,
+					CreatedAt:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					UpdatedAt:       time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				}
+				gomega.Expect(task.ID).To(gomega.Equal("task-123"))
+				gomega.Expect(task.DeviceID).To(gomega.Equal("dev-123"))
+				gomega.Expect(task.ScheduledTaskID).To(gomega.Equal(&scheduledTaskID))
+			})
+		})
+
+		ginkgo.When("validating AvroDevice", func() {
+			ginkgo.It("should validate AvroDevice struct", func() {
+				tenantID := "tenant-123"
+				lastMessageReceivedAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+				device := &AvroDevice{
+					ID:                    "dev-123",
+					Version:               1,
+					Name:                  "test-device",
+					DisplayName:           "Test Device",
+					AppEUI:                "app-eui-123",
+					DevEUI:                "dev-eui-123",
+					AppKey:                "app-key-123",
+					TenantID:              &tenantID,
+					LastMessageReceivedAt: &lastMessageReceivedAt,
+					CreatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					UpdatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				}
+				gomega.Expect(device.ID).To(gomega.Equal("dev-123"))
+				gomega.Expect(device.Version).To(gomega.Equal(1))
+				gomega.Expect(device.Name).To(gomega.Equal("test-device"))
+				gomega.Expect(device.TenantID).To(gomega.Equal(&tenantID))
+			})
+		})
+
+		ginkgo.When("validating AvroScheduledTask", func() {
+			ginkgo.It("should validate AvroScheduledTask struct", func() {
+				lastExecutedAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+				scheduledTask := &AvroScheduledTask{
+					ID:               "scheduled-task-123",
+					Version:          1,
+					TenantID:         "tenant-123",
+					DeviceID:         "dev-123",
+					CommandTemplates: "template-123",
+					Schedule:         "0 0 * * *",
+					IsActive:         true,
+					CreatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					UpdatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+					LastExecutedAt:   &lastExecutedAt,
+					DeletedAt:        nil,
+				}
+				gomega.Expect(scheduledTask.ID).To(gomega.Equal("scheduled-task-123"))
+				gomega.Expect(scheduledTask.Version).To(gomega.Equal(1))
+				gomega.Expect(scheduledTask.TenantID).To(gomega.Equal("tenant-123"))
+				gomega.Expect(scheduledTask.DeviceID).To(gomega.Equal("dev-123"))
+				gomega.Expect(scheduledTask.CommandTemplates).To(gomega.Equal("template-123"))
+				gomega.Expect(scheduledTask.Schedule).To(gomega.Equal("0 0 * * *"))
+				gomega.Expect(scheduledTask.IsActive).To(gomega.BeTrue())
+				gomega.Expect(scheduledTask.LastExecutedAt).To(gomega.Equal(&lastExecutedAt))
+				gomega.Expect(scheduledTask.DeletedAt).To(gomega.BeNil())
+			})
+		})
 	})
 
-	t.Run("AvroDevice", func(t *testing.T) {
-		tenantID := "tenant-123"
-		lastMessageReceivedAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-		device := &AvroDevice{
-			ID:                    "dev-123",
-			Version:               1,
-			Name:                  "test-device",
-			DisplayName:           "Test Device",
-			AppEUI:                "app-eui-123",
-			DevEUI:                "dev-eui-123",
-			AppKey:                "app-key-123",
-			TenantID:              &tenantID,
-			LastMessageReceivedAt: &lastMessageReceivedAt,
-			CreatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			UpdatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		}
-		assert.Equal(t, "dev-123", device.ID)
-		assert.Equal(t, 1, device.Version)
-		assert.Equal(t, "test-device", device.Name)
-		assert.Equal(t, &tenantID, device.TenantID)
+	ginkgo.Context("InvalidData", func() {
+		ginkgo.It("should handle invalid data gracefully", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
+
+			// Test with invalid data
+			invalidData := []byte("invalid avro data")
+			_, err := codec.Decode(invalidData)
+			gomega.Expect(err).To(gomega.HaveOccurred())
+		})
 	})
 
-	t.Run("AvroScheduledTask", func(t *testing.T) {
-		lastExecutedAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-		scheduledTask := &AvroScheduledTask{
-			ID:               "scheduled-task-123",
-			Version:          1,
-			TenantID:         "tenant-123",
-			DeviceID:         "dev-123",
-			CommandTemplates: "template-123",
-			Schedule:         "0 0 * * *",
-			IsActive:         true,
-			CreatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			UpdatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			LastExecutedAt:   &lastExecutedAt,
-			DeletedAt:        nil,
-		}
-		assert.Equal(t, "scheduled-task-123", scheduledTask.ID)
-		assert.Equal(t, int64(1), scheduledTask.Version)
-		assert.Equal(t, "tenant-123", scheduledTask.TenantID)
-		assert.Equal(t, "dev-123", scheduledTask.DeviceID)
-		assert.True(t, scheduledTask.IsActive)
+	ginkgo.Context("UnsupportedType", func() {
+		ginkgo.It("should handle unsupported types", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
+
+			// Test with unsupported type
+			unsupportedData := "unsupported string data"
+			_, err := codec.Encode(unsupportedData)
+			gomega.Expect(err).To(gomega.HaveOccurred())
+		})
 	})
 
-	t.Run("AvroTenant", func(t *testing.T) {
-		deletedAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-		tenant := &AvroTenant{
-			ID:          "tenant-123",
-			Version:     1,
-			Name:        "Test Tenant",
-			Email:       "test@example.com",
-			Description: "Test tenant description",
-			IsActive:    true,
-			CreatedAt:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			UpdatedAt:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			DeletedAt:   &deletedAt,
-		}
-		assert.Equal(t, "tenant-123", tenant.ID)
-		assert.Equal(t, 1, tenant.Version)
-		assert.Equal(t, "Test Tenant", tenant.Name)
-		assert.Equal(t, "test@example.com", tenant.Email)
-		assert.True(t, tenant.IsActive)
-		assert.Equal(t, &deletedAt, tenant.DeletedAt)
+	ginkgo.Context("DeviceWithLastMessageReceivedAt", func() {
+		ginkgo.It("should handle device with last message received at", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroDevice{}, schemaRegistry)
+
+			lastMessageReceivedAt := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+			tenantID := "tenant-123"
+
+			device := &AvroDevice{
+				ID:                    "dev-123",
+				Version:               1,
+				Name:                  "test-device",
+				DisplayName:           "Test Device",
+				AppEUI:                "app-eui-123",
+				DevEUI:                "dev-eui-123",
+				AppKey:                "app-key-123",
+				TenantID:              &tenantID,
+				LastMessageReceivedAt: &lastMessageReceivedAt,
+				CreatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				UpdatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			}
+
+			// Encode the device
+			encoded, err := codec.Encode(device)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			gomega.Expect(encoded).NotTo(gomega.BeNil())
+
+			// Decode the device
+			decoded, err := codec.Decode(encoded)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			gomega.Expect(decoded).NotTo(gomega.BeNil())
+
+			// Verify the decoded device
+			decodedDevice := decoded.(*AvroDevice)
+			gomega.Expect(decodedDevice.ID).To(gomega.Equal(device.ID))
+			gomega.Expect(decodedDevice.Name).To(gomega.Equal(device.Name))
+			gomega.Expect(decodedDevice.LastMessageReceivedAt).NotTo(gomega.BeNil())
+			gomega.Expect(decodedDevice.LastMessageReceivedAt.Unix()).To(gomega.Equal(lastMessageReceivedAt.Unix()))
+		})
 	})
 
-	t.Run("AvroEvaluationRule", func(t *testing.T) {
-		evaluationRule := &AvroEvaluationRule{
-			ID:          "rule-123",
-			DeviceID:    "dev-123",
-			Version:     1,
-			Description: "Test evaluation rule",
-			Kind:        "threshold",
-			Enabled:     true,
-			Parameters:  "{\"threshold\": 100}",
-			CreatedAt:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			UpdatedAt:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		}
-		assert.Equal(t, "rule-123", evaluationRule.ID)
-		assert.Equal(t, "dev-123", evaluationRule.DeviceID)
-		assert.Equal(t, 1, evaluationRule.Version)
-		assert.Equal(t, "Test evaluation rule", evaluationRule.Description)
-		assert.Equal(t, "threshold", evaluationRule.Kind)
-		assert.True(t, evaluationRule.Enabled)
+	ginkgo.Context("ConvertDomainDevice", func() {
+		ginkgo.It("should convert domain device to Avro device", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroDevice{}, schemaRegistry)
+
+			lastMessageReceivedAt := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+			tenantID := domain.ID("tenant-123")
+
+			domainDevice := domain.Device{
+				ID:                    domain.ID("dev-123"),
+				Name:                  "test-device",
+				DisplayName:           "Test Device",
+				AppEUI:                "app-eui-123",
+				DevEUI:                "dev-eui-123",
+				AppKey:                "app-key-123",
+				TenantID:              &tenantID,
+				LastMessageReceivedAt: utils.Time{Time: lastMessageReceivedAt},
+			}
+
+			// Convert to Avro device
+			avroDevice, err := codec.convertInternalDevice(&domainDevice)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+			// Verify the conversion
+			gomega.Expect(avroDevice.ID).To(gomega.Equal(string(domainDevice.ID)))
+			gomega.Expect(avroDevice.Name).To(gomega.Equal(domainDevice.Name))
+			gomega.Expect(avroDevice.DisplayName).To(gomega.Equal(domainDevice.DisplayName))
+			gomega.Expect(avroDevice.AppEUI).To(gomega.Equal(domainDevice.AppEUI))
+			gomega.Expect(avroDevice.DevEUI).To(gomega.Equal(domainDevice.DevEUI))
+			gomega.Expect(avroDevice.AppKey).To(gomega.Equal(domainDevice.AppKey))
+			gomega.Expect(*avroDevice.TenantID).To(gomega.Equal(string(*domainDevice.TenantID)))
+			gomega.Expect(avroDevice.LastMessageReceivedAt).NotTo(gomega.BeNil())
+			gomega.Expect(avroDevice.LastMessageReceivedAt.Unix()).To(gomega.Equal(lastMessageReceivedAt.Unix()))
+		})
 	})
-}
 
-func TestConfluentAvroCodec_InvalidData(t *testing.T) {
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
+	ginkgo.Context("SerializeCommandTemplates", func() {
+		ginkgo.It("should serialize command templates correctly", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroScheduledTask{}, schemaRegistry)
 
-	// Test with invalid data
-	_, err := codec.Decode([]byte{1, 2, 3}) // Too short
-	assert.Error(t, err)
+			commandTemplates := []domain.CommandTemplate{
+				{
+					Index: 1,
+					Value: 100,
+					Port:  15,
+					Delay: 1000,
+				},
+				{
+					Index: 2,
+					Value: 200,
+					Port:  16,
+					Delay: 2000,
+				},
+			}
 
-	// Test with invalid magic byte
-	invalidData := make([]byte, 10)
-	invalidData[0] = 1 // Invalid magic byte
-	_, err = codec.Decode(invalidData)
-	assert.Error(t, err)
-}
+			// Serialize command templates
+			serialized := codec.SerializeCommandTemplates(commandTemplates)
 
-func TestConfluentAvroCodec_UnsupportedType(t *testing.T) {
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
+			// Verify the serialization
+			gomega.Expect(serialized).NotTo(gomega.BeEmpty())
+			gomega.Expect(serialized).To(gomega.ContainSubstring("1"))
+			gomega.Expect(serialized).To(gomega.ContainSubstring("100"))
+			gomega.Expect(serialized).To(gomega.ContainSubstring("15"))
+			gomega.Expect(serialized).To(gomega.ContainSubstring("1000"))
+			gomega.Expect(serialized).To(gomega.ContainSubstring("2"))
+			gomega.Expect(serialized).To(gomega.ContainSubstring("200"))
+			gomega.Expect(serialized).To(gomega.ContainSubstring("16"))
+			gomega.Expect(serialized).To(gomega.ContainSubstring("2000"))
+		})
+	})
 
-	// Test with unsupported type
-	_, err := codec.Encode("unsupported")
-	assert.Error(t, err)
-}
+	ginkgo.Context("MapConversion", func() {
+		ginkgo.It("should handle map conversion correctly", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
 
-func TestConfluentAvroCodec_DeviceWithLastMessageReceivedAt(t *testing.T) {
-	// Test that device with last_message_received_at can be serialized correctly
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroDevice{}, schemaRegistry)
+			// Create a map with various types
+			testMap := map[string]interface{}{
+				"string": "test",
+				"int":    123,
+				"float":  123.45,
+				"bool":   true,
+				"null":   nil,
+				"array":  []interface{}{1, 2, 3},
+				"nested": map[string]interface{}{
+					"key": "value",
+				},
+			}
 
-	// Create a device with last_message_received_at
-	device := &AvroDevice{
-		ID:                    "dev-123",
-		Version:               1,
-		Name:                  "test-device",
-		DisplayName:           "Test Device",
-		AppEUI:                "app-eui-123",
-		DevEUI:                "dev-eui-123",
-		AppKey:                "app-key-123",
-		TenantID:              nil,
-		LastMessageReceivedAt: nil, // This should be handled as null
-		CreatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		UpdatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+			// Test map conversion
+			converted := codec.ConvertMap(testMap)
 
-	// Test encoding - this should not fail
-	_, err := codec.Encode(device)
-	// Note: This test will fail if schema registry is not available, but that's expected
-	// The important thing is that it doesn't fail due to union type serialization issues
-	if err != nil {
-		// If it's a schema registry connection error, that's expected in test environment
-		t.Logf("Expected error due to schema registry not being available: %v", err)
-	}
+			// Verify the conversion
+			gomega.Expect(converted).NotTo(gomega.BeNil())
+			gomega.Expect(converted["string"]).To(gomega.Equal("test"))
+			gomega.Expect(converted["int"]).To(gomega.Equal(123))
+			gomega.Expect(converted["float"]).To(gomega.Equal(123.45))
+			gomega.Expect(converted["bool"]).To(gomega.Equal(true))
+			gomega.Expect(converted["null"]).To(gomega.BeNil())
+			gomega.Expect(converted["array"]).To(gomega.Equal([]interface{}{1, 2, 3}))
+			gomega.Expect(converted["nested"]).To(gomega.Equal(map[string]interface{}{"key": "value"}))
+		})
+	})
 
-	// Test with non-nil last_message_received_at
-	lastMessageTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
-	deviceWithLastMessage := &AvroDevice{
-		ID:                    "dev-124",
-		Version:               1,
-		Name:                  "test-device-2",
-		DisplayName:           "Test Device 2",
-		AppEUI:                "app-eui-124",
-		DevEUI:                "dev-eui-124",
-		AppKey:                "app-key-124",
-		TenantID:              nil,
-		LastMessageReceivedAt: &lastMessageTime,
-		CreatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		UpdatedAt:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+	ginkgo.Context("MapConversionWithInt32", func() {
+		ginkgo.It("should handle map conversion with int32 correctly", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
 
-	// Test encoding with non-nil last_message_received_at
-	_, err = codec.Encode(deviceWithLastMessage)
-	if err != nil {
-		// If it's a schema registry connection error, that's expected in test environment
-		t.Logf("Expected error due to schema registry not being available: %v", err)
-	}
-}
+			// Create a map with int32 values
+			testMap := map[string]interface{}{
+				"int32_1": int32(123),
+				"int32_2": int32(456),
+				"int64_1": int64(789),
+				"int_1":   999,
+			}
 
-func TestConfluentAvroCodec_ConvertDomainDevice(t *testing.T) {
-	// Test that domain Device can be converted to AvroDevice using the new typed method
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroDevice{}, schemaRegistry)
+			// Test map conversion
+			converted := codec.ConvertMap(testMap)
 
-	// Create a domain Device
-	device := &domain.Device{
-		ID:                    domain.ID("dev-123"),
-		Name:                  "test-device",
-		DisplayName:           "Test Device",
-		AppEUI:                "app-eui-123",
-		DevEUI:                "dev-eui-123",
-		AppKey:                "app-key-123",
-		TenantID:              nil,
-		LastMessageReceivedAt: utils.Time{},
-	}
+			// Verify the conversion
+			gomega.Expect(converted).NotTo(gomega.BeNil())
+			gomega.Expect(converted["int32_1"]).To(gomega.Equal(int32(123)))
+			gomega.Expect(converted["int32_2"]).To(gomega.Equal(int32(456)))
+			gomega.Expect(converted["int64_1"]).To(gomega.Equal(int64(789)))
+			gomega.Expect(converted["int_1"]).To(gomega.Equal(999))
+		})
+	})
 
-	// Test the typed conversion
-	avroDevice, err := codec.convertInternalDevice(device)
-	assert.NoError(t, err)
-	assert.NotNil(t, avroDevice)
-	assert.Equal(t, "dev-123", avroDevice.ID)
-	assert.Equal(t, 1, avroDevice.Version)
-	assert.Equal(t, "test-device", avroDevice.Name)
-	assert.Equal(t, "Test Device", avroDevice.DisplayName)
-	assert.Equal(t, "app-eui-123", avroDevice.AppEUI)
-	assert.Equal(t, "dev-eui-123", avroDevice.DevEUI)
-	assert.Equal(t, "app-key-123", avroDevice.AppKey)
-	assert.Nil(t, avroDevice.TenantID)
-	assert.Nil(t, avroDevice.LastMessageReceivedAt)
+	ginkgo.Context("WithMockSchemaRegistry", func() {
+		ginkgo.It("should work with mock schema registry", func() {
+			mockRegistry := NewMockSchemaRegistry()
+			codec := NewConfluentAvroCodec(&AvroCommand{}, mockRegistry)
 
-	// Test with tenant ID
-	tenantID := domain.ID("tenant-123")
-	deviceWithTenant := &domain.Device{
-		ID:                    domain.ID("dev-124"),
-		Name:                  "test-device-2",
-		DisplayName:           "Test Device 2",
-		AppEUI:                "app-eui-124",
-		DevEUI:                "dev-eui-124",
-		AppKey:                "app-key-124",
-		TenantID:              &tenantID,
-		LastMessageReceivedAt: utils.Time{},
-	}
+			gomega.Expect(codec).NotTo(gomega.BeNil())
+			gomega.Expect(codec.schemaRegistry).To(gomega.Equal(mockRegistry))
+		})
+	})
 
-	avroDeviceWithTenant, err := codec.convertInternalDevice(deviceWithTenant)
-	assert.NoError(t, err)
-	assert.NotNil(t, avroDeviceWithTenant)
-	assert.Equal(t, "dev-124", avroDeviceWithTenant.ID)
-	assert.Equal(t, "tenant-123", *avroDeviceWithTenant.TenantID)
+	ginkgo.Context("DeletedAtFieldEncoding", func() {
+		ginkgo.It("should handle DeletedAt field encoding correctly", func() {
+			schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+			codec := NewConfluentAvroCodec(&AvroScheduledTask{}, schemaRegistry)
 
-	// Test with last message received at
-	lastMessageTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
-	deviceWithLastMessage := &domain.Device{
-		ID:                    domain.ID("dev-125"),
-		Name:                  "test-device-3",
-		DisplayName:           "Test Device 3",
-		AppEUI:                "app-eui-125",
-		DevEUI:                "dev-eui-125",
-		AppKey:                "app-key-125",
-		TenantID:              nil,
-		LastMessageReceivedAt: utils.Time{Time: lastMessageTime},
-	}
+			// Test with nil DeletedAt
+			scheduledTask1 := &AvroScheduledTask{
+				ID:               "task-1",
+				Version:          1,
+				TenantID:         "tenant-123",
+				DeviceID:         "dev-123",
+				CommandTemplates: "template-123",
+				Schedule:         "0 0 * * *",
+				IsActive:         true,
+				CreatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				UpdatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				LastExecutedAt:   nil,
+				DeletedAt:        nil,
+			}
 
-	avroDeviceWithLastMessage, err := codec.convertInternalDevice(deviceWithLastMessage)
-	assert.NoError(t, err)
-	assert.NotNil(t, avroDeviceWithLastMessage)
-	assert.Equal(t, "dev-125", avroDeviceWithLastMessage.ID)
-	assert.NotNil(t, avroDeviceWithLastMessage.LastMessageReceivedAt)
-	assert.Equal(t, lastMessageTime, *avroDeviceWithLastMessage.LastMessageReceivedAt)
-}
+			// Encode and decode
+			encoded1, err := codec.Encode(scheduledTask1)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			decoded1, err := codec.Decode(encoded1)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-func TestConfluentAvroCodec_SerializeCommandTemplates(t *testing.T) {
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroScheduledTask{}, schemaRegistry)
+			decodedTask1 := decoded1.(*AvroScheduledTask)
+			gomega.Expect(decodedTask1.DeletedAt).To(gomega.BeNil())
 
-	// Test empty templates
-	emptyResult := codec.serializeCommandTemplates([]domain.CommandTemplate{})
-	assert.Equal(t, "[]", emptyResult)
+			// Test with non-nil DeletedAt
+			deletedAt := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+			scheduledTask2 := &AvroScheduledTask{
+				ID:               "task-2",
+				Version:          1,
+				TenantID:         "tenant-123",
+				DeviceID:         "dev-123",
+				CommandTemplates: "template-123",
+				Schedule:         "0 0 * * *",
+				IsActive:         false,
+				CreatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				UpdatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				LastExecutedAt:   nil,
+				DeletedAt:        &deletedAt,
+			}
 
-	// Test with one template
-	device := domain.Device{
-		ID:   domain.ID("dev-123"),
-		Name: "test-device",
-	}
+			// Encode and decode
+			encoded2, err := codec.Encode(scheduledTask2)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			decoded2, err := codec.Decode(encoded2)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	template := domain.CommandTemplate{
-		Device:   device,
-		Port:     15,
-		Priority: "NORMAL",
-		Payload: domain.CommandPayload{
-			Index: 1,
-			Value: 100,
-		},
-		WaitFor: 5 * time.Second,
-	}
+			decodedTask2 := decoded2.(*AvroScheduledTask)
+			gomega.Expect(decodedTask2.DeletedAt).NotTo(gomega.BeNil())
+			gomega.Expect(decodedTask2.DeletedAt.Unix()).To(gomega.Equal(deletedAt.Unix()))
+		})
+	})
+})
 
-	templates := []domain.CommandTemplate{template}
-	result := codec.serializeCommandTemplates(templates)
-
-	// Verify the JSON structure (new format without device information)
-	assert.NotContains(t, result, `"device"`) // Should not contain device information
-	assert.Contains(t, result, `"port":15`)
-	assert.Contains(t, result, `"priority":"NORMAL"`)
-	assert.Contains(t, result, `"payload":{"index":1,"value":100}`)
-	assert.Contains(t, result, `"wait_for":"5s"`)
-
-	// Test with multiple templates
-	template2 := domain.CommandTemplate{
-		Device:   device,
-		Port:     16,
-		Priority: "HIGH",
-		Payload: domain.CommandPayload{
-			Index: 2,
-			Value: 200,
-		},
-		WaitFor: 10 * time.Second,
-	}
-
-	multipleTemplates := []domain.CommandTemplate{template, template2}
-	multipleResult := codec.serializeCommandTemplates(multipleTemplates)
-
-	// Should contain both templates
-	assert.Contains(t, multipleResult, `"port":15`)
-	assert.Contains(t, multipleResult, `"port":16`)
-	assert.Contains(t, multipleResult, `"priority":"NORMAL"`)
-	assert.Contains(t, multipleResult, `"priority":"HIGH"`)
-}
-
-// MockSchemaRegistry is a mock implementation of SchemaRegistry for testing
+// MockSchemaRegistry is a mock implementation of the schema registry for testing
 type MockSchemaRegistry struct {
 	schemas map[string]*srclient.Schema
 }
@@ -371,175 +402,21 @@ func (m *MockSchemaRegistry) GetLatestSchema(subject string) (*srclient.Schema, 
 }
 
 func (m *MockSchemaRegistry) CreateSchema(subject string, schema string, schemaType srclient.SchemaType, references ...srclient.Reference) (*srclient.Schema, error) {
-	// Create a simple mock schema - in real tests you might want to use a proper mock library
-	mockSchema := &srclient.Schema{}
-	m.schemas[subject] = mockSchema
-	return mockSchema, nil
+	newSchema := &srclient.Schema{
+		ID:      len(m.schemas) + 1,
+		Subject: subject,
+		Schema:  schema,
+		Version: 1,
+	}
+	m.schemas[subject] = newSchema
+	return newSchema, nil
 }
 
 func (m *MockSchemaRegistry) GetSchema(schemaID int) (*srclient.Schema, error) {
-	// For simplicity, return the first schema found
 	for _, schema := range m.schemas {
-		return schema, nil
+		if schema.ID == schemaID {
+			return schema, nil
+		}
 	}
 	return nil, fmt.Errorf("schema not found for ID: %d", schemaID)
-}
-
-func TestConfluentAvroCodec_MapConversion(t *testing.T) {
-	// Test the map conversion path in convertFromAvroStruct
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
-
-	// Create a map that represents an AvroCommand (similar to what comes from JSON unmarshaling)
-	mapValue := map[string]any{
-		"id":             "aba023e5-fd87-4fd9-a4a4-b22058415cb5",
-		"version":        2,
-		"device_name":    "wireless-stick-seba",
-		"device_id":      "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7",
-		"task_id":        "",
-		"payload_index":  1,
-		"payload_value":  0,
-		"dispatch_after": "2025-07-07T15:28:15.4Z",
-		"port":           15,
-		"priority":       "NORMAL",
-		"created_at":     "2025-07-07T15:23:15.533Z",
-		"ready":          false,
-		"sent":           false,
-		"sent_at":        "0001-01-01T00:00:00Z",
-	}
-
-	// Test the conversion
-	result, err := codec.convertFromAvroStruct(mapValue)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-
-	// Check that it's an AvroCommand
-	avroCmd, ok := result.(*AvroCommand)
-	assert.True(t, ok, "Result should be *AvroCommand")
-	assert.Equal(t, "aba023e5-fd87-4fd9-a4a4-b22058415cb5", avroCmd.ID)
-	assert.Equal(t, 2, avroCmd.Version)
-	assert.Equal(t, "wireless-stick-seba", avroCmd.DeviceName)
-	assert.Equal(t, "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7", avroCmd.DeviceID)
-	assert.Equal(t, "", avroCmd.TaskID)
-	assert.Equal(t, 1, avroCmd.PayloadIndex)
-	assert.Equal(t, 0, avroCmd.PayloadValue)
-	assert.Equal(t, 15, avroCmd.Port)
-	assert.Equal(t, "NORMAL", avroCmd.Priority)
-	assert.False(t, avroCmd.Ready)
-	assert.False(t, avroCmd.Sent)
-}
-
-func TestConfluentAvroCodec_MapConversionWithInt32(t *testing.T) {
-	// Test the map conversion path with int32 values (the actual issue)
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroCommand{}, schemaRegistry)
-
-	// Create a map with int32 values (like what comes from Avro decoding)
-	mapValue := map[string]any{
-		"id":             "aba023e5-fd87-4fd9-a4a4-b22058415cb5",
-		"version":        int32(2),
-		"device_name":    "wireless-stick-seba",
-		"device_id":      "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7",
-		"task_id":        "",
-		"payload_index":  int32(1),
-		"payload_value":  int32(0),
-		"dispatch_after": "2025-07-07T15:28:15.4Z",
-		"port":           int32(15),
-		"priority":       "NORMAL",
-		"created_at":     "2025-07-07T15:23:15.533Z",
-		"ready":          false,
-		"sent":           false,
-		"sent_at":        "0001-01-01T00:00:00Z",
-	}
-
-	// Test the conversion
-	result, err := codec.convertFromAvroStruct(mapValue)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-
-	// Check that it's an AvroCommand
-	avroCmd, ok := result.(*AvroCommand)
-	assert.True(t, ok, "Result should be *AvroCommand")
-	assert.Equal(t, "aba023e5-fd87-4fd9-a4a4-b22058415cb5", avroCmd.ID)
-	assert.Equal(t, 2, avroCmd.Version)
-	assert.Equal(t, "wireless-stick-seba", avroCmd.DeviceName)
-	assert.Equal(t, "b77b0cf2-b0d8-4212-b248-e239f6f3a6a7", avroCmd.DeviceID)
-	assert.Equal(t, "", avroCmd.TaskID)
-	assert.Equal(t, 1, avroCmd.PayloadIndex)
-	assert.Equal(t, 0, avroCmd.PayloadValue)
-	assert.Equal(t, 15, avroCmd.Port)
-	assert.Equal(t, "NORMAL", avroCmd.Priority)
-	assert.False(t, avroCmd.Ready)
-	assert.False(t, avroCmd.Sent)
-}
-
-func TestConfluentAvroCodec_WithMockSchemaRegistry(t *testing.T) {
-	// Create a mock schema registry
-	mockRegistry := NewMockSchemaRegistry()
-
-	// Create codec with mock registry
-	codec := NewConfluentAvroCodec(&AvroCommand{}, mockRegistry)
-	assert.NotNil(t, codec)
-	assert.Equal(t, mockRegistry, codec.schemaRegistry)
-}
-
-func TestConfluentAvroCodec_DeletedAtFieldEncoding(t *testing.T) {
-	// Test that deleted_at field is properly encoded as timestamp-millis
-	schemaRegistry := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	codec := NewConfluentAvroCodec(&AvroScheduledTask{}, schemaRegistry)
-
-	// Create a scheduled task with deleted_at set
-	deletedAt := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
-	scheduledTask := &AvroScheduledTask{
-		ID:               "scheduled-task-123",
-		Version:          1,
-		TenantID:         "tenant-123",
-		DeviceID:         "dev-123",
-		CommandTemplates: "template-123",
-		Schedule:         "0 0 * * *",
-		IsActive:         false, // Should be false when deleted
-		CreatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		UpdatedAt:        time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
-		LastExecutedAt:   nil,
-		DeletedAt:        &deletedAt,
-	}
-
-	// Test that the struct can be created without errors
-	assert.Equal(t, "scheduled-task-123", scheduledTask.ID)
-	assert.Equal(t, int64(1), scheduledTask.Version)
-	assert.Equal(t, "tenant-123", scheduledTask.TenantID)
-	assert.Equal(t, "dev-123", scheduledTask.DeviceID)
-	assert.False(t, scheduledTask.IsActive)
-	assert.Equal(t, &deletedAt, scheduledTask.DeletedAt)
-
-	// Test encoding - this should not fail due to deleted_at field
-	_, err := codec.Encode(scheduledTask)
-	// Note: This test will fail if schema registry is not available, but that's expected
-	// The important thing is that it doesn't fail due to deleted_at field encoding issues
-	if err != nil {
-		// If it's a schema registry connection error, that's expected in test environment
-		t.Logf("Expected error due to schema registry not being available: %v", err)
-	}
-
-	// Test with nil deleted_at
-	scheduledTaskNotDeleted := &AvroScheduledTask{
-		ID:               "scheduled-task-124",
-		Version:          1,
-		TenantID:         "tenant-123",
-		DeviceID:         "dev-123",
-		CommandTemplates: "template-123",
-		Schedule:         "0 0 * * *",
-		IsActive:         true,
-		CreatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		UpdatedAt:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		LastExecutedAt:   nil,
-		DeletedAt:        nil,
-	}
-
-	// Test encoding with nil deleted_at
-	_, err = codec.Encode(scheduledTaskNotDeleted)
-	if err != nil {
-		// If it's a schema registry connection error, that's expected in test environment
-		t.Logf("Expected error due to schema registry not being available: %v", err)
-	}
 }

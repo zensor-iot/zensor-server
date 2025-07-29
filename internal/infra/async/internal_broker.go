@@ -23,6 +23,7 @@ type InternalBrokerSubscriptor interface {
 	AddSubscription(b InternalBroker)
 }
 
+//go:generate mockgen -source=internal_broker.go -destination=../../../test/unit/doubles/infra/async/internal_broker_mock.go -package=async -mock_names=InternalBroker=MockInternalBroker
 type InternalBroker interface {
 	Subscribe(topic BrokerTopicName) (Subscription, error)
 	Unsubscribe(topic BrokerTopicName, subscription Subscription) error

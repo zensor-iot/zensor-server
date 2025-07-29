@@ -5,7 +5,7 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-//go:generate mockgen -source=./api.go -destination=../../../test/unit/doubles/control_plane/usecases/api.go
+//go:generate mockgen -source=./api.go -destination=../../../test/unit/doubles/control_plane/usecases/api.go -package=usecases
 
 type DeviceService interface {
 	CreateDevice(context.Context, domain.Device) error
