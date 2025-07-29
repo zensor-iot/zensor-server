@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 const (
@@ -84,10 +84,25 @@ func (r *SimpleTaskRepository) Create(ctx context.Context, task domain.Task) err
 			DispatchAfter: cmd.DispatchAfter.Time,
 			Port:          int(cmd.Port),
 			Priority:      string(cmd.Priority),
-			CreatedAt:     time.Now(),
+			CreatedAt:     cmd.CreatedAt.Time,
 			Ready:         cmd.Ready,
 			Sent:          cmd.Sent,
 			SentAt:        cmd.SentAt.Time,
+
+			// Response tracking fields
+			Status:       string(cmd.Status),
+			ErrorMessage: cmd.ErrorMessage,
+		}
+
+		// Convert optional timestamp fields
+		if cmd.QueuedAt != nil {
+			avroCommand.QueuedAt = &cmd.QueuedAt.Time
+		}
+		if cmd.AckedAt != nil {
+			avroCommand.AckedAt = &cmd.AckedAt.Time
+		}
+		if cmd.FailedAt != nil {
+			avroCommand.FailedAt = &cmd.FailedAt.Time
 		}
 
 		err := r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), avroCommand)

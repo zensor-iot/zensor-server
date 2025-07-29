@@ -7,7 +7,7 @@
         "connection.url": "jdbc:postgresql://postgresql:5432/postgres?user=postgres",
         "connection.password": "${file:/etc/kafka/secrets/postgres:password}",
         "auto.create": "false",
-        "auto.evolve": "false",
+        "auto.evolve": "true",
         "insert.mode": "upsert",
         "pk.mode": "record_value",
         "pk.fields": "id",

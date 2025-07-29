@@ -243,7 +243,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 	// Handle Avro-compatible structs directly by converting to map
 	switch v := value.(type) {
 	case *AvroCommand:
-		return map[string]any{
+		result := map[string]any{
 			"id":             v.ID,
 			"version":        v.Version,
 			"device_name":    v.DeviceName,
@@ -258,7 +258,42 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"ready":          v.Ready,
 			"sent":           v.Sent,
 			"sent_at":        v.SentAt,
-		}, nil
+
+			// Response tracking fields
+			"status": v.Status,
+		}
+
+		// Handle nullable error_message field for Avro union type
+		if v.ErrorMessage != nil {
+			result["error_message"] = map[string]any{"string": *v.ErrorMessage}
+		} else {
+			result["error_message"] = nil
+		}
+
+		// Handle optional timestamp fields
+		if v.QueuedAt != nil {
+			result["queued_at"] = map[string]any{
+				"long.timestamp-millis": v.QueuedAt.UnixMilli(),
+			}
+		} else {
+			result["queued_at"] = nil
+		}
+		if v.AckedAt != nil {
+			result["acked_at"] = map[string]any{
+				"long.timestamp-millis": v.AckedAt.UnixMilli(),
+			}
+		} else {
+			result["acked_at"] = nil
+		}
+		if v.FailedAt != nil {
+			result["failed_at"] = map[string]any{
+				"long.timestamp-millis": v.FailedAt.UnixMilli(),
+			}
+		} else {
+			result["failed_at"] = nil
+		}
+
+		return result, nil
 	case *AvroTask:
 		result := map[string]any{
 			"id":         v.ID,
@@ -372,7 +407,7 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"updated_at":  v.UpdatedAt,
 		}, nil
 	case AvroCommand:
-		return map[string]any{
+		result := map[string]any{
 			"id":             v.ID,
 			"version":        v.Version,
 			"device_name":    v.DeviceName,
@@ -387,7 +422,42 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"ready":          v.Ready,
 			"sent":           v.Sent,
 			"sent_at":        v.SentAt,
-		}, nil
+
+			// Response tracking fields
+			"status": v.Status,
+		}
+
+		// Handle nullable error_message field for Avro union type
+		if v.ErrorMessage != nil {
+			result["error_message"] = map[string]any{"string": *v.ErrorMessage}
+		} else {
+			result["error_message"] = nil
+		}
+
+		// Handle optional timestamp fields
+		if v.QueuedAt != nil {
+			result["queued_at"] = map[string]any{
+				"long.timestamp-millis": v.QueuedAt.UnixMilli(),
+			}
+		} else {
+			result["queued_at"] = nil
+		}
+		if v.AckedAt != nil {
+			result["acked_at"] = map[string]any{
+				"long.timestamp-millis": v.AckedAt.UnixMilli(),
+			}
+		} else {
+			result["acked_at"] = nil
+		}
+		if v.FailedAt != nil {
+			result["failed_at"] = map[string]any{
+				"long.timestamp-millis": v.FailedAt.UnixMilli(),
+			}
+		} else {
+			result["failed_at"] = nil
+		}
+
+		return result, nil
 	case AvroTask:
 		result := map[string]any{
 			"id":         v.ID,
@@ -612,6 +682,13 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 					Ready:         getBool(mapValue, "ready"),
 					Sent:          getBool(mapValue, "sent"),
 					SentAt:        sentAt,
+
+					// Response tracking fields
+					Status:       getString(mapValue, "status"),
+					ErrorMessage: getStringPtr(mapValue, "error_message"),
+					QueuedAt:     parseTimePtrRFC3339(getStringPtr(mapValue, "queued_at")),
+					AckedAt:      parseTimePtrRFC3339(getStringPtr(mapValue, "acked_at")),
+					FailedAt:     parseTimePtrRFC3339(getStringPtr(mapValue, "failed_at")),
 				}, nil
 			} else if _, hasDeviceID := mapValue["device_id"]; hasDeviceID {
 				if _, hasScheduledTaskID := mapValue["scheduled_task_id"]; hasScheduledTaskID {

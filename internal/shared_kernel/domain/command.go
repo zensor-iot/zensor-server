@@ -16,6 +16,17 @@ type Port uint8
 type CommandPriority string
 type CommandValue uint8
 
+// CommandStatus represents the different states of a command during its lifecycle
+type CommandStatus string
+
+const (
+	CommandStatusPending CommandStatus = "pending"   // Initial state when command is created
+	CommandStatusQueued  CommandStatus = "queued"    // Command is queued in TTN server
+	CommandStatusSent    CommandStatus = "confirmed" // Command was sent to device
+	CommandStatusAck     CommandStatus = "ack"       // Command was acknowledged by device
+	CommandStatusFailed  CommandStatus = "failed"    // Command failed to be delivered
+)
+
 type CommandSequence struct {
 	Commands []Command
 }
@@ -33,6 +44,49 @@ type Command struct {
 	Ready         bool
 	Sent          bool
 	SentAt        utils.Time
+
+	// Response tracking fields
+	Status       CommandStatus `json:"status"`
+	ErrorMessage *string       `json:"error_message,omitempty"` // Error message if status is failed
+	QueuedAt     *utils.Time   `json:"queued_at,omitempty"`     // When command was queued in TTN
+	AckedAt      *utils.Time   `json:"acked_at,omitempty"`      // When command was acknowledged by device
+	FailedAt     *utils.Time   `json:"failed_at,omitempty"`     // When command failed
+}
+
+// IsCompleted returns true if the command has reached a final state (ack or failed)
+func (c Command) IsCompleted() bool {
+	return c.Status == CommandStatusAck || c.Status == CommandStatusFailed
+}
+
+// IsFailed returns true if the command has failed
+func (c Command) IsFailed() bool {
+	return c.Status == CommandStatusFailed
+}
+
+// IsSuccessful returns true if the command was acknowledged
+func (c Command) IsSuccessful() bool {
+	return c.Status == CommandStatusAck
+}
+
+// UpdateStatus updates the command status and sets appropriate timestamp
+func (c *Command) UpdateStatus(status CommandStatus, errorMessage *string) {
+	c.Status = status
+	now := utils.Time{Time: time.Now()}
+
+	switch status {
+	case CommandStatusQueued:
+		c.QueuedAt = &now
+	case CommandStatusSent:
+		c.Sent = true
+		c.SentAt = now
+	case CommandStatusAck:
+		c.AckedAt = &now
+	case CommandStatusFailed:
+		c.FailedAt = &now
+		c.ErrorMessage = errorMessage
+	}
+
+	c.Version++
 }
 
 type CommandPayload struct {
@@ -117,6 +171,7 @@ func (b *commandBuilder) Build() (Command, error) {
 		Ready:     false,
 		Sent:      false,
 		Port:      _defaultPort,
+		Status:    CommandStatusPending,
 		CreatedAt: utils.Time{Time: time.Now()},
 	}
 	for _, a := range b.actions {
@@ -125,4 +180,13 @@ func (b *commandBuilder) Build() (Command, error) {
 		}
 	}
 	return result, nil
+}
+
+// CommandStatusUpdate represents a command status change event
+type CommandStatusUpdate struct {
+	CommandID    string
+	DeviceName   string
+	Status       CommandStatus
+	ErrorMessage *string
+	Timestamp    time.Time
 }

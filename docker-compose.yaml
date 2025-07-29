@@ -102,8 +102,6 @@ services:
       - --web.console.libraries=/opt/bitnami/prometheus/conf/console_libraries
       - --web.console.templates=/opt/bitnami/prometheus/conf/consoles
       - --web.enable-remote-write-receiver
-    ports:
-      - "9090:9090"
     networks:
       - zensor
 
@@ -195,9 +193,15 @@ configs:
           endpoint: http://prometheus:9090/api/v1/write
           tls:
             insecure: true
+        debug:
+          verbosity: detailed
       
       service:
         pipelines:
+          traces:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [debug]
           metrics:
             receivers: [otlp]
             processors: [batch]

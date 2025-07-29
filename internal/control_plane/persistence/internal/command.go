@@ -39,6 +39,13 @@ type Command struct {
 	Ready         bool       `json:"ready"`
 	Sent          bool       `json:"sent"`
 	SentAt        utils.Time `json:"sent_at"`
+
+	// Response tracking fields
+	Status       string      `json:"status" gorm:"default:pending"`
+	ErrorMessage *string     `json:"error_message,omitempty"`
+	QueuedAt     *utils.Time `json:"queued_at,omitempty"`
+	AckedAt      *utils.Time `json:"acked_at,omitempty"`
+	FailedAt     *utils.Time `json:"failed_at,omitempty"`
 }
 
 func (Command) TableName() string {
@@ -88,6 +95,13 @@ func (c Command) ToDomain() domain.Command {
 		Ready:         c.Ready,
 		Sent:          c.Sent,
 		SentAt:        c.SentAt,
+
+		// Response tracking fields
+		Status:       domain.CommandStatus(c.Status),
+		ErrorMessage: c.ErrorMessage,
+		QueuedAt:     c.QueuedAt,
+		AckedAt:      c.AckedAt,
+		FailedAt:     c.FailedAt,
 	}
 }
 
@@ -107,5 +121,12 @@ func FromCommand(cmd domain.Command) Command {
 		Ready:         cmd.Ready,
 		Sent:          cmd.Sent,
 		SentAt:        cmd.SentAt,
+
+		// Response tracking fields
+		Status:       string(cmd.Status),
+		ErrorMessage: cmd.ErrorMessage,
+		QueuedAt:     cmd.QueuedAt,
+		AckedAt:      cmd.AckedAt,
+		FailedAt:     cmd.FailedAt,
 	}
 }

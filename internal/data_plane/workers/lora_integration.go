@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 	"zensor-server/internal/control_plane/usecases"
@@ -28,6 +29,8 @@ import (
 const (
 	BrokerTopicUplinkMessage  async.BrokerTopicName = "device_messages"
 	PubSubTopicDeviceCommands pubsub.Topic          = "device_commands"
+
+	_defaultQoS byte = 1 // At least once
 )
 
 func NewLoraIntegrationWorker(
@@ -161,8 +164,7 @@ var (
 		"down/ack",
 	}
 
-	topicBase      = "v3/my-new-application-2021@ttn/devices"
-	qos       byte = 0
+	topicBase = "v3/my-new-application-2021@ttn/devices"
 )
 
 func (w *LoraIntegrationWorker) handleDevice(ctx context.Context, device domain.Device) {
@@ -188,7 +190,13 @@ func (w *LoraIntegrationWorker) handleDevice(ctx context.Context, device domain.
 			slog.String("trace_id", span.SpanContext().TraceID().String()),
 			slog.String("span_id", span.SpanContext().SpanID().String()),
 		)
-		w.mqttClient.Subscribe(topic, qos, w.messageHandler(ctx))
+		err := w.mqttClient.Subscribe(topic, _defaultQoS, w.messageHandler(ctx))
+		if err != nil {
+			slog.Error("failed to subscribe to topic",
+				slog.String("topic", topic),
+				slog.String("error", err.Error()),
+			)
+		}
 	}
 }
 
@@ -218,8 +226,14 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 		switch topicSuffix {
 		case "up":
 			w.uplinkMessageHandler(ctx, msg)
+		case "down/queued":
+			w.handleDownlinkResponse(ctx, msg, domain.CommandStatusQueued)
+		case "down/sent":
+			w.handleDownlinkResponse(ctx, msg, domain.CommandStatusSent)
 		case "down/failed":
-			w.downlinkFailedHandler(ctx, msg)
+			w.handleDownlinkResponse(ctx, msg, domain.CommandStatusFailed)
+		case "down/ack":
+			w.handleDownlinkResponse(ctx, msg, domain.CommandStatusAck)
 		default:
 			slog.Warn("topic handler not yet implemented",
 				slog.String("topic", topicSuffix),
@@ -230,25 +244,52 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 	}
 }
 
-func (w *LoraIntegrationWorker) downlinkFailedHandler(ctx context.Context, msg mqtt.Message) {
+// handleDownlinkResponse is a unified handler for all downlink MQTT responses
+func (w *LoraIntegrationWorker) handleDownlinkResponse(ctx context.Context, msg mqtt.Message, status domain.CommandStatus) {
 	span := trace.SpanFromContext(ctx)
 	var envelop dto.Envelop
 	err := json.Unmarshal(msg.Payload(), &envelop)
 	if err != nil {
-		slog.Error("failed to unmarshal message",
+		slog.Error("failed to unmarshal downlink response message",
 			slog.String("error", err.Error()),
+			slog.String("status", string(status)),
 			slog.String("trace_id", span.SpanContext().TraceID().String()),
 			slog.String("span_id", span.SpanContext().SpanID().String()),
 		)
 		return
 	}
 
-	slog.Error("downlink failed",
+	// Log with appropriate level based on status
+	logMessage := fmt.Sprintf("downlink %s", status)
+	logAttrs := []any{
 		slog.String("topic", msg.Topic()),
-		slog.String("error", envelop.Error.MessageFormat),
+		slog.String("status", string(status)),
 		slog.String("trace_id", span.SpanContext().TraceID().String()),
 		slog.String("span_id", span.SpanContext().SpanID().String()),
-	)
+	}
+
+	switch status {
+	case domain.CommandStatusFailed:
+		logAttrs = append(logAttrs, slog.String("error", envelop.Error.MessageFormat))
+		slog.Error(logMessage, logAttrs...)
+	case domain.CommandStatusAck:
+		slog.Info(logMessage, logAttrs...)
+	case domain.CommandStatusQueued:
+		slog.Info(logMessage, logAttrs...)
+	case domain.CommandStatusSent:
+		slog.Info(logMessage, logAttrs...)
+	default:
+		slog.Debug(logMessage, logAttrs...)
+	}
+
+	// Extract error message for failed status
+	var errorMessage *string
+	if status == domain.CommandStatusFailed {
+		errorMessage = &envelop.Error.MessageFormat
+	}
+
+	// Update command status
+	w.updateCommandStatus(ctx, envelop, status, errorMessage)
 }
 
 func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mqtt.Message) {
@@ -363,7 +404,12 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 	}
 	ttnMsg := dto.TTNMessage{
 		Downlinks: []dto.TTNMessageDownlink{
-			{FPort: command.Port, Priority: command.Priority, FrmPayload: rawPayload},
+			{
+				FPort:          command.Port,
+				Priority:       command.Priority,
+				FrmPayload:     rawPayload,
+				CorrelationIDs: []string{fmt.Sprintf("zensor:%s", command.ID)},
+			},
 		},
 	}
 	slog.Debug("ttn message",
@@ -440,6 +486,83 @@ func (w *LoraIntegrationWorker) convertToSharedCommand(ctx context.Context, msg 
 	}
 
 	return &command, nil
+}
+
+// updateCommandStatus updates the status of a command based on MQTT response
+func (w *LoraIntegrationWorker) updateCommandStatus(ctx context.Context, envelop dto.Envelop, status domain.CommandStatus, errorMessage *string) {
+	span := trace.SpanFromContext(ctx)
+
+	slog.Info("processing command status update",
+		slog.String("device_name", envelop.EndDeviceIDs.DeviceID),
+		slog.String("status", string(status)),
+		slog.Any("correlation_ids", envelop.CorrelationIDs),
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
+	)
+
+	if len(envelop.CorrelationIDs) == 0 {
+		slog.Warn("no correlation IDs found in TTN response",
+			slog.String("device_name", envelop.EndDeviceIDs.DeviceID),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
+		return
+	}
+
+	var commandID string
+	for _, correlationID := range envelop.CorrelationIDs {
+		if id, found := strings.CutPrefix(correlationID, "zensor:"); found {
+			commandID = id
+			break
+		}
+	}
+
+	if commandID == "" && len(envelop.CorrelationIDs) > 0 {
+		slog.Warn("no zensor correlation ID found in TTN response",
+			slog.String("device_name", envelop.EndDeviceIDs.DeviceID),
+			slog.Any("correlation_ids", envelop.CorrelationIDs),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
+		return
+	}
+
+	deviceName := envelop.EndDeviceIDs.DeviceID
+
+	// Publish status update event to internal broker
+	statusUpdate := domain.CommandStatusUpdate{
+		CommandID:    commandID,
+		DeviceName:   deviceName,
+		Status:       status,
+		ErrorMessage: errorMessage,
+		Timestamp:    time.Now(),
+	}
+
+	brokerMsg := async.BrokerMessage{
+		Event: "command_status_update",
+		Value: statusUpdate,
+	}
+
+	err := w.broker.Publish(ctx, BrokerTopicUplinkMessage, brokerMsg)
+	if err != nil {
+		slog.Error("failed to publish command status update",
+			slog.String("command_id", commandID),
+			slog.String("device_name", deviceName),
+			slog.String("status", string(status)),
+			slog.String("error", err.Error()),
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+		)
+		return
+	}
+
+	slog.Info("command status update published successfully",
+		slog.String("command_id", commandID),
+		slog.String("device_name", deviceName),
+		slog.String("status", string(status)),
+		slog.String("trace_id", span.SpanContext().TraceID().String()),
+		slog.String("span_id", span.SpanContext().SpanID().String()),
+	)
 }
 
 func (w *LoraIntegrationWorker) Shutdown() {

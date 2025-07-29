@@ -101,6 +101,7 @@ func TestCommandHandler_Update_Success(t *testing.T) {
 	handler := NewCommandHandler(orm)
 	mockOrm := &MockORM{}
 	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
+	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
 	mockOrm.On("Save", mock.Anything).Return(mockOrm)
 	mockOrm.On("Error").Return(nil)
 	handler.orm = mockOrm
@@ -120,7 +121,7 @@ func TestCommandHandler_Update_Error(t *testing.T) {
 	handler := NewCommandHandler(orm)
 	mockOrm := &MockORM{}
 	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Save", mock.Anything).Return(mockOrm)
+	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
 	mockOrm.On("Error").Return(errors.New("db error"))
 	handler.orm = mockOrm
 	cmd := struct {
@@ -131,7 +132,7 @@ func TestCommandHandler_Update_Error(t *testing.T) {
 	}{ID: "cmd-1", DeviceName: "dev", DeviceID: "dev-1", TaskID: "task-1"}
 	err := handler.Update(context.Background(), "cmd-1", cmd)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "updating command")
+	assert.Contains(t, err.Error(), "fetching existing command")
 	mockOrm.AssertExpectations(t)
 }
 

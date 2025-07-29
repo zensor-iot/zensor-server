@@ -5,7 +5,8 @@ type TTNMessage struct {
 }
 
 type TTNMessageDownlink struct {
-	FPort      uint8  `json:"f_port"`
-	FrmPayload []byte `json:"frm_payload"`
-	Priority   string `json:"priority"`
+	FPort          uint8    `json:"f_port"`
+	FrmPayload     []byte   `json:"frm_payload"`
+	Priority       string   `json:"priority"`
+	CorrelationIDs []string `json:"correlation_ids,omitempty"`
 }

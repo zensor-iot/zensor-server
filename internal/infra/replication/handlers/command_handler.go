@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
@@ -27,6 +28,13 @@ type CommandData struct {
 	Ready         bool           `json:"ready"`
 	Sent          bool           `json:"sent"`
 	SentAt        utils.Time     `json:"sent_at"`
+
+	// Response tracking fields
+	Status       string      `json:"status" gorm:"default:pending"`
+	ErrorMessage *string     `json:"error_message,omitempty"`
+	QueuedAt     *utils.Time `json:"queued_at,omitempty"`
+	AckedAt      *utils.Time `json:"acked_at,omitempty"`
+	FailedAt     *utils.Time `json:"failed_at,omitempty"`
 }
 
 type CommandPayload struct {
@@ -95,7 +103,33 @@ func (h *CommandHandler) GetByID(ctx context.Context, id string) (pubsub.Message
 func (h *CommandHandler) Update(ctx context.Context, key pubsub.Key, message pubsub.Message) error {
 	internalCommand := h.extractCommandFields(message)
 
-	err := h.orm.WithContext(ctx).Save(&internalCommand).Error()
+	// First, fetch the existing record to preserve created_at
+	var existingCommand CommandData
+	err := h.orm.WithContext(ctx).First(&existingCommand, "id = ?", internalCommand.ID).Error()
+	if err != nil {
+		return fmt.Errorf("fetching existing command: %w", err)
+	}
+
+	// Update only the fields that should change, preserving created_at
+	existingCommand.Version = internalCommand.Version
+	existingCommand.DeviceName = internalCommand.DeviceName
+	existingCommand.DeviceID = internalCommand.DeviceID
+	existingCommand.TaskID = internalCommand.TaskID
+	existingCommand.Payload = internalCommand.Payload
+	existingCommand.DispatchAfter = internalCommand.DispatchAfter
+	existingCommand.Port = internalCommand.Port
+	existingCommand.Priority = internalCommand.Priority
+	existingCommand.Ready = internalCommand.Ready
+	existingCommand.Sent = internalCommand.Sent
+	existingCommand.SentAt = internalCommand.SentAt
+	existingCommand.Status = internalCommand.Status
+	existingCommand.ErrorMessage = internalCommand.ErrorMessage
+	existingCommand.QueuedAt = internalCommand.QueuedAt
+	existingCommand.AckedAt = internalCommand.AckedAt
+	existingCommand.FailedAt = internalCommand.FailedAt
+
+	// Save the updated record
+	err = h.orm.WithContext(ctx).Save(&existingCommand).Error()
 	if err != nil {
 		return fmt.Errorf("updating command: %w", err)
 	}
@@ -128,7 +162,22 @@ func (h *CommandHandler) extractCommandFields(message pubsub.Message) CommandDat
 		Ready:         avroCommand.Ready,
 		Sent:          avroCommand.Sent,
 		SentAt:        utils.Time{Time: avroCommand.SentAt},
+
+		// Response tracking fields
+		Status:       avroCommand.Status,
+		ErrorMessage: avroCommand.ErrorMessage,
+		QueuedAt:     convertTimePtr(avroCommand.QueuedAt),
+		AckedAt:      convertTimePtr(avroCommand.AckedAt),
+		FailedAt:     convertTimePtr(avroCommand.FailedAt),
 	}
+}
+
+// convertTimePtr converts a *time.Time to *utils.Time
+func convertTimePtr(t *time.Time) *utils.Time {
+	if t == nil {
+		return nil
+	}
+	return &utils.Time{Time: *t}
 }
 
 func (h *CommandHandler) toDomainCommand(internalCommand CommandData) map[string]any {

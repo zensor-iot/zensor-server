@@ -42,6 +42,18 @@ func (c *MyController) handleRequest() http.HandlerFunc {
 }
 ```
 
+### User Header Validation
+
+The server automatically validates and captures user information from request headers:
+
+- `X-User-ID`: User identifier
+- `X-User-Name`: User display name  
+- `X-User-Email`: User email address
+
+When present, these headers are automatically added as span attributes for tracing and observability.
+
+**Middleware Order**: The user header middleware runs after the tracing middleware to ensure it can access the span created by the tracing middleware.
+
 ### Span Attributes
 
 The tracing middleware automatically adds the following attributes to each request span:
@@ -50,6 +62,9 @@ The tracing middleware automatically adds the following attributes to each reque
 - `http.url`: The full request URL
 - `http.user_agent`: The User-Agent header
 - `http.remote_addr`: The client's IP address
+- `user.id`: User identifier (when X-User-ID header is present)
+- `user.name`: User display name (when X-User-Name header is present)
+- `user.email`: User email address (when X-User-Email header is present)
 
 ### Metrics
 

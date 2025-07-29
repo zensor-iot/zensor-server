@@ -49,3 +49,48 @@ func TestCommandBuilder_SetsCreatedAt(t *testing.T) {
 		t.Error("Payload Value should be set correctly")
 	}
 }
+
+func TestCommand_UpdateStatus_SetsQueuedAt(t *testing.T) {
+	// Create a command
+	cmd, err := NewCommandBuilder().
+		WithDevice(Device{ID: "test-device", Name: "Test Device"}).
+		WithPayload(CommandPayload{Index: 1, Value: 100}).
+		Build()
+
+	if err != nil {
+		t.Fatalf("Failed to build command: %v", err)
+	}
+
+	// Initially, QueuedAt should be nil
+	if cmd.QueuedAt != nil {
+		t.Error("QueuedAt should be nil initially")
+	}
+
+	// Update status to queued
+	cmd.UpdateStatus(CommandStatusQueued, nil)
+
+	// Verify that QueuedAt is now set
+	if cmd.QueuedAt == nil {
+		t.Error("QueuedAt should be set after updating status to queued")
+	}
+
+	// Verify that QueuedAt is recent
+	now := time.Now()
+	if cmd.QueuedAt.Time.After(now) {
+		t.Error("QueuedAt should not be in the future")
+	}
+
+	if now.Sub(cmd.QueuedAt.Time) > time.Second {
+		t.Error("QueuedAt should be set to a recent time")
+	}
+
+	// Verify that status is updated
+	if cmd.Status != CommandStatusQueued {
+		t.Errorf("Status should be CommandStatusQueued, got %s", cmd.Status)
+	}
+
+	// Verify that version is incremented
+	if cmd.Version != 2 {
+		t.Errorf("Version should be incremented to 2, got %d", cmd.Version)
+	}
+}

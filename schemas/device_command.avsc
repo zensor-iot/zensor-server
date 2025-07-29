@@ -15,6 +15,11 @@
     {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
     {"name": "ready", "type": "boolean"},
     {"name": "sent", "type": "boolean"},
-    {"name": "sent_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+    {"name": "sent_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "status", "type": {"type": "string", "default": "pending"}},
+    {"name": "error_message", "type": ["null", "string"], "default": null},
+    {"name": "queued_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}], "default": null},
+    {"name": "acked_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}], "default": null},
+    {"name": "failed_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}], "default": null}
   ]
 } 

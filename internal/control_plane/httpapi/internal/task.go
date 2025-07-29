@@ -14,6 +14,13 @@ type TaskCommandResponse struct {
 	Ready         bool    `json:"ready"`
 	Sent          bool    `json:"sent"`
 	SentAt        *string `json:"sent_at,omitempty"`
+
+	// Response tracking fields
+	Status       string  `json:"status"`
+	ErrorMessage *string `json:"error_message,omitempty"`
+	QueuedAt     *string `json:"queued_at,omitempty"`
+	AckedAt      *string `json:"acked_at,omitempty"`
+	FailedAt     *string `json:"failed_at,omitempty"`
 }
 
 type TaskResponse struct {

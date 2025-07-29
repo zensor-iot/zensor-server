@@ -25,6 +25,13 @@ type AvroCommand struct {
 	Ready         bool      `avro:"ready"`
 	Sent          bool      `avro:"sent"`
 	SentAt        time.Time `avro:"sent_at"`
+
+	// Response tracking fields
+	Status       string     `avro:"status"`
+	ErrorMessage *string    `avro:"error_message"`
+	QueuedAt     *time.Time `avro:"queued_at"`
+	AckedAt      *time.Time `avro:"acked_at"`
+	FailedAt     *time.Time `avro:"failed_at"`
 }
 
 // AvroTask represents the Avro-compatible Task message
@@ -118,10 +125,25 @@ func ToAvroCommand(cmd domain.Command) *AvroCommand {
 		DispatchAfter: cmd.DispatchAfter.Time,
 		Port:          int(cmd.Port),
 		Priority:      string(cmd.Priority),
-		CreatedAt:     time.Now(), // Note: domain.Command doesn't have CreatedAt, using current time
+		CreatedAt:     cmd.CreatedAt.Time,
 		Ready:         cmd.Ready,
 		Sent:          cmd.Sent,
 		SentAt:        cmd.SentAt.Time,
+
+		// Response tracking fields
+		Status:       string(cmd.Status),
+		ErrorMessage: cmd.ErrorMessage,
+	}
+
+	// Convert optional timestamp fields
+	if cmd.QueuedAt != nil {
+		avroCmd.QueuedAt = &cmd.QueuedAt.Time
+	}
+	if cmd.AckedAt != nil {
+		avroCmd.AckedAt = &cmd.AckedAt.Time
+	}
+	if cmd.FailedAt != nil {
+		avroCmd.FailedAt = &cmd.FailedAt.Time
 	}
 
 	return avroCmd

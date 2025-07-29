@@ -54,6 +54,9 @@ func NewServer(controllers ...Controller) *StandardServer {
 			"Authorization",
 			"Content-Type",
 			"X-CSRF-Token",
+			"X-User-ID",
+			"X-User-Name",
+			"X-User-Email",
 		},
 		ExposedHeaders: []string{
 			"Link",
@@ -64,6 +67,7 @@ func NewServer(controllers ...Controller) *StandardServer {
 
 	// Create middleware
 	tracingMiddleware := createTracingMiddleware()
+	userHeaderMiddleware := createUserHeaderMiddleware()
 	metricsMiddleware := MetricsMiddleware()
 
 	server := &StandardServer{
@@ -71,7 +75,9 @@ func NewServer(controllers ...Controller) *StandardServer {
 			Addr: ":3000",
 			Handler: c.Handler(
 				metricsMiddleware(
-					tracingMiddleware(router),
+					tracingMiddleware(
+						userHeaderMiddleware(router),
+					),
 				),
 			),
 		},
@@ -85,6 +91,35 @@ func NewServer(controllers ...Controller) *StandardServer {
 	}
 
 	return server
+}
+
+// createUserHeaderMiddleware creates a middleware that validates user headers and adds them as span attributes
+func createUserHeaderMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Get the current span from the request context
+			span := GetSpanFromContext(r)
+
+			// Check for required user headers
+			userID := r.Header.Get("X-User-ID")
+			userName := r.Header.Get("X-User-Name")
+			userEmail := r.Header.Get("X-User-Email")
+
+			// Add user information as span attributes if present
+			if userID != "" {
+				span.SetAttributes(attribute.String("user.id", userID))
+			}
+			if userName != "" {
+				span.SetAttributes(attribute.String("user.name", userName))
+			}
+			if userEmail != "" {
+				span.SetAttributes(attribute.String("user.email", userEmail))
+			}
+
+			// Call the next handler
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // createTracingMiddleware creates a middleware that adds OpenTelemetry tracing to all requests

@@ -132,6 +132,21 @@ func (c *TaskController) create() http.HandlerFunc {
 				sentAt = &sentAtStr
 			}
 
+			// Convert optional timestamps
+			var queuedAt, ackedAt, failedAt *string
+			if cmd.QueuedAt != nil {
+				queuedAtStr := cmd.QueuedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				queuedAt = &queuedAtStr
+			}
+			if cmd.AckedAt != nil {
+				ackedAtStr := cmd.AckedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				ackedAt = &ackedAtStr
+			}
+			if cmd.FailedAt != nil {
+				failedAtStr := cmd.FailedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				failedAt = &failedAtStr
+			}
+
 			commandResponses[j] = internal.TaskCommandResponse{
 				ID:            cmd.ID.String(),
 				Index:         uint8(cmd.Payload.Index),
@@ -142,6 +157,13 @@ func (c *TaskController) create() http.HandlerFunc {
 				Ready:         cmd.Ready,
 				Sent:          cmd.Sent,
 				SentAt:        sentAt,
+
+				// Response tracking fields
+				Status:       string(cmd.Status),
+				ErrorMessage: cmd.ErrorMessage,
+				QueuedAt:     queuedAt,
+				AckedAt:      ackedAt,
+				FailedAt:     failedAt,
 			}
 		}
 
@@ -194,6 +216,21 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 					sentAt = &sentAtStr
 				}
 
+				// Convert optional timestamps
+				var queuedAt, ackedAt, failedAt *string
+				if cmd.QueuedAt != nil {
+					queuedAtStr := cmd.QueuedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					queuedAt = &queuedAtStr
+				}
+				if cmd.AckedAt != nil {
+					ackedAtStr := cmd.AckedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					ackedAt = &ackedAtStr
+				}
+				if cmd.FailedAt != nil {
+					failedAtStr := cmd.FailedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					failedAt = &failedAtStr
+				}
+
 				commandResponses[j] = internal.TaskCommandResponse{
 					ID:            cmd.ID.String(),
 					Index:         uint8(cmd.Payload.Index),
@@ -204,6 +241,13 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 					Ready:         cmd.Ready,
 					Sent:          cmd.Sent,
 					SentAt:        sentAt,
+
+					// Response tracking fields
+					Status:       string(cmd.Status),
+					ErrorMessage: cmd.ErrorMessage,
+					QueuedAt:     queuedAt,
+					AckedAt:      ackedAt,
+					FailedAt:     failedAt,
 				}
 			}
 

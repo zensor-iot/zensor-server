@@ -3,6 +3,8 @@ package httpserver
 import (
 	"net/http"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // ExampleMetricsUsage demonstrates how the metrics middleware automatically collects HTTP metrics
@@ -85,5 +87,69 @@ func ExampleEndpointExtraction() {
 		/devices/123/commands      -> "devices"
 
 		This helps group similar endpoints together for better metrics aggregation.
+	*/
+}
+
+// ExampleUserHeaderUsage demonstrates how user headers are automatically captured and added to spans
+func ExampleUserHeaderUsage() {
+	// This example shows how the user header middleware automatically captures
+	// user information from request headers and adds them as span attributes
+	//
+	// Note: The user header middleware runs after the tracing middleware to ensure
+	// it can access the span created by the tracing middleware.
+
+	// Example handler that will automatically have user information captured
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		// Get the current span from the request context
+		span := GetSpanFromContext(r)
+
+		// The user header middleware has already added user attributes to the span:
+		// - user.id (from X-User-ID header)
+		// - user.name (from X-User-Name header)
+		// - user.email (from X-User-Email header)
+
+		// You can add additional custom attributes
+		span.SetAttributes(attribute.String("operation", "get_user_profile"))
+
+		// Your business logic here
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message": "User profile retrieved"}`))
+	}
+
+	// Example of how the UI would send requests with user headers:
+	/*
+		// Frontend JavaScript example
+		fetch('/api/user/profile', {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-User-ID': 'user123',
+				'X-User-Name': 'John Doe',
+				'X-User-Email': 'john.doe@example.com'
+			}
+		})
+	*/
+
+	_ = handler // Suppress unused variable warning
+}
+
+// ExampleUserHeaderData shows what user header data looks like in traces
+func ExampleUserHeaderData() {
+	/*
+		The user header middleware automatically captures user information from request headers:
+
+		Headers sent by UI:
+		X-User-ID: user123
+		X-User-Name: John Doe
+		X-User-Email: john.doe@example.com
+
+		Span attributes automatically added:
+		user.id: "user123"
+		user.name: "John Doe"
+		user.email: "john.doe@example.com"
+
+		This enables user-specific tracing and observability across all requests.
+		You can filter and analyze traces by user ID, name, or email in your
+		observability platform (Jaeger, Zipkin, etc.).
 	*/
 }

@@ -75,6 +75,7 @@ func (p *mqttPeer) subscribe() {
 func (p *mqttPeer) onMessageReceive(c mqtt.Client, msg mqtt.Message) {
 	slog.Info("message received", "msg", msg.Payload())
 	p.outboundChannel <- Event{p.id, EventTypeMessage, msg.Payload()}
+	msg.Ack()
 }
 
 func (p *mqttPeer) publish(_ string) {

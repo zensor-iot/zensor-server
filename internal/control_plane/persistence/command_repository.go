@@ -56,6 +56,22 @@ func (r *SimpleCommandRepository) Update(ctx context.Context, cmd domain.Command
 		return fmt.Errorf("command not found in database: %w", err)
 	}
 
+	cmd.CreatedAt = existingCmd.CreatedAt
+
+	if cmd.Status == "" {
+		cmd.Status = domain.CommandStatus(existingCmd.Status)
+	}
+
+	if cmd.QueuedAt == nil && existingCmd.QueuedAt != nil {
+		cmd.QueuedAt = existingCmd.QueuedAt
+	}
+	if cmd.AckedAt == nil && existingCmd.AckedAt != nil {
+		cmd.AckedAt = existingCmd.AckedAt
+	}
+	if cmd.FailedAt == nil && existingCmd.FailedAt != nil {
+		cmd.FailedAt = existingCmd.FailedAt
+	}
+
 	avroCmd := avro.ToAvroCommand(cmd)
 	avroCmd.Version++
 	err = r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), avroCmd)
@@ -94,6 +110,21 @@ func (r *SimpleCommandRepository) FindPendingByDevice(ctx context.Context, devic
 	}
 
 	return entities.ToDomain(), nil
+}
+
+func (r *SimpleCommandRepository) GetByID(ctx context.Context, id domain.ID) (domain.Command, error) {
+	var entity internal.Command
+	err := r.orm.
+		WithContext(ctx).
+		First(&entity, "id = ?", id.String()).
+		Error()
+
+	if err != nil {
+		return domain.Command{}, fmt.Errorf("database query: %w", err)
+	}
+
+	domainCmd := entity.ToDomain()
+	return domainCmd, nil
 }
 
 func (r *SimpleCommandRepository) FindByTaskID(ctx context.Context, taskID domain.ID) ([]domain.Command, error) {

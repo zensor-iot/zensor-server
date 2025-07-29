@@ -59,13 +59,18 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 			wg.Wait()
 			return
 		case msg := <-subscription.Receiver:
-			if msg.Event != "command_sent" {
+			switch msg.Event {
+			case "command_sent":
+				wg.Add(1)
+				procCtx := context.Background()
+				w.handleCommandSent(procCtx, msg.Value.(device.Command), wg.Done)
+			case "command_status_update":
+				wg.Add(1)
+				procCtx := context.Background()
+				w.handleCommandStatusUpdate(procCtx, msg.Value, wg.Done)
+			default:
 				slog.Warn("event not supported", slog.String("event", msg.Event))
-				break
 			}
-			wg.Add(1)
-			procCtx := context.Background()
-			w.handleCommandSent(procCtx, msg.Value.(device.Command), wg.Done)
 		case <-w.ticker.C:
 			wg.Add(1)
 			tickCtx := context.Background()
@@ -102,7 +107,10 @@ func (w *CommandWorker) reconciliation(ctx context.Context, done func()) {
 	for _, cmd := range commands {
 		w.handle(ctx, cmd)
 	}
-	slog.Debug("reconciliation end", slog.Time("time", time.Now()))
+	slog.Info("reconciliation did end",
+		slog.Int("commands_processed", len(commands)),
+		slog.Time("time", time.Now()),
+	)
 }
 
 func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
@@ -169,6 +177,58 @@ func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Comman
 		attribute.String("device_name", cmd.DeviceName),
 	}
 	w.metricCounters[_metricKeyCommands].Add(ctx, 1, metric.WithAttributes(attributes...))
+}
+
+func (w *CommandWorker) handleCommandStatusUpdate(ctx context.Context, statusUpdateData any, done func()) {
+	defer done()
+
+	statusUpdate, ok := statusUpdateData.(domain.CommandStatusUpdate)
+	if !ok {
+		slog.Error("failed to cast command status update data",
+			slog.String("type", fmt.Sprintf("%T", statusUpdateData)),
+			slog.String("expected", "domain.CommandStatusUpdate"))
+		return
+	}
+
+	slog.Info("received command status update",
+		slog.String("command_id", statusUpdate.CommandID),
+		slog.String("device_name", statusUpdate.DeviceName),
+		slog.String("status", string(statusUpdate.Status)),
+	)
+
+	w.handleCommandStatusUpdateStruct(ctx, statusUpdate)
+}
+
+func (w *CommandWorker) handleCommandStatusUpdateStruct(ctx context.Context, statusUpdate domain.CommandStatusUpdate) {
+	if statusUpdate.CommandID == "" {
+		slog.Error("command status update received without command ID",
+			slog.String("device_name", statusUpdate.DeviceName),
+			slog.String("status", string(statusUpdate.Status)))
+		return
+	}
+
+	cmdID := domain.ID(statusUpdate.CommandID)
+	targetCommand, err := w.commandRepository.GetByID(ctx, cmdID)
+	if err != nil {
+		slog.Error("failed to find command by ID",
+			slog.String("command_id", statusUpdate.CommandID),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	targetCommand.UpdateStatus(statusUpdate.Status, statusUpdate.ErrorMessage)
+	err = w.commandRepository.Update(ctx, targetCommand)
+	if err != nil {
+		slog.Error("failed to update command status",
+			slog.String("command_id", targetCommand.ID.String()),
+			slog.String("status", string(statusUpdate.Status)),
+			slog.String("error", err.Error()))
+		return
+	}
+
+	slog.Info("command status updated successfully",
+		slog.String("command_id", targetCommand.ID.String()),
+		slog.String("status", string(statusUpdate.Status)))
 }
 
 func (w *CommandWorker) Shutdown() {
