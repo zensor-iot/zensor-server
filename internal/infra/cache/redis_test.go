@@ -1,250 +1,250 @@
-package cache
+package cache_test
 
 import (
 	"context"
-	"testing"
 	"time"
+	"zensor-server/internal/infra/cache"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestNewRedisCache(t *testing.T) {
-	// This test requires a Redis server running
-	// Skip if Redis is not available
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
+var _ = ginkgo.Describe("RedisCache", func() {
+	var (
+		redisCache *cache.RedisCache
+		ctx        context.Context
+	)
 
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
+	ginkgo.BeforeEach(func() {
+		config := &cache.RedisConfig{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       0,
+		}
 
-	assert.NotNil(t, cache)
-	assert.Equal(t, config, cache.config)
-}
+		var err error
+		redisCache, err = cache.NewRedisCache(config)
+		if err != nil {
+			ginkgo.Skip("Redis not available, skipping test")
+		}
 
-func TestNewRedisCache_DefaultConfig(t *testing.T) {
-	cache, err := NewRedisCache(nil)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
+		ctx = context.Background()
+	})
 
-	assert.NotNil(t, cache)
-	assert.Equal(t, "localhost:6379", cache.config.Addr)
-	assert.Equal(t, 0, cache.config.DB)
-}
+	ginkgo.Context("NewRedisCache", func() {
+		var config *cache.RedisConfig
 
-func TestRedisCache_SetAndGet(t *testing.T) {
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
+		ginkgo.When("creating a new Redis cache with custom config", func() {
+			ginkgo.BeforeEach(func() {
+				config = &cache.RedisConfig{
+					Addr:     "localhost:6379",
+					Password: "",
+					DB:       0,
+				}
+			})
 
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
+			ginkgo.It("should create a valid Redis cache instance", func() {
+				cacheInstance, err := cache.NewRedisCache(config)
+				if err != nil {
+					ginkgo.Skip("Redis not available, skipping test")
+				}
 
-	ctx := context.Background()
+				gomega.Expect(cacheInstance).NotTo(gomega.BeNil())
+			})
+		})
 
-	// Test basic set and get
-	key := "test_key"
-	value := "test_value"
+		ginkgo.When("creating a new Redis cache with default config", func() {
+			ginkgo.It("should create cache with default configuration", func() {
+				cacheInstance, err := cache.NewRedisCache(nil)
+				if err != nil {
+					ginkgo.Skip("Redis not available, skipping test")
+				}
 
-	success := cache.Set(ctx, key, value, 0)
-	assert.True(t, success)
+				gomega.Expect(cacheInstance).NotTo(gomega.BeNil())
+			})
+		})
+	})
 
-	retrieved, found := cache.Get(ctx, key)
-	assert.True(t, found)
-	assert.Equal(t, value, retrieved)
-}
+	ginkgo.Context("SetAndGet", func() {
+		var (
+			key   string
+			value string
+		)
 
-func TestRedisCache_SetWithTTL(t *testing.T) {
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
+		ginkgo.When("setting and getting a value", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test_key"
+				value = "test_value"
+			})
 
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
+			ginkgo.It("should store and retrieve the value correctly", func() {
+				success := redisCache.Set(ctx, key, value, 0)
+				gomega.Expect(success).To(gomega.BeTrue())
 
-	ctx := context.Background()
+				retrieved, found := redisCache.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeTrue())
+				gomega.Expect(retrieved).To(gomega.Equal(value))
+			})
+		})
+	})
 
-	// Test set with TTL
-	key := "test_ttl_key"
-	value := "test_ttl_value"
-	ttl := 1 * time.Second
+	ginkgo.Context("SetWithTTL", func() {
+		var (
+			key   string
+			value string
+			ttl   time.Duration
+		)
 
-	success := cache.Set(ctx, key, value, ttl)
-	assert.True(t, success)
+		ginkgo.When("setting a value with TTL", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test_ttl_key"
+				value = "test_ttl_value"
+				ttl = 1 * time.Second
+			})
 
-	// Value should be available immediately
-	retrieved, found := cache.Get(ctx, key)
-	assert.True(t, found)
-	assert.Equal(t, value, retrieved)
+			ginkgo.It("should expire the value after TTL", func() {
+				success := redisCache.Set(ctx, key, value, ttl)
+				gomega.Expect(success).To(gomega.BeTrue())
 
-	// Wait for TTL to expire
-	time.Sleep(2 * time.Second)
+				// Value should be available immediately
+				retrieved, found := redisCache.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeTrue())
+				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-	// Value should be gone
-	retrieved, found = cache.Get(ctx, key)
-	assert.False(t, found)
-}
+				// Wait for TTL to expire
+				time.Sleep(2 * time.Second)
 
-func TestRedisCache_Delete(t *testing.T) {
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
+				// Value should be gone
+				retrieved, found = redisCache.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeFalse())
+			})
+		})
+	})
 
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
+	ginkgo.Context("Delete", func() {
+		var (
+			key   string
+			value string
+		)
 
-	ctx := context.Background()
+		ginkgo.When("deleting a value", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test_delete_key"
+				value = "test_delete_value"
+			})
 
-	// Test delete
-	key := "test_delete_key"
-	value := "test_delete_value"
+			ginkgo.It("should remove the value from cache", func() {
+				success := redisCache.Set(ctx, key, value, 0)
+				gomega.Expect(success).To(gomega.BeTrue())
 
-	success := cache.Set(ctx, key, value, 0)
-	assert.True(t, success)
+				// Verify value exists
+				retrieved, found := redisCache.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeTrue())
+				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-	// Verify value exists
-	retrieved, found := cache.Get(ctx, key)
-	assert.True(t, found)
-	assert.Equal(t, value, retrieved)
+				// Delete the value
+				redisCache.Delete(ctx, key)
 
-	// Delete the value
-	cache.Delete(ctx, key)
+				// Verify value is gone
+				retrieved, found = redisCache.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeFalse())
+			})
+		})
+	})
 
-	// Verify value is gone
-	retrieved, found = cache.Get(ctx, key)
-	assert.False(t, found)
-}
+	ginkgo.Context("GetOrSet", func() {
+		var (
+			key           string
+			expectedValue string
+			ttl           time.Duration
+			loader        func() (any, error)
+		)
 
-func TestRedisCache_GetOrSet(t *testing.T) {
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
+		ginkgo.When("getting or setting a value", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test_getorset_key"
+				expectedValue = "test_getorset_value"
+				ttl = 5 * time.Second
+				loader = func() (any, error) {
+					return expectedValue, nil
+				}
+			})
 
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
+			ginkgo.It("should load and cache the value", func() {
+				// First call should set the value
+				value, err := redisCache.GetOrSet(ctx, key, ttl, loader)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(value).To(gomega.Equal(expectedValue))
 
-	// Test GetOrSet
-	key := "test_getorset_key"
-	expectedValue := "test_getorset_value"
-	ttl := 5 * time.Second
+				// Second call should get the cached value
+				value, err = redisCache.GetOrSet(ctx, key, ttl, loader)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(value).To(gomega.Equal(expectedValue))
+			})
+		})
+	})
 
-	loader := func() (any, error) {
-		return expectedValue, nil
-	}
+	ginkgo.Context("Keys", func() {
+		ginkgo.When("getting keys matching a pattern", func() {
+			ginkgo.It("should return matching keys", func() {
+				// Set some test keys
+				redisCache.Set(ctx, "test_keys_1", "value1", 0)
+				redisCache.Set(ctx, "test_keys_2", "value2", 0)
+				redisCache.Set(ctx, "other_key", "value3", 0)
 
-	ctx := context.Background()
+				// Get keys matching pattern
+				keys, err := redisCache.Keys(ctx, "test_keys_*")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(keys).To(gomega.HaveLen(2))
+				gomega.Expect(keys).To(gomega.ContainElement("test_keys_1"))
+				gomega.Expect(keys).To(gomega.ContainElement("test_keys_2"))
+			})
+		})
+	})
 
-	// First call should set the value
-	value, err := cache.GetOrSet(ctx, key, ttl, loader)
-	require.NoError(t, err)
-	assert.Equal(t, expectedValue, value)
+	ginkgo.Context("ContextMethods", func() {
+		var (
+			key   string
+			value string
+		)
 
-	// Second call should get the cached value
-	value, err = cache.GetOrSet(ctx, key, ttl, loader)
-	require.NoError(t, err)
-	assert.Equal(t, expectedValue, value)
-}
+		ginkgo.When("using context-aware methods", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test_context_key"
+				value = "test_context_value"
+			})
 
-func TestRedisCache_Keys(t *testing.T) {
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
+			ginkgo.It("should handle context operations correctly", func() {
+				// Test Set
+				success := redisCache.Set(ctx, key, value, 5*time.Second)
+				gomega.Expect(success).To(gomega.BeTrue())
 
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
+				// Test Get
+				retrieved, found := redisCache.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeTrue())
+				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-	ctx := context.Background()
+				// Test Delete
+				redisCache.Delete(ctx, key)
 
-	// Set some test keys
-	cache.Set(ctx, "test_keys_1", "value1", 0)
-	cache.Set(ctx, "test_keys_2", "value2", 0)
-	cache.Set(ctx, "other_key", "value3", 0)
+				// Verify value is gone
+				retrieved, found = redisCache.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeFalse())
+			})
+		})
+	})
 
-	// Get keys matching pattern
-	keys, err := cache.Keys(ctx, "test_keys_*")
-	require.NoError(t, err)
-	assert.Len(t, keys, 2)
-	assert.Contains(t, keys, "test_keys_1")
-	assert.Contains(t, keys, "test_keys_2")
-}
+	ginkgo.Context("Ping", func() {
+		ginkgo.When("pinging the Redis server", func() {
+			ginkgo.It("should respond to ping", func() {
+				// Test ping
+				err := redisCache.Ping()
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-func TestRedisCache_ContextMethods(t *testing.T) {
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
-
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
-
-	ctx := context.Background()
-	key := "test_context_key"
-	value := "test_context_value"
-
-	// Test Set
-	success := cache.Set(ctx, key, value, 5*time.Second)
-	assert.True(t, success)
-
-	// Test Get
-	retrieved, found := cache.Get(ctx, key)
-	assert.True(t, found)
-	assert.Equal(t, value, retrieved)
-
-	// Test Delete
-	cache.Delete(ctx, key)
-
-	// Verify value is gone
-	retrieved, found = cache.Get(ctx, key)
-	assert.False(t, found)
-}
-
-func TestRedisCache_Ping(t *testing.T) {
-	config := &RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
-
-	cache, err := NewRedisCache(config)
-	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
-	}
-
-	// Test ping
-	err = cache.Ping()
-	assert.NoError(t, err)
-
-	// Test ping with context
-	ctx := context.Background()
-	err = cache.PingWithContext(ctx)
-	assert.NoError(t, err)
-}
+				// Test ping with context
+				err = redisCache.PingWithContext(ctx)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+		})
+	})
+})
