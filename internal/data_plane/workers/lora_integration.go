@@ -30,7 +30,7 @@ const (
 	BrokerTopicUplinkMessage  async.BrokerTopicName = "device_messages"
 	PubSubTopicDeviceCommands pubsub.Topic          = "device_commands"
 
-	_defaultQoS byte = 1 // At least once
+	_defaultQoS byte = 0 // At most once
 )
 
 func NewLoraIntegrationWorker(
@@ -266,6 +266,7 @@ func (w *LoraIntegrationWorker) handleDownlinkResponse(ctx context.Context, msg 
 		slog.String("status", string(status)),
 		slog.String("trace_id", span.SpanContext().TraceID().String()),
 		slog.String("span_id", span.SpanContext().SpanID().String()),
+		slog.String("correlation_ids", fmt.Sprintf("%v", envelop.CorrelationIDs)),
 	}
 
 	switch status {

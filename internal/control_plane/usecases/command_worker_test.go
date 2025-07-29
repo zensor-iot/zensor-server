@@ -54,7 +54,7 @@ func TestCommandWorker_HandleCommandStatusUpdate_Queued(t *testing.T) {
 
 	// Process the status update
 	ctx := context.Background()
-	worker.handleCommandStatusUpdateStruct(ctx, statusUpdate)
+	worker.handleCommandStatusUpdate(ctx, statusUpdate, func() {})
 
 	// Verify that the repository was called correctly
 	mockRepo.AssertExpectations(t)

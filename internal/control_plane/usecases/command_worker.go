@@ -67,7 +67,14 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 			case "command_status_update":
 				wg.Add(1)
 				procCtx := context.Background()
-				w.handleCommandStatusUpdate(procCtx, msg.Value, wg.Done)
+				cmdStatusUpdate, ok := msg.Value.(domain.CommandStatusUpdate)
+				if !ok {
+					slog.Error("failed to cast command status update data",
+						slog.String("type", fmt.Sprintf("%T", msg.Value)),
+						slog.String("expected", "domain.CommandStatusUpdate"))
+					return
+				}
+				w.handleCommandStatusUpdate(procCtx, cmdStatusUpdate, wg.Done)
 			default:
 				slog.Warn("event not supported", slog.String("event", msg.Event))
 			}
@@ -146,30 +153,18 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 
 func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Command, done func()) {
 	defer done()
-	domainCmd := domain.Command{
-		ID: domain.ID(cmd.ID),
-		Device: domain.Device{
-			ID:   domain.ID(cmd.DeviceID),
-			Name: cmd.DeviceName,
-		},
-		Task: domain.Task{
-			ID: domain.ID(cmd.TaskID),
-		},
-		Port:     domain.Port(cmd.Port),
-		Priority: domain.CommandPriority(cmd.Priority),
-		Payload: domain.CommandPayload{
-			Index: domain.Index(cmd.Payload.Index),
-			Value: domain.CommandValue(cmd.Payload.Value),
-		},
-		DispatchAfter: cmd.DispatchAfter,
-		Ready:         cmd.Ready,
-		Sent:          true,
-		SentAt:        utils.Time{Time: time.Now()},
+
+	existingCmd, err := w.commandRepository.GetByID(ctx, domain.ID(cmd.ID))
+	if err != nil {
+		slog.Error("failed to get command by ID", slog.Any("error", err))
+		return
 	}
 
-	err := w.commandRepository.Update(ctx, domainCmd)
+	existingCmd.Sent = true
+	existingCmd.SentAt = utils.Time{Time: time.Now()}
+	err = w.commandRepository.Update(ctx, existingCmd)
 	if err != nil {
-		slog.Warn("failed to update command", slog.Any("error", err))
+		slog.Error("failed to update command", slog.Any("error", err))
 	}
 
 	attributes := []attribute.KeyValue{
@@ -179,27 +174,14 @@ func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Comman
 	w.metricCounters[_metricKeyCommands].Add(ctx, 1, metric.WithAttributes(attributes...))
 }
 
-func (w *CommandWorker) handleCommandStatusUpdate(ctx context.Context, statusUpdateData any, done func()) {
+func (w *CommandWorker) handleCommandStatusUpdate(ctx context.Context, statusUpdate domain.CommandStatusUpdate, done func()) {
 	defer done()
-
-	statusUpdate, ok := statusUpdateData.(domain.CommandStatusUpdate)
-	if !ok {
-		slog.Error("failed to cast command status update data",
-			slog.String("type", fmt.Sprintf("%T", statusUpdateData)),
-			slog.String("expected", "domain.CommandStatusUpdate"))
-		return
-	}
-
-	slog.Info("received command status update",
+	slog.Debug("received command status update",
 		slog.String("command_id", statusUpdate.CommandID),
 		slog.String("device_name", statusUpdate.DeviceName),
 		slog.String("status", string(statusUpdate.Status)),
 	)
 
-	w.handleCommandStatusUpdateStruct(ctx, statusUpdate)
-}
-
-func (w *CommandWorker) handleCommandStatusUpdateStruct(ctx context.Context, statusUpdate domain.CommandStatusUpdate) {
 	if statusUpdate.CommandID == "" {
 		slog.Error("command status update received without command ID",
 			slog.String("device_name", statusUpdate.DeviceName),

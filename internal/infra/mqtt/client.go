@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	_defaultQoS           = 1 // At least once
+	_defaultQoS           = 0 // At most once
 	_defaultRetained      = false
 	_publishTimeout       = 5 * time.Second
 	_maxReconnectInterval = 1 * time.Minute
