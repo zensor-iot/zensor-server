@@ -1,238 +1,306 @@
-package cache
+package cache_test
 
 import (
 	"context"
-	"testing"
 	"time"
+	"zensor-server/internal/infra/cache"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestCache_New(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+var _ = ginkgo.Describe("Cache", func() {
+	var (
+		cacheInstance cache.Cache
+		ctx           context.Context
+	)
 
-	assert.NotNil(t, cache)
-	assert.NotNil(t, cache.store)
-}
+	ginkgo.BeforeEach(func() {
+		var err error
+		cacheInstance, err = cache.New(nil)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		ctx = context.Background()
+	})
 
-func TestCache_GetSet(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+	ginkgo.Context("New", func() {
+		ginkgo.When("creating a new cache", func() {
+			ginkgo.It("should create a valid cache instance", func() {
+				gomega.Expect(cacheInstance).NotTo(gomega.BeNil())
+			})
+		})
+	})
 
-	// Test basic get/set
-	key := "test-key"
-	value := "test-value"
+	ginkgo.Context("GetSet", func() {
+		var (
+			key   string
+			value string
+		)
 
-	ctx := context.Background()
+		ginkgo.When("setting and getting a value", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test-key"
+				value = "test-value"
+			})
 
-	// Set value
-	success := cache.Set(ctx, key, value, 0)
-	assert.True(t, success)
+			ginkgo.It("should store and retrieve the value correctly", func() {
+				// Set value
+				success := cacheInstance.Set(ctx, key, value, 0)
+				gomega.Expect(success).To(gomega.BeTrue())
 
-	// Small delay for Ristretto to process the value
-	time.Sleep(10 * time.Millisecond)
+				// Small delay for Ristretto to process the value
+				time.Sleep(10 * time.Millisecond)
 
-	// Get value
-	retrieved, found := cache.Get(ctx, key)
-	assert.True(t, found)
-	assert.Equal(t, value, retrieved)
-}
+				// Get value
+				retrieved, found := cacheInstance.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeTrue())
+				gomega.Expect(retrieved).To(gomega.Equal(value))
+			})
+		})
+	})
 
-func TestCache_GetSetWithTTL(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+	ginkgo.Context("GetSetWithTTL", func() {
+		var (
+			key   string
+			value string
+			ttl   time.Duration
+		)
 
-	key := "test-key-ttl"
-	value := "test-value-ttl"
-	ttl := 100 * time.Millisecond
+		ginkgo.When("setting a value with TTL", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test-key-ttl"
+				value = "test-value-ttl"
+				ttl = 100 * time.Millisecond
+			})
 
-	ctx := context.Background()
+			ginkgo.It("should expire the value after TTL", func() {
+				// Set value with TTL
+				success := cacheInstance.Set(ctx, key, value, ttl)
+				gomega.Expect(success).To(gomega.BeTrue())
 
-	// Set value with TTL
-	success := cache.Set(ctx, key, value, ttl)
-	assert.True(t, success)
+				// Small delay for Ristretto to process the value
+				time.Sleep(10 * time.Millisecond)
 
-	// Small delay for Ristretto to process the value
-	time.Sleep(10 * time.Millisecond)
+				// Get value immediately
+				retrieved, found := cacheInstance.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeTrue())
+				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-	// Get value immediately
-	retrieved, found := cache.Get(ctx, key)
-	assert.True(t, found)
-	assert.Equal(t, value, retrieved)
+				// Wait for TTL to expire
+				time.Sleep(ttl + 50*time.Millisecond)
 
-	// Wait for TTL to expire
-	time.Sleep(ttl + 50*time.Millisecond)
+				// Value should be expired
+				retrieved, found = cacheInstance.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeFalse())
+				gomega.Expect(retrieved).To(gomega.BeNil())
+			})
+		})
+	})
 
-	// Value should be expired
-	retrieved, found = cache.Get(ctx, key)
-	assert.False(t, found)
-	assert.Nil(t, retrieved)
-}
+	ginkgo.Context("Delete", func() {
+		var (
+			key   string
+			value string
+		)
 
-func TestCache_Delete(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+		ginkgo.When("deleting a value", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test-key-delete"
+				value = "test-value-delete"
+			})
 
-	key := "test-key-delete"
-	value := "test-value-delete"
+			ginkgo.It("should remove the value from cache", func() {
+				// Set value
+				cacheInstance.Set(ctx, key, value, 0)
 
-	ctx := context.Background()
+				// Small delay for Ristretto to process the value
+				time.Sleep(10 * time.Millisecond)
 
-	// Set value
-	cache.Set(ctx, key, value, 0)
+				// Verify it exists
+				retrieved, found := cacheInstance.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeTrue())
+				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-	// Small delay for Ristretto to process the value
-	time.Sleep(10 * time.Millisecond)
+				// Delete value
+				cacheInstance.Delete(ctx, key)
 
-	// Verify it exists
-	retrieved, found := cache.Get(ctx, key)
-	assert.True(t, found)
-	assert.Equal(t, value, retrieved)
+				// Small delay for Ristretto to process the deletion
+				time.Sleep(10 * time.Millisecond)
 
-	// Delete value
-	cache.Delete(ctx, key)
+				// Verify it's gone
+				retrieved, found = cacheInstance.Get(ctx, key)
+				gomega.Expect(found).To(gomega.BeFalse())
+				gomega.Expect(retrieved).To(gomega.BeNil())
+			})
+		})
+	})
 
-	// Small delay for Ristretto to process the deletion
-	time.Sleep(10 * time.Millisecond)
+	ginkgo.Context("GetOrSet", func() {
+		var (
+			key           string
+			expectedValue string
+			ttl           time.Duration
+			loader        func() (any, error)
+		)
 
-	// Verify it's gone
-	retrieved, found = cache.Get(ctx, key)
-	assert.False(t, found)
-	assert.Nil(t, retrieved)
-}
+		ginkgo.When("getting or setting a value", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test-key-getorset"
+				expectedValue = "loaded-value"
+				ttl = 1 * time.Second
+				loader = func() (any, error) {
+					return expectedValue, nil
+				}
+			})
 
-func TestCache_GetOrSet(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+			ginkgo.It("should load and cache the value", func() {
+				// GetOrSet should load the value
+				value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(value).To(gomega.Equal(expectedValue))
 
-	key := "test-key-getorset"
-	expectedValue := "loaded-value"
-	ttl := 1 * time.Second
+				// Second call should return cached value
+				value, err = cacheInstance.GetOrSet(ctx, key, ttl, loader)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(value).To(gomega.Equal(expectedValue))
+			})
+		})
+	})
 
-	// Load function that returns the expected value
-	loader := func() (any, error) {
-		return expectedValue, nil
-	}
+	ginkgo.Context("GetOrSetWithContext", func() {
+		var (
+			key           string
+			expectedValue string
+			ttl           time.Duration
+			loader        func() (any, error)
+		)
 
-	ctx := context.Background()
+		ginkgo.When("getting or setting with context", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test-key-context"
+				expectedValue = "loaded-value"
+				ttl = 1 * time.Second
+				loader = func() (any, error) {
+					return expectedValue, nil
+				}
+			})
 
-	// GetOrSet should load the value
-	value, err := cache.GetOrSet(ctx, key, ttl, loader)
-	require.NoError(t, err)
-	assert.Equal(t, expectedValue, value)
+			ginkgo.It("should handle context correctly", func() {
+				// GetOrSet should load the value
+				value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(value).To(gomega.Equal(expectedValue))
 
-	// Second call should return cached value
-	value, err = cache.GetOrSet(ctx, key, ttl, loader)
-	require.NoError(t, err)
-	assert.Equal(t, expectedValue, value)
-}
+				// Second call should return cached value
+				value, err = cacheInstance.GetOrSet(ctx, key, ttl, loader)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(value).To(gomega.Equal(expectedValue))
+			})
+		})
+	})
 
-func TestCache_GetOrSetWithContext(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+	ginkgo.Context("GetOrSetWithCancelledContext", func() {
+		var (
+			key    string
+			ttl    time.Duration
+			loader func() (any, error)
+		)
 
-	key := "test-key-context"
-	expectedValue := "loaded-value"
-	ttl := 1 * time.Second
+		ginkgo.When("using a cancelled context", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test-key-cancelled"
+				ttl = 1 * time.Second
+				loader = func() (any, error) {
+					ginkgo.Fail("loader should not be called with cancelled context")
+					return nil, nil
+				}
+			})
 
-	// Load function that returns the expected value
-	loader := func() (any, error) {
-		return expectedValue, nil
-	}
+			ginkgo.It("should return context error", func() {
+				// Create a cancelled context
+				cancelledCtx, cancel := context.WithCancel(context.Background())
+				cancel()
 
-	ctx := context.Background()
+				// GetOrSet should return context error
+				_, err := cacheInstance.GetOrSet(cancelledCtx, key, ttl, loader)
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err).To(gomega.Equal(context.Canceled))
+			})
+		})
+	})
 
-	// GetOrSet should load the value
-	value, err := cache.GetOrSet(ctx, key, ttl, loader)
-	require.NoError(t, err)
-	assert.Equal(t, expectedValue, value)
+	ginkgo.Context("ConcurrentAccess", func() {
+		var (
+			key           string
+			expectedValue string
+			ttl           time.Duration
+			loader        func() (any, error)
+		)
 
-	// Second call should return cached value
-	value, err = cache.GetOrSet(ctx, key, ttl, loader)
-	require.NoError(t, err)
-	assert.Equal(t, expectedValue, value)
-}
+		ginkgo.When("accessing the cache concurrently", func() {
+			ginkgo.BeforeEach(func() {
+				key = "test-key-concurrent"
+				expectedValue = "concurrent-value"
+				ttl = 1 * time.Second
+				loader = func() (any, error) {
+					time.Sleep(10 * time.Millisecond) // Simulate work
+					return expectedValue, nil
+				}
+			})
 
-func TestCache_GetOrSetWithCancelledContext(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+			ginkgo.It("should handle concurrent operations safely", func() {
+				// Run multiple concurrent GetOrSet operations
+				const numGoroutines = 10
+				results := make(chan any, numGoroutines)
+				errors := make(chan error, numGoroutines)
 
-	key := "test-key-cancelled"
-	ttl := 1 * time.Second
+				for i := 0; i < numGoroutines; i++ {
+					go func() {
+						value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
+						results <- value
+						errors <- err
+					}()
+				}
 
-	// Create a cancelled context
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+				// Collect results
+				for i := 0; i < numGoroutines; i++ {
+					value := <-results
+					err := <-errors
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					gomega.Expect(value).To(gomega.Equal(expectedValue))
+				}
+			})
+		})
+	})
 
-	// Load function that should not be called
-	loader := func() (any, error) {
-		t.Fatal("loader should not be called with cancelled context")
-		return nil, nil
-	}
+	ginkgo.Context("Config", func() {
+		var config *cache.CacheConfig
 
-	// GetOrSet should return context error
-	_, err = cache.GetOrSet(ctx, key, ttl, loader)
-	assert.Error(t, err)
-	assert.Equal(t, context.Canceled, err)
-}
+		ginkgo.When("creating cache with custom config", func() {
+			ginkgo.BeforeEach(func() {
+				config = &cache.CacheConfig{
+					MaxCost:     1 << 20, // 1MB
+					NumCounters: 1e6,     // 1M
+					BufferItems: 32,
+				}
+			})
 
-func TestCache_ConcurrentAccess(t *testing.T) {
-	cache, err := New(nil)
-	require.NoError(t, err)
+			ginkgo.It("should create cache with custom configuration", func() {
+				customCache, err := cache.New(config)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(customCache).NotTo(gomega.BeNil())
+			})
+		})
+	})
 
-	key := "test-key-concurrent"
-	expectedValue := "concurrent-value"
-	ttl := 1 * time.Second
-
-	// Load function that simulates some work
-	loader := func() (any, error) {
-		time.Sleep(10 * time.Millisecond) // Simulate work
-		return expectedValue, nil
-	}
-
-	// Run multiple concurrent GetOrSet operations
-	const numGoroutines = 10
-	results := make(chan any, numGoroutines)
-	errors := make(chan error, numGoroutines)
-
-	ctx := context.Background()
-
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			value, err := cache.GetOrSet(ctx, key, ttl, loader)
-			results <- value
-			errors <- err
-		}()
-	}
-
-	// Collect results
-	for i := 0; i < numGoroutines; i++ {
-		value := <-results
-		err := <-errors
-		require.NoError(t, err)
-		assert.Equal(t, expectedValue, value)
-	}
-}
-
-func TestCache_Config(t *testing.T) {
-	config := &CacheConfig{
-		MaxCost:     1 << 20, // 1MB
-		NumCounters: 1e6,     // 1M
-		BufferItems: 32,
-	}
-
-	cache, err := New(config)
-	require.NoError(t, err)
-
-	assert.NotNil(t, cache)
-}
-
-func TestCache_DefaultConfig(t *testing.T) {
-	config := DefaultConfig()
-	assert.NotNil(t, config)
-	assert.Greater(t, config.MaxCost, int64(0))
-	assert.Greater(t, config.NumCounters, int64(0))
-	assert.Greater(t, config.BufferItems, int64(0))
-}
+	ginkgo.Context("DefaultConfig", func() {
+		ginkgo.When("getting default configuration", func() {
+			ginkgo.It("should return valid default config", func() {
+				config := cache.DefaultConfig()
+				gomega.Expect(config).NotTo(gomega.BeNil())
+				gomega.Expect(config.MaxCost).To(gomega.BeNumerically(">", int64(0)))
+				gomega.Expect(config.NumCounters).To(gomega.BeNumerically(">", int64(0)))
+				gomega.Expect(config.BufferItems).To(gomega.BeNumerically(">", int64(0)))
+			})
+		})
+	})
+})
