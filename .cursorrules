@@ -45,5 +45,25 @@
   - `When()` for each scenario
   - `BeforeEach()` for configuring variables and mocks
   - `It()` for performing tests and validations
+- Variable declaration and initialization pattern:
+  - Declare method arguments at Context level: `var methodArg Type`
+  - Initialize variables in BeforeEach within When blocks
+  - Scope variables to their specific Context for clarity
+  - Example structure:
+    ```go
+    Context("MethodName") {
+      var methodArg Type  // Method arguments declared at Context level
+      
+      When("scenario") {
+        BeforeEach() {
+          // Initialize methodArg
+        }
+        
+        It("should do something") {
+          // Use methodArg in method call
+        }
+      }
+    }
+    ```
 - Avoid test dependencies on external systems; use mocks or test servers.
 - Run `go test -race` to check for race conditions.

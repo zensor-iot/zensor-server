@@ -1,17 +1,18 @@
-package persistence
+package persistence_test
 
 import (
 	"context"
-	"testing"
 	"time"
+	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/persistence/internal"
+	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
 // TestCommand represents the device_commands_final table for testing
@@ -41,206 +42,188 @@ func setupTestTables(orm sql.ORM) error {
 	return err
 }
 
-func TestNewCommandRepository(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations")
-	require.NoError(t, err)
+var _ = ginkgo.Describe("CommandRepository", func() {
+	var (
+		orm         sql.ORM
+		mockFactory pubsub.PublisherFactory
+		repo        usecases.CommandRepository
+		ctx         context.Context
+	)
 
-	// Create test tables
-	err = setupTestTables(orm)
-	require.NoError(t, err)
+	ginkgo.BeforeEach(func() {
+		var err error
+		// Use a unique database name for each test to ensure isolation
+		orm, err = sql.NewMemoryORM("migrations")
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Create a mock publisher factory for testing
-	mockFactory := pubsub.NewMemoryPublisherFactory()
+		// Clear any existing data to ensure test isolation
+		orm.Unscoped().Where("1=1").Delete(&TestCommand{})
 
-	repo, err := NewCommandRepository(orm, mockFactory)
-	require.NoError(t, err)
-	assert.NotNil(t, repo)
-}
+		// Create test tables
+		err = setupTestTables(orm)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-func TestSimpleCommandRepository_FindAllPending(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations")
-	require.NoError(t, err)
+		// Create a mock publisher factory for testing
+		mockFactory = pubsub.NewMemoryPublisherFactory()
 
-	// Create test tables
-	err = setupTestTables(orm)
-	require.NoError(t, err)
+		repo, err = persistence.NewCommandRepository(orm, mockFactory)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(repo).NotTo(gomega.BeNil())
 
-	// Create a mock publisher factory for testing
-	mockFactory := pubsub.NewMemoryPublisherFactory()
+		ctx = context.Background()
+	})
 
-	repo, err := NewCommandRepository(orm, mockFactory)
-	require.NoError(t, err)
+	ginkgo.Context("NewCommandRepository", func() {
+		ginkgo.When("creating a new command repository", func() {
+			ginkgo.It("should create a valid repository instance", func() {
+				// This is already tested in BeforeEach, but keeping for clarity
+				gomega.Expect(repo).NotTo(gomega.BeNil())
+			})
+		})
+	})
 
-	ctx := context.Background()
-	commands, err := repo.FindAllPending(ctx)
-	require.NoError(t, err)
-	assert.Empty(t, commands)
-}
+	ginkgo.Context("FindAllPending", func() {
+		ginkgo.When("finding all pending commands", func() {
+			ginkgo.It("should return empty list when no commands exist", func() {
+				commands, err := repo.FindAllPending(ctx)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(commands).To(gomega.BeEmpty())
+			})
+		})
+	})
 
-func TestSimpleCommandRepository_FindPendingByDevice(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations")
-	require.NoError(t, err)
+	ginkgo.Context("FindPendingByDevice", func() {
+		var deviceID domain.ID
 
-	// Create test tables
-	err = setupTestTables(orm)
-	require.NoError(t, err)
+		ginkgo.When("finding pending commands for a specific device", func() {
+			ginkgo.BeforeEach(func() {
+				deviceID = domain.ID("test-device-id")
+			})
 
-	// Create a mock publisher factory for testing
-	mockFactory := pubsub.NewMemoryPublisherFactory()
+			ginkgo.It("should return empty list when no commands exist for device", func() {
+				commands, err := repo.FindPendingByDevice(ctx, deviceID)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(commands).To(gomega.BeEmpty())
+			})
+		})
+	})
 
-	repo, err := NewCommandRepository(orm, mockFactory)
-	require.NoError(t, err)
+	ginkgo.Context("FindByTaskID", func() {
+		var taskID domain.ID
 
-	ctx := context.Background()
-	deviceID := domain.ID("test-device-id")
-	commands, err := repo.FindPendingByDevice(ctx, deviceID)
-	require.NoError(t, err)
-	assert.Empty(t, commands)
-}
+		ginkgo.When("finding commands by task ID", func() {
+			ginkgo.BeforeEach(func() {
+				taskID = domain.ID("test-task-id")
+			})
 
-func TestSimpleCommandRepository_FindByTaskID(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations")
-	require.NoError(t, err)
+			ginkgo.It("should return empty list when no commands exist for task", func() {
+				commands, err := repo.FindByTaskID(ctx, taskID)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(commands).To(gomega.BeEmpty())
+			})
+		})
+	})
 
-	// Create test tables
-	err = setupTestTables(orm)
-	require.NoError(t, err)
+	ginkgo.Context("Create", func() {
+		var cmd domain.Command
+		ginkgo.When("creating a new command", func() {
 
-	// Create a mock publisher factory for testing
-	mockFactory := pubsub.NewMemoryPublisherFactory()
+			ginkgo.BeforeEach(func() {
+				cmd = domain.Command{
+					ID:       domain.ID("test-command-id"),
+					Version:  domain.Version(1),
+					Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
+					Task:     domain.Task{ID: domain.ID("test-task-id-create")},
+					Port:     domain.Port(15),
+					Priority: domain.CommandPriority("NORMAL"),
+					Payload: domain.CommandPayload{
+						Index: domain.Index(0),
+						Value: domain.CommandValue(100),
+					},
+					DispatchAfter: utils.Time{Time: time.Now()},
+					Ready:         false,
+					Sent:          false,
+					CreatedAt:     utils.Time{Time: time.Now()},
+				}
+			})
 
-	repo, err := NewCommandRepository(orm, mockFactory)
-	require.NoError(t, err)
+			ginkgo.It("should create command successfully", func() {
+				err := repo.Create(ctx, cmd)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	ctx := context.Background()
-	taskID := domain.ID("test-task-id")
-	commands, err := repo.FindByTaskID(ctx, taskID)
-	require.NoError(t, err)
-	assert.Empty(t, commands)
-}
+				// Note: In the event-driven architecture, the database update happens through
+				// the replication layer consuming Kafka events, not directly in the repository
+			})
+		})
+	})
 
-func TestSimpleCommandRepository_Create(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations")
-	require.NoError(t, err)
+	ginkgo.Context("Update", func() {
+		var cmd domain.Command
+		ginkgo.When("updating an existing command", func() {
+			ginkgo.BeforeEach(func() {
+				cmd = domain.Command{
+					ID:       domain.ID("test-command-id-update"),
+					Version:  domain.Version(1),
+					Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
+					Task:     domain.Task{ID: domain.ID("test-task-id-update")},
+					Port:     domain.Port(15),
+					Priority: domain.CommandPriority("NORMAL"),
+					Payload: domain.CommandPayload{
+						Index: domain.Index(0),
+						Value: domain.CommandValue(100),
+					},
+					DispatchAfter: utils.Time{Time: time.Now()},
+					Ready:         false,
+					Sent:          false,
+					CreatedAt:     utils.Time{Time: time.Now()},
+				}
 
-	// Create test tables
-	err = setupTestTables(orm)
-	require.NoError(t, err)
+				// First create the command in the database (simulating replication layer)
+				internalCmd := internal.FromCommand(cmd)
+				err := orm.WithContext(ctx).Create(&internalCmd).Error()
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
 
-	// Create a mock publisher factory for testing
-	mockFactory := pubsub.NewMemoryPublisherFactory()
+			ginkgo.It("should update command successfully", func() {
+				// Now update it through the repository (which publishes to Kafka)
+				cmd.Ready = true
+				cmd.Sent = true
+				cmd.SentAt = utils.Time{Time: time.Now()}
 
-	repo, err := NewCommandRepository(orm, mockFactory)
-	require.NoError(t, err)
+				err := repo.Update(ctx, cmd)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	ctx := context.Background()
-	cmd := domain.Command{
-		ID:       domain.ID("test-command-id"),
-		Version:  domain.Version(1),
-		Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
-		Task:     domain.Task{ID: domain.ID("test-task-id-create")},
-		Port:     domain.Port(15),
-		Priority: domain.CommandPriority("NORMAL"),
-		Payload: domain.CommandPayload{
-			Index: domain.Index(0),
-			Value: domain.CommandValue(100),
-		},
-		DispatchAfter: utils.Time{Time: time.Now()},
-		Ready:         false,
-		Sent:          false,
-		CreatedAt:     utils.Time{Time: time.Now()},
-	}
+				// Note: In the event-driven architecture, the database update happens through
+				// the replication layer consuming Kafka events, not directly in the repository
+			})
+		})
 
-	err = repo.Create(ctx, cmd)
-	require.NoError(t, err)
+		ginkgo.When("updating a non-existent command", func() {
+			ginkgo.BeforeEach(func() {
+				cmd = domain.Command{
+					ID:       domain.ID("non-existent-command-id"),
+					Version:  domain.Version(1),
+					Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
+					Task:     domain.Task{ID: domain.ID("test-task-id")},
+					Port:     domain.Port(15),
+					Priority: domain.CommandPriority("NORMAL"),
+					Payload: domain.CommandPayload{
+						Index: domain.Index(0),
+						Value: domain.CommandValue(100),
+					},
+					DispatchAfter: utils.Time{Time: time.Now()},
+					Ready:         true,
+					Sent:          true,
+					CreatedAt:     utils.Time{Time: time.Now()},
+				}
+			})
 
-	// Note: In the event-driven architecture, the database update happens through
-	// the replication layer consuming Kafka events, not directly in the repository
-}
-
-func TestSimpleCommandRepository_Update(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations")
-	require.NoError(t, err)
-
-	// Create test tables
-	err = setupTestTables(orm)
-	require.NoError(t, err)
-
-	// Create a mock publisher factory for testing
-	mockFactory := pubsub.NewMemoryPublisherFactory()
-
-	repo, err := NewCommandRepository(orm, mockFactory)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	cmd := domain.Command{
-		ID:       domain.ID("test-command-id-update"),
-		Version:  domain.Version(1),
-		Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
-		Task:     domain.Task{ID: domain.ID("test-task-id-update")},
-		Port:     domain.Port(15),
-		Priority: domain.CommandPriority("NORMAL"),
-		Payload: domain.CommandPayload{
-			Index: domain.Index(0),
-			Value: domain.CommandValue(100),
-		},
-		DispatchAfter: utils.Time{Time: time.Now()},
-		Ready:         false,
-		Sent:          false,
-		CreatedAt:     utils.Time{Time: time.Now()},
-	}
-
-	// First create the command in the database (simulating replication layer)
-	internalCmd := internal.FromCommand(cmd)
-	err = orm.WithContext(ctx).Create(&internalCmd).Error()
-	require.NoError(t, err)
-
-	// Now update it through the repository (which publishes to Kafka)
-	cmd.Ready = true
-	cmd.Sent = true
-	cmd.SentAt = utils.Time{Time: time.Now()}
-
-	err = repo.Update(ctx, cmd)
-	require.NoError(t, err)
-
-	// Note: In the event-driven architecture, the database update happens through
-	// the replication layer consuming Kafka events, not directly in the repository
-}
-
-func TestSimpleCommandRepository_Update_NotFound(t *testing.T) {
-	orm, err := sql.NewMemoryORM("migrations")
-	require.NoError(t, err)
-
-	// Create test tables
-	err = setupTestTables(orm)
-	require.NoError(t, err)
-
-	// Create a mock publisher factory for testing
-	mockFactory := pubsub.NewMemoryPublisherFactory()
-
-	repo, err := NewCommandRepository(orm, mockFactory)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	cmd := domain.Command{
-		ID:       domain.ID("non-existent-command-id"),
-		Version:  domain.Version(1),
-		Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
-		Task:     domain.Task{ID: domain.ID("test-task-id")},
-		Port:     domain.Port(15),
-		Priority: domain.CommandPriority("NORMAL"),
-		Payload: domain.CommandPayload{
-			Index: domain.Index(0),
-			Value: domain.CommandValue(100),
-		},
-		DispatchAfter: utils.Time{Time: time.Now()},
-		Ready:         true,
-		Sent:          true,
-		CreatedAt:     utils.Time{Time: time.Now()},
-	}
-
-	// Try to update a non-existent command
-	err = repo.Update(ctx, cmd)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "command not found")
-}
+			ginkgo.It("should return error for non-existent command", func() {
+				// Try to update a non-existent command
+				err := repo.Update(ctx, cmd)
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("command not found"))
+			})
+		})
+	})
+})
