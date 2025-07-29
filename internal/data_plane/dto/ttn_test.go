@@ -1,71 +1,88 @@
-package dto
+package dto_test
 
 import (
 	"encoding/json"
-	"testing"
+	"zensor-server/internal/data_plane/dto"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestTTNMessage_WithCorrelationIDs(t *testing.T) {
-	// Create a TTN message with correlation IDs
-	ttnMsg := TTNMessage{
-		Downlinks: []TTNMessageDownlink{
-			{
-				FPort:          15,
-				FrmPayload:     []byte{1, 2, 3},
-				Priority:       "NORMAL",
-				CorrelationIDs: []string{"zensor:cmd-123", "cmd-456"},
-			},
-		},
-	}
+var _ = ginkgo.Describe("TTNMessage", func() {
+	ginkgo.Context("WithCorrelationIDs", func() {
+		var ttnMsg dto.TTNMessage
 
-	// Marshal to JSON to verify the structure
-	jsonData, err := json.Marshal(ttnMsg)
-	assert.NoError(t, err)
+		ginkgo.When("creating a TTN message with correlation IDs", func() {
+			ginkgo.BeforeEach(func() {
+				ttnMsg = dto.TTNMessage{
+					Downlinks: []dto.TTNMessageDownlink{
+						{
+							FPort:          15,
+							FrmPayload:     []byte{1, 2, 3},
+							Priority:       "NORMAL",
+							CorrelationIDs: []string{"zensor:cmd-123", "cmd-456"},
+						},
+					},
+				}
+			})
 
-	// Verify the JSON contains correlation_ids
-	jsonStr := string(jsonData)
-	assert.Contains(t, jsonStr, "correlation_ids")
-	assert.Contains(t, jsonStr, "zensor:cmd-123")
-	assert.Contains(t, jsonStr, "cmd-456")
+			ginkgo.It("should marshal and unmarshal correctly", func() {
+				// Marshal to JSON to verify the structure
+				jsonData, err := json.Marshal(ttnMsg)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Unmarshal back to verify round-trip
-	var unmarshaledMsg TTNMessage
-	err = json.Unmarshal(jsonData, &unmarshaledMsg)
-	assert.NoError(t, err)
+				// Verify the JSON contains correlation_ids
+				jsonStr := string(jsonData)
+				gomega.Expect(jsonStr).To(gomega.ContainSubstring("correlation_ids"))
+				gomega.Expect(jsonStr).To(gomega.ContainSubstring("zensor:cmd-123"))
+				gomega.Expect(jsonStr).To(gomega.ContainSubstring("cmd-456"))
 
-	// Verify the correlation IDs are preserved
-	assert.Equal(t, 1, len(unmarshaledMsg.Downlinks))
-	assert.Equal(t, []string{"zensor:cmd-123", "cmd-456"}, unmarshaledMsg.Downlinks[0].CorrelationIDs)
-}
+				// Unmarshal back to verify round-trip
+				var unmarshaledMsg dto.TTNMessage
+				err = json.Unmarshal(jsonData, &unmarshaledMsg)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-func TestTTNMessage_WithoutCorrelationIDs(t *testing.T) {
-	// Create a TTN message without correlation IDs (backward compatibility)
-	ttnMsg := TTNMessage{
-		Downlinks: []TTNMessageDownlink{
-			{
-				FPort:      15,
-				FrmPayload: []byte{1, 2, 3},
-				Priority:   "NORMAL",
-			},
-		},
-	}
+				// Verify the correlation IDs are preserved
+				gomega.Expect(unmarshaledMsg.Downlinks).To(gomega.HaveLen(1))
+				gomega.Expect(unmarshaledMsg.Downlinks[0].CorrelationIDs).To(gomega.Equal([]string{"zensor:cmd-123", "cmd-456"}))
+			})
+		})
+	})
 
-	// Marshal to JSON to verify the structure
-	jsonData, err := json.Marshal(ttnMsg)
-	assert.NoError(t, err)
+	ginkgo.Context("WithoutCorrelationIDs", func() {
+		var ttnMsg dto.TTNMessage
 
-	// Verify the JSON doesn't contain correlation_ids (since it's empty)
-	jsonStr := string(jsonData)
-	assert.NotContains(t, jsonStr, "correlation_ids")
+		ginkgo.When("creating a TTN message without correlation IDs", func() {
+			ginkgo.BeforeEach(func() {
+				ttnMsg = dto.TTNMessage{
+					Downlinks: []dto.TTNMessageDownlink{
+						{
+							FPort:      15,
+							FrmPayload: []byte{1, 2, 3},
+							Priority:   "NORMAL",
+						},
+					},
+				}
+			})
 
-	// Unmarshal back to verify round-trip
-	var unmarshaledMsg TTNMessage
-	err = json.Unmarshal(jsonData, &unmarshaledMsg)
-	assert.NoError(t, err)
+			ginkgo.It("should handle backward compatibility", func() {
+				// Marshal to JSON to verify the structure
+				jsonData, err := json.Marshal(ttnMsg)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Verify the correlation IDs are empty
-	assert.Equal(t, 1, len(unmarshaledMsg.Downlinks))
-	assert.Nil(t, unmarshaledMsg.Downlinks[0].CorrelationIDs)
-}
+				// Verify the JSON doesn't contain correlation_ids (since it's empty)
+				jsonStr := string(jsonData)
+				gomega.Expect(jsonStr).NotTo(gomega.ContainSubstring("correlation_ids"))
+
+				// Unmarshal back to verify round-trip
+				var unmarshaledMsg dto.TTNMessage
+				err = json.Unmarshal(jsonData, &unmarshaledMsg)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+				// Verify the correlation IDs are empty
+				gomega.Expect(unmarshaledMsg.Downlinks).To(gomega.HaveLen(1))
+				gomega.Expect(unmarshaledMsg.Downlinks[0].CorrelationIDs).To(gomega.BeNil())
+			})
+		})
+	})
+})

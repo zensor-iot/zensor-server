@@ -1,68 +1,66 @@
-package persistence
+package persistence_test
 
 import (
-	"testing"
 	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/shared_kernel/domain"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestTenantConfigurationRepository_Create(t *testing.T) {
-	// This is a basic test to verify the repository compiles and follows the pattern
-	// In a real implementation, you would use a test database and mock the publisher
+var _ = ginkgo.Describe("TenantConfigurationRepository", func() {
+	ginkgo.Context("Create", func() {
+		var config domain.TenantConfiguration
 
-	config := domain.TenantConfiguration{
-		ID:        "test-id",
-		TenantID:  "tenant-id",
-		Timezone:  "UTC",
-		Version:   1,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
+		ginkgo.When("creating a tenant configuration", func() {
+			ginkgo.BeforeEach(func() {
+				config = domain.TenantConfiguration{
+					ID:        "test-id",
+					TenantID:  "tenant-id",
+					Timezone:  "UTC",
+					Version:   1,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+			})
 
-	// Test the internal model conversion
-	internalConfig := internal.FromTenantConfiguration(config)
-	domainConfig := internalConfig.ToDomain()
+			ginkgo.It("should convert internal model correctly", func() {
+				// Test the internal model conversion
+				internalConfig := internal.FromTenantConfiguration(config)
+				domainConfig := internalConfig.ToDomain()
 
-	if domainConfig.ID != config.ID {
-		t.Errorf("expected ID %s, got %s", config.ID, domainConfig.ID)
-	}
+				gomega.Expect(domainConfig.ID).To(gomega.Equal(config.ID))
+				gomega.Expect(domainConfig.TenantID).To(gomega.Equal(config.TenantID))
+				gomega.Expect(domainConfig.Timezone).To(gomega.Equal(config.Timezone))
+			})
+		})
+	})
 
-	if domainConfig.TenantID != config.TenantID {
-		t.Errorf("expected TenantID %s, got %s", config.TenantID, domainConfig.TenantID)
-	}
+	ginkgo.Context("TenantConfigurationBuilder", func() {
+		var (
+			tenantID string
+			timezone string
+		)
 
-	if domainConfig.Timezone != config.Timezone {
-		t.Errorf("expected Timezone %s, got %s", config.Timezone, domainConfig.Timezone)
-	}
-}
+		ginkgo.When("building a tenant configuration", func() {
+			ginkgo.BeforeEach(func() {
+				tenantID = "test-tenant-id"
+				timezone = "America/New_York"
+			})
 
-func TestTenantConfigurationBuilder(t *testing.T) {
-	tenantID := domain.ID("test-tenant-id")
-	timezone := "America/New_York"
+			ginkgo.It("should build configuration successfully", func() {
+				config, err := domain.NewTenantConfigurationBuilder().
+					WithTenantID(domain.ID(tenantID)).
+					WithTimezone(timezone).
+					Build()
 
-	config, err := domain.NewTenantConfigurationBuilder().
-		WithTenantID(tenantID).
-		WithTimezone(timezone).
-		Build()
-
-	if err != nil {
-		t.Fatalf("failed to build tenant configuration: %v", err)
-	}
-
-	if config.TenantID != tenantID {
-		t.Errorf("expected TenantID %s, got %s", tenantID, config.TenantID)
-	}
-
-	if config.Timezone != timezone {
-		t.Errorf("expected Timezone %s, got %s", timezone, config.Timezone)
-	}
-
-	if config.ID == "" {
-		t.Error("expected ID to be generated")
-	}
-
-	if config.Version != 1 {
-		t.Errorf("expected Version 1, got %d", config.Version)
-	}
-}
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(config.TenantID).To(gomega.Equal(domain.ID(tenantID)))
+				gomega.Expect(config.Timezone).To(gomega.Equal(timezone))
+				gomega.Expect(config.ID).NotTo(gomega.BeEmpty())
+				gomega.Expect(config.Version).To(gomega.Equal(1))
+			})
+		})
+	})
+})
