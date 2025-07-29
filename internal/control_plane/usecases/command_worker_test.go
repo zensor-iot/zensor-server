@@ -13,13 +13,14 @@ import (
 )
 
 func TestCommandWorker_HandleCommandStatusUpdate_Queued(t *testing.T) {
-	// Create a mock command repository
+	// Create mocks
 	mockRepo := &MockCommandRepository{}
+	mockBroker := &MockInternalBroker{}
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 
 	// Create a command worker
-	worker := &CommandWorker{
-		commandRepository: mockRepo,
-	}
+	worker := NewCommandWorker(ticker, mockRepo, mockBroker)
 
 	// Create a test command
 	testCommand := domain.Command{
@@ -40,10 +41,6 @@ func TestCommandWorker_HandleCommandStatusUpdate_Queued(t *testing.T) {
 		Status:        domain.CommandStatusPending,
 	}
 
-	// Set up mock expectations
-	mockRepo.On("GetByID", "test-command-123").Return(testCommand, nil)
-	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("domain.Command")).Return(nil)
-
 	// Create a status update
 	statusUpdate := domain.CommandStatusUpdate{
 		CommandID:  "test-command-123",
@@ -51,6 +48,10 @@ func TestCommandWorker_HandleCommandStatusUpdate_Queued(t *testing.T) {
 		Status:     domain.CommandStatusQueued,
 		Timestamp:  time.Now(),
 	}
+
+	// Set up mock expectations
+	mockRepo.On("GetByID", "test-command-123").Return(testCommand, nil)
+	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("domain.Command")).Return(nil)
 
 	// Process the status update
 	ctx := context.Background()

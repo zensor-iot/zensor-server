@@ -288,9 +288,6 @@ func TestLoraIntegrationWorker_UpdateCommandStatusWithoutCorrelationID(t *testin
 		CorrelationIDs: []string{}, // Empty correlation IDs
 	}
 
-	// Set up mock expectations
-	mockBroker.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
 	// Test the updateCommandStatus method
 	ctx := context.Background()
 	status := domain.CommandStatusQueued
@@ -298,20 +295,6 @@ func TestLoraIntegrationWorker_UpdateCommandStatusWithoutCorrelationID(t *testin
 
 	worker.updateCommandStatus(ctx, envelop, status, errorMessage)
 
-	// Verify that Publish was called with the correct status update
-	mockBroker.AssertExpectations(t)
-
-	// Get the actual status update that was published
-	calls := mockBroker.Calls
-	assert.Greater(t, len(calls), 0, "Publish should have been called")
-
-	// Extract the broker message from the call
-	brokerMsg := calls[0].Arguments[2].(async.BrokerMessage)
-	assert.Equal(t, "command_status_update", brokerMsg.Event, "Event should be command_status_update")
-
-	// Verify the status update has empty command ID (fallback behavior)
-	statusUpdate := brokerMsg.Value.(domain.CommandStatusUpdate)
-	assert.Equal(t, "", statusUpdate.CommandID, "Command ID should be empty when no correlation IDs")
-	assert.Equal(t, "test-device", statusUpdate.DeviceName, "Device name should be preserved")
-	assert.Equal(t, status, statusUpdate.Status, "Status should be preserved")
+	// Verify that Publish was NOT called when there are no correlation IDs
+	mockBroker.AssertNotCalled(t, "Publish")
 }

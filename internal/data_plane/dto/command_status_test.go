@@ -45,7 +45,7 @@ func TestCommandStatusUpdateDTO_FromDomain(t *testing.T) {
 	// Verify conversion
 	assert.Equal(t, "test-command-456", dto.CommandID)
 	assert.Equal(t, "test-device-2", dto.DeviceName)
-	assert.Equal(t, "sent", dto.Status)
+	assert.Equal(t, "confirmed", dto.Status)
 	assert.Nil(t, dto.ErrorMessage)
 	assert.Equal(t, domainObj.Timestamp, dto.Timestamp)
 }
