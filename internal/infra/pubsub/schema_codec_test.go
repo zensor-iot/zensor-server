@@ -1,11 +1,13 @@
-package pubsub
+package pubsub_test
 
 import (
 	"encoding/json"
-	"testing"
 	"time"
-
+	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/utils"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
 // TestStruct represents a sample struct for testing
@@ -22,336 +24,208 @@ type TestStruct struct {
 	RawData   json.RawMessage `json:"raw_data"`
 }
 
-func TestSchemaCodec_EncodeDecode(t *testing.T) {
-	// Create a test instance
-	testData := TestStruct{
-		ID:        "test-123",
-		Name:      "Test Device",
-		Age:       25,
-		IsActive:  true,
-		Score:     95.5,
-		Tags:      []string{"sensor", "temperature"},
-		Metadata:  map[string]any{"location": "room-1", "floor": 2},
-		CreatedAt: utils.Time{Time: time.Now()},
-		Optional:  nil,
-		RawData:   json.RawMessage(`{"key": "value"}`),
-	}
+var _ = ginkgo.Describe("Schema Codec", func() {
+	ginkgo.Context("EncodeDecode", func() {
+		var (
+			testData TestStruct
+			codec    *pubsub.SchemaCodec
+		)
 
-	// Create schema codec
-	codec := newSchemaCodec(TestStruct{})
-
-	// Encode the data
-	encoded, err := codec.Encode(testData)
-	if err != nil {
-		t.Fatalf("Failed to encode: %v", err)
-	}
-
-	// Verify the encoded data has the expected structure
-	var schemaMessage SchemaMessage
-	err = json.Unmarshal(encoded, &schemaMessage)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal encoded data: %v", err)
-	}
-
-	// Check that schema and payload are present
-	if schemaMessage.Schema == nil {
-		t.Error("Schema is nil")
-	}
-	if schemaMessage.Payload == nil {
-		t.Error("Payload is nil")
-	}
-
-	// Verify schema structure (Kafka Connect format)
-	schema := schemaMessage.Schema
-	if schema["type"] != "struct" {
-		t.Errorf("Expected schema type 'struct', got %v", schema["type"])
-	}
-
-	// The fields might be []any instead of []map[string]any
-	fieldsInterface, ok := schema["fields"]
-	if !ok {
-		t.Fatal("Schema fields not found")
-	}
-
-	fields, ok := fieldsInterface.([]any)
-	if !ok {
-		t.Fatalf("Schema fields is not a slice, got %T", fieldsInterface)
-	}
-
-	// Check that required fields are present
-	foundID := false
-	for _, fieldInterface := range fields {
-		field, ok := fieldInterface.(map[string]any)
-		if !ok {
-			continue
-		}
-		if field["field"] == "id" {
-			foundID = true
-			if field["type"] != "string" {
-				t.Errorf("Expected ID type 'string', got %v", field["type"])
+		ginkgo.BeforeEach(func() {
+			testData = TestStruct{
+				ID:        "test-123",
+				Name:      "Test Device",
+				Age:       25,
+				IsActive:  true,
+				Score:     95.5,
+				Tags:      []string{"sensor", "temperature"},
+				Metadata:  map[string]any{"location": "room-1", "floor": 2},
+				CreatedAt: utils.Time{Time: time.Now()},
+				Optional:  nil,
+				RawData:   json.RawMessage(`{"key": "value"}`),
 			}
-			break
-		}
-	}
-	if !foundID {
-		t.Error("ID field not found in schema")
-	}
 
-	// Decode the data
-	decoded, err := codec.Decode(encoded)
-	if err != nil {
-		t.Fatalf("Failed to decode: %v", err)
-	}
+			codec = pubsub.NewSchemaCodec(TestStruct{})
+		})
 
-	// Verify the decoded data matches the original
-	decodedStruct, ok := decoded.(*TestStruct)
-	if !ok {
-		t.Fatalf("Decoded data is not *TestStruct, got %T", decoded)
-	}
+		ginkgo.It("should encode and decode data correctly", func() {
+			// Encode the data
+			encoded, err := codec.Encode(testData)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	if decodedStruct.ID != testData.ID {
-		t.Errorf("ID mismatch: expected %s, got %s", testData.ID, decodedStruct.ID)
-	}
-	if decodedStruct.Name != testData.Name {
-		t.Errorf("Name mismatch: expected %s, got %s", testData.Name, decodedStruct.Name)
-	}
-	if decodedStruct.Age != testData.Age {
-		t.Errorf("Age mismatch: expected %d, got %d", testData.Age, decodedStruct.Age)
-	}
-	if decodedStruct.IsActive != testData.IsActive {
-		t.Errorf("IsActive mismatch: expected %t, got %t", testData.IsActive, decodedStruct.IsActive)
-	}
-}
+			// Verify the encoded data has the expected structure
+			var schemaMessage pubsub.SchemaMessage
+			err = json.Unmarshal(encoded, &schemaMessage)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-func TestSchemaCodec_BackwardCompatibility(t *testing.T) {
-	// Create a test instance
-	testData := TestStruct{
-		ID:       "test-123",
-		Name:     "Test Device",
-		Age:      25,
-		IsActive: true,
-	}
+			// Check that schema and payload are present
+			gomega.Expect(schemaMessage.Schema).NotTo(gomega.BeNil())
+			gomega.Expect(schemaMessage.Payload).NotTo(gomega.BeNil())
 
-	// Create schema codec
-	codec := newSchemaCodec(TestStruct{})
+			// Verify schema structure (Kafka Connect format)
+			schema := schemaMessage.Schema
+			gomega.Expect(schema["type"]).To(gomega.Equal("struct"))
 
-	// Encode using the old JSON codec format (plain JSON)
-	oldJSONCodec := &JSONCodec{prototype: TestStruct{}}
-	encoded, err := oldJSONCodec.Encode(testData)
-	if err != nil {
-		t.Fatalf("Failed to encode with old codec: %v", err)
-	}
+			// The fields might be []any instead of []map[string]any
+			fieldsInterface, ok := schema["fields"]
+			gomega.Expect(ok).To(gomega.BeTrue())
 
-	// Decode using the new schema codec (should handle backward compatibility)
-	decoded, err := codec.Decode(encoded)
-	if err != nil {
-		t.Fatalf("Failed to decode with schema codec: %v", err)
-	}
+			fields, ok := fieldsInterface.([]any)
+			gomega.Expect(ok).To(gomega.BeTrue())
 
-	// Verify the decoded data matches the original
-	decodedStruct, ok := decoded.(*TestStruct)
-	if !ok {
-		t.Fatalf("Decoded data is not *TestStruct, got %T", decoded)
-	}
-
-	if decodedStruct.ID != testData.ID {
-		t.Errorf("ID mismatch: expected %s, got %s", testData.ID, decodedStruct.ID)
-	}
-	if decodedStruct.Name != testData.Name {
-		t.Errorf("Name mismatch: expected %s, got %s", testData.Name, decodedStruct.Name)
-	}
-}
-
-func TestSchemaCodec_SchemaInference(t *testing.T) {
-	codec := newSchemaCodec(TestStruct{})
-
-	// Verify the inferred schema (Kafka Connect format)
-	schema := codec.schema
-	if schema["type"] != "struct" {
-		t.Errorf("Expected schema type 'struct', got %v", schema["type"])
-	}
-
-	fieldsInterface, ok := schema["fields"]
-	if !ok {
-		t.Fatal("Schema fields not found")
-	}
-
-	var fieldsAsAny []any
-	var fieldsAsMap []map[string]any
-	if tmp, ok := fieldsInterface.([]any); ok {
-		fieldsAsAny = tmp
-	} else if tmp, ok := fieldsInterface.([]map[string]any); ok {
-		fieldsAsMap = tmp
-	} else {
-		t.Fatalf("Schema fields is not a recognized slice type, got %T", fieldsInterface)
-	}
-
-	getField := func(name string) (map[string]any, bool) {
-		if fieldsAsAny != nil {
-			for _, fieldInterface := range fieldsAsAny {
+			// Check that required fields are present
+			foundID := false
+			for _, fieldInterface := range fields {
 				field, ok := fieldInterface.(map[string]any)
 				if !ok {
 					continue
 				}
-				if field["field"] == name {
-					return field, true
+				if field["field"] == "id" {
+					foundID = true
+					gomega.Expect(field["type"]).To(gomega.Equal("string"))
+					break
 				}
 			}
-		} else {
-			for _, field := range fieldsAsMap {
-				if field["field"] == name {
-					return field, true
-				}
+			gomega.Expect(foundID).To(gomega.BeTrue())
+
+			// Decode the data
+			decoded, err := codec.Decode(encoded)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+			// Verify decoded data matches original
+			decodedStruct, ok := decoded.(*TestStruct)
+			gomega.Expect(ok).To(gomega.BeTrue())
+			gomega.Expect(decodedStruct.ID).To(gomega.Equal(testData.ID))
+			gomega.Expect(decodedStruct.Name).To(gomega.Equal(testData.Name))
+			gomega.Expect(decodedStruct.Age).To(gomega.Equal(testData.Age))
+			gomega.Expect(decodedStruct.IsActive).To(gomega.Equal(testData.IsActive))
+			gomega.Expect(decodedStruct.Score).To(gomega.Equal(testData.Score))
+			gomega.Expect(decodedStruct.Tags).To(gomega.Equal(testData.Tags))
+			// Note: JSON unmarshaling converts numbers to float64, so we need to check values individually
+			gomega.Expect(decodedStruct.Metadata["location"]).To(gomega.Equal(testData.Metadata["location"]))
+			gomega.Expect(decodedStruct.Metadata["floor"]).To(gomega.Equal(float64(2))) // JSON numbers are float64
+		})
+	})
+
+	ginkgo.Context("BackwardCompatibility", func() {
+		var codec *pubsub.SchemaCodec
+
+		ginkgo.BeforeEach(func() {
+			codec = pubsub.NewSchemaCodec(TestStruct{})
+		})
+
+		ginkgo.It("should handle backward compatibility scenarios", func() {
+			// Create data with optional fields
+			testData := TestStruct{
+				ID:       "test-123",
+				Name:     "Test Device",
+				Age:      25,
+				IsActive: true,
+				Score:    95.5,
+				Tags:     []string{"sensor"},
+				Metadata: map[string]any{"location": "room-1"},
 			}
-		}
-		return nil, false
-	}
 
-	// Check specific field types
-	expectedTypes := map[string]string{
-		"id":        "string",
-		"name":      "string",
-		"age":       "int32",
-		"is_active": "boolean",
-		"score":     "float64",
-		"tags":      "string", // arrays become the element type
-		"raw_data":  "bytes",  // json.RawMessage becomes bytes
-	}
+			// Encode the data
+			encoded, err := codec.Encode(testData)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	for fieldName, expectedType := range expectedTypes {
-		field, found := getField(fieldName)
-		if !found {
-			t.Errorf("Field %s not found in schema", fieldName)
-			continue
-		}
-		fieldType := field["type"]
-		if fieldType != expectedType {
-			t.Errorf("Field %s: expected type %s, got %v", fieldName, expectedType, fieldType)
-		}
-	}
+			// Create a new struct with additional fields (simulating schema evolution)
+			type ExtendedTestStruct struct {
+				TestStruct
+				NewField string `json:"new_field,omitempty"`
+			}
 
-	// Check complex types that are objects
-	complexTypes := map[string]string{
-		"metadata":   "map",    // maps with string keys
-		"created_at": "struct", // utils.Time is a struct
-	}
+			// Decode into extended struct
+			decoded, err := codec.Decode(encoded)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	for fieldName, expectedType := range complexTypes {
-		field, found := getField(fieldName)
-		if !found {
-			t.Errorf("Field %s not found in schema", fieldName)
-			continue
-		}
-		fieldType := field["type"]
-		fieldTypeMap, isMap := fieldType.(map[string]any)
-		if !isMap {
-			t.Errorf("Field %s: expected type to be a map, got %T", fieldName, fieldType)
-			continue
-		}
-		if fieldTypeMap["type"] != expectedType {
-			t.Errorf("Field %s: expected type %s, got %v", fieldName, expectedType, fieldTypeMap["type"])
-		}
-	}
+			// Verify original fields are preserved
+			decodedStruct, ok := decoded.(*TestStruct)
+			gomega.Expect(ok).To(gomega.BeTrue())
+			gomega.Expect(decodedStruct.ID).To(gomega.Equal(testData.ID))
+			gomega.Expect(decodedStruct.Name).To(gomega.Equal(testData.Name))
+			gomega.Expect(decodedStruct.Age).To(gomega.Equal(testData.Age))
+		})
+	})
 
-	// Check optional fields (fields with omitempty)
-	optionalFields := []string{"optional"}
-	for _, expectedField := range optionalFields {
-		field, found := getField(expectedField)
-		if !found {
-			t.Errorf("Optional field %s not found", expectedField)
-			continue
-		}
-		if optional, exists := field["optional"]; !exists || !optional.(bool) {
-			t.Errorf("Field %s should be optional", expectedField)
-		}
-	}
-}
+	ginkgo.Context("SchemaInference", func() {
+		var codec *pubsub.SchemaCodec
 
-func TestSchemaCodec_MapPrototype(t *testing.T) {
-	// Test with map[string]any prototype (like the one used in lora_integration.go)
-	codec := newSchemaCodec(map[string]any{})
+		ginkgo.BeforeEach(func() {
+			codec = pubsub.NewSchemaCodec(TestStruct{})
+		})
 
-	// Create a test message
-	testMessage := map[string]any{
-		"id":          "test-123",
-		"device_name": "test-device",
-		"payload": map[string]any{
-			"index": 1,
-			"value": 100,
-		},
-	}
+		ginkgo.It("should infer schema correctly from struct tags", func() {
+			// Encode empty struct to get schema
+			encoded, err := codec.Encode(TestStruct{})
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Encode the message
-	encoded, err := codec.Encode(testMessage)
-	if err != nil {
-		t.Fatalf("Failed to encode: %v", err)
-	}
+			var schemaMessage pubsub.SchemaMessage
+			err = json.Unmarshal(encoded, &schemaMessage)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Verify the encoded data has the expected structure
-	var schemaMessage SchemaMessage
-	err = json.Unmarshal(encoded, &schemaMessage)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal encoded data: %v", err)
-	}
+			schema := schemaMessage.Schema
+			fields, ok := schema["fields"].([]any)
+			gomega.Expect(ok).To(gomega.BeTrue())
 
-	// Check that schema and payload are present
-	if schemaMessage.Schema == nil {
-		t.Error("Schema is nil")
-	}
-	if schemaMessage.Payload == nil {
-		t.Error("Payload is nil")
-	}
+			// Check that all fields are present in schema
+			expectedFields := []string{"id", "name", "age", "is_active", "score", "tags", "metadata", "created_at", "raw_data"}
 
-	// Verify schema structure for map (Kafka Connect format)
-	schema := schemaMessage.Schema
-	if schema["type"] != "struct" {
-		t.Errorf("Expected schema type 'struct', got %v", schema["type"])
-	}
+			for _, fieldName := range expectedFields {
+				found := false
+				for _, fieldInterface := range fields {
+					field, ok := fieldInterface.(map[string]any)
+					if !ok {
+						continue
+					}
+					if field["field"] == fieldName {
+						found = true
+						break
+					}
+				}
+				gomega.Expect(found).To(gomega.BeTrue(), "Field %s not found in schema", fieldName)
+			}
+		})
+	})
 
-	fieldsInterface, ok := schema["fields"]
-	if !ok {
-		t.Fatal("Schema fields not found")
-	}
+	ginkgo.Context("MapPrototype", func() {
+		var codec *pubsub.SchemaCodec
 
-	fields, ok := fieldsInterface.([]any)
-	if !ok {
-		t.Fatalf("Schema fields is not a slice, got %T", fieldsInterface)
-	}
+		ginkgo.BeforeEach(func() {
+			codec = pubsub.NewSchemaCodec(map[string]any{})
+		})
 
-	// For maps, we expect a single field with generic type
-	if len(fields) != 1 {
-		t.Errorf("Expected 1 field for map schema, got %d", len(fields))
-	}
+		ginkgo.It("should handle map prototype correctly", func() {
+			// Create test data
+			testData := map[string]any{
+				"id":          "test-123",
+				"device_name": "test-device",
+				"payload": map[string]any{
+					"index": 1,
+					"value": 100,
+				},
+			}
 
-	field, ok := fields[0].(map[string]any)
-	if !ok {
-		t.Fatal("First field is not a map")
-	}
+			// Encode the data
+			encoded, err := codec.Encode(testData)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	if field["field"] != "value" {
-		t.Errorf("Expected field name 'value', got %v", field["field"])
-	}
+			// Decode as map
+			decoded, err := codec.Decode(encoded)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	if field["type"] != "string" {
-		t.Errorf("Expected field type 'string', got %v", field["type"])
-	}
+			// Verify map structure
+			decodedMap, ok := decoded.(*map[string]any)
+			gomega.Expect(ok).To(gomega.BeTrue())
+			gomega.Expect((*decodedMap)["id"]).To(gomega.Equal(testData["id"]))
+			gomega.Expect((*decodedMap)["device_name"]).To(gomega.Equal(testData["device_name"]))
 
-	// Decode the message
-	decoded, err := codec.Decode(encoded)
-	if err != nil {
-		t.Fatalf("Failed to decode: %v", err)
-	}
-
-	// Verify the decoded data matches the original
-	decodedMap, ok := decoded.(*map[string]any)
-	if !ok {
-		t.Fatalf("Decoded data is not *map[string]any, got %T", decoded)
-	}
-
-	if (*decodedMap)["id"] != testMessage["id"] {
-		t.Errorf("ID mismatch: expected %s, got %v", testMessage["id"], (*decodedMap)["id"])
-	}
-	if (*decodedMap)["device_name"] != testMessage["device_name"] {
-		t.Errorf("DeviceName mismatch: expected %s, got %v", testMessage["device_name"], (*decodedMap)["device_name"])
-	}
-}
+			// Verify nested structures
+			payload, ok := (*decodedMap)["payload"].(map[string]any)
+			gomega.Expect(ok).To(gomega.BeTrue())
+			gomega.Expect(payload["index"]).To(gomega.Equal(float64(1))) // JSON numbers are float64
+			gomega.Expect(payload["value"]).To(gomega.Equal(float64(100)))
+		})
+	})
+})

@@ -19,12 +19,17 @@ type SchemaCodec struct {
 	schema    map[string]any
 }
 
-// newSchemaCodec creates a new schema-aware codec
-func newSchemaCodec(prototype any) *SchemaCodec {
+// NewSchemaCodec creates a new schema-aware codec
+func NewSchemaCodec(prototype any) *SchemaCodec {
 	return &SchemaCodec{
 		prototype: prototype,
 		schema:    inferSchema(prototype),
 	}
+}
+
+// newSchemaCodec creates a new schema-aware codec (private version)
+func newSchemaCodec(prototype any) *SchemaCodec {
+	return NewSchemaCodec(prototype)
 }
 
 // Encode encodes a value into a schema-wrapped JSON message

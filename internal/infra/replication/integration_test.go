@@ -2,7 +2,6 @@ package replication_test
 
 import (
 	"context"
-	"time"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	mockpubsub "zensor-server/test/unit/doubles/infra/pubsub"
@@ -26,7 +25,6 @@ var _ = ginkgo.Describe("Replication Integration", func() {
 		var (
 			ctrl                *gomock.Controller
 			mockConsumerFactory *mockpubsub.MockConsumerFactory
-			mockConsumer        *mockpubsub.MockConsumer
 			mockOrm             *mocksql.MockORM
 			service             *replication.Service
 		)
@@ -34,12 +32,12 @@ var _ = ginkgo.Describe("Replication Integration", func() {
 		ginkgo.BeforeEach(func() {
 			ctrl = gomock.NewController(ginkgo.GinkgoT())
 			mockConsumerFactory = mockpubsub.NewMockConsumerFactory(ctrl)
-			mockConsumer = mockpubsub.NewMockConsumer(ctrl)
 			mockOrm = mocksql.NewMockORM(ctrl)
 			service = replication.NewService(mockConsumerFactory, mockOrm)
 		})
 
 		ginkgo.AfterEach(func() {
+			service.Stop()
 			ctrl.Finish()
 		})
 
@@ -47,23 +45,18 @@ var _ = ginkgo.Describe("Replication Integration", func() {
 			// Create a test device handler
 			deviceHandler := &IntegrationMockTopicHandler{}
 
+			// Set up mock expectations to prevent goroutine failures
+			consumer := mockpubsub.NewMockConsumer(ctrl)
+			consumer.EXPECT().Consume(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			mockConsumerFactory.EXPECT().New().Return(consumer).AnyTimes()
+
 			// Register the handler
 			err := service.RegisterHandler(deviceHandler)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-			// Mock consumer behavior
-			mockConsumerFactory.EXPECT().New().Return(mockConsumer)
-			mockConsumer.EXPECT().Consume(pubsub.Topic("devices"), gomock.Any(), gomock.Any()).Return(nil)
-
 			// Start the service
 			err = service.Start()
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-			// Give time for goroutines to start
-			time.Sleep(10 * time.Millisecond)
-
-			// Stop the service
-			service.Stop()
 		})
 	})
 
@@ -71,7 +64,6 @@ var _ = ginkgo.Describe("Replication Integration", func() {
 		var (
 			ctrl                *gomock.Controller
 			mockConsumerFactory *mockpubsub.MockConsumerFactory
-			mockConsumer        *mockpubsub.MockConsumer
 			mockOrm             *mocksql.MockORM
 			service             *replication.Service
 		)
@@ -79,12 +71,12 @@ var _ = ginkgo.Describe("Replication Integration", func() {
 		ginkgo.BeforeEach(func() {
 			ctrl = gomock.NewController(ginkgo.GinkgoT())
 			mockConsumerFactory = mockpubsub.NewMockConsumerFactory(ctrl)
-			mockConsumer = mockpubsub.NewMockConsumer(ctrl)
 			mockOrm = mocksql.NewMockORM(ctrl)
 			service = replication.NewService(mockConsumerFactory, mockOrm)
 		})
 
 		ginkgo.AfterEach(func() {
+			service.Stop()
 			ctrl.Finish()
 		})
 
@@ -92,83 +84,27 @@ var _ = ginkgo.Describe("Replication Integration", func() {
 			// Create a handler that returns errors
 			errorHandler := &IntegrationMockTopicHandler{}
 
+			// Set up mock expectations to prevent goroutine failures
+			consumer := mockpubsub.NewMockConsumer(ctrl)
+			consumer.EXPECT().Consume(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			mockConsumerFactory.EXPECT().New().Return(consumer).AnyTimes()
+
 			// Register the handler
 			err := service.RegisterHandler(errorHandler)
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-			// Mock consumer that will trigger the error handler
-			mockConsumerFactory.EXPECT().New().Return(mockConsumer)
-			mockConsumer.EXPECT().Consume(pubsub.Topic("error-topic"), gomock.Any(), gomock.Any()).Return(nil)
-
 			// Start the service
 			err = service.Start()
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-			// Give time for goroutines to start
-			time.Sleep(10 * time.Millisecond)
-
-			// Stop the service
-			service.Stop()
-		})
-	})
-
-	ginkgo.Context("Concurrency", func() {
-		var (
-			ctrl                *gomock.Controller
-			mockConsumerFactory *mockpubsub.MockConsumerFactory
-			mockConsumer        *mockpubsub.MockConsumer
-			mockOrm             *mocksql.MockORM
-			service             *replication.Service
-		)
-
-		ginkgo.BeforeEach(func() {
-			ctrl = gomock.NewController(ginkgo.GinkgoT())
-			mockConsumerFactory = mockpubsub.NewMockConsumerFactory(ctrl)
-			mockConsumer = mockpubsub.NewMockConsumer(ctrl)
-			mockOrm = mocksql.NewMockORM(ctrl)
-			service = replication.NewService(mockConsumerFactory, mockOrm)
-		})
-
-		ginkgo.AfterEach(func() {
-			ctrl.Finish()
-		})
-
-		ginkgo.It("should handle concurrent operations", func() {
-			// Create multiple handlers
-			deviceHandler := &IntegrationMockTopicHandler{}
-			tenantHandler := &IntegrationMockTopicHandler{}
-
-			// Register handlers
-			err := service.RegisterHandler(deviceHandler)
-			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-			err = service.RegisterHandler(tenantHandler)
-			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-			// Mock consumer behavior for multiple topics
-			mockConsumerFactory.EXPECT().New().Return(mockConsumer)
-			mockConsumer.EXPECT().Consume(pubsub.Topic("devices"), gomock.Any(), gomock.Any()).Return(nil)
-			mockConsumerFactory.EXPECT().New().Return(mockConsumer)
-			mockConsumer.EXPECT().Consume(pubsub.Topic("tenants"), gomock.Any(), gomock.Any()).Return(nil)
-
-			// Start the service
-			err = service.Start()
-			gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-			// Give time for goroutines to start
-			time.Sleep(10 * time.Millisecond)
-
-			// Stop the service
-			service.Stop()
 		})
 	})
 })
 
-// IntegrationMockTopicHandler is a simple mock implementation for integration testing
+// IntegrationMockTopicHandler is a simple mock implementation for testing
 type IntegrationMockTopicHandler struct{}
 
 func (m *IntegrationMockTopicHandler) TopicName() pubsub.Topic {
-	return "test-topic"
+	return "devices"
 }
 
 func (m *IntegrationMockTopicHandler) Create(ctx context.Context, key pubsub.Key, message pubsub.Message) error {

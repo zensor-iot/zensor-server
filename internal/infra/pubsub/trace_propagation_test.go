@@ -1,173 +1,168 @@
-package pubsub
+package pubsub_test
 
 import (
 	"context"
-	"testing"
+	"zensor-server/internal/infra/pubsub"
 
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-func TestTracePropagation(t *testing.T) {
-	// Set up a test trace provider
-	tp := trace.NewTracerProvider(
-		trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
-	)
-	otel.SetTracerProvider(tp)
-	defer tp.Shutdown(context.Background())
+var _ = ginkgo.Describe("Trace Propagation", func() {
+	ginkgo.Context("TracePropagation", func() {
+		var (
+			tp   *trace.TracerProvider
+			ctx  context.Context
+			span oteltrace.Span
+		)
 
-	// Create a test context with a span
-	ctx, span := tp.Tracer("test").Start(context.Background(), "test.span")
-	defer span.End()
+		ginkgo.BeforeEach(func() {
+			// Set up a test trace provider
+			tp = trace.NewTracerProvider(
+				trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
+			)
+			otel.SetTracerProvider(tp)
 
-	// Test extracting trace headers
-	traceHeaders := ExtractTraceFromContext(ctx)
+			// Create a test context with a span
+			ctx, span = tp.Tracer("test").Start(context.Background(), "test.span")
+		})
 
-	if traceHeaders.TraceID == "" {
-		t.Error("Expected trace ID to be set")
-	}
+		ginkgo.AfterEach(func() {
+			span.End()
+			tp.Shutdown(context.Background())
+		})
 
-	if traceHeaders.SpanID == "" {
-		t.Error("Expected span ID to be set")
-	}
+		ginkgo.It("should handle complete trace propagation cycle", func() {
+			// Test extracting trace headers
+			traceHeaders := pubsub.ExtractTraceFromContext(ctx)
 
-	// Test serializing to Kafka headers
-	kafkaHeaders := SerializeTraceHeaders(traceHeaders)
+			gomega.Expect(traceHeaders.TraceID).NotTo(gomega.BeEmpty())
+			gomega.Expect(traceHeaders.SpanID).NotTo(gomega.BeEmpty())
 
-	if len(kafkaHeaders) == 0 {
-		t.Error("Expected Kafka headers to be created")
-	}
+			// Test serializing to Kafka headers
+			kafkaHeaders := pubsub.SerializeTraceHeaders(traceHeaders)
 
-	if string(kafkaHeaders["trace_id"]) != traceHeaders.TraceID {
-		t.Error("Expected trace ID to match in headers")
-	}
+			gomega.Expect(kafkaHeaders).NotTo(gomega.BeEmpty())
+			gomega.Expect(string(kafkaHeaders["trace_id"])).To(gomega.Equal(traceHeaders.TraceID))
+			gomega.Expect(string(kafkaHeaders["span_id"])).To(gomega.Equal(traceHeaders.SpanID))
 
-	if string(kafkaHeaders["span_id"]) != traceHeaders.SpanID {
-		t.Error("Expected span ID to match in headers")
-	}
+			// Test deserializing from Kafka headers
+			deserializedHeaders := pubsub.DeserializeTraceHeaders(kafkaHeaders)
 
-	// Test deserializing from Kafka headers
-	deserializedHeaders := DeserializeTraceHeaders(kafkaHeaders)
+			gomega.Expect(deserializedHeaders.TraceID).To(gomega.Equal(traceHeaders.TraceID))
+			gomega.Expect(deserializedHeaders.SpanID).To(gomega.Equal(traceHeaders.SpanID))
 
-	if deserializedHeaders.TraceID != traceHeaders.TraceID {
-		t.Error("Expected deserialized trace ID to match")
-	}
+			// Test injecting trace into context
+			newCtx := pubsub.InjectTraceIntoContext(context.Background(), deserializedHeaders)
 
-	if deserializedHeaders.SpanID != traceHeaders.SpanID {
-		t.Error("Expected deserialized span ID to match")
-	}
+			// Check that trace context was injected
+			newSpan := oteltrace.SpanFromContext(newCtx)
+			gomega.Expect(newSpan.SpanContext().HasSpanID()).To(gomega.BeTrue())
 
-	// Test injecting trace into context
-	newCtx := InjectTraceIntoContext(context.Background(), deserializedHeaders)
+			// Verify trace IDs match
+			gomega.Expect(newSpan.SpanContext().TraceID()).To(gomega.Equal(span.SpanContext().TraceID()))
+		})
+	})
 
-	// Check that trace context was injected
-	newSpan := oteltrace.SpanFromContext(newCtx)
-	if !newSpan.SpanContext().HasSpanID() {
-		t.Error("Expected new context to have span ID")
-	}
+	ginkgo.Context("TracePropagationWithEmptyHeaders", func() {
+		ginkgo.It("should handle empty headers gracefully", func() {
+			// Test with empty headers
+			emptyHeaders := pubsub.TraceHeaders{}
 
-	// Verify trace IDs match
-	if newSpan.SpanContext().TraceID() != span.SpanContext().TraceID() {
-		t.Error("Expected trace IDs to match")
-	}
-}
+			newCtx := pubsub.InjectTraceIntoContext(context.Background(), emptyHeaders)
 
-func TestTracePropagationWithEmptyHeaders(t *testing.T) {
-	// Test with empty headers
-	emptyHeaders := TraceHeaders{}
+			// Should return the original context (no trace injection)
+			span := oteltrace.SpanFromContext(newCtx)
+			gomega.Expect(span.SpanContext().HasSpanID()).To(gomega.BeFalse())
+		})
+	})
 
-	newCtx := InjectTraceIntoContext(context.Background(), emptyHeaders)
+	ginkgo.Context("TracePropagationWithInvalidHeaders", func() {
+		ginkgo.It("should handle invalid headers gracefully", func() {
+			// Test with invalid trace headers
+			invalidHeaders := pubsub.TraceHeaders{
+				TraceID: "invalid-trace-id",
+				SpanID:  "invalid-span-id",
+			}
 
-	// Should return the original context (no trace injection)
-	span := oteltrace.SpanFromContext(newCtx)
-	if span.SpanContext().HasSpanID() {
-		t.Error("Expected no span ID for empty headers")
-	}
-}
+			newCtx := pubsub.InjectTraceIntoContext(context.Background(), invalidHeaders)
 
-func TestTracePropagationWithInvalidHeaders(t *testing.T) {
-	// Test with invalid trace headers
-	invalidHeaders := TraceHeaders{
-		TraceID: "invalid-trace-id",
-		SpanID:  "invalid-span-id",
-	}
+			// Should return the original context (no trace injection)
+			span := oteltrace.SpanFromContext(newCtx)
+			gomega.Expect(span.SpanContext().HasSpanID()).To(gomega.BeFalse())
+		})
+	})
 
-	newCtx := InjectTraceIntoContext(context.Background(), invalidHeaders)
+	ginkgo.Context("ExtractTraceFromKafkaHeaders", func() {
+		ginkgo.It("should extract trace from valid Kafka headers", func() {
+			// Create valid Kafka headers
+			kafkaHeaders := map[string][]byte{
+				"trace_id": []byte("1234567890abcdef1234567890abcdef"),
+				"span_id":  []byte("1234567890abcdef"),
+			}
 
-	// Should return the original context (no trace injection)
-	span := oteltrace.SpanFromContext(newCtx)
-	if span.SpanContext().HasSpanID() {
-		t.Error("Expected no span ID for invalid headers")
-	}
-}
+			traceHeaders := pubsub.DeserializeTraceHeaders(kafkaHeaders)
 
-func TestExtractTraceFromKafkaHeaders(t *testing.T) {
-	// Set up a test trace provider
-	tp := trace.NewTracerProvider(
-		trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
-	)
-	otel.SetTracerProvider(tp)
-	defer tp.Shutdown(context.Background())
+			gomega.Expect(traceHeaders.TraceID).To(gomega.Equal("1234567890abcdef1234567890abcdef"))
+			gomega.Expect(traceHeaders.SpanID).To(gomega.Equal("1234567890abcdef"))
+		})
 
-	// Create a test context with a span
-	ctx, span := tp.Tracer("test").Start(context.Background(), "test.span")
-	defer span.End()
+		ginkgo.It("should handle missing Kafka headers", func() {
+			// Create headers with missing trace information
+			kafkaHeaders := map[string][]byte{
+				"other_header": []byte("value"),
+			}
 
-	// Extract trace headers and serialize to Kafka headers
-	traceHeaders := ExtractTraceFromContext(ctx)
-	kafkaHeaders := SerializeTraceHeaders(traceHeaders)
+			traceHeaders := pubsub.DeserializeTraceHeaders(kafkaHeaders)
 
-	// Test extracting trace from Kafka headers
-	newCtx := ExtractTraceFromKafkaHeaders(context.Background(), kafkaHeaders)
+			gomega.Expect(traceHeaders.TraceID).To(gomega.BeEmpty())
+			gomega.Expect(traceHeaders.SpanID).To(gomega.BeEmpty())
+		})
+	})
 
-	// Check that trace context was injected
-	newSpan := oteltrace.SpanFromContext(newCtx)
-	if !newSpan.SpanContext().HasSpanID() {
-		t.Error("Expected new context to have span ID")
-	}
+	ginkgo.Context("CreateChildSpan", func() {
+		var (
+			tp *trace.TracerProvider
+		)
 
-	// Verify trace IDs match
-	if newSpan.SpanContext().TraceID() != span.SpanContext().TraceID() {
-		t.Error("Expected trace IDs to match")
-	}
-}
+		ginkgo.BeforeEach(func() {
+			// Set up a test trace provider
+			tp = trace.NewTracerProvider(
+				trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
+			)
+			otel.SetTracerProvider(tp)
+		})
 
-func TestCreateChildSpan(t *testing.T) {
-	// Set up a test trace provider
-	tp := trace.NewTracerProvider(
-		trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
-	)
-	otel.SetTracerProvider(tp)
-	defer tp.Shutdown(context.Background())
+		ginkgo.AfterEach(func() {
+			tp.Shutdown(context.Background())
+		})
 
-	// Create a parent context with a span
-	parentCtx, parentSpan := tp.Tracer("test").Start(context.Background(), "parent.span")
-	defer parentSpan.End()
+		ginkgo.It("should create child span from context", func() {
+			// Create a parent span
+			parentCtx, parentSpan := tp.Tracer("test").Start(context.Background(), "parent.span")
+			defer parentSpan.End()
 
-	// Create a child span
-	childCtx, childSpan := CreateChildSpan(parentCtx, "child.span")
-	defer childSpan.End()
+			// Create a child span
+			childCtx, childSpan := pubsub.CreateChildSpan(parentCtx, "child.span")
+			defer childSpan.End()
 
-	// Verify child span has a span ID
-	if !childSpan.SpanContext().HasSpanID() {
-		t.Error("Expected child span to have span ID")
-	}
+			// Verify the child span is created
+			gomega.Expect(childSpan).NotTo(gomega.BeNil())
 
-	// Verify trace IDs match (same trace)
-	if childSpan.SpanContext().TraceID() != parentSpan.SpanContext().TraceID() {
-		t.Error("Expected child and parent to have same trace ID")
-	}
+			// Verify the child span has a parent
+			childSpanContext := childSpan.SpanContext()
+			parentSpanContext := parentSpan.SpanContext()
 
-	// Verify span IDs are different
-	if childSpan.SpanContext().SpanID() == parentSpan.SpanContext().SpanID() {
-		t.Error("Expected child and parent to have different span IDs")
-	}
+			gomega.Expect(childSpanContext.TraceID()).To(gomega.Equal(parentSpanContext.TraceID()))
+			gomega.Expect(childSpanContext.SpanID()).NotTo(gomega.Equal(parentSpanContext.SpanID()))
 
-	// Verify child context has the child span
-	spanFromCtx := oteltrace.SpanFromContext(childCtx)
-	if spanFromCtx.SpanContext().SpanID() != childSpan.SpanContext().SpanID() {
-		t.Error("Expected context to contain child span")
-	}
-}
+			// Verify the context contains the child span
+			spanFromCtx := oteltrace.SpanFromContext(childCtx)
+			gomega.Expect(spanFromCtx.SpanContext().SpanID()).To(gomega.Equal(childSpanContext.SpanID()))
+		})
+	})
+})

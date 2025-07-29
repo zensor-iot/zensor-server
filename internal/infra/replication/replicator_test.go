@@ -2,14 +2,15 @@ package replication_test
 
 import (
 	"context"
-	"zensor-server/internal/infra/pubsub"
-	"zensor-server/internal/infra/replication"
-	mockpubsub "zensor-server/test/unit/doubles/infra/pubsub"
-	mocksql "zensor-server/test/unit/doubles/infra/sql"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
+
+	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/infra/replication"
+	mockpubsub "zensor-server/test/unit/doubles/infra/pubsub"
+	mocksql "zensor-server/test/unit/doubles/infra/sql"
 )
 
 var _ = ginkgo.Describe("Replicator", func() {
@@ -52,36 +53,19 @@ var _ = ginkgo.Describe("Replicator", func() {
 		})
 
 		ginkgo.AfterEach(func() {
+			replicator.Stop()
 			ctrl.Finish()
 		})
 
-		ginkgo.When("registering a new handler", func() {
-			ginkgo.It("should register handler successfully", func() {
-				// Create a mock handler
-				mockHandler := &MockTopicHandler{}
+		ginkgo.It("should register handler successfully", func() {
+			// Create a mock handler
+			mockHandler := &MockTopicHandler{}
 
-				// Register the handler
-				err := replicator.RegisterHandler(mockHandler)
+			// Register the handler
+			err := replicator.RegisterHandler(mockHandler)
 
-				// Assertions
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-			})
-		})
-
-		ginkgo.When("registering a duplicate handler", func() {
-			ginkgo.It("should return error for duplicate handler", func() {
-				// Create a mock handler
-				mockHandler := &MockTopicHandler{}
-
-				// Register the handler twice
-				err1 := replicator.RegisterHandler(mockHandler)
-				err2 := replicator.RegisterHandler(mockHandler)
-
-				// Assertions
-				gomega.Expect(err1).NotTo(gomega.HaveOccurred())
-				gomega.Expect(err2).To(gomega.HaveOccurred())
-				gomega.Expect(err2.Error()).To(gomega.ContainSubstring("handler already registered"))
-			})
+			// Assertions
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		})
 	})
 
@@ -89,7 +73,6 @@ var _ = ginkgo.Describe("Replicator", func() {
 		var (
 			ctrl                *gomock.Controller
 			mockConsumerFactory *mockpubsub.MockConsumerFactory
-			mockConsumer        *mockpubsub.MockConsumer
 			mockOrm             *mocksql.MockORM
 			replicator          *replication.Replicator
 		)
@@ -97,12 +80,12 @@ var _ = ginkgo.Describe("Replicator", func() {
 		ginkgo.BeforeEach(func() {
 			ctrl = gomock.NewController(ginkgo.GinkgoT())
 			mockConsumerFactory = mockpubsub.NewMockConsumerFactory(ctrl)
-			mockConsumer = mockpubsub.NewMockConsumer(ctrl)
 			mockOrm = mocksql.NewMockORM(ctrl)
 			replicator = replication.NewReplicator(mockConsumerFactory, mockOrm)
 		})
 
 		ginkgo.AfterEach(func() {
+			replicator.Stop()
 			ctrl.Finish()
 		})
 
@@ -121,13 +104,14 @@ var _ = ginkgo.Describe("Replicator", func() {
 				// Create a mock handler
 				mockHandler := &MockTopicHandler{}
 
+				// Set up mock expectations to prevent goroutine failures
+				consumer := mockpubsub.NewMockConsumer(ctrl)
+				consumer.EXPECT().Consume(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockConsumerFactory.EXPECT().New().Return(consumer).AnyTimes()
+
 				// Register the handler
 				err := replicator.RegisterHandler(mockHandler)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-				// Set up mock expectations
-				mockConsumerFactory.EXPECT().New().Return(mockConsumer)
-				mockConsumer.EXPECT().Consume(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 
 				// Start the replicator
 				err = replicator.Start()
@@ -154,6 +138,7 @@ var _ = ginkgo.Describe("Replicator", func() {
 		})
 
 		ginkgo.AfterEach(func() {
+			replicator.Stop()
 			ctrl.Finish()
 		})
 

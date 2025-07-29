@@ -1,119 +1,97 @@
-package utils
+package utils_test
 
 import (
-	"testing"
+	"zensor-server/internal/infra/utils"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestValidateTimezone(t *testing.T) {
-	tests := []struct {
-		name      string
-		timezone  string
-		expectErr bool
-	}{
-		{
-			name:      "valid timezone - UTC",
-			timezone:  "UTC",
-			expectErr: false,
-		},
-		{
-			name:      "valid timezone - America/New_York",
-			timezone:  "America/New_York",
-			expectErr: false,
-		},
-		{
-			name:      "valid timezone - Europe/London",
-			timezone:  "Europe/London",
-			expectErr: false,
-		},
-		{
-			name:      "valid timezone - Asia/Tokyo",
-			timezone:  "Asia/Tokyo",
-			expectErr: false,
-		},
-		{
-			name:      "valid timezone - Australia/Sydney",
-			timezone:  "Australia/Sydney",
-			expectErr: false,
-		},
-		{
-			name:      "valid timezone - EST",
-			timezone:  "EST",
-			expectErr: false,
-		},
-		{
-			name:      "empty timezone",
-			timezone:  "",
-			expectErr: true,
-		},
-		{
-			name:      "invalid timezone - PST",
-			timezone:  "PST",
-			expectErr: true,
-		},
-		{
-			name:      "invalid timezone - random string",
-			timezone:  "Invalid/Timezone/Name",
-			expectErr: true,
-		},
-		{
-			name:      "invalid timezone - with spaces",
-			timezone:  "America/New York",
-			expectErr: true,
-		},
-	}
+var _ = ginkgo.Describe("Timezone", func() {
+	ginkgo.Context("ValidateTimezone", func() {
+		ginkgo.When("validating timezones", func() {
+			ginkgo.It("should validate UTC timezone", func() {
+				err := utils.ValidateTimezone("UTC")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateTimezone(tt.timezone)
-			if tt.expectErr && err == nil {
-				t.Errorf("ValidateTimezone() expected error for timezone '%s', but got none", tt.timezone)
-			}
-			if !tt.expectErr && err != nil {
-				t.Errorf("ValidateTimezone() unexpected error for timezone '%s': %v", tt.timezone, err)
-			}
+			ginkgo.It("should validate America/New_York timezone", func() {
+				err := utils.ValidateTimezone("America/New_York")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should validate Europe/London timezone", func() {
+				err := utils.ValidateTimezone("Europe/London")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should validate Asia/Tokyo timezone", func() {
+				err := utils.ValidateTimezone("Asia/Tokyo")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should validate Australia/Sydney timezone", func() {
+				err := utils.ValidateTimezone("Australia/Sydney")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should validate EST timezone", func() {
+				err := utils.ValidateTimezone("EST")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
 		})
-	}
-}
 
-func TestIsValidTimezone(t *testing.T) {
-	tests := []struct {
-		name     string
-		timezone string
-		expected bool
-	}{
-		{
-			name:     "valid timezone - UTC",
-			timezone: "UTC",
-			expected: true,
-		},
-		{
-			name:     "valid timezone - America/New_York",
-			timezone: "America/New_York",
-			expected: true,
-		},
-		{
-			name:     "valid timezone - EST",
-			timezone: "EST",
-			expected: true,
-		},
-		{
-			name:     "empty timezone",
-			timezone: "",
-			expected: false,
-		},
-		{
-			name:     "invalid timezone - PST",
-			timezone: "PST",
-			expected: false,
-		},
-	}
+		ginkgo.When("validating invalid timezones", func() {
+			ginkgo.It("should return error for empty timezone", func() {
+				err := utils.ValidateTimezone("")
+				gomega.Expect(err).To(gomega.HaveOccurred())
+			})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsValidTimezone(tt.timezone)
-			if result != tt.expected {
-				t.Errorf("IsValidTimezone() = %v, expected %v for timezone '%s'", result, tt.expected, tt.timezone)
-			}
+			ginkgo.It("should return error for PST timezone", func() {
+				err := utils.ValidateTimezone("PST")
+				gomega.Expect(err).To(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should return error for random string timezone", func() {
+				err := utils.ValidateTimezone("Invalid/Timezone/Name")
+				gomega.Expect(err).To(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should return error for timezone with spaces", func() {
+				err := utils.ValidateTimezone("America/New York")
+				gomega.Expect(err).To(gomega.HaveOccurred())
+			})
 		})
-	}
-}
+	})
+
+	ginkgo.Context("IsValidTimezone", func() {
+		ginkgo.When("checking valid timezones", func() {
+			ginkgo.It("should return true for UTC timezone", func() {
+				result := utils.IsValidTimezone("UTC")
+				gomega.Expect(result).To(gomega.BeTrue())
+			})
+
+			ginkgo.It("should return true for America/New_York timezone", func() {
+				result := utils.IsValidTimezone("America/New_York")
+				gomega.Expect(result).To(gomega.BeTrue())
+			})
+
+			ginkgo.It("should return true for EST timezone", func() {
+				result := utils.IsValidTimezone("EST")
+				gomega.Expect(result).To(gomega.BeTrue())
+			})
+		})
+
+		ginkgo.When("checking invalid timezones", func() {
+			ginkgo.It("should return false for empty timezone", func() {
+				result := utils.IsValidTimezone("")
+				gomega.Expect(result).To(gomega.BeFalse())
+			})
+
+			ginkgo.It("should return false for PST timezone", func() {
+				result := utils.IsValidTimezone("PST")
+				gomega.Expect(result).To(gomega.BeFalse())
+			})
+		})
+	})
+})
