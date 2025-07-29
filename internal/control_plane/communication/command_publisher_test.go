@@ -1,99 +1,86 @@
-package communication
+package communication_test
 
 import (
 	"context"
-	"testing"
 	"time"
-
-	"zensor-server/internal/shared_kernel/domain"
+	"zensor-server/internal/control_plane/communication"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/domain"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestCommandPublisher_Dispatch(t *testing.T) {
-	// Create a mock publisher factory
-	mockFactory := &mockPublisherFactory{
-		publisher: &mockPublisher{},
-	}
+var _ = ginkgo.Describe("CommandPublisher", func() {
+	var (
+		mockFactory *mockPublisherFactory
+		publisher   *communication.CommandPublisher
+		testCommand domain.Command
+	)
 
-	// Create the command publisher
-	publisher, err := NewCommandPublisher(mockFactory)
-	if err != nil {
-		t.Fatalf("Failed to create command publisher: %v", err)
-	}
+	ginkgo.BeforeEach(func() {
+		// Create a mock publisher factory
+		mockFactory = &mockPublisherFactory{
+			publisher: &mockPublisher{},
+		}
 
-	// Create a test domain command
-	cmd := domain.Command{
-		ID:       domain.ID("test-command-id"),
-		Version:  domain.Version(1),
-		Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
-		Task:     domain.Task{ID: domain.ID("test-task-id")},
-		Port:     domain.Port(1),
-		Priority: domain.CommandPriority("NORMAL"),
-		Payload: domain.CommandPayload{
-			Index: domain.Index(0),
-			Value: domain.CommandValue(100),
-		},
-		DispatchAfter: utils.Time{Time: time.Now()},
-		Ready:         true,
-		Sent:          false,
-		SentAt:        utils.Time{},
-	}
+		// Create the command publisher
+		var err error
+		publisher, err = communication.NewCommandPublisher(mockFactory)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Dispatch the command
-	err = publisher.Dispatch(context.Background(), cmd)
-	if err != nil {
-		t.Fatalf("Failed to dispatch command: %v", err)
-	}
+		// Create a test domain command
+		testCommand = domain.Command{
+			ID:       domain.ID("test-command-id"),
+			Version:  domain.Version(1),
+			Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
+			Task:     domain.Task{ID: domain.ID("test-task-id")},
+			Port:     domain.Port(1),
+			Priority: domain.CommandPriority("NORMAL"),
+			Payload: domain.CommandPayload{
+				Index: domain.Index(0),
+				Value: domain.CommandValue(100),
+			},
+			DispatchAfter: utils.Time{Time: time.Now()},
+			Ready:         true,
+			Sent:          false,
+			SentAt:        utils.Time{},
+		}
+	})
 
-	// Verify that the mock publisher was called with the correct data
-	mockPub := mockFactory.publisher.(*mockPublisher)
-	if mockPub.publishedKey != pubsub.Key(cmd.ID) {
-		t.Errorf("Expected key %s, got %s", cmd.ID, mockPub.publishedKey)
-	}
+	ginkgo.Context("Dispatch", func() {
+		ginkgo.When("dispatching a valid command", func() {
+			ginkgo.It("should publish the command with correct Avro format", func() {
+				// Dispatch the command
+				err := publisher.Dispatch(context.Background(), testCommand)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Verify that the published value is an AvroCommand
-	avroCmd, ok := mockPub.publishedValue.(*avro.AvroCommand)
-	if !ok {
-		t.Fatalf("Expected published value to be *avro.AvroCommand, got %T", mockPub.publishedValue)
-	}
+				// Verify that the mock publisher was called with the correct data
+				mockPub := mockFactory.publisher.(*mockPublisher)
+				gomega.Expect(mockPub.publishedKey).To(gomega.Equal(pubsub.Key(testCommand.ID)))
 
-	// Verify the AvroCommand fields match the domain command
-	if avroCmd.ID != string(cmd.ID) {
-		t.Errorf("Expected ID %s, got %s", cmd.ID, avroCmd.ID)
-	}
-	if avroCmd.Version != int(cmd.Version)+1 { // Version should be incremented
-		t.Errorf("Expected version %d, got %d", int(cmd.Version)+1, avroCmd.Version)
-	}
-	if avroCmd.DeviceID != string(cmd.Device.ID) {
-		t.Errorf("Expected device ID %s, got %s", cmd.Device.ID, avroCmd.DeviceID)
-	}
-	if avroCmd.DeviceName != cmd.Device.Name {
-		t.Errorf("Expected device name %s, got %s", cmd.Device.Name, avroCmd.DeviceName)
-	}
-	if avroCmd.TaskID != string(cmd.Task.ID) {
-		t.Errorf("Expected task ID %s, got %s", cmd.Task.ID, avroCmd.TaskID)
-	}
-	if avroCmd.PayloadIndex != int(cmd.Payload.Index) {
-		t.Errorf("Expected payload index %d, got %d", cmd.Payload.Index, avroCmd.PayloadIndex)
-	}
-	if avroCmd.PayloadValue != int(cmd.Payload.Value) {
-		t.Errorf("Expected payload value %d, got %d", cmd.Payload.Value, avroCmd.PayloadValue)
-	}
-	if avroCmd.Port != int(cmd.Port) {
-		t.Errorf("Expected port %d, got %d", cmd.Port, avroCmd.Port)
-	}
-	if avroCmd.Priority != string(cmd.Priority) {
-		t.Errorf("Expected priority %s, got %s", cmd.Priority, avroCmd.Priority)
-	}
-	if avroCmd.Ready != cmd.Ready {
-		t.Errorf("Expected ready %t, got %t", cmd.Ready, avroCmd.Ready)
-	}
-	if avroCmd.Sent != cmd.Sent {
-		t.Errorf("Expected sent %t, got %t", cmd.Sent, avroCmd.Sent)
-	}
-}
+				// Verify that the published value is an AvroCommand
+				avroCmd, ok := mockPub.publishedValue.(*avro.AvroCommand)
+				gomega.Expect(ok).To(gomega.BeTrue(), "Expected published value to be *avro.AvroCommand")
+
+				// Verify the AvroCommand fields match the domain command
+				gomega.Expect(avroCmd.ID).To(gomega.Equal(string(testCommand.ID)))
+				gomega.Expect(avroCmd.Version).To(gomega.Equal(int(testCommand.Version) + 1)) // Version should be incremented
+				gomega.Expect(avroCmd.DeviceID).To(gomega.Equal(string(testCommand.Device.ID)))
+				gomega.Expect(avroCmd.DeviceName).To(gomega.Equal(testCommand.Device.Name))
+				gomega.Expect(avroCmd.TaskID).To(gomega.Equal(string(testCommand.Task.ID)))
+				gomega.Expect(avroCmd.PayloadIndex).To(gomega.Equal(int(testCommand.Payload.Index)))
+				gomega.Expect(avroCmd.PayloadValue).To(gomega.Equal(int(testCommand.Payload.Value)))
+				gomega.Expect(avroCmd.Port).To(gomega.Equal(int(testCommand.Port)))
+				gomega.Expect(avroCmd.Priority).To(gomega.Equal(string(testCommand.Priority)))
+				gomega.Expect(avroCmd.Ready).To(gomega.Equal(testCommand.Ready))
+				gomega.Expect(avroCmd.Sent).To(gomega.Equal(testCommand.Sent))
+			})
+		})
+	})
+})
 
 // Mock implementations for testing
 

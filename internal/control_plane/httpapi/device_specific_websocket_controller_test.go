@@ -1,221 +1,195 @@
-package httpapi
+package httpapi_test
 
 import (
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"testing"
 	"time"
+	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/persistence"
+	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
 
 	"github.com/gorilla/websocket"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestDeviceSpecificWebSocketController_HandleWebSocket(t *testing.T) {
-	// Create mock dependencies
-	broker := async.NewLocalBroker()
-	stateCache := persistence.NewSimpleDeviceStateCacheService()
+var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
+	var (
+		broker     *async.LocalBroker
+		stateCache usecases.DeviceStateCacheService
+		controller *httpapi.DeviceSpecificWebSocketController
+		router     *http.ServeMux
+		server     *httptest.Server
+	)
 
-	// Create controller
-	controller := NewDeviceSpecificWebSocketController(broker, stateCache)
-	defer controller.Shutdown()
+	ginkgo.BeforeEach(func() {
+		// Create mock dependencies
+		broker = async.NewLocalBroker()
+		stateCache = persistence.NewSimpleDeviceStateCacheService()
 
-	// Create test server
-	router := http.NewServeMux()
-	controller.AddRoutes(router)
-	server := httptest.NewServer(router)
-	defer server.Close()
+		// Create controller
+		controller = httpapi.NewDeviceSpecificWebSocketController(broker, stateCache)
 
-	// Test cases
-	tests := []struct {
-		name           string
-		deviceID       string
-		expectedStatus int
-	}{
-		{
-			name:           "valid device ID",
-			deviceID:       "test-device-123",
-			expectedStatus: http.StatusSwitchingProtocols,
-		},
-		{
-			name:           "empty device ID",
-			deviceID:       "   ", // Use whitespace instead of empty string
-			expectedStatus: http.StatusBadRequest,
-		},
-	}
+		// Give the controller time to initialize
+		time.Sleep(50 * time.Millisecond)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create request
-			url := server.URL + "/ws/devices/" + tt.deviceID + "/messages"
-			req, err := http.NewRequest("GET", url, nil)
-			if err != nil {
-				t.Fatalf("failed to create request: %v", err)
-			}
+		// Create test server
+		router = http.NewServeMux()
+		controller.AddRoutes(router)
+		server = httptest.NewServer(router)
+	})
 
-			// Add WebSocket headers
-			req.Header.Set("Upgrade", "websocket")
-			req.Header.Set("Connection", "Upgrade")
-			req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
-			req.Header.Set("Sec-WebSocket-Version", "13")
+	ginkgo.AfterEach(func() {
+		controller.Shutdown()
+		// Give the controller time to shut down properly
+		time.Sleep(100 * time.Millisecond)
+		server.Close()
+	})
 
-			// Make request
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				t.Fatalf("failed to make request: %v", err)
-			}
-			defer resp.Body.Close()
+	ginkgo.Context("HandleWebSocket", func() {
+		ginkgo.When("handling WebSocket upgrade requests", func() {
+			ginkgo.It("should accept valid device ID", func() {
+				// Create request
+				url := server.URL + "/ws/devices/test-device-123/messages"
+				req, err := http.NewRequest("GET", url, nil)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-			// Check status code
-			if resp.StatusCode != tt.expectedStatus {
-				t.Errorf("expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
-			}
+				// Add WebSocket headers
+				req.Header.Set("Upgrade", "websocket")
+				req.Header.Set("Connection", "Upgrade")
+				req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+				req.Header.Set("Sec-WebSocket-Version", "13")
+
+				// Make request
+				resp, err := http.DefaultClient.Do(req)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				defer resp.Body.Close()
+
+				// Check status code
+				gomega.Expect(resp.StatusCode).To(gomega.Equal(http.StatusSwitchingProtocols))
+			})
+
+			ginkgo.It("should reject empty device ID", func() {
+				// Create request with whitespace device ID
+				url := server.URL + "/ws/devices/   /messages"
+				req, err := http.NewRequest("GET", url, nil)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+				// Add WebSocket headers
+				req.Header.Set("Upgrade", "websocket")
+				req.Header.Set("Connection", "Upgrade")
+				req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+				req.Header.Set("Sec-WebSocket-Version", "13")
+
+				// Make request
+				resp, err := http.DefaultClient.Do(req)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				defer resp.Body.Close()
+
+				// Check status code
+				gomega.Expect(resp.StatusCode).To(gomega.Equal(http.StatusBadRequest))
+			})
 		})
-	}
-}
+	})
 
-func TestDeviceSpecificWebSocketController_MessageRouting(t *testing.T) {
-	// Create mock dependencies
-	broker := async.NewLocalBroker()
-	stateCache := persistence.NewSimpleDeviceStateCacheService()
+	ginkgo.Context("MessageRouting", func() {
+		ginkgo.When("publishing messages to specific devices", func() {
+			ginkgo.It("should route messages only to the correct device", func() {
+				// Connect to WebSocket for device1
+				device1ID := "device-1"
+				wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + device1ID + "/messages"
+				conn1, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				defer conn1.Close()
 
-	// Create controller
-	controller := NewDeviceSpecificWebSocketController(broker, stateCache)
-	defer controller.Shutdown()
+				// Connect to WebSocket for device2
+				device2ID := "device-2"
+				wsURL2 := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + device2ID + "/messages"
+				conn2, _, err := websocket.DefaultDialer.Dial(wsURL2, nil)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				defer conn2.Close()
 
-	// Create test server
-	router := http.NewServeMux()
-	controller.AddRoutes(router)
-	server := httptest.NewServer(router)
-	defer server.Close()
+				// Wait a bit for connections to be established
+				time.Sleep(100 * time.Millisecond)
 
-	// Connect to WebSocket for device1
-	device1ID := "device-1"
-	wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + device1ID + "/messages"
-	conn1, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("failed to connect to WebSocket: %v", err)
-	}
-	defer conn1.Close()
+				// Publish a message for device1
+				envelop := dto.Envelop{
+					EndDeviceIDs: dto.EndDeviceIDs{
+						DeviceID: device1ID,
+					},
+					ReceivedAt: time.Now(),
+					UplinkMessage: dto.UplinkMessage{
+						DecodedPayload: map[string][]dto.SensorData{
+							"temperature": {{Index: 0, Value: 25.5}},
+						},
+					},
+				}
 
-	// Connect to WebSocket for device2
-	device2ID := "device-2"
-	wsURL2 := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + device2ID + "/messages"
-	conn2, _, err := websocket.DefaultDialer.Dial(wsURL2, nil)
-	if err != nil {
-		t.Fatalf("failed to connect to WebSocket: %v", err)
-	}
-	defer conn2.Close()
+				brokerMsg := async.BrokerMessage{
+					Event: "uplink",
+					Value: envelop,
+				}
 
-	// Wait a bit for connections to be established
-	time.Sleep(100 * time.Millisecond)
+				err = broker.Publish(context.Background(), "device_messages", brokerMsg)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Publish a message for device1
-	envelop := dto.Envelop{
-		EndDeviceIDs: dto.EndDeviceIDs{
-			DeviceID: device1ID,
-		},
-		ReceivedAt: time.Now(),
-		UplinkMessage: dto.UplinkMessage{
-			DecodedPayload: map[string][]dto.SensorData{
-				"temperature": {{Index: 0, Value: 25.5}},
-			},
-		},
-	}
+				// Wait for message to be processed
+				time.Sleep(100 * time.Millisecond)
 
-	brokerMsg := async.BrokerMessage{
-		Event: "uplink",
-		Value: envelop,
-	}
+				// Check if device1 received the message
+				conn1.SetReadDeadline(time.Now().Add(1 * time.Second))
+				var msg httpapi.DeviceSpecificMessage
+				err = conn1.ReadJSON(&msg)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	err = broker.Publish(context.Background(), "device_messages", brokerMsg)
-	if err != nil {
-		t.Fatalf("failed to publish message: %v", err)
-	}
+				gomega.Expect(msg.DeviceID).To(gomega.Equal(device1ID))
 
-	// Wait for message to be processed
-	time.Sleep(100 * time.Millisecond)
+				// Check that device2 did NOT receive the message
+				conn2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+				var msg2 httpapi.DeviceSpecificMessage
+				err = conn2.ReadJSON(&msg2)
+				gomega.Expect(err).To(gomega.HaveOccurred(), "device2 should not have received message")
+			})
+		})
+	})
 
-	// Check if device1 received the message
-	conn1.SetReadDeadline(time.Now().Add(1 * time.Second))
-	var msg DeviceSpecificMessage
-	err = conn1.ReadJSON(&msg)
-	if err != nil {
-		t.Errorf("device1 should have received message: %v", err)
-	}
+	ginkgo.Context("CachedState", func() {
+		ginkgo.When("connecting with existing cached state", func() {
+			ginkgo.It("should send cached state to the device", func() {
+				// Set up cached state for a device
+				deviceID := "test-device"
+				sensorData := map[string][]dto.SensorData{
+					"temperature": {{Index: 0, Value: 25.5}},
+					"humidity":    {{Index: 0, Value: 60.0}},
+				}
+				stateCache.SetState(context.Background(), deviceID, sensorData)
 
-	if msg.DeviceID != device1ID {
-		t.Errorf("expected device ID %s, got %s", device1ID, msg.DeviceID)
-	}
+				// Connect to WebSocket
+				wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + deviceID + "/messages"
+				conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				defer conn.Close()
 
-	// Check that device2 did NOT receive the message
-	conn2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	var msg2 DeviceSpecificMessage
-	err = conn2.ReadJSON(&msg2)
-	if err == nil {
-		t.Error("device2 should not have received message")
-	}
-}
+				// Wait for cached state to be sent
+				time.Sleep(100 * time.Millisecond)
 
-func TestDeviceSpecificWebSocketController_CachedState(t *testing.T) {
-	// Create mock dependencies
-	broker := async.NewLocalBroker()
-	stateCache := persistence.NewSimpleDeviceStateCacheService()
+				// Check if cached state was received
+				conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+				var msg httpapi.DeviceSpecificStateMessage
+				err = conn.ReadJSON(&msg)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Set up cached state for a device
-	deviceID := "test-device"
-	sensorData := map[string][]dto.SensorData{
-		"temperature": {{Index: 0, Value: 25.5}},
-		"humidity":    {{Index: 0, Value: 60.0}},
-	}
-	stateCache.SetState(context.Background(), deviceID, sensorData)
+				gomega.Expect(msg.DeviceID).To(gomega.Equal(deviceID))
+				gomega.Expect(msg.Type).To(gomega.Equal("device_state"))
 
-	// Create controller
-	controller := NewDeviceSpecificWebSocketController(broker, stateCache)
-	defer controller.Shutdown()
-
-	// Create test server
-	router := http.NewServeMux()
-	controller.AddRoutes(router)
-	server := httptest.NewServer(router)
-	defer server.Close()
-
-	// Connect to WebSocket
-	wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + deviceID + "/messages"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("failed to connect to WebSocket: %v", err)
-	}
-	defer conn.Close()
-
-	// Wait for cached state to be sent
-	time.Sleep(100 * time.Millisecond)
-
-	// Check if cached state was received
-	conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-	var msg DeviceSpecificStateMessage
-	err = conn.ReadJSON(&msg)
-	if err != nil {
-		t.Fatalf("failed to read cached state: %v", err)
-	}
-
-	if msg.DeviceID != deviceID {
-		t.Errorf("expected device ID %s, got %s", deviceID, msg.DeviceID)
-	}
-
-	if msg.Type != "device_state" {
-		t.Errorf("expected message type 'device_state', got %s", msg.Type)
-	}
-
-	// Check that sensor data is present
-	if len(msg.Data["temperature"]) == 0 {
-		t.Error("expected temperature data to be present")
-	}
-
-	if len(msg.Data["humidity"]) == 0 {
-		t.Error("expected humidity data to be present")
-	}
-}
+				// Check that sensor data is present
+				gomega.Expect(msg.Data["temperature"]).NotTo(gomega.BeEmpty(), "expected temperature data to be present")
+				gomega.Expect(msg.Data["humidity"]).NotTo(gomega.BeEmpty(), "expected humidity data to be present")
+			})
+		})
+	})
+})

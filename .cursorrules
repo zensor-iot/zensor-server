@@ -38,9 +38,12 @@
 # Go Testing
 
 - Write tests for all exported functions and critical logic.
-- Use Go's built-in `testing` package.
-- Name test functions as `TestXxx` and keep them small and focused.
+- Use Ginkgo for ALL unit tests - no exceptions.
+- Always use "_test" package name and only test public methods.
+- Use BDD-style testing structure:
+  - `Context()` for public method names
+  - `When()` for each scenario
+  - `BeforeEach()` for configuring variables and mocks
+  - `It()` for performing tests and validations
 - Avoid test dependencies on external systems; use mocks or test servers.
-- Use table-driven tests for multiple cases.
 - Run `go test -race` to check for race conditions.
-- Always use a suffix _test package for unit testing to only test public methods.

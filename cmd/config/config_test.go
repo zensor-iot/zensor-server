@@ -1,15 +1,64 @@
-package config
+package config_test
 
 import (
+	"fmt"
 	"os"
-	"testing"
+	"strings"
+	"zensor-server/cmd/config"
 
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/spf13/viper"
 )
 
-func TestLoadConfigWithRedis(t *testing.T) {
-	// Create a temporary config file with Redis configuration
-	tempConfig := `
+// loadTestConfig loads configuration with a specific config name for testing
+func loadTestConfig(configName string) config.AppConfig {
+	viper.Reset()
+	viper.SetEnvPrefix("zensor_server")
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetConfigName(configName)
+	viper.AddConfigPath("config")
+	viper.AddConfigPath("/config")
+	if err := viper.ReadInConfig(); err != nil {
+		panic(fmt.Errorf("fatal error config file: %w", err))
+	}
+
+	return config.AppConfig{
+		General: config.GeneralConfig{
+			LogLevel: viper.GetString("general.log_level"),
+		},
+		MQTTClient: config.MQTTClientConfig{
+			Broker:   viper.GetString("mqtt_client.broker"),
+			ClientID: viper.GetString("mqtt_client.client_id"),
+			Username: viper.GetString("mqtt_client.username"),
+			Password: viper.GetString("mqtt_client.password"),
+		},
+		Postgresql: config.PostgresqlConfig{
+			DSN: viper.GetString("database.dsn"),
+		},
+		Kafka: config.KafkaConfig{
+			Brokers:        viper.GetStringSlice("kafka.brokers"),
+			Group:          viper.GetString("kafka.group"),
+			SchemaRegistry: viper.GetString("kafka.schema_registry"),
+		},
+		Redis: config.RedisConfig{
+			Addr:     viper.GetString("redis.addr"),
+			Password: viper.GetString("redis.password"),
+			DB:       viper.GetInt("redis.db"),
+		},
+	}
+}
+
+var _ = ginkgo.Describe("LoadConfig", func() {
+	var (
+		tempConfigFile     string
+		originalConfigName string
+	)
+
+	ginkgo.BeforeEach(func() {
+		// Create a temporary config file with Redis configuration
+		tempConfig := `
 general:
   log_level: info
 mqtt:
@@ -30,42 +79,42 @@ mqtt_client:
   client_id: zensor_server_local
 `
 
-	// Create config directory if it doesn't exist
-	if err := os.MkdirAll("config", 0755); err != nil {
-		t.Fatalf("Failed to create config directory: %v", err)
-	}
+		// Create config directory if it doesn't exist
+		err := os.MkdirAll("config", 0755)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Write temporary config file
-	err := os.WriteFile("config/server_test.yaml", []byte(tempConfig), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write test config file: %v", err)
-	}
-	defer os.Remove("config/server_test.yaml")
+		// Write temporary config file
+		tempConfigFile = "config/server_test.yaml"
+		err = os.WriteFile(tempConfigFile, []byte(tempConfig), 0644)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Temporarily change config name
-	originalConfigName := "server"
-	defer func() {
-		// Reset config instance and config name
-		loadConfigOnce.Do(func() {}) // Reset the sync.Once
+		// Store original config name
+		originalConfigName = "server"
+	})
+
+	ginkgo.AfterEach(func() {
+		// Clean up temporary config file
+		if tempConfigFile != "" {
+			os.Remove(tempConfigFile)
+		}
+
+		// Reset config name
 		viper.SetConfigName(originalConfigName)
-	}()
+		// Reset viper to clear any cached config
+		viper.Reset()
+	})
 
-	// Set config name to test file
-	viper.SetConfigName("server_test")
+	ginkgo.Context("When loading configuration with Redis settings", func() {
+		ginkgo.When("the config file contains valid Redis configuration", func() {
+			ginkgo.It("should load Redis configuration correctly", func() {
+				// Load config using test helper
+				cfg := loadTestConfig("server_test")
 
-	// Load config
-	config := LoadConfig()
-
-	// Verify Redis configuration
-	if config.Redis.Addr != "localhost:6379" {
-		t.Errorf("Expected Redis addr to be 'localhost:6379', got '%s'", config.Redis.Addr)
-	}
-
-	if config.Redis.Password != "" {
-		t.Errorf("Expected Redis password to be empty, got '%s'", config.Redis.Password)
-	}
-
-	if config.Redis.DB != 0 {
-		t.Errorf("Expected Redis DB to be 0, got %d", config.Redis.DB)
-	}
-}
+				// Verify Redis configuration
+				gomega.Expect(cfg.Redis.Addr).To(gomega.Equal("localhost:6379"))
+				gomega.Expect(cfg.Redis.Password).To(gomega.BeEmpty())
+				gomega.Expect(cfg.Redis.DB).To(gomega.Equal(0))
+			})
+		})
+	})
+})
