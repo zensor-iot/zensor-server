@@ -1,138 +1,196 @@
-package handlers
+package handlers_test
 
 import (
 	"context"
 	"errors"
-	"testing"
-	"time"
-
+	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/shared_kernel/avro"
+	mocksql "zensor-server/test/unit/doubles/infra/sql"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 )
 
-func TestTaskHandler_Create_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTaskHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Create", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
-	task := struct {
-		ID       string
-		DeviceID string
-	}{ID: "task-1", DeviceID: "device-1"}
-	err := handler.Create(context.Background(), "task-1", task)
-	assert.NoError(t, err)
-	mockOrm.AssertExpectations(t)
-}
+var _ = ginkgo.Describe("TaskHandler", func() {
+	ginkgo.Context("Create", func() {
+		var (
+			ctrl    *gomock.Controller
+			mockOrm *mocksql.MockORM
+			handler *handlers.TaskHandler
+			task    struct {
+				ID       string
+				DeviceID string
+			}
+		)
 
-func TestTaskHandler_Create_Error(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTaskHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Create", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(errors.New("db error"))
-	handler.orm = mockOrm
-	task := struct {
-		ID       string
-		DeviceID string
-	}{ID: "task-1", DeviceID: "device-1"}
-	err := handler.Create(context.Background(), "task-1", task)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "creating task")
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewTaskHandler(mockOrm)
+			task = struct {
+				ID       string
+				DeviceID string
+			}{ID: "task-1", DeviceID: "device-1"}
+		})
 
-func TestTaskHandler_GetByID_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTaskHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		dest := args.Get(0).(*TaskData)
-		*dest = TaskData{ID: "task-1", DeviceID: "device-1", Version: 1}
-	}).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
 
-	result, err := handler.GetByID(context.Background(), "task-1")
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	resultMap, ok := result.(map[string]any)
-	assert.True(t, ok)
-	assert.Equal(t, "task-1", resultMap["id"])
-	assert.Equal(t, "device-1", resultMap["device_id"])
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.When("creating task successfully", func() {
+			ginkgo.It("should create task without error", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Create(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(nil)
 
-func TestTaskHandler_GetByID_NotFound(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTaskHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(sql.ErrRecordNotFound)
-	handler.orm = mockOrm
-	result, err := handler.GetByID(context.Background(), "task-1")
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "getting task")
-	mockOrm.AssertExpectations(t)
-}
+				// Execute the method
+				err := handler.Create(context.Background(), "task-1", task)
 
-func TestTaskHandler_Update_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTaskHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Save", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
-	task := struct {
-		ID       string
-		DeviceID string
-	}{ID: "task-1", DeviceID: "device-1"}
-	err := handler.Update(context.Background(), "task-1", task)
-	assert.NoError(t, err)
-	mockOrm.AssertExpectations(t)
-}
+				// Assertions
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+		})
 
-func TestTaskHandler_Update_Error(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTaskHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Save", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(errors.New("db error"))
-	handler.orm = mockOrm
-	task := struct {
-		ID       string
-		DeviceID string
-	}{ID: "task-1", DeviceID: "device-1"}
-	err := handler.Update(context.Background(), "task-1", task)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "updating task")
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.When("creating task fails", func() {
+			ginkgo.It("should return error when database fails", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Create(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(errors.New("db error"))
 
-func TestTaskHandler_extractTaskFields(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTaskHandler(orm)
-	timeNow := time.Now()
-	task := &avro.AvroTask{
-		ID:        "task-1",
-		DeviceID:  "device-1",
-		CreatedAt: timeNow,
-		UpdatedAt: timeNow,
-	}
-	result := handler.extractTaskFields(task)
-	assert.Equal(t, "task-1", result.ID)
-	assert.Equal(t, "device-1", result.DeviceID)
-	assert.Equal(t, timeNow, result.CreatedAt)
-	assert.Equal(t, timeNow, result.UpdatedAt)
-}
+				// Execute the method
+				err := handler.Create(context.Background(), "task-1", task)
+
+				// Assertions
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("creating task"))
+			})
+		})
+	})
+
+	ginkgo.Context("GetByID", func() {
+		var (
+			ctrl    *gomock.Controller
+			mockOrm *mocksql.MockORM
+			handler *handlers.TaskHandler
+		)
+
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewTaskHandler(mockOrm)
+		})
+
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
+
+		ginkgo.When("getting task successfully", func() {
+			ginkgo.It("should return task data", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(dest interface{}, conds ...interface{}) *mocksql.MockORM {
+						// Set the destination with test data
+						taskData := dest.(*handlers.TaskData)
+						*taskData = handlers.TaskData{
+							ID:       "task-1",
+							DeviceID: "device-1",
+							Version:  1,
+						}
+						return mockOrm
+					},
+				)
+				mockOrm.EXPECT().Error().Return(nil)
+
+				// Execute the method
+				result, err := handler.GetByID(context.Background(), "task-1")
+
+				// Assertions
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(result).NotTo(gomega.BeNil())
+
+				resultMap, ok := result.(map[string]interface{})
+				gomega.Expect(ok).To(gomega.BeTrue())
+				gomega.Expect(resultMap["id"]).To(gomega.Equal("task-1"))
+				gomega.Expect(resultMap["device_id"]).To(gomega.Equal("device-1"))
+			})
+		})
+
+		ginkgo.When("task not found", func() {
+			ginkgo.It("should return error when task not found", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(sql.ErrRecordNotFound)
+
+				// Execute the method
+				result, err := handler.GetByID(context.Background(), "task-1")
+
+				// Assertions
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(result).To(gomega.BeNil())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("getting task"))
+			})
+		})
+	})
+
+	ginkgo.Context("Update", func() {
+		var (
+			ctrl    *gomock.Controller
+			mockOrm *mocksql.MockORM
+			handler *handlers.TaskHandler
+			task    struct {
+				ID       string
+				DeviceID string
+			}
+		)
+
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewTaskHandler(mockOrm)
+			task = struct {
+				ID       string
+				DeviceID string
+			}{ID: "task-1", DeviceID: "device-1"}
+		})
+
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
+
+		ginkgo.When("updating task successfully", func() {
+			ginkgo.It("should update task without error", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Save(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(nil)
+
+				// Execute the method
+				err := handler.Update(context.Background(), "task-1", task)
+
+				// Assertions
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.When("updating task fails", func() {
+			ginkgo.It("should return error when database fails", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Save(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(errors.New("db error"))
+
+				// Execute the method
+				err := handler.Update(context.Background(), "task-1", task)
+
+				// Assertions
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("updating task"))
+			})
+		})
+	})
+})

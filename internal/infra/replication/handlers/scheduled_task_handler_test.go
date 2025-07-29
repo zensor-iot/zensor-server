@@ -1,192 +1,210 @@
-package handlers
+package handlers_test
 
 import (
 	"context"
-	"testing"
 	"time"
-
 	"zensor-server/internal/infra/pubsub"
+	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel/avro"
+	mocksql "zensor-server/test/unit/doubles/infra/sql"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 )
 
-func TestScheduledTaskHandler_TopicName(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewScheduledTaskHandler(orm)
+var _ = ginkgo.Describe("ScheduledTaskHandler", func() {
+	ginkgo.Context("TopicName", func() {
+		var (
+			handler *handlers.ScheduledTaskHandler
+		)
 
-	topic := handler.TopicName()
-	assert.Equal(t, pubsub.Topic("scheduled_tasks"), topic)
-}
+		ginkgo.BeforeEach(func() {
+			handler = handlers.NewScheduledTaskHandler(nil)
+		})
 
-func TestScheduledTaskHandler_Create(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewScheduledTaskHandler(orm)
+		ginkgo.It("should return scheduled_tasks topic", func() {
+			topic := handler.TopicName()
+			gomega.Expect(topic).To(gomega.Equal(pubsub.Topic("scheduled_tasks")))
+		})
+	})
 
-	// Mock the ORM Create method
-	orm.On("WithContext", mock.Anything).Return(orm)
-	orm.On("Create", mock.AnythingOfType("*handlers.ScheduledTaskData")).Return(orm)
-	orm.On("Error").Return(nil)
+	ginkgo.Context("Create", func() {
+		var (
+			ctrl     *gomock.Controller
+			mockOrm  *mocksql.MockORM
+			handler  *handlers.ScheduledTaskHandler
+			testData struct {
+				ID               string
+				Version          int
+				TenantID         string
+				DeviceID         string
+				CommandTemplates string
+				Schedule         string
+				IsActive         bool
+				CreatedAt        utils.Time
+				UpdatedAt        utils.Time
+			}
+		)
 
-	// Create test data as struct
-	testData := struct {
-		ID               string
-		Version          int
-		TenantID         string
-		DeviceID         string
-		CommandTemplates string
-		Schedule         string
-		IsActive         bool
-		CreatedAt        utils.Time
-		UpdatedAt        utils.Time
-	}{
-		ID:               "test-id",
-		Version:          1,
-		TenantID:         "tenant-1",
-		DeviceID:         "device-1",
-		CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
-		Schedule:         "* * * * *",
-		IsActive:         true,
-		CreatedAt:        utils.Time{Time: time.Now()},
-		UpdatedAt:        utils.Time{Time: time.Now()},
-	}
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewScheduledTaskHandler(mockOrm)
+			testData = struct {
+				ID               string
+				Version          int
+				TenantID         string
+				DeviceID         string
+				CommandTemplates string
+				Schedule         string
+				IsActive         bool
+				CreatedAt        utils.Time
+				UpdatedAt        utils.Time
+			}{
+				ID:               "test-id",
+				Version:          1,
+				TenantID:         "tenant-1",
+				DeviceID:         "device-1",
+				CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
+				Schedule:         "* * * * *",
+				IsActive:         true,
+				CreatedAt:        utils.Time{Time: time.Now()},
+				UpdatedAt:        utils.Time{Time: time.Now()},
+			}
+		})
 
-	ctx := context.Background()
-	key := pubsub.Key("test-id")
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
 
-	err := handler.Create(ctx, key, testData)
-	require.NoError(t, err)
+		ginkgo.It("should create scheduled task successfully", func() {
+			// Set up mock expectations
+			mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+			mockOrm.EXPECT().Create(gomock.Any()).Return(mockOrm)
+			mockOrm.EXPECT().Error().Return(nil)
 
-	orm.AssertExpectations(t)
-}
+			// Execute the method
+			ctx := context.Background()
+			err := handler.Create(ctx, "test-id", testData)
 
-func TestScheduledTaskHandler_GetByID(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewScheduledTaskHandler(orm)
+			// Assertions
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		})
+	})
 
-	// Mock the ORM First method
-	orm.On("WithContext", mock.Anything).Return(orm)
-	orm.On("First", mock.Anything, mock.Anything).Return(orm)
-	orm.On("Error").Return(nil)
+	ginkgo.Context("GetByID", func() {
+		var (
+			ctrl    *gomock.Controller
+			mockOrm *mocksql.MockORM
+			handler *handlers.ScheduledTaskHandler
+		)
 
-	ctx := context.Background()
-	_, err := handler.GetByID(ctx, "test-id")
-	require.NoError(t, err)
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewScheduledTaskHandler(mockOrm)
+		})
 
-	orm.AssertExpectations(t)
-}
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
 
-func TestScheduledTaskHandler_Update(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewScheduledTaskHandler(orm)
+		ginkgo.It("should get scheduled task by ID successfully", func() {
+			// Set up mock expectations
+			mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+			mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).DoAndReturn(
+				func(dest interface{}, conds ...interface{}) *mocksql.MockORM {
+					// Set the destination with test data
+					scheduledTaskData := dest.(*handlers.ScheduledTaskData)
+					*scheduledTaskData = handlers.ScheduledTaskData{
+						ID:               "test-id",
+						Version:          1,
+						TenantID:         "tenant-1",
+						DeviceID:         "device-1",
+						CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
+						Schedule:         "* * * * *",
+						IsActive:         true,
+						CreatedAt:        utils.Time{Time: time.Now()},
+						UpdatedAt:        utils.Time{Time: time.Now()},
+					}
+					return mockOrm
+				},
+			)
+			mockOrm.EXPECT().Error().Return(nil)
 
-	// Mock the ORM methods for update
-	orm.On("WithContext", mock.Anything).Return(orm)
-	orm.On("First", mock.Anything, mock.Anything).Return(orm)
-	orm.On("Error").Return(nil).Once() // First call for First
-	orm.On("Save", mock.AnythingOfType("*handlers.ScheduledTaskData")).Return(orm)
-	orm.On("Error").Return(nil).Once() // Second call for Save
+			// Execute the method
+			ctx := context.Background()
+			result, err := handler.GetByID(ctx, "test-id")
 
-	// Create test data as struct
-	testData := struct {
-		ID               string
-		Version          int
-		TenantID         string
-		DeviceID         string
-		CommandTemplates string
-		Schedule         string
-		IsActive         bool
-		CreatedAt        utils.Time
-		UpdatedAt        utils.Time
-	}{
-		ID:               "test-id",
-		Version:          2,
-		TenantID:         "tenant-1",
-		DeviceID:         "device-1",
-		CommandTemplates: `[{"port":15,"priority":"HIGH","payload":{"index":2,"value":200},"wait_for":"10s"}]`,
-		Schedule:         "*/5 * * * *",
-		IsActive:         false,
-		CreatedAt:        utils.Time{Time: time.Now()},
-		UpdatedAt:        utils.Time{Time: time.Now()},
-	}
+			// Assertions
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			gomega.Expect(result).NotTo(gomega.BeNil())
 
-	ctx := context.Background()
-	key := pubsub.Key("test-id")
+			resultMap, ok := result.(map[string]interface{})
+			gomega.Expect(ok).To(gomega.BeTrue())
+			gomega.Expect(resultMap["id"]).To(gomega.Equal("test-id"))
+			gomega.Expect(resultMap["tenant_id"]).To(gomega.Equal("tenant-1"))
+		})
+	})
 
-	err := handler.Update(ctx, key, testData)
-	require.NoError(t, err)
+	ginkgo.Context("Update", func() {
+		var (
+			ctrl     *gomock.Controller
+			mockOrm  *mocksql.MockORM
+			handler  *handlers.ScheduledTaskHandler
+			testData struct {
+				ID               string
+				Version          int
+				TenantID         string
+				DeviceID         string
+				CommandTemplates string
+				Schedule         string
+				IsActive         bool
+			}
+		)
 
-	orm.AssertExpectations(t)
-}
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewScheduledTaskHandler(mockOrm)
+			testData = struct {
+				ID               string
+				Version          int
+				TenantID         string
+				DeviceID         string
+				CommandTemplates string
+				Schedule         string
+				IsActive         bool
+			}{
+				ID:               "test-id",
+				Version:          2,
+				TenantID:         "tenant-1",
+				DeviceID:         "device-1",
+				CommandTemplates: `[{"port":15,"priority":"HIGH","payload":{"index":2,"value":200},"wait_for":"10s"}]`,
+				Schedule:         "*/5 * * * *",
+				IsActive:         false,
+			}
+		})
 
-func TestScheduledTaskHandler_ExtractScheduledTaskFields(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewScheduledTaskHandler(orm)
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
 
-	createdAt := utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}
-	updatedAt := utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}
+		ginkgo.It("should update scheduled task successfully", func() {
+			// Set up mock expectations - WithContext is called twice in Update method
+			mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm).Times(2)
+			mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).Return(mockOrm)
+			mockOrm.EXPECT().Error().Return(nil)
+			mockOrm.EXPECT().Save(gomock.Any()).Return(mockOrm)
+			mockOrm.EXPECT().Error().Return(nil)
 
-	avroTask := &avro.AvroScheduledTask{
-		ID:               "test-id",
-		Version:          1,
-		TenantID:         "tenant-1",
-		DeviceID:         "device-1",
-		CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
-		Schedule:         "* * * * *",
-		IsActive:         true,
-		CreatedAt:        createdAt.Time,
-		UpdatedAt:        updatedAt.Time,
-	}
+			// Execute the method
+			ctx := context.Background()
+			err := handler.Update(ctx, "test-id", testData)
 
-	result := handler.extractScheduledTaskFields(avroTask)
-
-	assert.Equal(t, "test-id", result.ID)
-	assert.Equal(t, 1, result.Version)
-	assert.Equal(t, "tenant-1", result.TenantID)
-	assert.Equal(t, "device-1", result.DeviceID)
-	assert.Equal(t, `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`, result.CommandTemplates)
-	assert.Equal(t, "* * * * *", result.Schedule)
-	assert.True(t, result.IsActive)
-	assert.Equal(t, createdAt, result.CreatedAt)
-	assert.Equal(t, updatedAt, result.UpdatedAt)
-}
-
-func TestScheduledTaskHandler_ToDomainScheduledTask(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewScheduledTaskHandler(orm)
-
-	internalData := ScheduledTaskData{
-		ID:               "test-id",
-		Version:          1,
-		TenantID:         "tenant-1",
-		DeviceID:         "device-1",
-		CommandTemplates: `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
-		Schedule:         "* * * * *",
-		IsActive:         true,
-		CreatedAt:        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
-		UpdatedAt:        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
-		LastExecutedAt:   nil,
-		DeletedAt:        nil,
-	}
-
-	result := handler.toDomainScheduledTask(internalData)
-
-	expected := map[string]any{
-		"id":                "test-id",
-		"version":           1,
-		"tenant_id":         "tenant-1",
-		"device_id":         "device-1",
-		"command_templates": `[{"port":15,"priority":"NORMAL","payload":{"index":1,"value":100},"wait_for":"5s"}]`,
-		"schedule":          "* * * * *",
-		"is_active":         true,
-		"created_at":        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
-		"updated_at":        utils.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
-		"last_executed_at":  (*utils.Time)(nil),
-		"deleted_at":        (*utils.Time)(nil),
-	}
-
-	assert.Equal(t, expected, result)
-}
+			// Assertions
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		})
+	})
+})

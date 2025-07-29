@@ -9,6 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
+//go:generate mockgen -source=orm.go -destination=../../../test/unit/doubles/infra/sql/orm_mock.go -package=sql -mock_names=ORM=MockORM
+
 type ORM interface {
 	AutoMigrate(dst ...any) error
 	Count(count *int64) ORM

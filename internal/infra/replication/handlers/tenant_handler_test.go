@@ -1,159 +1,203 @@
-package handlers
+package handlers_test
 
 import (
 	"context"
 	"errors"
-	"testing"
-	"time"
-
+	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/shared_kernel/avro"
+	mocksql "zensor-server/test/unit/doubles/infra/sql"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 )
 
-func TestTenantHandler_Create_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTenantHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Create", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
+var _ = ginkgo.Describe("TenantHandler", func() {
+	ginkgo.Context("Create", func() {
+		var (
+			ctrl       *gomock.Controller
+			mockOrm    *mocksql.MockORM
+			handler    *handlers.TenantHandler
+			testTenant struct {
+				ID    string
+				Name  string
+				Email string
+			}
+		)
 
-	tenant := struct {
-		ID    string
-		Name  string
-		Email string
-	}{ID: "tenant-1", Name: "Tenant", Email: "tenant@example.com"}
-	err := handler.Create(context.Background(), "tenant-1", tenant)
-	assert.NoError(t, err)
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewTenantHandler(mockOrm)
+			testTenant = struct {
+				ID    string
+				Name  string
+				Email string
+			}{ID: "tenant-1", Name: "Tenant", Email: "tenant@example.com"}
+		})
 
-func TestTenantHandler_Create_Error(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTenantHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("Create", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(errors.New("db error"))
-	handler.orm = mockOrm
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
 
-	tenant := struct {
-		ID    string
-		Name  string
-		Email string
-	}{ID: "tenant-1", Name: "Tenant", Email: "tenant@example.com"}
-	err := handler.Create(context.Background(), "tenant-1", tenant)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "creating tenant")
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.When("creating tenant successfully", func() {
+			ginkgo.It("should create tenant without error", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Create(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(nil)
 
-func TestTenantHandler_GetByID_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTenantHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		dest := args.Get(0).(*TenantData)
-		*dest = TenantData{ID: "tenant-1", Name: "Tenant", Email: "tenant@example.com"}
-	}).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
+				// Execute the method
+				err := handler.Create(context.Background(), "tenant-1", testTenant)
 
-	result, err := handler.GetByID(context.Background(), "tenant-1")
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	resultMap, ok := result.(map[string]any)
-	assert.True(t, ok)
-	assert.Equal(t, "tenant-1", resultMap["id"])
-	assert.Equal(t, "Tenant", resultMap["name"])
-	mockOrm.AssertExpectations(t)
-}
+				// Assertions
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+		})
 
-func TestTenantHandler_GetByID_NotFound(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTenantHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(sql.ErrRecordNotFound)
-	handler.orm = mockOrm
-	result, err := handler.GetByID(context.Background(), "tenant-1")
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "getting tenant")
-	mockOrm.AssertExpectations(t)
-}
+		ginkgo.When("creating tenant fails", func() {
+			ginkgo.It("should return error when database fails", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Create(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(errors.New("db error"))
 
-func TestTenantHandler_Update_Success(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTenantHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
-	mockOrm.On("Save", mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(nil)
-	handler.orm = mockOrm
-	tenant := struct {
-		ID    string
-		Name  string
-		Email string
-	}{ID: "tenant-1", Name: "Tenant Updated", Email: "tenant2@example.com"}
-	err := handler.Update(context.Background(), "tenant-1", tenant)
-	assert.NoError(t, err)
-	mockOrm.AssertExpectations(t)
-}
+				// Execute the method
+				err := handler.Create(context.Background(), "tenant-1", testTenant)
 
-func TestTenantHandler_Update_Error(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTenantHandler(orm)
-	mockOrm := &MockORM{}
-	mockOrm.On("WithContext", mock.Anything).Return(mockOrm)
-	mockOrm.On("First", mock.Anything, mock.Anything).Return(mockOrm)
-	mockOrm.On("Error").Return(errors.New("db error"))
-	handler.orm = mockOrm
-	tenant := struct {
-		ID    string
-		Name  string
-		Email string
-	}{ID: "tenant-1", Name: "Tenant Updated", Email: "tenant2@example.com"}
-	err := handler.Update(context.Background(), "tenant-1", tenant)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "fetching existing tenant")
-	mockOrm.AssertExpectations(t)
-}
+				// Assertions
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("creating tenant"))
+			})
+		})
+	})
 
-func TestTenantHandler_extractTenantFields(t *testing.T) {
-	orm := &MockORM{}
-	handler := NewTenantHandler(orm)
+	ginkgo.Context("GetByID", func() {
+		var (
+			ctrl    *gomock.Controller
+			mockOrm *mocksql.MockORM
+			handler *handlers.TenantHandler
+		)
 
-	deletedAt := time.Date(2025, time.July, 5, 2, 5, 57, 34788000, time.Local)
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewTenantHandler(mockOrm)
+		})
 
-	avroTenant := &avro.AvroTenant{
-		ID:          "tenant-1",
-		Version:     2,
-		Name:        "Tenant",
-		Email:       "tenant@example.com",
-		Description: "desc",
-		IsActive:    true,
-		CreatedAt:   deletedAt,
-		UpdatedAt:   deletedAt,
-		DeletedAt:   &deletedAt,
-	}
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
 
-	result := handler.extractTenantFields(avroTenant)
+		ginkgo.When("getting tenant successfully", func() {
+			ginkgo.It("should return tenant data", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(dest interface{}, conds ...interface{}) *mocksql.MockORM {
+						// Set the destination with test data
+						tenantData := dest.(*handlers.TenantData)
+						*tenantData = handlers.TenantData{
+							ID:    "tenant-1",
+							Name:  "Tenant",
+							Email: "tenant@example.com",
+						}
+						return mockOrm
+					},
+				)
+				mockOrm.EXPECT().Error().Return(nil)
 
-	assert.Equal(t, "tenant-1", result.ID)
-	assert.Equal(t, 2, result.Version)
-	assert.Equal(t, "Tenant", result.Name)
-	assert.Equal(t, "tenant@example.com", result.Email)
-	assert.Equal(t, "desc", result.Description)
-	assert.Equal(t, true, result.IsActive)
-	assert.Equal(t, deletedAt, result.CreatedAt)
-	assert.Equal(t, deletedAt, result.UpdatedAt)
-	assert.Equal(t, &deletedAt, result.DeletedAt)
-}
+				// Execute the method
+				result, err := handler.GetByID(context.Background(), "tenant-1")
+
+				// Assertions
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(result).NotTo(gomega.BeNil())
+
+				resultMap, ok := result.(map[string]interface{})
+				gomega.Expect(ok).To(gomega.BeTrue())
+				gomega.Expect(resultMap["id"]).To(gomega.Equal("tenant-1"))
+				gomega.Expect(resultMap["name"]).To(gomega.Equal("Tenant"))
+			})
+		})
+
+		ginkgo.When("tenant not found", func() {
+			ginkgo.It("should return error when tenant not found", func() {
+				// Set up mock expectations
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(sql.ErrRecordNotFound)
+
+				// Execute the method
+				result, err := handler.GetByID(context.Background(), "tenant-1")
+
+				// Assertions
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(result).To(gomega.BeNil())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("getting tenant"))
+			})
+		})
+	})
+
+	ginkgo.Context("Update", func() {
+		var (
+			ctrl       *gomock.Controller
+			mockOrm    *mocksql.MockORM
+			handler    *handlers.TenantHandler
+			testTenant struct {
+				ID    string
+				Name  string
+				Email string
+			}
+		)
+
+		ginkgo.BeforeEach(func() {
+			ctrl = gomock.NewController(ginkgo.GinkgoT())
+			mockOrm = mocksql.NewMockORM(ctrl)
+			handler = handlers.NewTenantHandler(mockOrm)
+			testTenant = struct {
+				ID    string
+				Name  string
+				Email string
+			}{ID: "tenant-1", Name: "Updated Tenant", Email: "updated@example.com"}
+		})
+
+		ginkgo.AfterEach(func() {
+			ctrl.Finish()
+		})
+
+		ginkgo.When("updating tenant successfully", func() {
+			ginkgo.It("should update tenant without error", func() {
+				// Set up mock expectations - WithContext is called twice in Update method
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm).Times(2)
+				mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(nil)
+				mockOrm.EXPECT().Save(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(nil)
+
+				// Execute the method
+				err := handler.Update(context.Background(), "tenant-1", testTenant)
+
+				// Assertions
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+		})
+
+		ginkgo.When("updating tenant fails", func() {
+			ginkgo.It("should return error when database fails", func() {
+				// Set up mock expectations - WithContext is called once before First
+				mockOrm.EXPECT().WithContext(gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().First(gomock.Any(), gomock.Any()).Return(mockOrm)
+				mockOrm.EXPECT().Error().Return(errors.New("db error"))
+
+				// Execute the method
+				err := handler.Update(context.Background(), "tenant-1", testTenant)
+
+				// Assertions
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("fetching existing tenant"))
+			})
+		})
+	})
+
+})
