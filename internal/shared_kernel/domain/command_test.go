@@ -1,96 +1,81 @@
-package domain
+package domain_test
 
 import (
-	"testing"
 	"time"
+	"zensor-server/internal/shared_kernel/domain"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestCommandBuilder_SetsCreatedAt(t *testing.T) {
-	// Create a command using the builder
-	cmd, err := NewCommandBuilder().
-		WithDevice(Device{ID: "test-device", Name: "Test Device"}).
-		WithPayload(CommandPayload{Index: 1, Value: 100}).
-		Build()
+var _ = ginkgo.Describe("Command", func() {
+	ginkgo.Context("CommandBuilder", func() {
+		var cmd domain.Command
 
-	if err != nil {
-		t.Fatalf("Failed to build command: %v", err)
-	}
+		ginkgo.When("building a command", func() {
+			ginkgo.It("should set CreatedAt correctly", func() {
+				// Create a command using the builder
+				var err error
+				cmd, err = domain.NewCommandBuilder().
+					WithDevice(domain.Device{ID: "test-device", Name: "Test Device"}).
+					WithPayload(domain.CommandPayload{Index: 1, Value: 100}).
+					Build()
 
-	// Verify that CreatedAt is set and is recent
-	if cmd.CreatedAt.Time.IsZero() {
-		t.Error("CreatedAt should not be zero")
-	}
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Verify that CreatedAt is within the last second
-	now := time.Now()
-	if cmd.CreatedAt.Time.After(now) {
-		t.Error("CreatedAt should not be in the future")
-	}
+				// Verify that CreatedAt is set and is recent
+				gomega.Expect(cmd.CreatedAt.Time.IsZero()).To(gomega.BeFalse())
 
-	if now.Sub(cmd.CreatedAt.Time) > time.Second {
-		t.Error("CreatedAt should be set to a recent time")
-	}
+				// Verify that CreatedAt is within the last second
+				now := time.Now()
+				gomega.Expect(cmd.CreatedAt.Time.After(now)).To(gomega.BeFalse())
+				gomega.Expect(now.Sub(cmd.CreatedAt.Time) <= time.Second).To(gomega.BeTrue())
 
-	// Verify other fields are set correctly
-	if cmd.ID == "" {
-		t.Error("ID should be set")
-	}
-	if cmd.Version != 1 {
-		t.Error("Version should be 1")
-	}
-	if cmd.Device.ID != "test-device" {
-		t.Error("Device ID should be set correctly")
-	}
-	// Task field is not set by the builder, so we don't check it
-	if cmd.Payload.Index != 1 {
-		t.Error("Payload Index should be set correctly")
-	}
-	if cmd.Payload.Value != 100 {
-		t.Error("Payload Value should be set correctly")
-	}
-}
+				// Verify other fields are set correctly
+				gomega.Expect(cmd.ID).NotTo(gomega.BeEmpty())
+				gomega.Expect(cmd.Version).To(gomega.Equal(domain.Version(1)))
+				gomega.Expect(cmd.Device.ID).To(gomega.Equal(domain.ID("test-device")))
+				// Task field is not set by the builder, so we don't check it
+				gomega.Expect(cmd.Payload.Index).To(gomega.Equal(domain.Index(1)))
+				gomega.Expect(cmd.Payload.Value).To(gomega.Equal(domain.CommandValue(100)))
+			})
+		})
+	})
 
-func TestCommand_UpdateStatus_SetsQueuedAt(t *testing.T) {
-	// Create a command
-	cmd, err := NewCommandBuilder().
-		WithDevice(Device{ID: "test-device", Name: "Test Device"}).
-		WithPayload(CommandPayload{Index: 1, Value: 100}).
-		Build()
+	ginkgo.Context("UpdateStatus", func() {
+		var cmd domain.Command
 
-	if err != nil {
-		t.Fatalf("Failed to build command: %v", err)
-	}
+		ginkgo.When("updating command status to queued", func() {
+			ginkgo.It("should set QueuedAt correctly", func() {
+				// Create a command
+				var err error
+				cmd, err = domain.NewCommandBuilder().
+					WithDevice(domain.Device{ID: "test-device", Name: "Test Device"}).
+					WithPayload(domain.CommandPayload{Index: 1, Value: 100}).
+					Build()
 
-	// Initially, QueuedAt should be nil
-	if cmd.QueuedAt != nil {
-		t.Error("QueuedAt should be nil initially")
-	}
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Update status to queued
-	cmd.UpdateStatus(CommandStatusQueued, nil)
+				// Initially, QueuedAt should be nil
+				gomega.Expect(cmd.QueuedAt).To(gomega.BeNil())
 
-	// Verify that QueuedAt is now set
-	if cmd.QueuedAt == nil {
-		t.Error("QueuedAt should be set after updating status to queued")
-	}
+				// Update status to queued
+				cmd.UpdateStatus(domain.CommandStatusQueued, nil)
 
-	// Verify that QueuedAt is recent
-	now := time.Now()
-	if cmd.QueuedAt.Time.After(now) {
-		t.Error("QueuedAt should not be in the future")
-	}
+				// Verify that QueuedAt is now set
+				gomega.Expect(cmd.QueuedAt).NotTo(gomega.BeNil())
 
-	if now.Sub(cmd.QueuedAt.Time) > time.Second {
-		t.Error("QueuedAt should be set to a recent time")
-	}
+				// Verify that QueuedAt is recent
+				now := time.Now()
+				gomega.Expect(cmd.QueuedAt.Time.After(now)).To(gomega.BeFalse())
+				gomega.Expect(now.Sub(cmd.QueuedAt.Time) <= time.Second).To(gomega.BeTrue())
 
-	// Verify that status is updated
-	if cmd.Status != CommandStatusQueued {
-		t.Errorf("Status should be CommandStatusQueued, got %s", cmd.Status)
-	}
+				// Verify that status is updated
+				gomega.Expect(cmd.Status).To(gomega.Equal(domain.CommandStatusQueued))
 
-	// Verify that version is incremented
-	if cmd.Version != 2 {
-		t.Errorf("Version should be incremented to 2, got %d", cmd.Version)
-	}
-}
+				// Verify that version is incremented
+				gomega.Expect(cmd.Version).To(gomega.Equal(domain.Version(2)))
+			})
+		})
+	})
+})

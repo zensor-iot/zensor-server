@@ -1,110 +1,132 @@
-package pubsub
+package pubsub_test
 
 import (
 	"context"
-	"testing"
 	"time"
+	"zensor-server/internal/infra/pubsub"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestMemoryPubSub(t *testing.T) {
-	// Reset the broker for clean test state
-	broker := GetMemoryBroker()
-	broker.Reset()
+var _ = ginkgo.Describe("MemoryPubSub", func() {
+	ginkgo.Context("MemoryPubSub", func() {
+		var (
+			broker           *pubsub.MemoryBroker
+			publisherFactory pubsub.PublisherFactory
+			consumerFactory  pubsub.ConsumerFactory
+			publisher        pubsub.Publisher
+			consumer         pubsub.Consumer
+			messageReceived  chan bool
+			receivedMessage  any
+			testMessage      string
+		)
 
-	// Create factories
-	publisherFactory := NewMemoryPublisherFactory()
-	consumerFactory := NewMemoryConsumerFactory("test-group")
+		ginkgo.When("publishing and consuming messages", func() {
+			ginkgo.BeforeEach(func() {
+				// Reset the broker for clean test state
+				broker = pubsub.GetMemoryBroker()
+				broker.Reset()
 
-	// Create a publisher
-	publisher, err := publisherFactory.New("test-topic", "test-message")
-	if err != nil {
-		t.Fatalf("Failed to create publisher: %v", err)
-	}
+				// Create factories
+				publisherFactory = pubsub.NewMemoryPublisherFactory()
+				consumerFactory = pubsub.NewMemoryConsumerFactory("test-group")
 
-	// Create a consumer
-	consumer := consumerFactory.New()
+				// Create a publisher
+				var err error
+				publisher, err = publisherFactory.New("test-topic", "test-message")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Channel to receive messages
-	messageReceived := make(chan bool, 1)
-	var receivedMessage any
+				// Create a consumer
+				consumer = consumerFactory.New()
 
-	// Message handler
-	handler := func(_ context.Context, key Key, prototype Prototype) error {
-		receivedMessage = prototype
-		messageReceived <- true
-		return nil
-	}
+				// Channel to receive messages
+				messageReceived = make(chan bool, 1)
+				testMessage = "hello world"
+			})
 
-	// Start consuming
-	err = consumer.Consume("test-topic", handler, "test-message")
-	if err != nil {
-		t.Fatalf("Failed to start consumer: %v", err)
-	}
+			ginkgo.It("should successfully publish and consume messages", func() {
+				// Message handler
+				handler := func(_ context.Context, key pubsub.Key, prototype pubsub.Prototype) error {
+					receivedMessage = prototype
+					messageReceived <- true
+					return nil
+				}
 
-	// Give some time for consumer to register
-	time.Sleep(10 * time.Millisecond)
+				// Start consuming
+				err := consumer.Consume("test-topic", handler, "test-message")
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	// Publish a message
-	testMessage := "hello world"
-	err = publisher.Publish(context.Background(), "test-key", testMessage)
-	if err != nil {
-		t.Fatalf("Failed to publish message: %v", err)
-	}
+				// Give some time for consumer to register
+				time.Sleep(10 * time.Millisecond)
 
-	// Wait for message to be received
-	select {
-	case <-messageReceived:
-		// Message received successfully
-		if receivedMessage != testMessage {
-			t.Errorf("Expected message %v, got %v", testMessage, receivedMessage)
-		}
-	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for message")
-	}
-}
+				// Publish a message
+				err = publisher.Publish(context.Background(), "test-key", testMessage)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-func TestMemoryPubSubFactory(t *testing.T) {
-	factory := NewFactory(FactoryOptions{
-		Environment:       "local",
-		KafkaBrokers:      []string{"localhost:9092"},
-		ConsumerGroup:     "test-group",
-		SchemaRegistryURL: "http://localhost:8081",
+				// Wait for message to be received
+				select {
+				case <-messageReceived:
+					// Message received successfully
+					gomega.Expect(receivedMessage).To(gomega.Equal(testMessage))
+				case <-time.After(1 * time.Second):
+					ginkgo.Fail("Timeout waiting for message")
+				}
+			})
+		})
 	})
 
-	// Verify we get memory implementations
-	publisherFactory := factory.GetPublisherFactory()
-	consumerFactory := factory.GetConsumerFactory()
+	ginkgo.Context("MemoryPubSubFactory", func() {
+		var factory *pubsub.Factory
 
-	_, ok := publisherFactory.(*MemoryPublisherFactory)
-	if !ok {
-		t.Error("Expected MemoryPublisherFactory when Environment=local")
-	}
+		ginkgo.When("creating factory with local environment", func() {
+			ginkgo.BeforeEach(func() {
+				factory = pubsub.NewFactory(pubsub.FactoryOptions{
+					Environment:       "local",
+					KafkaBrokers:      []string{"localhost:9092"},
+					ConsumerGroup:     "test-group",
+					SchemaRegistryURL: "http://localhost:8081",
+				})
+			})
 
-	_, ok = consumerFactory.(*MemoryConsumerFactory)
-	if !ok {
-		t.Error("Expected MemoryConsumerFactory when Environment=local")
-	}
-}
+			ginkgo.It("should return memory implementations", func() {
+				// Verify we get memory implementations
+				publisherFactory := factory.GetPublisherFactory()
+				consumerFactory := factory.GetConsumerFactory()
 
-func TestMemoryPubSubNonLocal(t *testing.T) {
-	factory := NewFactory(FactoryOptions{
-		Environment:       "production",
-		KafkaBrokers:      []string{"localhost:9092"},
-		ConsumerGroup:     "test-group",
-		SchemaRegistryURL: "http://localhost:8081",
+				_, ok := publisherFactory.(*pubsub.MemoryPublisherFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+
+				_, ok = consumerFactory.(*pubsub.MemoryConsumerFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+			})
+		})
 	})
 
-	// Verify we get Kafka implementations
-	publisherFactory := factory.GetPublisherFactory()
-	consumerFactory := factory.GetConsumerFactory()
+	ginkgo.Context("MemoryPubSubNonLocal", func() {
+		var factory *pubsub.Factory
 
-	_, ok := publisherFactory.(*KafkaPublisherFactory)
-	if !ok {
-		t.Error("Expected KafkaPublisherFactory when Environment!=local")
-	}
+		ginkgo.When("creating factory with non-local environment", func() {
+			ginkgo.BeforeEach(func() {
+				factory = pubsub.NewFactory(pubsub.FactoryOptions{
+					Environment:       "production",
+					KafkaBrokers:      []string{"localhost:9092"},
+					ConsumerGroup:     "test-group",
+					SchemaRegistryURL: "http://localhost:8081",
+				})
+			})
 
-	_, ok = consumerFactory.(*KafkaConsumerFactory)
-	if !ok {
-		t.Error("Expected KafkaConsumerFactory when Environment!=local")
-	}
-}
+			ginkgo.It("should return Kafka implementations", func() {
+				// Verify we get Kafka implementations
+				publisherFactory := factory.GetPublisherFactory()
+				consumerFactory := factory.GetConsumerFactory()
+
+				_, ok := publisherFactory.(*pubsub.KafkaPublisherFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+
+				_, ok = consumerFactory.(*pubsub.KafkaConsumerFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+			})
+		})
+	})
+})

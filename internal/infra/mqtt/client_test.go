@@ -1,27 +1,42 @@
-package mqtt
+package mqtt_test
 
 import (
-	"testing"
+	"zensor-server/internal/infra/mqtt"
 
 	paho "github.com/eclipse/paho.mqtt.golang"
-	"github.com/stretchr/testify/assert"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestSimpleClientOpts(t *testing.T) {
-	opts := SimpleClientOpts{
-		Broker:   "tcp://localhost:1883",
-		ClientID: "test-client",
-		Username: "test-user",
-		Password: "test-pass",
-	}
+var _ = ginkgo.Describe("MQTT Client", func() {
+	ginkgo.Context("SimpleClientOpts", func() {
+		var opts mqtt.SimpleClientOpts
 
-	assert.Equal(t, "tcp://localhost:1883", opts.Broker)
-	assert.Equal(t, "test-client", opts.ClientID)
-	assert.Equal(t, "test-user", opts.Username)
-	assert.Equal(t, "test-pass", opts.Password)
-}
+		ginkgo.When("creating client options", func() {
+			ginkgo.BeforeEach(func() {
+				opts = mqtt.SimpleClientOpts{
+					Broker:   "tcp://localhost:1883",
+					ClientID: "test-client",
+					Username: "test-user",
+					Password: "test-pass",
+				}
+			})
 
-func TestMessageTypeAlias(t *testing.T) {
-	// This test ensures that Message is properly aliased to paho.Message
-	var _ Message = (paho.Message)(nil)
-}
+			ginkgo.It("should have correct configuration values", func() {
+				gomega.Expect(opts.Broker).To(gomega.Equal("tcp://localhost:1883"))
+				gomega.Expect(opts.ClientID).To(gomega.Equal("test-client"))
+				gomega.Expect(opts.Username).To(gomega.Equal("test-user"))
+				gomega.Expect(opts.Password).To(gomega.Equal("test-pass"))
+			})
+		})
+	})
+
+	ginkgo.Context("MessageTypeAlias", func() {
+		ginkgo.When("checking message type alias", func() {
+			ginkgo.It("should properly alias Message to paho.Message", func() {
+				// This test ensures that Message is properly aliased to paho.Message
+				var _ mqtt.Message = (paho.Message)(nil)
+			})
+		})
+	})
+})

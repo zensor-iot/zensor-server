@@ -3,8 +3,10 @@ package pubsub
 import (
 	"context"
 	"fmt"
-	"testing"
 	"time"
+
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
 // Example of how to use the pubsub factory in tests
@@ -105,39 +107,48 @@ func ExampleFactory_production() {
 	// Using Kafka consumer factory
 }
 
-// Test demonstrating the factory behavior
-func TestFactoryBehavior(t *testing.T) {
-	// Test local environment
-	factory := NewFactory(FactoryOptions{
-		Environment:       "local",
-		KafkaBrokers:      []string{"localhost:9092"},
-		ConsumerGroup:     "test-group",
-		SchemaRegistryURL: "http://localhost:8081",
+var _ = ginkgo.Describe("Factory", func() {
+	ginkgo.Context("FactoryBehavior", func() {
+		var factory *Factory
+
+		ginkgo.When("creating factory with local environment", func() {
+			ginkgo.BeforeEach(func() {
+				factory = NewFactory(FactoryOptions{
+					Environment:       "local",
+					KafkaBrokers:      []string{"localhost:9092"},
+					ConsumerGroup:     "test-group",
+					SchemaRegistryURL: "http://localhost:8081",
+				})
+			})
+
+			ginkgo.It("should return memory implementations", func() {
+				// Should be memory implementations
+				_, ok := factory.GetPublisherFactory().(*MemoryPublisherFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+
+				_, ok = factory.GetConsumerFactory().(*MemoryConsumerFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+			})
+		})
+
+		ginkgo.When("creating factory with production environment", func() {
+			ginkgo.BeforeEach(func() {
+				factory = NewFactory(FactoryOptions{
+					Environment:       "production",
+					KafkaBrokers:      []string{"localhost:9092"},
+					ConsumerGroup:     "test-group",
+					SchemaRegistryURL: "http://localhost:8081",
+				})
+			})
+
+			ginkgo.It("should return Kafka implementations", func() {
+				// Should be Kafka implementations
+				_, ok := factory.GetPublisherFactory().(*KafkaPublisherFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+
+				_, ok = factory.GetConsumerFactory().(*KafkaConsumerFactory)
+				gomega.Expect(ok).To(gomega.BeTrue())
+			})
+		})
 	})
-
-	// Should be memory implementations
-	if _, ok := factory.GetPublisherFactory().(*MemoryPublisherFactory); !ok {
-		t.Error("Expected MemoryPublisherFactory when Environment=local")
-	}
-
-	if _, ok := factory.GetConsumerFactory().(*MemoryConsumerFactory); !ok {
-		t.Error("Expected MemoryConsumerFactory when Environment=local")
-	}
-
-	// Test production environment
-	factory = NewFactory(FactoryOptions{
-		Environment:       "production",
-		KafkaBrokers:      []string{"localhost:9092"},
-		ConsumerGroup:     "test-group",
-		SchemaRegistryURL: "http://localhost:8081",
-	})
-
-	// Should be Kafka implementations
-	if _, ok := factory.GetPublisherFactory().(*KafkaPublisherFactory); !ok {
-		t.Error("Expected KafkaPublisherFactory when Environment=production")
-	}
-
-	if _, ok := factory.GetConsumerFactory().(*KafkaConsumerFactory); !ok {
-		t.Error("Expected KafkaConsumerFactory when Environment=production")
-	}
-}
+})

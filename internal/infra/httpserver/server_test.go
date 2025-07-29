@@ -4,145 +4,136 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
-func TestTracingMiddleware(t *testing.T) {
-	// Set up a test trace provider
-	tp := trace.NewTracerProvider(
-		trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
+var _ = ginkgo.Describe("HTTPServer", func() {
+	var (
+		tp *trace.TracerProvider
 	)
-	otel.SetTracerProvider(tp)
-	defer tp.Shutdown(context.Background())
 
-	// Create a test handler that checks if span is in context
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		span := GetSpanFromContext(r)
-		if span == nil {
-			t.Error("Expected span to be in request context, but got nil")
-			return
-		}
-
-		// Check that we have a valid span context
-		spanCtx := span.SpanContext()
-		if !spanCtx.HasSpanID() {
-			t.Error("Expected span to have a span ID")
-		}
-
-		w.WriteHeader(http.StatusOK)
+	ginkgo.BeforeEach(func() {
+		// Set up a test trace provider
+		tp = trace.NewTracerProvider(
+			trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
+		)
+		otel.SetTracerProvider(tp)
 	})
 
-	// Create middleware
-	middleware := createTracingMiddleware()
-	wrappedHandler := middleware(testHandler)
-
-	// Create test request
-	req := httptest.NewRequest("GET", "/test", nil)
-	rec := httptest.NewRecorder()
-
-	// Execute request
-	wrappedHandler.ServeHTTP(rec, req)
-
-	// Check response
-	if rec.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", rec.Code)
-	}
-}
-
-func TestGetSpanFromContext(t *testing.T) {
-	// Test with request that has no span
-	req := httptest.NewRequest("GET", "/test", nil)
-	span := GetSpanFromContext(req)
-
-	// Should return a no-op span when no span is in context
-	if span == nil {
-		t.Error("Expected GetSpanFromContext to return a span (even if no-op), but got nil")
-	}
-}
-
-func TestUserHeaderMiddleware(t *testing.T) {
-	// Set up a test trace provider
-	tp := trace.NewTracerProvider(
-		trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
-	)
-	otel.SetTracerProvider(tp)
-	defer tp.Shutdown(context.Background())
-
-	// Create a test handler that checks if user attributes are in span
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		span := GetSpanFromContext(r)
-		if span == nil {
-			t.Error("Expected span to be in request context, but got nil")
-			return
-		}
-
-		// Check that we have a valid span context
-		spanCtx := span.SpanContext()
-		if !spanCtx.HasSpanID() {
-			t.Error("Expected span to have a span ID")
-		}
-
-		w.WriteHeader(http.StatusOK)
+	ginkgo.AfterEach(func() {
+		tp.Shutdown(context.Background())
 	})
 
-	// Create middleware chain
-	tracingMiddleware := createTracingMiddleware()
-	userHeaderMiddleware := createUserHeaderMiddleware()
-	wrappedHandler := tracingMiddleware(userHeaderMiddleware(testHandler))
+	ginkgo.Context("TracingMiddleware", func() {
+		ginkgo.When("using tracing middleware", func() {
+			ginkgo.It("should add span to request context", func() {
+				// Create a test handler that checks if span is in context
+				testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					span := GetSpanFromContext(r)
+					gomega.Expect(span).NotTo(gomega.BeNil())
 
-	// Create test request with user headers
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-User-ID", "user123")
-	req.Header.Set("X-User-Name", "John Doe")
-	req.Header.Set("X-User-Email", "john.doe@example.com")
-	rec := httptest.NewRecorder()
+					// Check that we have a valid span context
+					spanCtx := span.SpanContext()
+					gomega.Expect(spanCtx.HasSpanID()).To(gomega.BeTrue())
 
-	// Execute request
-	wrappedHandler.ServeHTTP(rec, req)
+					w.WriteHeader(http.StatusOK)
+				})
 
-	// Check response
-	if rec.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", rec.Code)
-	}
-}
+				// Create middleware
+				middleware := createTracingMiddleware()
+				wrappedHandler := middleware(testHandler)
 
-func TestUserHeaderMiddlewareWithoutHeaders(t *testing.T) {
-	// Set up a test trace provider
-	tp := trace.NewTracerProvider(
-		trace.WithSpanProcessor(tracetest.NewSpanRecorder()),
-	)
-	otel.SetTracerProvider(tp)
-	defer tp.Shutdown(context.Background())
+				// Create test request
+				req := httptest.NewRequest("GET", "/test", nil)
+				rec := httptest.NewRecorder()
 
-	// Create a test handler
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		span := GetSpanFromContext(r)
-		if span == nil {
-			t.Error("Expected span to be in request context, but got nil")
-			return
-		}
+				// Execute request
+				wrappedHandler.ServeHTTP(rec, req)
 
-		w.WriteHeader(http.StatusOK)
+				// Check response
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+			})
+		})
 	})
 
-	// Create middleware chain
-	tracingMiddleware := createTracingMiddleware()
-	userHeaderMiddleware := createUserHeaderMiddleware()
-	wrappedHandler := tracingMiddleware(userHeaderMiddleware(testHandler))
+	ginkgo.Context("GetSpanFromContext", func() {
+		ginkgo.When("getting span from context", func() {
+			ginkgo.It("should return a span even when no span is in context", func() {
+				// Test with request that has no span
+				req := httptest.NewRequest("GET", "/test", nil)
+				span := GetSpanFromContext(req)
 
-	// Create test request without user headers
-	req := httptest.NewRequest("GET", "/test", nil)
-	rec := httptest.NewRecorder()
+				// Should return a no-op span when no span is in context
+				gomega.Expect(span).NotTo(gomega.BeNil())
+			})
+		})
+	})
 
-	// Execute request
-	wrappedHandler.ServeHTTP(rec, req)
+	ginkgo.Context("UserHeaderMiddleware", func() {
+		ginkgo.When("using user header middleware with headers", func() {
+			ginkgo.It("should process user headers correctly", func() {
+				// Create a test handler that checks if user attributes are in span
+				testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					span := GetSpanFromContext(r)
+					gomega.Expect(span).NotTo(gomega.BeNil())
 
-	// Check response
-	if rec.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", rec.Code)
-	}
-}
+					// Check that we have a valid span context
+					spanCtx := span.SpanContext()
+					gomega.Expect(spanCtx.HasSpanID()).To(gomega.BeTrue())
+
+					w.WriteHeader(http.StatusOK)
+				})
+
+				// Create middleware chain
+				tracingMiddleware := createTracingMiddleware()
+				userHeaderMiddleware := createUserHeaderMiddleware()
+				wrappedHandler := tracingMiddleware(userHeaderMiddleware(testHandler))
+
+				// Create test request with user headers
+				req := httptest.NewRequest("GET", "/test", nil)
+				req.Header.Set("X-User-ID", "user123")
+				req.Header.Set("X-User-Name", "John Doe")
+				req.Header.Set("X-User-Email", "john.doe@example.com")
+				rec := httptest.NewRecorder()
+
+				// Execute request
+				wrappedHandler.ServeHTTP(rec, req)
+
+				// Check response
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+			})
+		})
+
+		ginkgo.When("using user header middleware without headers", func() {
+			ginkgo.It("should handle requests without user headers", func() {
+				// Create a test handler
+				testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					span := GetSpanFromContext(r)
+					gomega.Expect(span).NotTo(gomega.BeNil())
+
+					w.WriteHeader(http.StatusOK)
+				})
+
+				// Create middleware chain
+				tracingMiddleware := createTracingMiddleware()
+				userHeaderMiddleware := createUserHeaderMiddleware()
+				wrappedHandler := tracingMiddleware(userHeaderMiddleware(testHandler))
+
+				// Create test request without user headers
+				req := httptest.NewRequest("GET", "/test", nil)
+				rec := httptest.NewRecorder()
+
+				// Execute request
+				wrappedHandler.ServeHTTP(rec, req)
+
+				// Check response
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+			})
+		})
+	})
+})

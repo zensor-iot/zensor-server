@@ -1,74 +1,88 @@
-package dto
+package dto_test
 
 import (
-	"testing"
 	"time"
+	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/shared_kernel/domain"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
-func TestCommandStatusUpdateDTO_ToDomain(t *testing.T) {
-	// Create a test DTO
-	dto := CommandStatusUpdateDTO{
-		CommandID:    "test-command-123",
-		DeviceName:   "test-device",
-		Status:       "queued",
-		ErrorMessage: nil,
-		Timestamp:    time.Now(),
-	}
+var _ = ginkgo.Describe("CommandStatusUpdateDTO", func() {
+	ginkgo.Context("ToDomain", func() {
+		var (
+			commandStatusDTO dto.CommandStatusUpdateDTO
+			errorMsg         string
+		)
 
-	// Convert to domain
-	domainObj := dto.ToDomain()
+		ginkgo.When("converting DTO to domain object", func() {
+			ginkgo.It("should convert successfully without error message", func() {
+				commandStatusDTO = dto.CommandStatusUpdateDTO{
+					CommandID:    "test-command-123",
+					DeviceName:   "test-device",
+					Status:       "queued",
+					ErrorMessage: nil,
+					Timestamp:    time.Now(),
+				}
 
-	// Verify conversion
-	assert.Equal(t, "test-command-123", domainObj.CommandID)
-	assert.Equal(t, "test-device", domainObj.DeviceName)
-	assert.Equal(t, domain.CommandStatusQueued, domainObj.Status)
-	assert.Nil(t, domainObj.ErrorMessage)
-	assert.Equal(t, dto.Timestamp, domainObj.Timestamp)
-}
+				// Convert to domain
+				domainObj := commandStatusDTO.ToDomain()
 
-func TestCommandStatusUpdateDTO_FromDomain(t *testing.T) {
-	// Create a test domain object
-	domainObj := domain.CommandStatusUpdate{
-		CommandID:    "test-command-456",
-		DeviceName:   "test-device-2",
-		Status:       domain.CommandStatusSent,
-		ErrorMessage: nil,
-		Timestamp:    time.Now(),
-	}
+				// Verify conversion
+				gomega.Expect(domainObj.CommandID).To(gomega.Equal("test-command-123"))
+				gomega.Expect(domainObj.DeviceName).To(gomega.Equal("test-device"))
+				gomega.Expect(domainObj.Status).To(gomega.Equal(domain.CommandStatusQueued))
+				gomega.Expect(domainObj.ErrorMessage).To(gomega.BeNil())
+				gomega.Expect(domainObj.Timestamp).To(gomega.Equal(commandStatusDTO.Timestamp))
+			})
 
-	// Convert to DTO
-	dto := FromDomain(domainObj)
+			ginkgo.It("should convert successfully with error message", func() {
+				errorMsg = "command failed"
+				commandStatusDTO = dto.CommandStatusUpdateDTO{
+					CommandID:    "test-command-789",
+					DeviceName:   "test-device-3",
+					Status:       "failed",
+					ErrorMessage: &errorMsg,
+					Timestamp:    time.Now(),
+				}
 
-	// Verify conversion
-	assert.Equal(t, "test-command-456", dto.CommandID)
-	assert.Equal(t, "test-device-2", dto.DeviceName)
-	assert.Equal(t, "confirmed", dto.Status)
-	assert.Nil(t, dto.ErrorMessage)
-	assert.Equal(t, domainObj.Timestamp, dto.Timestamp)
-}
+				// Convert to domain
+				domainObj := commandStatusDTO.ToDomain()
 
-func TestCommandStatusUpdateDTO_WithErrorMessage(t *testing.T) {
-	errorMsg := "command failed"
+				// Verify conversion
+				gomega.Expect(domainObj.CommandID).To(gomega.Equal("test-command-789"))
+				gomega.Expect(domainObj.DeviceName).To(gomega.Equal("test-device-3"))
+				gomega.Expect(domainObj.Status).To(gomega.Equal(domain.CommandStatusFailed))
+				gomega.Expect(domainObj.ErrorMessage).To(gomega.Equal(&errorMsg))
+				gomega.Expect(domainObj.Timestamp).To(gomega.Equal(commandStatusDTO.Timestamp))
+			})
+		})
+	})
 
-	// Create a test DTO with error message
-	dto := CommandStatusUpdateDTO{
-		CommandID:    "test-command-789",
-		DeviceName:   "test-device-3",
-		Status:       "failed",
-		ErrorMessage: &errorMsg,
-		Timestamp:    time.Now(),
-	}
+	ginkgo.Context("FromDomain", func() {
+		var domainObj domain.CommandStatusUpdate
 
-	// Convert to domain
-	domainObj := dto.ToDomain()
+		ginkgo.When("converting domain object to DTO", func() {
+			ginkgo.It("should convert successfully", func() {
+				domainObj = domain.CommandStatusUpdate{
+					CommandID:    "test-command-456",
+					DeviceName:   "test-device-2",
+					Status:       domain.CommandStatusSent,
+					ErrorMessage: nil,
+					Timestamp:    time.Now(),
+				}
 
-	// Verify conversion
-	assert.Equal(t, "test-command-789", domainObj.CommandID)
-	assert.Equal(t, "test-device-3", domainObj.DeviceName)
-	assert.Equal(t, domain.CommandStatusFailed, domainObj.Status)
-	assert.Equal(t, &errorMsg, domainObj.ErrorMessage)
-	assert.Equal(t, dto.Timestamp, domainObj.Timestamp)
-}
+				// Convert to DTO
+				dto := dto.FromDomain(domainObj)
+
+				// Verify conversion
+				gomega.Expect(dto.CommandID).To(gomega.Equal("test-command-456"))
+				gomega.Expect(dto.DeviceName).To(gomega.Equal("test-device-2"))
+				gomega.Expect(dto.Status).To(gomega.Equal("confirmed"))
+				gomega.Expect(dto.ErrorMessage).To(gomega.BeNil())
+				gomega.Expect(dto.Timestamp).To(gomega.Equal(domainObj.Timestamp))
+			})
+		})
+	})
+})
