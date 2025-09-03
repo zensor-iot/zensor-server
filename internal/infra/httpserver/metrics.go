@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
+	"regexp"
 	"sync"
 	"time"
 
@@ -21,6 +21,9 @@ var (
 	httpRequestActive   metric.Int64UpDownCounter
 	metricsInitialized  bool
 	metricsMutex        sync.Mutex
+
+	// UUID regex pattern for identifying UUIDs in paths
+	uuidRegex = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 )
 
 // ResetMetricsForTesting resets the metrics initialization state for testing purposes
@@ -89,9 +92,8 @@ func MetricsMiddleware() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
-			// Extract endpoint from request path
-			// endpoint := extractEndpoint(r.URL.Path)
-			endpoint := r.URL.Path
+			// Normalize endpoint by replacing UUIDs with route patterns
+			endpoint := normalizeEndpoint(r.URL.Path)
 
 			// Increment active requests counter
 			httpRequestActive.Add(r.Context(), 1,
@@ -157,24 +159,16 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, fmt.Errorf("underlying ResponseWriter does not support hijacking")
 }
 
-// extractEndpoint extracts a clean endpoint name from the request path
+// normalizeEndpoint normalizes the request path by replacing UUIDs with route patterns
 // This helps group similar endpoints together for better metrics aggregation
-func extractEndpoint(path string) string {
-	// Remove leading slash
-	if len(path) > 0 && path[0] == '/' {
-		path = path[1:]
-	}
-
-	// If path is empty, return "root"
-	if path == "" {
+func normalizeEndpoint(path string) string {
+	if path == "" || path == "/" {
 		return "root"
 	}
 
-	// Split by '/' and take the first part as the endpoint
-	parts := strings.Split(path, "/")
-	if len(parts) > 0 {
-		return parts[0]
-	}
+	normalizedPath := uuidRegex.ReplaceAllStringFunc(path, func(uuid string) string {
+		return "_id"
+	})
 
-	return "unknown"
+	return normalizedPath
 }

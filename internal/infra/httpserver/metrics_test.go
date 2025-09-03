@@ -52,34 +52,34 @@ var _ = ginkgo.Describe("Metrics", func() {
 		})
 	})
 
-	ginkgo.Context("ExtractEndpoint", func() {
+	ginkgo.Context("NormalizeEndpoint", func() {
 		var (
 			path     string
 			expected string
 		)
 
-		ginkgo.When("extracting endpoint from path", func() {
+		ginkgo.When("normalizing endpoint from path", func() {
 			ginkgo.It("should handle root path", func() {
 				path = "/"
 				expected = "root"
 
-				result := extractEndpoint(path)
+				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 
 			ginkgo.It("should handle simple endpoint", func() {
 				path = "/api"
-				expected = "api"
+				expected = "/api"
 
-				result := extractEndpoint(path)
+				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 
 			ginkgo.It("should handle nested endpoint", func() {
 				path = "/api/v1/users"
-				expected = "api"
+				expected = "/api/v1/users"
 
-				result := extractEndpoint(path)
+				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 
@@ -87,15 +87,89 @@ var _ = ginkgo.Describe("Metrics", func() {
 				path = ""
 				expected = "root"
 
-				result := extractEndpoint(path)
+				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 
 			ginkgo.It("should handle single segment", func() {
 				path = "/healthz"
-				expected = "healthz"
+				expected = "/healthz"
 
-				result := extractEndpoint(path)
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+		})
+
+		ginkgo.When("normalizing endpoint with UUIDs", func() {
+			ginkgo.It("should replace device UUID with _id", func() {
+				path = "/v1/devices/123e4567-e89b-12d3-a456-426614174000"
+				expected = "/v1/devices/_id"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should replace tenant UUID with _id", func() {
+				path = "/v1/tenants/123e4567-e89b-12d3-a456-426614174000"
+				expected = "/v1/tenants/_id"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should replace device UUID in commands endpoint", func() {
+				path = "/v1/devices/123e4567-e89b-12d3-a456-426614174000/commands"
+				expected = "/v1/devices/_id/commands"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should replace device UUID in tasks endpoint", func() {
+				path = "/v1/devices/123e4567-e89b-12d3-a456-426614174000/tasks"
+				expected = "/v1/devices/_id/tasks"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should replace device UUID in evaluation-rules endpoint", func() {
+				path = "/v1/devices/123e4567-e89b-12d3-a456-426614174000/evaluation-rules"
+				expected = "/v1/devices/_id/evaluation-rules"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should replace tenant UUID in configuration endpoint", func() {
+				path = "/v1/tenants/123e4567-e89b-12d3-a456-426614174000/configuration"
+				expected = "/v1/tenants/_id/configuration"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should replace device UUID in WebSocket endpoint", func() {
+				path = "/ws/devices/123e4567-e89b-12d3-a456-426614174000/messages"
+				expected = "/ws/devices/_id/messages"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should handle complex nested path with multiple UUIDs", func() {
+				path = "/v1/tenants/123e4567-e89b-12d3-a456-426614174000/devices/987fcdeb-51a2-43d7-8f9e-123456789abc/scheduled-tasks/456e7890-e12b-34c5-d678-901234567def"
+				expected = "/v1/tenants/_id/devices/_id/scheduled-tasks/_id"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should handle tenant devices endpoint", func() {
+				path = "/v1/tenants/123e4567-e89b-12d3-a456-426614174000/devices"
+				expected = "/v1/tenants/_id/devices"
+
+				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 		})
