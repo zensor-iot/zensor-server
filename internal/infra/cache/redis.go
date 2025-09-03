@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // RedisCache provides a generic caching implementation with TTL support using Redis
@@ -104,11 +107,16 @@ func NewRedisCache(config *RedisConfig) (*RedisCache, error) {
 
 // Get retrieves a value from the cache
 func (c *RedisCache) Get(ctx context.Context, key string) (any, bool) {
+	ctx, span := c.createSpan(ctx, "get", key)
+	defer span.End()
+
 	result, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if err == redis.Nil {
+			span.SetAttributes(attribute.Bool("cache.hit", false))
 			return nil, false
 		}
+		span.RecordError(err)
 		slog.Error("failed to get value from Redis cache",
 			slog.String("key", key),
 			slog.String("error", err.Error()))
@@ -119,17 +127,25 @@ func (c *RedisCache) Get(ctx context.Context, key string) (any, bool) {
 	var value any
 	if err := json.Unmarshal([]byte(result), &value); err != nil {
 		// If JSON unmarshaling fails, return the raw string
+		span.SetAttributes(attribute.Bool("cache.hit", true))
 		return result, true
 	}
 
+	span.SetAttributes(attribute.Bool("cache.hit", true))
 	return value, true
 }
 
 // Set stores a value in the cache with TTL
 func (c *RedisCache) Set(ctx context.Context, key string, value any, ttl time.Duration) bool {
+	ctx, span := c.createSpan(ctx, "set", key)
+	defer span.End()
+
+	span.SetAttributes(attribute.Int64("db.redis.ttl_ms", ttl.Milliseconds()))
+
 	// Marshal the value to JSON
 	data, err := json.Marshal(value)
 	if err != nil {
+		span.RecordError(err)
 		slog.Error("failed to marshal value for Redis cache",
 			slog.String("key", key),
 			slog.String("error", err.Error()))
@@ -144,6 +160,7 @@ func (c *RedisCache) Set(ctx context.Context, key string, value any, ttl time.Du
 	}
 
 	if err := cmd.Err(); err != nil {
+		span.RecordError(err)
 		slog.Error("failed to set value in Redis cache",
 			slog.String("key", key),
 			slog.String("error", err.Error()))
@@ -155,7 +172,11 @@ func (c *RedisCache) Set(ctx context.Context, key string, value any, ttl time.Du
 
 // Delete removes a value from the cache
 func (c *RedisCache) Delete(ctx context.Context, key string) {
+	ctx, span := c.createSpan(ctx, "delete", key)
+	defer span.End()
+
 	if err := c.client.Del(ctx, key).Err(); err != nil {
+		span.RecordError(err)
 		slog.Error("failed to delete value from Redis cache",
 			slog.String("key", key),
 			slog.String("error", err.Error()))
@@ -194,4 +215,18 @@ func (c *RedisCache) Ping() error {
 // PingWithContext tests the Redis connection with context
 func (c *RedisCache) PingWithContext(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()
+}
+
+// createSpan creates a new OpenTelemetry span for Redis operations
+func (c *RedisCache) createSpan(ctx context.Context, operation, key string) (context.Context, trace.Span) {
+	tracer := otel.Tracer("zensor-server")
+	return tracer.Start(ctx, "redis."+operation,
+		trace.WithAttributes(
+			attribute.String("span.kind", "client"),
+			attribute.String("component", "redis-cache"),
+			attribute.String("db.system", "redis"),
+			attribute.String("db.operation", operation),
+			attribute.String("db.redis.key", key),
+		),
+	)
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
@@ -70,33 +71,35 @@ func (d DB) AutoMigrate(dst ...any) error {
 }
 
 func (d DB) Count(value *int64) ORM {
+	d.createSpan("count")
 	tx := d.DB.Count(value)
 	d.DB = tx
 	return &d
 }
 
 func (d DB) Create(value any) ORM {
-	d.setSpanAttributes("create")
+	d.createSpan("create")
 	tx := d.DB.Create(value)
 	d.DB = tx
 	return &d
 }
 
 func (d DB) Delete(value any, conds ...any) ORM {
+	d.createSpan("delete")
 	tx := d.DB.Delete(value, conds...)
 	d.DB = tx
 	return &d
 }
 
 func (d DB) Find(value any, conds ...any) ORM {
-	d.setSpanAttributes("find")
+	d.createSpan("find")
 	tx := d.DB.Find(value, conds...)
 	d.DB = tx
 	return &d
 }
 
 func (d DB) First(value any, conds ...any) ORM {
-	d.setSpanAttributes("first")
+	d.createSpan("first")
 	tx := d.DB.First(value, conds...)
 	d.DB = tx
 	return &d
@@ -133,7 +136,7 @@ func (d DB) Preload(value string, conds ...any) ORM {
 }
 
 func (d DB) Save(value any) ORM {
-	d.setSpanAttributes("save")
+	d.createSpan("save")
 	tx := d.DB.Save(value)
 	d.DB = tx
 	return &d
@@ -172,8 +175,6 @@ func (d DB) WithContext(value context.Context) ORM {
 
 func (d DB) WithTimeout(ctx context.Context, timeout time.Duration) ORM {
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	// Store the cancel function to be called when the context is done
-	// This prevents context leaks while allowing the timeout to work properly
 	go func() {
 		<-timeoutCtx.Done()
 		cancel()
@@ -184,6 +185,7 @@ func (d DB) WithTimeout(ctx context.Context, timeout time.Duration) ORM {
 }
 
 func (d DB) Transaction(f func(ORM) error, opts ...*sql.TxOptions) error {
+	d.createSpan("transaction")
 	return d.DB.Transaction(func(tx *gorm.DB) error {
 		return f(&DB{tx, d.autoMigrationEnabled, d.timeout})
 	}, opts...)
@@ -201,16 +203,18 @@ func (d DB) InnerJoins(value string, conds ...any) ORM {
 	return &d
 }
 
-// setSpanAttributes sets OpenTelemetry span attributes for database operations
-func (d DB) setSpanAttributes(operation string) {
+// createSpan creates a new OpenTelemetry span for database operations
+func (d DB) createSpan(operation string) (context.Context, trace.Span) {
 	if ctx := d.DB.Statement.Context; ctx != nil {
-		if span := trace.SpanFromContext(ctx); span.IsRecording() {
-			span.SetAttributes(
+		tracer := otel.Tracer("zensor-server")
+		return tracer.Start(ctx, "db."+operation,
+			trace.WithAttributes(
 				attribute.String("span.kind", "client"),
 				attribute.String("component", "database"),
 				attribute.String("db.system", "postgresql"),
 				attribute.String("db.operation", operation),
-			)
-		}
+			),
+		)
 	}
+	return d.DB.Statement.Context, trace.SpanFromContext(d.DB.Statement.Context)
 }
