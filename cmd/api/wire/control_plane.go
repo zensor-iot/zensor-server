@@ -228,7 +228,7 @@ func provideDatabase(config config.AppConfig) sql.ORM {
 		return orm
 	}
 
-	orm, err := sql.NewPosgreORM(config.Postgresql.DSN)
+	orm, err := sql.NewPosgreORMWithTimeout(config.Postgresql.DSN, config.Postgresql.QueryTimeout)
 	if err != nil {
 		panic(err)
 	}

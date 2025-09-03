@@ -4,6 +4,7 @@ mqtt:
   broker: "localhost:1883"
 database:
   dsn: "host=localhost user=postgres dbname=postgres port=5432 sslmode=disable"
+  query_timeout: "5s"
 kafka:
   brokers:
     - "localhost:19092"

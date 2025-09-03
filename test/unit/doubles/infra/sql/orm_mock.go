@@ -13,6 +13,7 @@ import (
 	context "context"
 	sql "database/sql"
 	reflect "reflect"
+	time "time"
 	sql0 "zensor-server/internal/infra/sql"
 
 	gomock "go.uber.org/mock/gomock"
@@ -350,4 +351,18 @@ func (m *MockORM) WithContext(ctx context.Context) sql0.ORM {
 func (mr *MockORMMockRecorder) WithContext(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithContext", reflect.TypeOf((*MockORM)(nil).WithContext), ctx)
+}
+
+// WithTimeout mocks base method.
+func (m *MockORM) WithTimeout(ctx context.Context, timeout time.Duration) sql0.ORM {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithTimeout", ctx, timeout)
+	ret0, _ := ret[0].(sql0.ORM)
+	return ret0
+}
+
+// WithTimeout indicates an expected call of WithTimeout.
+func (mr *MockORMMockRecorder) WithTimeout(ctx, timeout any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithTimeout", reflect.TypeOf((*MockORM)(nil).WithTimeout), ctx, timeout)
 }

@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	_queryTimeout = 5 * time.Second
+	_defaultQueryTimeout = 30 * time.Second
+	_maxRetries          = 5
 )
 
 type PostgreDatabase struct {
@@ -30,6 +31,10 @@ var (
 )
 
 func NewPosgreORM(dsn string) (*DB, error) {
+	return NewPosgreORMWithTimeout(dsn, _defaultQueryTimeout)
+}
+
+func NewPosgreORMWithTimeout(dsn string, timeout time.Duration) (*DB, error) {
 	pass, ok := os.LookupEnv("ZENSOR_SERVER_POSTGRES_PASSWORD")
 	if ok {
 		dsn = fmt.Sprintf("%s password=%s", dsn, pass)
@@ -43,6 +48,7 @@ func NewPosgreORM(dsn string) (*DB, error) {
 	return &DB{
 		DB:                   gormDB,
 		autoMigrationEnabled: true,
+		timeout:              timeout,
 	}, nil
 }
 
@@ -60,7 +66,7 @@ func NewPosgreDatabase(url string) *PostgreDatabase {
 }
 
 func (d *PostgreDatabase) Open() error {
-	for range maxRetries {
+	for range _maxRetries {
 		conn, err1 := pgxpool.New(context.Background(), d.url)
 
 		if err1 != nil {
@@ -71,7 +77,7 @@ func (d *PostgreDatabase) Open() error {
 		}
 	}
 
-	return fmt.Errorf("imposible to connect to database after %d retries", maxRetries)
+	return fmt.Errorf("imposible to connect to database after %d retries", _maxRetries)
 }
 
 func (d *PostgreDatabase) Close() {
@@ -88,7 +94,7 @@ func (d *PostgreDatabase) Command(sql string) error {
 }
 
 func (d *PostgreDatabase) Query(ctx context.Context, sql string, args ...any) ([][]byte, error) {
-	queryCtx, cancelFn := context.WithTimeout(ctx, _queryTimeout)
+	queryCtx, cancelFn := context.WithTimeout(ctx, _defaultQueryTimeout)
 	defer cancelFn()
 
 	rows, err := d.Conn.Query(queryCtx, sql, args)

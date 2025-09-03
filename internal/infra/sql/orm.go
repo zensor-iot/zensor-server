@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -28,6 +29,7 @@ type ORM interface {
 	Unscoped() ORM
 	Where(query any, args ...any) ORM
 	WithContext(ctx context.Context) ORM
+	WithTimeout(ctx context.Context, timeout time.Duration) ORM
 	Joins(value string, args ...any) ORM
 	InnerJoins(value string, args ...any) ORM
 
@@ -37,6 +39,7 @@ type ORM interface {
 type DB struct {
 	*gorm.DB
 	autoMigrationEnabled bool
+	timeout              time.Duration
 }
 
 var (
@@ -53,15 +56,6 @@ func (d DB) Error() error {
 		return nil
 	}
 }
-
-const (
-	_connectionFormat       = "%s:%s@tcp(%s)/%s?charset=utf8&parseTime=true"
-	_defaultStringSize uint = 256
-)
-
-var (
-	_defaultDatetimePrecision int = 2
-)
 
 var _ ORM = (*DB)(nil)
 
@@ -152,14 +146,30 @@ func (d DB) Where(value any, conds ...any) ORM {
 }
 
 func (d DB) WithContext(value context.Context) ORM {
+	if d.timeout > 0 {
+		timeoutCtx, cancel := context.WithTimeout(value, d.timeout)
+		defer cancel()
+		tx := d.DB.WithContext(timeoutCtx)
+		d.DB = tx
+		return &d
+	}
+
 	tx := d.DB.WithContext(value)
+	d.DB = tx
+	return &d
+}
+
+func (d DB) WithTimeout(ctx context.Context, timeout time.Duration) ORM {
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	tx := d.DB.WithContext(timeoutCtx)
 	d.DB = tx
 	return &d
 }
 
 func (d DB) Transaction(f func(ORM) error, opts ...*sql.TxOptions) error {
 	return d.DB.Transaction(func(tx *gorm.DB) error {
-		return f(&DB{tx, d.autoMigrationEnabled})
+		return f(&DB{tx, d.autoMigrationEnabled, d.timeout})
 	}, opts...)
 }
 

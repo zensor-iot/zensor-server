@@ -27,5 +27,5 @@ func NewMemoryORM(migrationsPath string) (ORM, error) {
 		db.SetMaxOpenConns(1)
 	})
 
-	return &DB{DB: gormDB, autoMigrationEnabled: true}, nil
+	return &DB{DB: gormDB, autoMigrationEnabled: true, timeout: 0}, nil
 }

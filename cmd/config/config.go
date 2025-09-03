@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -36,7 +37,8 @@ func LoadConfig() AppConfig {
 				Password: viper.GetString("mqtt_client.password"),
 			},
 			Postgresql: PostgresqlConfig{
-				DSN: viper.GetString("database.dsn"),
+				DSN:          viper.GetString("database.dsn"),
+				QueryTimeout: viper.GetDuration("database.query_timeout"),
 			},
 			Kafka: KafkaConfig{
 				Brokers:        viper.GetStringSlice("kafka.brokers"),
@@ -85,7 +87,8 @@ type KafkaConfig struct {
 }
 
 type PostgresqlConfig struct {
-	DSN string
+	DSN          string
+	QueryTimeout time.Duration
 }
 
 type RedisConfig struct {

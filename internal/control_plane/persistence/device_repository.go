@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 func NewDeviceRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleDeviceRepository, error) {
