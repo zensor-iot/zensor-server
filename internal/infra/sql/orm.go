@@ -148,7 +148,12 @@ func (d DB) Where(value any, conds ...any) ORM {
 func (d DB) WithContext(value context.Context) ORM {
 	if d.timeout > 0 {
 		timeoutCtx, cancel := context.WithTimeout(value, d.timeout)
-		defer cancel()
+		// Store the cancel function to be called when the context is done
+		// This prevents context leaks while allowing the timeout to work properly
+		go func() {
+			<-timeoutCtx.Done()
+			cancel()
+		}()
 		tx := d.DB.WithContext(timeoutCtx)
 		d.DB = tx
 		return &d
@@ -161,7 +166,12 @@ func (d DB) WithContext(value context.Context) ORM {
 
 func (d DB) WithTimeout(ctx context.Context, timeout time.Duration) ORM {
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	// Store the cancel function to be called when the context is done
+	// This prevents context leaks while allowing the timeout to work properly
+	go func() {
+		<-timeoutCtx.Done()
+		cancel()
+	}()
 	tx := d.DB.WithContext(timeoutCtx)
 	d.DB = tx
 	return &d
