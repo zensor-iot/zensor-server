@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,9 @@ import (
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -20,7 +24,7 @@ const (
 
 type Client interface {
 	Subscribe(topic string, qos byte, callback MessageHandler) error
-	Publish(topic string, msg any) error
+	Publish(ctx context.Context, topic string, msg any) error
 
 	Disconnect()
 }
@@ -195,14 +199,29 @@ func (c *SimpleClient) Disconnect() {
 	c.client.Disconnect(uint(waitForInMilliseconds))
 }
 
-func (c *SimpleClient) Publish(topic string, msg any) error {
+func (c *SimpleClient) Publish(ctx context.Context, topic string, msg any) error {
+	tracer := otel.Tracer("zensor-server")
+	ctx, span := tracer.Start(ctx, "mqtt.publish",
+		trace.WithAttributes(
+			attribute.String("span.kind", "client"),
+			attribute.String("component", "mqtt-client"),
+			attribute.String("messaging.system", "mqtt"),
+			attribute.String("messaging.destination", topic),
+			attribute.String("messaging.destination_kind", "topic"),
+		),
+	)
+	defer span.End()
+
 	payload, err := json.Marshal(msg)
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("marshaling message: %w", err)
 	}
+
 	token := c.client.Publish(topic, _defaultQoS, _defaultRetained, payload)
 	token.WaitTimeout(_publishTimeout)
 	if token.Error() != nil {
+		span.RecordError(token.Error())
 		return fmt.Errorf("publishing to topic %s: %w", topic, token.Error())
 	}
 

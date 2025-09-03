@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 )
 
@@ -74,6 +76,7 @@ func (d DB) Count(value *int64) ORM {
 }
 
 func (d DB) Create(value any) ORM {
+	d.setSpanAttributes("create")
 	tx := d.DB.Create(value)
 	d.DB = tx
 	return &d
@@ -86,12 +89,14 @@ func (d DB) Delete(value any, conds ...any) ORM {
 }
 
 func (d DB) Find(value any, conds ...any) ORM {
+	d.setSpanAttributes("find")
 	tx := d.DB.Find(value, conds...)
 	d.DB = tx
 	return &d
 }
 
 func (d DB) First(value any, conds ...any) ORM {
+	d.setSpanAttributes("first")
 	tx := d.DB.First(value, conds...)
 	d.DB = tx
 	return &d
@@ -128,6 +133,7 @@ func (d DB) Preload(value string, conds ...any) ORM {
 }
 
 func (d DB) Save(value any) ORM {
+	d.setSpanAttributes("save")
 	tx := d.DB.Save(value)
 	d.DB = tx
 	return &d
@@ -193,4 +199,18 @@ func (d DB) InnerJoins(value string, conds ...any) ORM {
 	tx := d.DB.InnerJoins(value, conds...)
 	d.DB = tx
 	return &d
+}
+
+// setSpanAttributes sets OpenTelemetry span attributes for database operations
+func (d DB) setSpanAttributes(operation string) {
+	if ctx := d.DB.Statement.Context; ctx != nil {
+		if span := trace.SpanFromContext(ctx); span.IsRecording() {
+			span.SetAttributes(
+				attribute.String("span.kind", "client"),
+				attribute.String("component", "database"),
+				attribute.String("db.system", "postgresql"),
+				attribute.String("db.operation", operation),
+			)
+		}
+	}
 }

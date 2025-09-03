@@ -25,17 +25,20 @@ type StandardServer struct {
 }
 
 func (s *StandardServer) Run() {
-	s.server.ListenAndServe()
+	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		panic(err)
+	}
 }
 
 func (s *StandardServer) Shutdown() {
-	s.server.Shutdown(context.Background())
+	if err := s.server.Shutdown(context.Background()); err != nil {
+		panic(err)
+	}
 }
 
 func NewServer(controllers ...Controller) *StandardServer {
 	router := http.NewServeMux()
 
-	// Configure CORS for development
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{
 			"http://localhost:5173",
@@ -65,7 +68,6 @@ func NewServer(controllers ...Controller) *StandardServer {
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	})
 
-	// Create middleware
 	tracingMiddleware := createTracingMiddleware()
 	userHeaderMiddleware := createUserHeaderMiddleware()
 	metricsMiddleware := MetricsMiddleware()
@@ -93,19 +95,15 @@ func NewServer(controllers ...Controller) *StandardServer {
 	return server
 }
 
-// createUserHeaderMiddleware creates a middleware that validates user headers and adds them as span attributes
 func createUserHeaderMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get the current span from the request context
 			span := GetSpanFromContext(r)
 
-			// Check for required user headers
 			userID := r.Header.Get("X-User-ID")
 			userName := r.Header.Get("X-User-Name")
 			userEmail := r.Header.Get("X-User-Email")
 
-			// Add user information as span attributes if present
 			if userID != "" {
 				span.SetAttributes(attribute.String("user.id", userID))
 			}
@@ -116,7 +114,6 @@ func createUserHeaderMiddleware() func(http.Handler) http.Handler {
 				span.SetAttributes(attribute.String("user.email", userEmail))
 			}
 
-			// Call the next handler
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -126,7 +123,6 @@ func createUserHeaderMiddleware() func(http.Handler) http.Handler {
 func createTracingMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Create a new span for this request
 			tracer := otel.Tracer("zensor-server")
 			ctx, span := tracer.Start(r.Context(), "http.request",
 				trace.WithAttributes(
@@ -134,22 +130,35 @@ func createTracingMiddleware() func(http.Handler) http.Handler {
 					attribute.String("http.url", r.URL.String()),
 					attribute.String("http.user_agent", r.UserAgent()),
 					attribute.String("http.remote_addr", r.RemoteAddr),
+					attribute.String("span.kind", "server"),
+					attribute.String("component", "http-server"),
 				),
 			)
 			defer span.End()
 
-			// Add the span to the request context
 			r = r.WithContext(ctx)
 
-			// Call the next handler
-			next.ServeHTTP(w, r)
+			wrapped := &statusCodeResponseWriter{ResponseWriter: w}
+
+			next.ServeHTTP(wrapped, r)
+
+			span.SetAttributes(attribute.Int("http.status_code", wrapped.statusCode))
 		})
 	}
 }
 
+type statusCodeResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *statusCodeResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
 func getHealthz() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get the current span from the request context
 		span := GetSpanFromContext(r)
 		span.SetAttributes(attribute.String("endpoint", "healthz"))
 

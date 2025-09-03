@@ -11,6 +11,7 @@ import (
 	"zensor-server/internal/shared_kernel/avro"
 
 	"github.com/lovoo/goka"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -94,7 +95,19 @@ type SimpleKafkaPublisher struct {
 }
 
 func (p *SimpleKafkaPublisher) Publish(ctx context.Context, key Key, message Message) error {
-	span := trace.SpanFromContext(ctx)
+	tracer := otel.Tracer("zensor-server")
+	ctx, span := tracer.Start(ctx, "kafka.publish",
+		trace.WithAttributes(
+			attribute.String("span.kind", "client"),
+			attribute.String("component", "kafka-publisher"),
+			attribute.String("messaging.system", "kafka"),
+			attribute.String("messaging.destination", "kafka-topic"),
+			attribute.String("messaging.destination_kind", "topic"),
+			attribute.String("messaging.message_key", string(key)),
+		),
+	)
+	defer span.End()
+
 	slog.Debug("publishing message",
 		slog.String("key", string(key)),
 		slog.String("trace_id", span.SpanContext().TraceID().String()),
@@ -107,6 +120,7 @@ func (p *SimpleKafkaPublisher) Publish(ctx context.Context, key Key, message Mes
 
 	err := p.emitter.EmitSyncWithHeaders(string(key), message, kafkaHeaders)
 	if err != nil {
+		span.RecordError(err)
 		slog.Error("emitting message",
 			slog.String("error", err.Error()),
 			slog.String("trace_id", span.SpanContext().TraceID().String()),

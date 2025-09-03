@@ -416,7 +416,7 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 	slog.Debug("ttn message",
 		slog.Any("msg", ttnMsg),
 	)
-	err = w.mqttClient.Publish(topic, ttnMsg)
+	err = w.mqttClient.Publish(ctx, topic, ttnMsg)
 	if err != nil {
 		slog.Error("publishing command",
 			slog.String("trace_id", span.SpanContext().TraceID().String()),

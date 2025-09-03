@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"context"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -72,7 +73,7 @@ func NewMockMQTTClient(ctrl *gomock.Controller) *MockMQTTClient {
 	return &MockMQTTClient{ctrl: ctrl}
 }
 
-func (m *MockMQTTClient) Publish(topic string, payload interface{}) error {
+func (m *MockMQTTClient) Publish(ctx context.Context, topic string, payload any) error {
 	return nil
 }
 
