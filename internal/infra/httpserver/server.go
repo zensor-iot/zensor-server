@@ -6,8 +6,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
 	_ "net/http/pprof"
@@ -123,8 +125,11 @@ func createUserHeaderMiddleware() func(http.Handler) http.Handler {
 func createTracingMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			propagator := b3.New()
+			ctx := propagator.Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+
 			tracer := otel.Tracer("zensor-server")
-			ctx, span := tracer.Start(r.Context(), "http.request",
+			ctx, span := tracer.Start(ctx, "http.request",
 				trace.WithAttributes(
 					attribute.String("http.method", r.Method),
 					attribute.String("http.url", r.URL.String()),
@@ -136,7 +141,11 @@ func createTracingMiddleware() func(http.Handler) http.Handler {
 			)
 			defer span.End()
 
+			// Update request with the traced context
 			r = r.WithContext(ctx)
+
+			// Inject trace context into response headers for client propagation
+			propagator.Inject(ctx, propagation.HeaderCarrier(w.Header()))
 
 			wrapped := &statusCodeResponseWriter{ResponseWriter: w}
 
