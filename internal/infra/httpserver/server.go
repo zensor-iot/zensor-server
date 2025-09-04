@@ -1,7 +1,10 @@
 package httpserver
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -164,6 +167,13 @@ type statusCodeResponseWriter struct {
 func (w *statusCodeResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusCodeResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hijacker, ok := w.ResponseWriter.(http.Hijacker); ok {
+		return hijacker.Hijack()
+	}
+	return nil, nil, fmt.Errorf("underlying ResponseWriter does not support hijacking")
 }
 
 func getHealthz() http.HandlerFunc {
