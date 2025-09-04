@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
@@ -155,7 +156,23 @@ func createTracingMiddleware() func(http.Handler) http.Handler {
 			next.ServeHTTP(wrapped, r)
 
 			span.SetAttributes(attribute.Int("http.status_code", wrapped.statusCode))
+
+			// Set trace status based on HTTP status code
+			setTraceStatus(span, wrapped.statusCode)
 		})
+	}
+}
+
+// setTraceStatus sets the trace status based on HTTP status code
+// 2XX = OK, 5XX = ERROR, any other case = UNSET
+func setTraceStatus(span trace.Span, statusCode int) {
+	switch {
+	case statusCode >= 200 && statusCode < 300:
+		span.SetStatus(codes.Ok, "")
+	case statusCode >= 500 && statusCode < 600:
+		span.SetStatus(codes.Error, fmt.Sprintf("HTTP %d", statusCode))
+	default:
+		span.SetStatus(codes.Unset, "")
 	}
 }
 
