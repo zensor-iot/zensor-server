@@ -3,8 +3,6 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 	"zensor-server/internal/infra/utils"
 )
@@ -66,7 +64,7 @@ func (st *ScheduledTask) CalculateNextExecution(tenantTimezone string) (time.Tim
 	}
 
 	// Parse the execution time
-	hour, minute, err := ParseExecutionTime(executionTime)
+	hour, minute, err := utils.ParseExecutionTime(executionTime)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("parsing execution time %s: %w", executionTime, err)
 	}
@@ -91,26 +89,6 @@ func (st *ScheduledTask) CalculateNextExecution(tenantTimezone string) (time.Tim
 		referenceTimeInTZ,
 		location,
 	), nil
-}
-
-// ParseExecutionTime parses a time string like "02:00" or "14:30"
-func ParseExecutionTime(timeStr string) (hour, minute int, err error) {
-	parts := strings.Split(timeStr, ":")
-	if len(parts) != 2 {
-		return 0, 0, errors.New("execution time must be in HH:MM format")
-	}
-
-	hour, err = strconv.Atoi(parts[0])
-	if err != nil || hour < 0 || hour > 23 {
-		return 0, 0, errors.New("hour must be between 0 and 23")
-	}
-
-	minute, err = strconv.Atoi(parts[1])
-	if err != nil || minute < 0 || minute > 59 {
-		return 0, 0, errors.New("minute must be between 0 and 59")
-	}
-
-	return hour, minute, nil
 }
 
 // calculateNextIntervalExecution calculates the next execution time for interval-based scheduling

@@ -111,47 +111,6 @@ var _ = ginkgo.Describe("ScheduledTask", func() {
 		})
 	})
 
-	ginkgo.Context("parseExecutionTime", func() {
-		ginkgo.When("parsing valid time strings", func() {
-			ginkgo.It("should parse 24-hour format correctly", func() {
-				hour, minute, err := domain.ParseExecutionTime("02:00")
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gomega.Expect(hour).To(gomega.Equal(2))
-				gomega.Expect(minute).To(gomega.Equal(0))
-
-				hour, minute, err = domain.ParseExecutionTime("14:30")
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gomega.Expect(hour).To(gomega.Equal(14))
-				gomega.Expect(minute).To(gomega.Equal(30))
-
-				hour, minute, err = domain.ParseExecutionTime("23:59")
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gomega.Expect(hour).To(gomega.Equal(23))
-				gomega.Expect(minute).To(gomega.Equal(59))
-			})
-		})
-
-		ginkgo.When("parsing invalid time strings", func() {
-			ginkgo.It("should return error for invalid format", func() {
-				_, _, err := domain.ParseExecutionTime("2:00:30")
-				gomega.Expect(err).To(gomega.HaveOccurred())
-				gomega.Expect(err.Error()).To(gomega.ContainSubstring("execution time must be in HH:MM format"))
-
-				_, _, err = domain.ParseExecutionTime("25:00")
-				gomega.Expect(err).To(gomega.HaveOccurred())
-				gomega.Expect(err.Error()).To(gomega.ContainSubstring("hour must be between 0 and 23"))
-
-				_, _, err = domain.ParseExecutionTime("12:60")
-				gomega.Expect(err).To(gomega.HaveOccurred())
-				gomega.Expect(err.Error()).To(gomega.ContainSubstring("minute must be between 0 and 59"))
-
-				_, _, err = domain.ParseExecutionTime("invalid")
-				gomega.Expect(err).To(gomega.HaveOccurred())
-				gomega.Expect(err.Error()).To(gomega.ContainSubstring("execution time must be in HH:MM format"))
-			})
-		})
-	})
-
 	ginkgo.Context("ScheduledTaskBuilder with interval scheduling", func() {
 		ginkgo.When("creating scheduled task with interval scheduling", func() {
 			ginkgo.It("should create scheduled task with interval scheduling", func() {
