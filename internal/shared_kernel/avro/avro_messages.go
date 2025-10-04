@@ -67,6 +67,7 @@ type AvroScheduledTask struct {
 	DeviceID         string     `avro:"device_id"`
 	CommandTemplates string     `avro:"command_templates"`
 	Schedule         string     `avro:"schedule"`
+	SchedulingConfig *string    `avro:"scheduling_config"`
 	IsActive         bool       `avro:"is_active"`
 	CreatedAt        time.Time  `avro:"created_at"`
 	UpdatedAt        time.Time  `avro:"updated_at"`
@@ -244,6 +245,13 @@ func ToAvroScheduledTask(scheduledTask domain.ScheduledTask) *AvroScheduledTask 
 
 	// Handle CommandTemplates serialization
 	avroScheduledTask.CommandTemplates = serializeCommandTemplates(scheduledTask.CommandTemplates)
+
+	// Handle SchedulingConfig serialization
+	schedulingConfigJSON, _ := json.Marshal(scheduledTask.Scheduling)
+	if string(schedulingConfigJSON) != "{}" && string(schedulingConfigJSON) != "null" {
+		schedulingConfigStr := string(schedulingConfigJSON)
+		avroScheduledTask.SchedulingConfig = &schedulingConfigStr
+	}
 
 	// Handle optional LastExecutedAt
 	if scheduledTask.LastExecutedAt != nil {

@@ -26,7 +26,7 @@ paths:
       tags:
         - Health
       responses:
-        '200':
+        "200":
           description: Server is healthy
           content:
             application/json:
@@ -44,7 +44,7 @@ paths:
       tags:
         - Monitoring
       responses:
-        '200':
+        "200":
           description: Metrics in Prometheus format
           content:
             text/plain:
@@ -59,7 +59,7 @@ paths:
       tags:
         - WebSocket
       responses:
-        '101':
+        "101":
           description: WebSocket connection established
           headers:
             Upgrade:
@@ -87,7 +87,7 @@ paths:
             format: uuid
             example: "123e4567-e89b-12d3-a456-426614174000"
       responses:
-        '101':
+        "101":
           description: WebSocket connection established
           headers:
             Upgrade:
@@ -98,7 +98,7 @@ paths:
               schema:
                 type: string
                 example: "Upgrade"
-        '400':
+        "400":
           description: Bad request - device_id is required
           content:
             application/json:
@@ -142,14 +142,14 @@ paths:
             maximum: 100
             default: 10
       responses:
-        '200':
+        "200":
           description: List of tenants
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedTenantResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/PaginatedTenantResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     post:
       summary: Create tenant
@@ -161,24 +161,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TenantCreateRequest'
+              $ref: "#/components/schemas/TenantCreateRequest"
       responses:
-        '201':
+        "201":
           description: Tenant created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
+                $ref: "#/components/schemas/TenantResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
           description: Tenant already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/tenants/{id}:
     get:
@@ -195,16 +195,16 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Tenant details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/TenantResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     put:
       summary: Update tenant
@@ -224,26 +224,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TenantUpdateRequest'
+              $ref: "#/components/schemas/TenantUpdateRequest"
       responses:
-        '200':
+        "200":
           description: Tenant updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
+                $ref: "#/components/schemas/TenantResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
           description: Tenant already exists or is soft deleted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     delete:
       summary: Soft delete tenant
@@ -259,18 +259,18 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        "204":
           description: Tenant soft deleted successfully
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
           description: Tenant is already soft deleted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/tenants/{id}/activate:
     post:
@@ -287,18 +287,18 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        "204":
           description: Tenant activated successfully
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
           description: Tenant is soft deleted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/tenants/{id}/deactivate:
     post:
@@ -315,18 +315,18 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        "204":
           description: Tenant deactivated successfully
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
           description: Tenant is soft deleted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/tenants/{id}/adopt:
     post:
@@ -347,26 +347,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TenantAdoptDeviceRequest'
+              $ref: "#/components/schemas/TenantAdoptDeviceRequest"
       responses:
-        '200':
+        "200":
           description: Device adopted successfully
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
           description: Tenant or device not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
           description: Tenant is soft deleted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/tenants/{id}/devices:
     get:
@@ -400,22 +400,22 @@ paths:
             maximum: 100
             default: 10
       responses:
-        '200':
+        "200":
           description: List of tenant devices
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedDeviceResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
+                $ref: "#/components/schemas/PaginatedDeviceResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
           description: Tenant is soft deleted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   # Devices
   /v1/devices:
@@ -443,14 +443,14 @@ paths:
             maximum: 100
             default: 10
       responses:
-        '200':
+        "200":
           description: List of devices
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedDeviceResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/PaginatedDeviceResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     post:
       summary: Create device
@@ -462,24 +462,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DeviceCreateRequest'
+              $ref: "#/components/schemas/DeviceCreateRequest"
       responses:
-        '201':
+        "201":
           description: Device created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
+                $ref: "#/components/schemas/DeviceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
           description: Device already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/devices/{id}:
     get:
@@ -496,16 +496,16 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Device details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/DeviceResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     put:
       summary: Update device
@@ -525,24 +525,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DeviceUpdateRequest'
+              $ref: "#/components/schemas/DeviceUpdateRequest"
       responses:
-        '200':
+        "200":
           description: Device updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
+                $ref: "#/components/schemas/DeviceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
           description: Device not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/devices/{id}/commands:
     post:
@@ -563,14 +563,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandSendRequest'
+              $ref: "#/components/schemas/CommandSendRequest"
       responses:
-        '201':
+        "201":
           description: Command sent successfully
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/devices/{id}/tasks:
     get:
@@ -604,14 +604,14 @@ paths:
             maximum: 100
             default: 10
       responses:
-        '200':
+        "200":
           description: List of tasks
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedTaskResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/PaginatedTaskResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     post:
       summary: Create task for device
@@ -631,24 +631,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskCreateRequest'
+              $ref: "#/components/schemas/TaskCreateRequest"
       responses:
-        '201':
+        "201":
           description: Task created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
           description: Command overlap detected
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/devices/{id}/evaluation-rules:
     get:
@@ -682,14 +682,14 @@ paths:
             maximum: 100
             default: 10
       responses:
-        '200':
+        "200":
           description: List of evaluation rules
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedEvaluationRuleResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/PaginatedEvaluationRuleResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     post:
       summary: Create evaluation rule for device
@@ -709,24 +709,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/EvaluationRuleCreateRequest'
+              $ref: "#/components/schemas/EvaluationRuleCreateRequest"
       responses:
-        '201':
+        "201":
           description: Evaluation rule created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EvaluationRuleResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
+                $ref: "#/components/schemas/EvaluationRuleResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
           description: Device not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   # Scheduled Tasks
   /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks:
@@ -768,14 +768,14 @@ paths:
             maximum: 100
             default: 10
       responses:
-        '200':
+        "200":
           description: List of scheduled tasks
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedScheduledTaskResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/PaginatedScheduledTaskResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     post:
       summary: Create scheduled task
@@ -802,18 +802,103 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ScheduledTaskCreateRequest'
+              $ref: "#/components/schemas/ScheduledTaskCreateRequest"
+            examples:
+              interval_scheduling:
+                summary: Interval-based scheduling (every 2 days at 2 AM)
+                description: Example of creating a scheduled task with interval-based scheduling
+                value:
+                  commands:
+                    - port: 1
+                      priority: "normal"
+                      payload:
+                        index: 1
+                        value: 100
+                      wait_for: "0s"
+                  scheduling:
+                    type: "interval"
+                    initial_day: "2024-01-15T00:00:00Z"
+                    day_interval: 2
+                    execution_time: "02:00"
+                  is_active: true
+              cron_scheduling:
+                summary: Cron-based scheduling (every 5 minutes)
+                description: Example of creating a scheduled task with cron-based scheduling
+                value:
+                  commands:
+                    - port: 1
+                      priority: "normal"
+                      payload:
+                        index: 1
+                        value: 100
+                      wait_for: "0s"
+                  scheduling:
+                    type: "cron"
+                    schedule: "0 */5 * * * *"
+                  is_active: true
+              legacy_cron:
+                summary: Legacy cron scheduling (deprecated)
+                description: Example using the deprecated schedule field for backward compatibility
+                value:
+                  commands:
+                    - port: 1
+                      priority: "normal"
+                      payload:
+                        index: 1
+                        value: 100
+                      wait_for: "0s"
+                  schedule: "0 */5 * * * *"
+                  is_active: true
       responses:
-        '201':
+        "201":
           description: Scheduled task created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ScheduledTaskResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ScheduledTaskResponse"
+              examples:
+                interval_response:
+                  summary: Interval-based scheduled task response
+                  description: Response for a scheduled task with interval-based scheduling
+                  value:
+                    id: "123e4567-e89b-12d3-a456-426614174000"
+                    device_id: "987fcdeb-51a2-43d7-8765-426614174111"
+                    commands:
+                      - port: 1
+                        priority: "normal"
+                        payload:
+                          index: 1
+                          value: 100
+                        wait_for: "0s"
+                    scheduling:
+                      type: "interval"
+                      initial_day: "2024-01-15T00:00:00Z"
+                      day_interval: 2
+                      execution_time: "02:00"
+                      next_execution: "2024-01-17T02:00:00Z"
+                    is_active: true
+                cron_response:
+                  summary: Cron-based scheduled task response
+                  description: Response for a scheduled task with cron-based scheduling
+                  value:
+                    id: "123e4567-e89b-12d3-a456-426614174000"
+                    device_id: "987fcdeb-51a2-43d7-8765-426614174111"
+                    commands:
+                      - port: 1
+                        priority: "normal"
+                        payload:
+                          index: 1
+                          value: 100
+                        wait_for: "0s"
+                    scheduling:
+                      type: "cron"
+                      schedule: "0 */5 * * * *"
+                      next_execution: "2024-01-15T10:05:00Z"
+                    is_active: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}:
     get:
@@ -844,16 +929,16 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Scheduled task details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ScheduledTaskResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ScheduledTaskResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     put:
       summary: Update scheduled task
@@ -887,20 +972,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ScheduledTaskUpdateRequest'
+              $ref: "#/components/schemas/ScheduledTaskUpdateRequest"
       responses:
-        '200':
+        "200":
           description: Scheduled task updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ScheduledTaskResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ScheduledTaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
     delete:
       summary: Soft delete scheduled task
@@ -930,18 +1015,18 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        "204":
           description: Scheduled task soft deleted successfully
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
           description: Scheduled task is already soft deleted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks/{id}/tasks:
     get:
@@ -989,16 +1074,16 @@ paths:
             maximum: 100
             default: 10
       responses:
-        '200':
+        "200":
           description: List of tasks created by the scheduled task
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedTaskResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/PaginatedTaskResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
 components:
   schemas:
@@ -1123,7 +1208,7 @@ components:
         tenants:
           type: array
           items:
-            $ref: '#/components/schemas/TenantResponse'
+            $ref: "#/components/schemas/TenantResponse"
         total:
           type: integer
           description: Total number of tenants
@@ -1156,10 +1241,10 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/TenantResponse'
+            $ref: "#/components/schemas/TenantResponse"
           description: Array of tenant objects
         pagination:
-          $ref: '#/components/schemas/PaginationInfo'
+          $ref: "#/components/schemas/PaginationInfo"
 
     PaginatedDeviceResponse:
       type: object
@@ -1167,10 +1252,10 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/DeviceResponse'
+            $ref: "#/components/schemas/DeviceResponse"
           description: Array of device objects
         pagination:
-          $ref: '#/components/schemas/PaginationInfo'
+          $ref: "#/components/schemas/PaginationInfo"
 
     # Device schemas
     DeviceCreateRequest:
@@ -1262,7 +1347,7 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/DeviceResponse'
+            $ref: "#/components/schemas/DeviceResponse"
 
     # Command schemas
     CommandSendRequest:
@@ -1279,7 +1364,7 @@ components:
         sequence:
           type: array
           items:
-            $ref: '#/components/schemas/CommandSendPayloadRequest'
+            $ref: "#/components/schemas/CommandSendPayloadRequest"
           description: Sequence of commands to send
 
     CommandSendPayloadRequest:
@@ -1332,7 +1417,7 @@ components:
         commands:
           type: array
           items:
-            $ref: '#/components/schemas/CommandSendPayloadRequest'
+            $ref: "#/components/schemas/CommandSendPayloadRequest"
           description: Commands to execute as part of the task
 
     TaskCommandResponse:
@@ -1396,7 +1481,7 @@ components:
         commands:
           type: array
           items:
-            $ref: '#/components/schemas/TaskCommandResponse'
+            $ref: "#/components/schemas/TaskCommandResponse"
           description: Commands in the task
         created_at:
           type: string
@@ -1410,7 +1495,7 @@ components:
         tasks:
           type: array
           items:
-            $ref: '#/components/schemas/TaskResponse'
+            $ref: "#/components/schemas/TaskResponse"
         total:
           type: integer
           description: Total number of tasks
@@ -1421,17 +1506,19 @@ components:
       type: object
       required:
         - commands
-        - schedule
       properties:
         commands:
           type: array
           items:
-            $ref: '#/components/schemas/CommandSendPayloadRequest'
+            $ref: "#/components/schemas/CommandSendPayloadRequest"
           description: Commands to execute as part of the scheduled task
         schedule:
           type: string
-          description: Cron expression for scheduling
+          description: Cron expression for scheduling (deprecated - use scheduling instead)
           example: "0 */5 * * * *"
+        scheduling:
+          $ref: "#/components/schemas/SchedulingConfiguration"
+          description: Scheduling configuration for the task
         is_active:
           type: boolean
           description: Whether the scheduled task is active
@@ -1444,12 +1531,15 @@ components:
         commands:
           type: array
           items:
-            $ref: '#/components/schemas/CommandSendPayloadRequest'
+            $ref: "#/components/schemas/CommandSendPayloadRequest"
           description: Commands to execute as part of the scheduled task
         schedule:
           type: string
-          description: Cron expression for scheduling
+          description: Cron expression for scheduling (deprecated - use scheduling instead)
           example: "0 */5 * * * *"
+        scheduling:
+          $ref: "#/components/schemas/SchedulingConfiguration"
+          description: Scheduling configuration for the task
         is_active:
           type: boolean
           description: Whether the scheduled task is active
@@ -1471,12 +1561,15 @@ components:
         commands:
           type: array
           items:
-            $ref: '#/components/schemas/CommandSendPayloadRequest'
+            $ref: "#/components/schemas/CommandSendPayloadRequest"
           description: Commands in the scheduled task
         schedule:
           type: string
-          description: Cron expression for scheduling
+          description: Cron expression for scheduling (deprecated - use scheduling instead)
           example: "0 */5 * * * *"
+        scheduling:
+          $ref: "#/components/schemas/SchedulingConfigurationResponse"
+          description: Scheduling configuration for the task
         is_active:
           type: boolean
           description: Whether the scheduled task is active
@@ -1488,10 +1581,76 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/ScheduledTaskResponse'
+            $ref: "#/components/schemas/ScheduledTaskResponse"
           description: Array of scheduled task objects
         pagination:
-          $ref: '#/components/schemas/PaginationInfo'
+          $ref: "#/components/schemas/PaginationInfo"
+
+    # Scheduling Configuration schemas
+    SchedulingConfiguration:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: ["cron", "interval"]
+          description: Type of scheduling (cron or interval)
+          example: "interval"
+        schedule:
+          type: string
+          description: Cron expression (required for cron type)
+          example: "0 0 * * *"
+        initial_day:
+          type: string
+          format: date-time
+          description: Initial day for interval scheduling (required for interval type)
+          example: "2024-01-15T00:00:00Z"
+        day_interval:
+          type: integer
+          minimum: 1
+          description: Days between executions for interval scheduling (required for interval type)
+          example: 2
+        execution_time:
+          type: string
+          pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+          description: Time of day for execution in HH:MM format (required for interval type)
+          example: "02:00"
+
+    SchedulingConfigurationResponse:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: ["cron", "interval"]
+          description: Type of scheduling (cron or interval)
+          example: "interval"
+        schedule:
+          type: string
+          description: Cron expression (for cron type)
+          example: "0 0 * * *"
+        initial_day:
+          type: string
+          format: date-time
+          description: Initial day for interval scheduling
+          example: "2024-01-15T00:00:00Z"
+        day_interval:
+          type: integer
+          minimum: 1
+          description: Days between executions for interval scheduling
+          example: 2
+        execution_time:
+          type: string
+          pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+          description: Time of day for execution in HH:MM format
+          example: "02:00"
+        next_execution:
+          type: string
+          format: date-time
+          description: Calculated next execution time
+          example: "2024-01-17T02:00:00Z"
 
     # Evaluation Rule schemas
     EvaluationRuleCreateRequest:
@@ -1512,7 +1671,7 @@ components:
         parameters:
           type: array
           items:
-            $ref: '#/components/schemas/EvaluationRuleParametersCreateRequest'
+            $ref: "#/components/schemas/EvaluationRuleParametersCreateRequest"
           description: Rule parameters
 
     EvaluationRuleParametersCreateRequest:
@@ -1553,7 +1712,7 @@ components:
         parameters:
           type: array
           items:
-            $ref: '#/components/schemas/EvaluationRuleParametersResponse'
+            $ref: "#/components/schemas/EvaluationRuleParametersResponse"
         enabled:
           type: boolean
           description: Whether the rule is enabled
@@ -1576,7 +1735,7 @@ components:
         evaluation_rules:
           type: array
           items:
-            $ref: '#/components/schemas/EvaluationRuleResponse'
+            $ref: "#/components/schemas/EvaluationRuleResponse"
 
     # WebSocket Message schemas
     DeviceMessage:
@@ -1597,7 +1756,7 @@ components:
           example: "2024-01-01T00:00:00Z"
         data:
           description: Message payload data
-          example: {"temperature": 25.5, "humidity": 60.2}
+          example: { "temperature": 25.5, "humidity": 60.2 }
 
     PaginatedEvaluationRuleResponse:
       type: object
@@ -1605,9 +1764,9 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/EvaluationRuleResponse'
+            $ref: "#/components/schemas/EvaluationRuleResponse"
         pagination:
-          $ref: '#/components/schemas/PaginationInfo'
+          $ref: "#/components/schemas/PaginationInfo"
 
     PaginatedTaskResponse:
       type: object
@@ -1615,10 +1774,10 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/TaskResponse'
+            $ref: "#/components/schemas/TaskResponse"
           description: Array of task objects
         pagination:
-          $ref: '#/components/schemas/PaginationInfo'
+          $ref: "#/components/schemas/PaginationInfo"
 
   responses:
     BadRequest:
@@ -1626,21 +1785,21 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
 
     NotFound:
       description: Resource not found
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
 
     InternalServerError:
       description: Internal server error
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
 
 tags:
   - name: Health
@@ -1658,4 +1817,4 @@ tags:
   - name: Scheduled Tasks
     description: Scheduled task management with cron-based scheduling
   - name: Evaluation Rules
-    description: Device behavior evaluation rules 
+    description: Device behavior evaluation rules

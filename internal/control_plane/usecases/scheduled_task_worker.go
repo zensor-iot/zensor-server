@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -117,7 +118,7 @@ func (w *ScheduledTaskWorker) evaluateAndMaybeCreateTask(ctx context.Context, sc
 		lastExecuted = scheduledTask.CreatedAt.Time
 	}
 
-	shouldExecute, err := w.shouldExecuteSchedule(ctx, scheduledTask.Schedule, lastExecuted, scheduledTask.Tenant)
+	shouldExecute, err := w.shouldExecuteSchedule(ctx, scheduledTask, lastExecuted)
 	if err != nil {
 		slog.Error("evaluating schedule",
 			slog.String("scheduled_task_id", scheduledTask.ID.String()),
@@ -131,19 +132,14 @@ func (w *ScheduledTaskWorker) evaluateAndMaybeCreateTask(ctx context.Context, sc
 	}
 }
 
-func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedule string, lastExecuted time.Time, tenant domain.Tenant) (bool, error) {
-	scheduleSpec, err := w.cronParser.Parse(schedule)
-	if err != nil {
-		return false, fmt.Errorf("parsing cron schedule: %w", err)
-	}
-
-	tenantConfig, err := w.tenantConfigurationService.GetOrCreateTenantConfiguration(ctx, tenant, _defaultTimezone)
+func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, scheduledTask domain.ScheduledTask, lastExecuted time.Time) (bool, error) {
+	tenantConfig, err := w.tenantConfigurationService.GetOrCreateTenantConfiguration(ctx, scheduledTask.Tenant, _defaultTimezone)
 	if err != nil {
 		slog.Error("getting tenant configuration for timezone",
-			slog.String("tenant_id", tenant.ID.String()),
+			slog.String("tenant_id", scheduledTask.Tenant.ID.String()),
 			slog.String("error", err.Error()))
 		tenantConfig, _ = domain.NewTenantConfigurationBuilder().
-			WithTenantID(tenant.ID).
+			WithTenantID(scheduledTask.Tenant.ID).
 			WithTimezone(_defaultTimezone).
 			Build()
 	}
@@ -152,19 +148,59 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 	if err != nil {
 		slog.Error("loading timezone location",
 			slog.String("timezone", tenantConfig.Timezone),
-			slog.String("tenant_id", tenant.ID.String()),
+			slog.String("tenant_id", scheduledTask.Tenant.ID.String()),
 			slog.String("error", err.Error()))
 		location = time.UTC
 	}
 
 	now := time.Now().In(location)
-
 	lastExecutedInTZ := lastExecuted.In(location)
 
-	nextRun := scheduleSpec.Next(lastExecutedInTZ)
+	var nextRun time.Time
+	var scheduleInfo string
+
+	// Handle different scheduling types
+	switch scheduledTask.Scheduling.Type {
+	case domain.SchedulingTypeInterval:
+		// Use interval-based scheduling
+		nextRun, err = scheduledTask.CalculateNextExecution(tenantConfig.Timezone)
+		if err != nil {
+			return false, fmt.Errorf("calculating next interval execution: %w", err)
+		}
+		scheduleInfo = fmt.Sprintf("interval: every %d days at %s",
+			*scheduledTask.Scheduling.DayInterval,
+			*scheduledTask.Scheduling.ExecutionTime)
+
+	case domain.SchedulingTypeCron:
+		// Use traditional cron scheduling (backward compatibility)
+		if scheduledTask.Schedule == "" {
+			return false, errors.New("cron schedule is required for cron scheduling type")
+		}
+
+		scheduleSpec, err := w.cronParser.Parse(scheduledTask.Schedule)
+		if err != nil {
+			return false, fmt.Errorf("parsing cron schedule: %w", err)
+		}
+		nextRun = scheduleSpec.Next(lastExecutedInTZ)
+		scheduleInfo = fmt.Sprintf("cron: %s", scheduledTask.Schedule)
+
+	default:
+		// Fallback to old cron behavior for backward compatibility
+		if scheduledTask.Schedule == "" {
+			return false, errors.New("no valid scheduling configuration found")
+		}
+
+		scheduleSpec, err := w.cronParser.Parse(scheduledTask.Schedule)
+		if err != nil {
+			return false, fmt.Errorf("parsing cron schedule: %w", err)
+		}
+		nextRun = scheduleSpec.Next(lastExecutedInTZ)
+		scheduleInfo = fmt.Sprintf("legacy cron: %s", scheduledTask.Schedule)
+	}
 
 	slog.Debug("evaluating schedule with timezone",
-		slog.String("schedule", schedule),
+		slog.String("schedule_info", scheduleInfo),
+		slog.String("scheduling_type", string(scheduledTask.Scheduling.Type)),
 		slog.String("timezone", tenantConfig.Timezone),
 		slog.Time("now", now),
 		slog.Time("last_executed", lastExecutedInTZ),

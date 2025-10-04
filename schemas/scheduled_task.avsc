@@ -8,6 +8,7 @@
     {"name": "device_id", "type": "string"},
     {"name": "command_templates", "type": "string"},
     {"name": "schedule", "type": "string"},
+    {"name": "scheduling_config", "type": ["null", "string"], "default": null},
     {"name": "is_active", "type": "boolean"},
     {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
     {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},

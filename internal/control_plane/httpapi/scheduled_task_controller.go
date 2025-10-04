@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 const (
@@ -105,13 +105,25 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 		}
 
 		// Create the scheduled task with command templates
-		scheduledTask, err := domain.NewScheduledTaskBuilder().
+		builder := domain.NewScheduledTaskBuilder().
 			WithTenant(tenant).
 			WithDevice(device).
 			WithCommandTemplates(commandTemplates).
-			WithSchedule(body.Schedule).
-			WithIsActive(body.IsActive).
-			Build()
+			WithIsActive(body.IsActive)
+
+		if body.Scheduling != nil {
+			schedulingConfig := body.Scheduling.ToSchedulingConfiguration()
+
+			if schedulingConfig.Type == domain.SchedulingTypeCron && body.Scheduling.Schedule != nil {
+				builder = builder.WithSchedule(*body.Scheduling.Schedule)
+			}
+
+			builder = builder.WithScheduling(schedulingConfig)
+		} else if body.Schedule != "" {
+			builder = builder.WithSchedule(body.Schedule)
+		}
+
+		scheduledTask, err := builder.Build()
 		if err != nil {
 			slog.Error("build scheduled task", slog.String("error", err.Error()))
 			http.Error(w, createScheduledTaskErrMessage, http.StatusInternalServerError)
@@ -125,7 +137,6 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 			return
 		}
 
-		// Convert command templates to response format
 		responseCommands := make([]internal.CommandSendPayloadRequest, len(scheduledTask.CommandTemplates))
 		for i, template := range scheduledTask.CommandTemplates {
 			responseCommands[i] = internal.CommandSendPayloadRequest{
@@ -136,12 +147,21 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 			}
 		}
 
+		var nextExecution *time.Time
+		if scheduledTask.Scheduling.Type == domain.SchedulingTypeInterval {
+			nextExec, err := scheduledTask.CalculateNextExecution("UTC") // TODO: Get tenant timezone
+			if err == nil {
+				nextExecution = &nextExec
+			}
+		}
+
 		response := internal.ScheduledTaskResponse{
-			ID:       scheduledTask.ID.String(),
-			DeviceID: scheduledTask.Device.ID.String(),
-			Commands: responseCommands,
-			Schedule: scheduledTask.Schedule,
-			IsActive: scheduledTask.IsActive,
+			ID:         scheduledTask.ID.String(),
+			DeviceID:   scheduledTask.Device.ID.String(),
+			Commands:   responseCommands,
+			Schedule:   scheduledTask.Schedule,
+			Scheduling: internal.FromSchedulingConfiguration(scheduledTask.Scheduling, nextExecution),
+			IsActive:   scheduledTask.IsActive,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

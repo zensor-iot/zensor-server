@@ -90,6 +90,15 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I delete the scheduled task$`, fc.iDeleteTheScheduledTask)
 	ctx.When(`^I try to get the scheduled task by its ID$`, fc.iTryToGetTheScheduledTaskByItsID)
 
+	// Interval-based Scheduled Task steps
+	ctx.When(`^I create a scheduled task with:$`, fc.iCreateAScheduledTaskWith)
+	ctx.Then(`^the response should contain the scheduled task details with interval scheduling$`, fc.theResponseShouldContainTheScheduledTaskDetailsWithIntervalScheduling)
+	ctx.Then(`^the response should contain the scheduled task with next execution time$`, fc.theResponseShouldContainTheScheduledTaskWithNextExecutionTime)
+	ctx.Then(`^the response should contain the scheduled task details with 3-day interval$`, fc.theResponseShouldContainTheScheduledTaskDetailsWith3DayInterval)
+	ctx.Then(`^the response should contain an error about missing initial_day$`, fc.theResponseShouldContainAnErrorAboutMissingInitialDay)
+	ctx.When(`^I update the scheduled task with:$`, fc.iUpdateTheScheduledTaskWith)
+	ctx.Then(`^the response should contain the updated scheduled task with interval scheduling$`, fc.theResponseShouldContainTheUpdatedScheduledTaskWithIntervalScheduling)
+
 	// Scheduled Task Tasks steps
 	ctx.Given(`^there are (\d+) tasks created from scheduled task "([^"]*)"$`, fc.thereAreTasksCreatedFromScheduledTask)
 	ctx.When(`^I retrieve the first (\d+) tasks for scheduled task "([^"]*)"$`, fc.iRetrieveTheFirstTasksForScheduledTask)

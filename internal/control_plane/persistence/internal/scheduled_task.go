@@ -63,7 +63,8 @@ type ScheduledTask struct {
 	TenantID         string      `json:"tenant_id"`
 	DeviceID         string      `json:"device_id"`
 	CommandTemplates string      `json:"command_templates"` // JSON array of command templates
-	Schedule         string      `json:"schedule"`
+	Schedule         string      `json:"schedule"`          // Deprecated: use SchedulingConfig instead
+	SchedulingConfig string      `json:"scheduling_config"` // JSON scheduling configuration
 	IsActive         bool        `json:"is_active"`
 	CreatedAt        utils.Time  `json:"created_at"`
 	UpdatedAt        utils.Time  `json:"updated_at"`
@@ -83,6 +84,9 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 	}
 
 	commandTemplatesJSON, _ := json.Marshal(commandTemplateData)
+	
+	// Convert scheduling configuration to JSON
+	schedulingConfigJSON, _ := json.Marshal(value.Scheduling)
 
 	return ScheduledTask{
 		ID:               value.ID.String(),
@@ -91,6 +95,7 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 		DeviceID:         value.Device.ID.String(),
 		CommandTemplates: string(commandTemplatesJSON),
 		Schedule:         value.Schedule,
+		SchedulingConfig: string(schedulingConfigJSON),
 		IsActive:         value.IsActive,
 		CreatedAt:        value.CreatedAt,
 		UpdatedAt:        value.UpdatedAt,
@@ -121,6 +126,12 @@ func (s ScheduledTask) ToDomain() domain.ScheduledTask {
 		}
 	}
 
+	// Parse scheduling configuration
+	var schedulingConfig domain.SchedulingConfiguration
+	if s.SchedulingConfig != "" {
+		json.Unmarshal([]byte(s.SchedulingConfig), &schedulingConfig)
+	}
+
 	return domain.ScheduledTask{
 		ID:               domain.ID(s.ID),
 		Version:          domain.Version(s.Version),
@@ -128,6 +139,7 @@ func (s ScheduledTask) ToDomain() domain.ScheduledTask {
 		Device:           domain.Device{ID: domain.ID(s.DeviceID)},
 		CommandTemplates: commandTemplates,
 		Schedule:         s.Schedule,
+		Scheduling:       schedulingConfig,
 		IsActive:         s.IsActive,
 		CreatedAt:        s.CreatedAt,
 		UpdatedAt:        s.UpdatedAt,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type APIDriver struct {
@@ -149,6 +150,19 @@ func (d *APIDriver) DeleteScheduledTask(tenantID, deviceID, scheduledTaskID stri
 	if err != nil {
 		panic(err)
 	}
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) CreateScheduledTaskWithJSON(tenantID, deviceID, requestBody string) (*http.Response, error) {
+	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks", d.baseURL, tenantID, deviceID), "application/json", strings.NewReader(requestBody))
+}
+
+func (d *APIDriver) UpdateScheduledTaskWithJSON(tenantID, deviceID, scheduledTaskID, requestBody string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s", d.baseURL, tenantID, deviceID, scheduledTaskID), strings.NewReader(requestBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
 	return d.client.Do(req)
 }
 

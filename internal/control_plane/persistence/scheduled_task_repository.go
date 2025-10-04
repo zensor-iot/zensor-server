@@ -45,6 +45,11 @@ func (r *SimpleScheduledTaskRepository) Create(ctx context.Context, scheduledTas
 	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
 
 	// Convert to Avro format
+	var schedulingConfig *string
+	if persistenceScheduledTask.SchedulingConfig != "" {
+		schedulingConfig = &persistenceScheduledTask.SchedulingConfig
+	}
+
 	avroScheduledTask := &avro.AvroScheduledTask{
 		ID:               persistenceScheduledTask.ID,
 		Version:          int64(persistenceScheduledTask.Version),
@@ -52,6 +57,7 @@ func (r *SimpleScheduledTaskRepository) Create(ctx context.Context, scheduledTas
 		DeviceID:         persistenceScheduledTask.DeviceID,
 		CommandTemplates: persistenceScheduledTask.CommandTemplates,
 		Schedule:         persistenceScheduledTask.Schedule,
+		SchedulingConfig: schedulingConfig,
 		IsActive:         persistenceScheduledTask.IsActive,
 		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
 		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
@@ -157,6 +163,11 @@ func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTas
 	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
 
 	// Convert to Avro format
+	var schedulingConfig *string
+	if persistenceScheduledTask.SchedulingConfig != "" {
+		schedulingConfig = &persistenceScheduledTask.SchedulingConfig
+	}
+
 	avroScheduledTask := &avro.AvroScheduledTask{
 		ID:               persistenceScheduledTask.ID,
 		Version:          int64(persistenceScheduledTask.Version),
@@ -164,6 +175,7 @@ func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTas
 		DeviceID:         persistenceScheduledTask.DeviceID,
 		CommandTemplates: persistenceScheduledTask.CommandTemplates,
 		Schedule:         persistenceScheduledTask.Schedule,
+		SchedulingConfig: schedulingConfig,
 		IsActive:         persistenceScheduledTask.IsActive,
 		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
 		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
@@ -201,6 +213,11 @@ func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID
 	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
 
 	// Convert to Avro format
+	var schedulingConfig *string
+	if persistenceScheduledTask.SchedulingConfig != "" {
+		schedulingConfig = &persistenceScheduledTask.SchedulingConfig
+	}
+
 	avroScheduledTask := &avro.AvroScheduledTask{
 		ID:               persistenceScheduledTask.ID,
 		Version:          int64(persistenceScheduledTask.Version),
@@ -208,6 +225,7 @@ func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID
 		DeviceID:         persistenceScheduledTask.DeviceID,
 		CommandTemplates: persistenceScheduledTask.CommandTemplates,
 		Schedule:         persistenceScheduledTask.Schedule,
+		SchedulingConfig: schedulingConfig,
 		IsActive:         persistenceScheduledTask.IsActive,
 		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
 		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+
+	"github.com/cucumber/godog"
 )
 
 // ScheduledTask represents a scheduled task entity in the response
@@ -354,4 +357,217 @@ func (fc *FeatureContext) iTryToGetTheScheduledTaskByItsID() error {
 	fc.require.NoError(err)
 	fc.response = resp
 	return err
+}
+
+func (fc *FeatureContext) iCreateAScheduledTaskWith(table *godog.Table) error {
+	// Convert table to map for easier access
+	params := make(map[string]string)
+	for _, row := range table.Rows[1:] { // Skip header row
+		params[row.Cells[0].Value] = row.Cells[1].Value
+	}
+
+	// Build the request JSON from the parameters
+	requestBody, err := fc.buildScheduledTaskRequestFromParams(params)
+	if err != nil {
+		return err
+	}
+
+	resp, err := fc.apiDriver.CreateScheduledTaskWithJSON(fc.tenantID, fc.deviceID, requestBody)
+	fc.require.NoError(err)
+	fc.response = resp
+	return err
+}
+
+func (fc *FeatureContext) iUpdateTheScheduledTaskWith(table *godog.Table) error {
+	// Convert table to map for easier access
+	params := make(map[string]string)
+	for _, row := range table.Rows[1:] { // Skip header row
+		params[row.Cells[0].Value] = row.Cells[1].Value
+	}
+
+	// Build the update request JSON from the parameters
+	requestBody, err := fc.buildScheduledTaskUpdateRequestFromParams(params)
+	if err != nil {
+		return err
+	}
+
+	resp, err := fc.apiDriver.UpdateScheduledTaskWithJSON(fc.tenantID, fc.deviceID, fc.scheduledTaskID, requestBody)
+	fc.require.NoError(err)
+	fc.response = resp
+	return err
+}
+
+func (fc *FeatureContext) buildScheduledTaskRequestFromParams(params map[string]string) (string, error) {
+	// Build the JSON request from the parameters
+	request := map[string]interface{}{
+		"commands": []map[string]interface{}{
+			{
+				"index":    fc.parseUint8(params["command_index"]),
+				"value":    fc.parseUint8(params["command_value"]),
+				"priority": params["command_priority"],
+				"wait_for": params["command_wait_for"],
+			},
+		},
+		"is_active": fc.parseBool(params["is_active"]),
+	}
+
+	// Add scheduling configuration if present
+	if schedulingType, exists := params["scheduling_type"]; exists {
+		scheduling := map[string]interface{}{
+			"type": schedulingType,
+		}
+
+		if initialDay, exists := params["initial_day"]; exists {
+			scheduling["initial_day"] = initialDay + "T00:00:00Z"
+		}
+		if dayInterval, exists := params["day_interval"]; exists {
+			scheduling["day_interval"] = fc.parseInt(dayInterval)
+		}
+		if executionTime, exists := params["execution_time"]; exists {
+			scheduling["execution_time"] = executionTime
+		}
+
+		request["scheduling"] = scheduling
+	}
+
+	return fc.marshalJSON(request)
+}
+
+func (fc *FeatureContext) buildScheduledTaskUpdateRequestFromParams(params map[string]string) (string, error) {
+	// Build the update JSON request from the parameters
+	request := make(map[string]interface{})
+
+	// Add scheduling configuration if present
+	if schedulingType, exists := params["scheduling_type"]; exists {
+		scheduling := map[string]interface{}{
+			"type": schedulingType,
+		}
+
+		if initialDay, exists := params["initial_day"]; exists {
+			scheduling["initial_day"] = initialDay + "T00:00:00Z"
+		}
+		if dayInterval, exists := params["day_interval"]; exists {
+			scheduling["day_interval"] = fc.parseInt(dayInterval)
+		}
+		if executionTime, exists := params["execution_time"]; exists {
+			scheduling["execution_time"] = executionTime
+		}
+
+		request["scheduling"] = scheduling
+	}
+
+	return fc.marshalJSON(request)
+}
+
+func (fc *FeatureContext) parseUint8(s string) uint8 {
+	val, _ := strconv.ParseUint(s, 10, 8)
+	return uint8(val)
+}
+
+func (fc *FeatureContext) parseInt(s string) int {
+	val, _ := strconv.Atoi(s)
+	return val
+}
+
+func (fc *FeatureContext) parseBool(s string) bool {
+	return s == "true"
+}
+
+func (fc *FeatureContext) marshalJSON(data interface{}) (string, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
+}
+
+func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetailsWithIntervalScheduling() error {
+	var data map[string]any
+	err := fc.decodeBody(fc.response.Body, &data)
+	fc.require.NoError(err)
+
+	// Check that scheduling configuration is present
+	scheduling, exists := data["scheduling"]
+	fc.require.True(exists, "Response should contain scheduling configuration")
+
+	schedulingMap, ok := scheduling.(map[string]any)
+	fc.require.True(ok, "Scheduling should be a map")
+	fc.require.Equal("interval", schedulingMap["type"], "Scheduling type should be 'interval'")
+
+	// Check required fields
+	fc.require.NotNil(schedulingMap["initial_day"], "Initial day should be present")
+	fc.require.NotNil(schedulingMap["day_interval"], "Day interval should be present")
+	fc.require.NotNil(schedulingMap["execution_time"], "Execution time should be present")
+
+	// Check that next_execution is calculated
+	fc.require.NotNil(schedulingMap["next_execution"], "Next execution time should be calculated")
+
+	fc.scheduledTaskID = data["id"].(string)
+	fc.responseData = data
+	return nil
+}
+
+func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithNextExecutionTime() error {
+	var data map[string]any
+	err := fc.decodeBody(fc.response.Body, &data)
+	fc.require.NoError(err)
+
+	scheduling, exists := data["scheduling"]
+	fc.require.True(exists, "Response should contain scheduling configuration")
+
+	schedulingMap := scheduling.(map[string]any)
+	nextExecution := schedulingMap["next_execution"]
+	fc.require.NotNil(nextExecution, "Next execution time should be present")
+
+	fc.scheduledTaskID = data["id"].(string)
+	fc.responseData = data
+	return nil
+}
+
+func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetailsWith3DayInterval() error {
+	var data map[string]any
+	err := fc.decodeBody(fc.response.Body, &data)
+	fc.require.NoError(err)
+
+	scheduling := data["scheduling"].(map[string]any)
+	fc.require.Equal("interval", scheduling["type"])
+	fc.require.Equal(float64(3), scheduling["day_interval"], "Day interval should be 3")
+	fc.require.Equal("15:00", scheduling["execution_time"], "Execution time should be 15:00")
+
+	fc.scheduledTaskID = data["id"].(string)
+	fc.responseData = data
+	return nil
+}
+
+func (fc *FeatureContext) theResponseShouldContainAnErrorAboutMissingInitialDay() error {
+	var data map[string]any
+	err := fc.decodeBody(fc.response.Body, &data)
+	fc.require.NoError(err)
+
+	// Check that there's an error message
+	errorMsg, exists := data["error"]
+	fc.require.True(exists, "Response should contain an error")
+	fc.require.Contains(errorMsg, "initial_day", "Error should mention missing initial_day")
+
+	return nil
+}
+
+func (fc *FeatureContext) iUpdateTheScheduledTaskWithIntervalScheduling(requestBody string) error {
+	resp, err := fc.apiDriver.UpdateScheduledTaskWithJSON(fc.tenantID, fc.deviceID, fc.scheduledTaskID, requestBody)
+	fc.require.NoError(err)
+	fc.response = resp
+	return err
+}
+
+func (fc *FeatureContext) theResponseShouldContainTheUpdatedScheduledTaskWithIntervalScheduling() error {
+	var data map[string]any
+	err := fc.decodeBody(fc.response.Body, &data)
+	fc.require.NoError(err)
+
+	scheduling := data["scheduling"].(map[string]any)
+	fc.require.Equal("interval", scheduling["type"])
+	fc.require.Equal(float64(5), scheduling["day_interval"], "Day interval should be 5")
+	fc.require.Equal("10:30", scheduling["execution_time"], "Execution time should be 10:30")
+
+	return nil
 }
