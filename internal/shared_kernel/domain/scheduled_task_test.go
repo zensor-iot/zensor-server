@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"fmt"
 	"time"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
@@ -115,7 +116,7 @@ var _ = ginkgo.Describe("ScheduledTask", func() {
 		ginkgo.When("creating scheduled task with interval scheduling", func() {
 			ginkgo.It("should create scheduled task with interval scheduling", func() {
 				// Given: A scheduled task with interval scheduling
-				initialDay := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+				initialDay := time.Now().AddDate(0, 0, 1) // Tomorrow
 				schedulingConfig := domain.SchedulingConfiguration{
 					Type:          domain.SchedulingTypeInterval,
 					InitialDay:    &utils.Time{Time: initialDay},
@@ -394,6 +395,103 @@ var _ = ginkgo.Describe("ScheduledTask", func() {
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				expected := time.Date(2024, 1, 19, 2, 0, 0, 0, time.UTC)
 				gomega.Expect(nextExec).To(gomega.Equal(expected))
+			})
+		})
+	})
+
+	ginkgo.Context("ScheduledTaskBuilder validation", func() {
+		ginkgo.When("validating interval scheduling with past initial day", func() {
+			ginkgo.It("should return error when initial day + execution time is in the past", func() {
+				// Given: A past initial day and execution time
+				pastDate := time.Date(2020, 1, 15, 0, 0, 0, 0, time.UTC)
+				executionTime := "02:00"
+				dayInterval := 2
+
+				// When: Building a scheduled task with past initial day
+				commandTemplate, _ := domain.NewCommandTemplateBuilder().
+					WithDevice(domain.Device{ID: domain.ID("test-device")}).
+					WithPayload(domain.CommandPayload{Index: domain.Index(1), Value: domain.CommandValue(100)}).
+					WithPriority(domain.CommandPriority("normal")).
+					WithWaitFor(0).
+					Build()
+
+				_, err := domain.NewScheduledTaskBuilder().
+					WithTenant(domain.Tenant{ID: domain.ID("test-tenant")}).
+					WithDevice(domain.Device{ID: domain.ID("test-device")}).
+					WithCommandTemplates([]domain.CommandTemplate{commandTemplate}).
+					WithScheduling(domain.SchedulingConfiguration{
+						Type:          domain.SchedulingTypeInterval,
+						InitialDay:    &utils.Time{Time: pastDate},
+						DayInterval:   &dayInterval,
+						ExecutionTime: &executionTime,
+					}).
+					Build()
+
+				// Then: Should return validation error
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("initial_day with execution_time must be in the future"))
+			})
+
+			ginkgo.It("should allow future initial day + execution time", func() {
+				// Given: A future initial day and execution time
+				futureDate := time.Now().AddDate(0, 0, 1) // Tomorrow
+				executionTime := "02:00"
+				dayInterval := 2
+
+				// When: Building a scheduled task with future initial day
+				commandTemplate, _ := domain.NewCommandTemplateBuilder().
+					WithDevice(domain.Device{ID: domain.ID("test-device")}).
+					WithPayload(domain.CommandPayload{Index: domain.Index(1), Value: domain.CommandValue(100)}).
+					WithPriority(domain.CommandPriority("normal")).
+					WithWaitFor(0).
+					Build()
+
+				_, err := domain.NewScheduledTaskBuilder().
+					WithTenant(domain.Tenant{ID: domain.ID("test-tenant")}).
+					WithDevice(domain.Device{ID: domain.ID("test-device")}).
+					WithCommandTemplates([]domain.CommandTemplate{commandTemplate}).
+					WithScheduling(domain.SchedulingConfiguration{
+						Type:          domain.SchedulingTypeInterval,
+						InitialDay:    &utils.Time{Time: futureDate},
+						DayInterval:   &dayInterval,
+						ExecutionTime: &executionTime,
+					}).
+					Build()
+
+				// Then: Should succeed
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should return error when initial day is today but execution time is in the past", func() {
+				// Given: Today's date but with a past execution time
+				today := time.Now().Truncate(24 * time.Hour)
+				pastTime := time.Now().Add(-2 * time.Hour) // 2 hours ago
+				executionTime := fmt.Sprintf("%02d:%02d", pastTime.Hour(), pastTime.Minute())
+				dayInterval := 2
+
+				// When: Building a scheduled task with past execution time today
+				commandTemplate, _ := domain.NewCommandTemplateBuilder().
+					WithDevice(domain.Device{ID: domain.ID("test-device")}).
+					WithPayload(domain.CommandPayload{Index: domain.Index(1), Value: domain.CommandValue(100)}).
+					WithPriority(domain.CommandPriority("normal")).
+					WithWaitFor(0).
+					Build()
+
+				_, err := domain.NewScheduledTaskBuilder().
+					WithTenant(domain.Tenant{ID: domain.ID("test-tenant")}).
+					WithDevice(domain.Device{ID: domain.ID("test-device")}).
+					WithCommandTemplates([]domain.CommandTemplate{commandTemplate}).
+					WithScheduling(domain.SchedulingConfiguration{
+						Type:          domain.SchedulingTypeInterval,
+						InitialDay:    &utils.Time{Time: today},
+						DayInterval:   &dayInterval,
+						ExecutionTime: &executionTime,
+					}).
+					Build()
+
+				// Then: Should return validation error
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(err.Error()).To(gomega.ContainSubstring("initial_day with execution_time must be in the future"))
 			})
 		})
 	})

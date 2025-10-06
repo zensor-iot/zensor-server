@@ -13,24 +13,22 @@ type ScheduledTask struct {
 	Tenant           Tenant
 	Device           Device
 	CommandTemplates []CommandTemplate
-	Schedule         string                  // Cron format schedule (deprecated, use Scheduling instead)
-	Scheduling       SchedulingConfiguration // New scheduling configuration
+	Schedule         string
+	Scheduling       SchedulingConfiguration
 	IsActive         bool
 	CreatedAt        utils.Time
 	UpdatedAt        utils.Time
-	LastExecutedAt   *utils.Time // When the scheduled task was last executed
-	DeletedAt        *utils.Time // For soft deletion
+	LastExecutedAt   *utils.Time
+	DeletedAt        *utils.Time
 }
 
-// SchedulingConfiguration represents how a scheduled task should be executed
 type SchedulingConfiguration struct {
-	Type          SchedulingType // "cron" or "interval"
-	InitialDay    *utils.Time    // Starting day for interval scheduling
-	DayInterval   *int           // Days between executions (for interval scheduling)
-	ExecutionTime *string        // Time of day (e.g., "02:00", "14:30")
+	Type          SchedulingType
+	InitialDay    *utils.Time
+	DayInterval   *int
+	ExecutionTime *string
 }
 
-// SchedulingType defines the type of scheduling
 type SchedulingType string
 
 const (
@@ -50,58 +48,54 @@ func (st *ScheduledTask) SoftDelete() {
 	st.UpdatedAt = now
 }
 
-// CalculateNextExecution calculates the next execution time for interval-based scheduling
 func (st *ScheduledTask) CalculateNextExecution(tenantTimezone string) (time.Time, error) {
 	if st.Scheduling.Type != SchedulingTypeInterval {
 		return time.Time{}, errors.New("calculateNextExecution only supports interval scheduling")
 	}
 
-	// Parse execution time (e.g., "02:00", "14:30")
 	executionTime := *st.Scheduling.ExecutionTime
 	location, err := time.LoadLocation(tenantTimezone)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("loading timezone %s: %w", tenantTimezone, err)
 	}
 
-	// Parse the execution time
 	hour, minute, err := utils.ParseExecutionTime(executionTime)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("parsing execution time %s: %w", executionTime, err)
 	}
 
-	// Determine reference time
-	var referenceTime time.Time
-	if st.LastExecutedAt != nil {
-		referenceTime = st.LastExecutedAt.Time
+	if st.LastExecutedAt == nil {
+		return calculateNextIntervalExecution(
+			st.Scheduling.InitialDay.Time,
+			*st.Scheduling.DayInterval,
+			hour,
+			minute,
+			st.Scheduling.InitialDay.Time.In(location),
+			location,
+			true,
+		), nil
 	} else {
-		referenceTime = st.CreatedAt.Time
+		return calculateNextIntervalExecution(
+			st.Scheduling.InitialDay.Time,
+			*st.Scheduling.DayInterval,
+			hour,
+			minute,
+			st.LastExecutedAt.Time.In(location),
+			location,
+			false,
+		), nil
 	}
-
-	// Convert to tenant timezone
-	referenceTimeInTZ := referenceTime.In(location)
-
-	// Calculate next execution
-	return calculateNextIntervalExecution(
-		st.Scheduling.InitialDay.Time,
-		*st.Scheduling.DayInterval,
-		hour,
-		minute,
-		referenceTimeInTZ,
-		location,
-	), nil
 }
 
-// calculateNextIntervalExecution calculates the next execution time for interval-based scheduling
 func calculateNextIntervalExecution(
 	initialDay time.Time,
 	dayInterval int,
 	hour, minute int,
 	referenceTime time.Time,
 	location *time.Location,
+	isFirstExecution bool,
 ) time.Time {
-	// If this is the first execution, find the next occurrence from initial day
-	if referenceTime.Equal(initialDay) {
-		// Find the next occurrence after the initial day
+	if isFirstExecution {
 		candidate := time.Date(
 			initialDay.Year(),
 			initialDay.Month(),
@@ -113,29 +107,16 @@ func calculateNextIntervalExecution(
 			location,
 		)
 
-		// If the candidate time is in the past or same as reference, move to next interval
-		if candidate.Before(referenceTime) || candidate.Equal(referenceTime) {
+		if candidate.Before(referenceTime) {
 			candidate = candidate.AddDate(0, 0, dayInterval)
 		}
 
 		return candidate
 	}
 
-	// For subsequent executions, calculate from last executed time
 	lastExecutedDate := referenceTime.Truncate(24 * time.Hour)
-	daysSinceInitial := int(lastExecutedDate.Sub(initialDay.Truncate(24*time.Hour)).Hours() / 24)
+	nextExecutionDate := lastExecutedDate.AddDate(0, 0, dayInterval)
 
-	// Calculate how many intervals have passed
-	intervalsPassed := daysSinceInitial / dayInterval
-
-	// Calculate the next interval
-	nextInterval := intervalsPassed + 1
-	nextExecutionDays := nextInterval * dayInterval
-
-	// Calculate the next execution date
-	nextExecutionDate := initialDay.AddDate(0, 0, nextExecutionDays)
-
-	// Set the execution time
 	nextExecution := time.Date(
 		nextExecutionDate.Year(),
 		nextExecutionDate.Month(),
@@ -245,20 +226,16 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 		return ScheduledTask{}, errors.New("command templates are required")
 	}
 
-	// Validate scheduling configuration
 	if result.Schedule == "" && result.Scheduling.Type == "" {
 		return ScheduledTask{}, errors.New("either schedule or scheduling configuration is required")
 	}
 
-	// If using old cron format, convert to new scheduling configuration
 	if result.Schedule != "" && result.Scheduling.Type == "" {
 		result.Scheduling = SchedulingConfiguration{
 			Type: SchedulingTypeCron,
 		}
-		// Keep the old Schedule field for backward compatibility
 	}
 
-	// Validate interval scheduling configuration
 	if result.Scheduling.Type == SchedulingTypeInterval {
 		if result.Scheduling.InitialDay == nil {
 			return ScheduledTask{}, errors.New("initial_day is required for interval scheduling")
@@ -268,6 +245,26 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 		}
 		if result.Scheduling.ExecutionTime == nil || *result.Scheduling.ExecutionTime == "" {
 			return ScheduledTask{}, errors.New("execution_time is required for interval scheduling")
+		}
+
+		hour, minute, err := utils.ParseExecutionTime(*result.Scheduling.ExecutionTime)
+		if err != nil {
+			return ScheduledTask{}, fmt.Errorf("invalid execution_time format: %w", err)
+		}
+
+		firstExecutionTime := time.Date(
+			result.Scheduling.InitialDay.Time.Year(),
+			result.Scheduling.InitialDay.Time.Month(),
+			result.Scheduling.InitialDay.Time.Day(),
+			hour,
+			minute,
+			0,
+			0,
+			result.Scheduling.InitialDay.Time.Location(),
+		)
+
+		if firstExecutionTime.Before(time.Now()) {
+			return ScheduledTask{}, errors.New("initial_day with execution_time must be in the future")
 		}
 	}
 
