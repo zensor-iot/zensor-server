@@ -353,7 +353,12 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"updated_at":        v.UpdatedAt,
 		}
 
-		// Handle nullable last_executed_at field for Avro union type
+		if v.SchedulingConfig != nil {
+			result["scheduling_config"] = map[string]any{"string": *v.SchedulingConfig}
+		} else {
+			result["scheduling_config"] = nil
+		}
+
 		if v.LastExecutedAt != nil {
 			result["last_executed_at"] = map[string]any{
 				"long.timestamp-millis": v.LastExecutedAt.UnixMilli(),
@@ -362,7 +367,6 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			result["last_executed_at"] = nil
 		}
 
-		// Handle nullable deleted_at field for Avro union type
 		if v.DeletedAt != nil {
 			result["deleted_at"] = map[string]any{
 				"long.timestamp-millis": v.DeletedAt.UnixMilli(),
@@ -755,6 +759,7 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 						DeviceID:         getString(mapValue, "device_id"),
 						CommandTemplates: getString(mapValue, "command_templates"),
 						Schedule:         getString(mapValue, "schedule"),
+						SchedulingConfig: getStringPtr(mapValue, "scheduling_config"),
 						IsActive:         getBool(mapValue, "is_active"),
 						CreatedAt:        parseTimeRFC3339(getString(mapValue, "created_at")),
 						UpdatedAt:        parseTimeRFC3339(getString(mapValue, "updated_at")),
@@ -816,6 +821,7 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 			DeviceID:         v.DeviceID,
 			CommandTemplates: v.CommandTemplates,
 			Schedule:         v.Schedule,
+			SchedulingConfig: v.SchedulingConfig,
 			IsActive:         v.IsActive,
 			CreatedAt:        v.CreatedAt,
 			UpdatedAt:        v.UpdatedAt,

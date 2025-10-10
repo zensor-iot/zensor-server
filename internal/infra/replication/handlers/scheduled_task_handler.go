@@ -18,6 +18,7 @@ type ScheduledTaskData struct {
 	DeviceID         string      `json:"device_id" gorm:"index"`
 	CommandTemplates string      `json:"command_templates"` // JSON array of command templates
 	Schedule         string      `json:"schedule"`
+	SchedulingConfig string      `json:"scheduling_config"` // JSON scheduling configuration
 	IsActive         bool        `json:"is_active"`
 	CreatedAt        utils.Time  `json:"created_at"`
 	UpdatedAt        utils.Time  `json:"updated_at"`
@@ -93,6 +94,9 @@ func (h *ScheduledTaskHandler) Update(ctx context.Context, key pubsub.Key, messa
 	if incoming.Schedule != "" {
 		existing.Schedule = incoming.Schedule
 	}
+	if incoming.SchedulingConfig != "" {
+		existing.SchedulingConfig = incoming.SchedulingConfig
+	}
 	existing.IsActive = incoming.IsActive
 	existing.UpdatedAt = incoming.UpdatedAt
 	existing.Version = incoming.Version
@@ -125,6 +129,10 @@ func (h *ScheduledTaskHandler) extractScheduledTaskFields(message pubsub.Message
 		UpdatedAt:        utils.Time{Time: avroScheduledTask.UpdatedAt},
 	}
 
+	if avroScheduledTask.SchedulingConfig != nil {
+		result.SchedulingConfig = *avroScheduledTask.SchedulingConfig
+	}
+
 	if avroScheduledTask.LastExecutedAt != nil {
 		result.LastExecutedAt = &utils.Time{Time: *avroScheduledTask.LastExecutedAt}
 	}
@@ -143,6 +151,7 @@ func (h *ScheduledTaskHandler) toDomainScheduledTask(internalScheduledTask Sched
 		"device_id":         internalScheduledTask.DeviceID,
 		"command_templates": internalScheduledTask.CommandTemplates,
 		"schedule":          internalScheduledTask.Schedule,
+		"scheduling_config": internalScheduledTask.SchedulingConfig,
 		"is_active":         internalScheduledTask.IsActive,
 		"created_at":        internalScheduledTask.CreatedAt,
 		"updated_at":        internalScheduledTask.UpdatedAt,

@@ -3,9 +3,18 @@ package internal
 import (
 	"encoding/json"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 )
+
+// SchedulingConfigurationData represents the scheduling configuration
+// that should be stored in the database
+type SchedulingConfigurationData struct {
+	Type          string  `json:"type"`
+	InitialDay    *string `json:"initial_day,omitempty"`    // RFC3339 formatted time
+	DayInterval   *int    `json:"day_interval,omitempty"`   // Days between executions
+	ExecutionTime *string `json:"execution_time,omitempty"` // Time of day (e.g., "02:00", "14:30")
+}
 
 // CommandTemplateData represents the essential command template information
 // that should be stored in the database, without the full device object
@@ -84,9 +93,25 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 	}
 
 	commandTemplatesJSON, _ := json.Marshal(commandTemplateData)
-	
-	// Convert scheduling configuration to JSON
-	schedulingConfigJSON, _ := json.Marshal(value.Scheduling)
+
+	// Convert scheduling configuration to persistence format
+	var schedulingConfigJSON []byte
+	var schedulingConfigStr string
+	if value.Scheduling.Type != "" {
+		schedulingData := SchedulingConfigurationData{
+			Type:          string(value.Scheduling.Type),
+			DayInterval:   value.Scheduling.DayInterval,
+			ExecutionTime: value.Scheduling.ExecutionTime,
+		}
+
+		if value.Scheduling.InitialDay != nil {
+			initialDayStr := value.Scheduling.InitialDay.Time.Format(time.RFC3339)
+			schedulingData.InitialDay = &initialDayStr
+		}
+
+		schedulingConfigJSON, _ = json.Marshal(schedulingData)
+		schedulingConfigStr = string(schedulingConfigJSON)
+	}
 
 	return ScheduledTask{
 		ID:               value.ID.String(),
@@ -95,7 +120,7 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 		DeviceID:         value.Device.ID.String(),
 		CommandTemplates: string(commandTemplatesJSON),
 		Schedule:         value.Schedule,
-		SchedulingConfig: string(schedulingConfigJSON),
+		SchedulingConfig: schedulingConfigStr,
 		IsActive:         value.IsActive,
 		CreatedAt:        value.CreatedAt,
 		UpdatedAt:        value.UpdatedAt,
@@ -129,7 +154,19 @@ func (s ScheduledTask) ToDomain() domain.ScheduledTask {
 	// Parse scheduling configuration
 	var schedulingConfig domain.SchedulingConfiguration
 	if s.SchedulingConfig != "" {
-		json.Unmarshal([]byte(s.SchedulingConfig), &schedulingConfig)
+		var schedulingData SchedulingConfigurationData
+		if err := json.Unmarshal([]byte(s.SchedulingConfig), &schedulingData); err == nil {
+			schedulingConfig.Type = domain.SchedulingType(schedulingData.Type)
+			schedulingConfig.DayInterval = schedulingData.DayInterval
+			schedulingConfig.ExecutionTime = schedulingData.ExecutionTime
+
+			if schedulingData.InitialDay != nil {
+				parsedTime, err := time.Parse(time.RFC3339, *schedulingData.InitialDay)
+				if err == nil {
+					schedulingConfig.InitialDay = &utils.Time{Time: parsedTime}
+				}
+			}
+		}
 	}
 
 	return domain.ScheduledTask{

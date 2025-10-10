@@ -41,37 +41,7 @@ type SimpleScheduledTaskRepository struct {
 }
 
 func (r *SimpleScheduledTaskRepository) Create(ctx context.Context, scheduledTask domain.ScheduledTask) error {
-	// Convert domain scheduled task to persistence format
-	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
-
-	// Convert to Avro format
-	var schedulingConfig *string
-	if persistenceScheduledTask.SchedulingConfig != "" {
-		schedulingConfig = &persistenceScheduledTask.SchedulingConfig
-	}
-
-	avroScheduledTask := &avro.AvroScheduledTask{
-		ID:               persistenceScheduledTask.ID,
-		Version:          int64(persistenceScheduledTask.Version),
-		TenantID:         persistenceScheduledTask.TenantID,
-		DeviceID:         persistenceScheduledTask.DeviceID,
-		CommandTemplates: persistenceScheduledTask.CommandTemplates,
-		Schedule:         persistenceScheduledTask.Schedule,
-		SchedulingConfig: schedulingConfig,
-		IsActive:         persistenceScheduledTask.IsActive,
-		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
-		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
-	}
-
-	if persistenceScheduledTask.LastExecutedAt != nil {
-		lastExecutedStr := persistenceScheduledTask.LastExecutedAt.Time
-		avroScheduledTask.LastExecutedAt = &lastExecutedStr
-	}
-
-	if persistenceScheduledTask.DeletedAt != nil {
-		deletedAtStr := persistenceScheduledTask.DeletedAt.Time
-		avroScheduledTask.DeletedAt = &deletedAtStr
-	}
+	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
 
 	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
 	if err != nil {
@@ -159,37 +129,7 @@ func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]do
 }
 
 func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTask domain.ScheduledTask) error {
-	// Convert domain scheduled task to persistence format
-	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
-
-	// Convert to Avro format
-	var schedulingConfig *string
-	if persistenceScheduledTask.SchedulingConfig != "" {
-		schedulingConfig = &persistenceScheduledTask.SchedulingConfig
-	}
-
-	avroScheduledTask := &avro.AvroScheduledTask{
-		ID:               persistenceScheduledTask.ID,
-		Version:          int64(persistenceScheduledTask.Version),
-		TenantID:         persistenceScheduledTask.TenantID,
-		DeviceID:         persistenceScheduledTask.DeviceID,
-		CommandTemplates: persistenceScheduledTask.CommandTemplates,
-		Schedule:         persistenceScheduledTask.Schedule,
-		SchedulingConfig: schedulingConfig,
-		IsActive:         persistenceScheduledTask.IsActive,
-		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
-		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
-	}
-
-	if persistenceScheduledTask.LastExecutedAt != nil {
-		lastExecutedStr := persistenceScheduledTask.LastExecutedAt.Time
-		avroScheduledTask.LastExecutedAt = &lastExecutedStr
-	}
-
-	if persistenceScheduledTask.DeletedAt != nil {
-		deletedAtStr := persistenceScheduledTask.DeletedAt.Time
-		avroScheduledTask.DeletedAt = &deletedAtStr
-	}
+	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
 
 	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
 	if err != nil {
@@ -200,46 +140,14 @@ func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTas
 }
 
 func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID) error {
-	// Get the existing scheduled task
 	scheduledTask, err := r.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("getting scheduled task for deletion: %w", err)
 	}
 
-	// Soft delete the scheduled task
 	scheduledTask.SoftDelete()
 
-	// Convert domain scheduled task to persistence format
-	persistenceScheduledTask := internal.FromScheduledTask(scheduledTask)
-
-	// Convert to Avro format
-	var schedulingConfig *string
-	if persistenceScheduledTask.SchedulingConfig != "" {
-		schedulingConfig = &persistenceScheduledTask.SchedulingConfig
-	}
-
-	avroScheduledTask := &avro.AvroScheduledTask{
-		ID:               persistenceScheduledTask.ID,
-		Version:          int64(persistenceScheduledTask.Version),
-		TenantID:         persistenceScheduledTask.TenantID,
-		DeviceID:         persistenceScheduledTask.DeviceID,
-		CommandTemplates: persistenceScheduledTask.CommandTemplates,
-		Schedule:         persistenceScheduledTask.Schedule,
-		SchedulingConfig: schedulingConfig,
-		IsActive:         persistenceScheduledTask.IsActive,
-		CreatedAt:        persistenceScheduledTask.CreatedAt.Time,
-		UpdatedAt:        persistenceScheduledTask.UpdatedAt.Time,
-	}
-
-	if persistenceScheduledTask.LastExecutedAt != nil {
-		lastExecutedStr := persistenceScheduledTask.LastExecutedAt.Time
-		avroScheduledTask.LastExecutedAt = &lastExecutedStr
-	}
-
-	if persistenceScheduledTask.DeletedAt != nil {
-		deletedAtStr := persistenceScheduledTask.DeletedAt.Time
-		avroScheduledTask.DeletedAt = &deletedAtStr
-	}
+	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
 
 	err = r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
 	if err != nil {

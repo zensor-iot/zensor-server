@@ -7,6 +7,14 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
+// schedulingConfigurationData represents the scheduling configuration for JSON serialization
+type schedulingConfigurationData struct {
+	Type          string  `json:"type"`
+	InitialDay    *string `json:"initial_day,omitempty"`
+	DayInterval   *int    `json:"day_interval,omitempty"`
+	ExecutionTime *string `json:"execution_time,omitempty"`
+}
+
 // Avro-compatible message structs that match the Avro schemas
 
 // AvroCommand represents the Avro-compatible Command message
@@ -247,8 +255,19 @@ func ToAvroScheduledTask(scheduledTask domain.ScheduledTask) *AvroScheduledTask 
 	avroScheduledTask.CommandTemplates = serializeCommandTemplates(scheduledTask.CommandTemplates)
 
 	// Handle SchedulingConfig serialization
-	schedulingConfigJSON, _ := json.Marshal(scheduledTask.Scheduling)
-	if string(schedulingConfigJSON) != "{}" && string(schedulingConfigJSON) != "null" {
+	if scheduledTask.Scheduling.Type != "" {
+		schedulingData := schedulingConfigurationData{
+			Type:          string(scheduledTask.Scheduling.Type),
+			DayInterval:   scheduledTask.Scheduling.DayInterval,
+			ExecutionTime: scheduledTask.Scheduling.ExecutionTime,
+		}
+
+		if scheduledTask.Scheduling.InitialDay != nil {
+			initialDayStr := scheduledTask.Scheduling.InitialDay.Time.Format(time.RFC3339)
+			schedulingData.InitialDay = &initialDayStr
+		}
+
+		schedulingConfigJSON, _ := json.Marshal(schedulingData)
 		schedulingConfigStr := string(schedulingConfigJSON)
 		avroScheduledTask.SchedulingConfig = &schedulingConfigStr
 	}

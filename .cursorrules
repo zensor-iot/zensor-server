@@ -22,8 +22,8 @@
 - Use clear, concise naming. Exported names must be capitalized; unexported names should be short and meaningful.
 - Avoid unnecessary abstraction; keep code simple and readable.
 - Group related code into packages; avoid large monolithic files.
-- Document all exported functions, types, and packages with Go-style comments.
-- Don't use comments to explain what the code does.
+- Only comment public (exported) methods, functions, types, and packages with Go-style comments.
+- Never add comments within function bodies or to explain what the code does.
 - All variable names, method names, function names, structure names and interface names must be in camel or pascal case.
 - always use the global slog method and never inject a *slog.Logger instance
 
