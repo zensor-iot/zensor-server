@@ -1057,6 +1057,24 @@ func (c *ConfluentAvroCodec) convertInternalScheduledTask(st *domain.ScheduledTa
 		CreatedAt:        st.CreatedAt.Time,
 		UpdatedAt:        st.UpdatedAt.Time,
 	}
+
+	if st.Scheduling.Type != "" {
+		schedulingData := schedulingConfigurationData{
+			Type:          string(st.Scheduling.Type),
+			DayInterval:   st.Scheduling.DayInterval,
+			ExecutionTime: st.Scheduling.ExecutionTime,
+		}
+
+		if st.Scheduling.InitialDay != nil {
+			initialDayStr := st.Scheduling.InitialDay.Time.Format(time.RFC3339)
+			schedulingData.InitialDay = &initialDayStr
+		}
+
+		schedulingConfigJSON, _ := json.Marshal(schedulingData)
+		schedulingConfigStr := string(schedulingConfigJSON)
+		avroST.SchedulingConfig = &schedulingConfigStr
+	}
+
 	if st.LastExecutedAt != nil {
 		t := st.LastExecutedAt.Time
 		avroST.LastExecutedAt = &t

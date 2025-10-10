@@ -198,12 +198,21 @@ func (c *ScheduledTaskController) list() http.HandlerFunc {
 				}
 			}
 
+			var nextExecution *time.Time
+			if scheduledTask.Scheduling.Type == domain.SchedulingTypeInterval {
+				nextExec, err := scheduledTask.CalculateNextExecution("UTC")
+				if err == nil {
+					nextExecution = &nextExec
+				}
+			}
+
 			responses[i] = internal.ScheduledTaskResponse{
-				ID:       scheduledTask.ID.String(),
-				DeviceID: scheduledTask.Device.ID.String(),
-				Commands: apiCommands,
-				Schedule: scheduledTask.Schedule,
-				IsActive: scheduledTask.IsActive,
+				ID:         scheduledTask.ID.String(),
+				DeviceID:   scheduledTask.Device.ID.String(),
+				Commands:   apiCommands,
+				Schedule:   scheduledTask.Schedule,
+				Scheduling: internal.FromSchedulingConfiguration(scheduledTask.Scheduling, nextExecution),
+				IsActive:   scheduledTask.IsActive,
 			}
 		}
 
@@ -245,12 +254,21 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 			}
 		}
 
+		var nextExecution *time.Time
+		if scheduledTask.Scheduling.Type == domain.SchedulingTypeInterval {
+			nextExec, err := scheduledTask.CalculateNextExecution("UTC")
+			if err == nil {
+				nextExecution = &nextExec
+			}
+		}
+
 		response := internal.ScheduledTaskResponse{
-			ID:       scheduledTask.ID.String(),
-			DeviceID: scheduledTask.Device.ID.String(),
-			Commands: responseCommands,
-			Schedule: scheduledTask.Schedule,
-			IsActive: scheduledTask.IsActive,
+			ID:         scheduledTask.ID.String(),
+			DeviceID:   scheduledTask.Device.ID.String(),
+			Commands:   responseCommands,
+			Schedule:   scheduledTask.Schedule,
+			Scheduling: internal.FromSchedulingConfiguration(scheduledTask.Scheduling, nextExecution),
+			IsActive:   scheduledTask.IsActive,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -344,12 +362,21 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 			}
 		}
 
+		var nextExecution *time.Time
+		if scheduledTask.Scheduling.Type == domain.SchedulingTypeInterval {
+			nextExec, err := scheduledTask.CalculateNextExecution("UTC")
+			if err == nil {
+				nextExecution = &nextExec
+			}
+		}
+
 		response := internal.ScheduledTaskResponse{
-			ID:       scheduledTask.ID.String(),
-			DeviceID: scheduledTask.Device.ID.String(),
-			Commands: responseCommands,
-			Schedule: scheduledTask.Schedule,
-			IsActive: scheduledTask.IsActive,
+			ID:         scheduledTask.ID.String(),
+			DeviceID:   scheduledTask.Device.ID.String(),
+			Commands:   responseCommands,
+			Schedule:   scheduledTask.Schedule,
+			Scheduling: internal.FromSchedulingConfiguration(scheduledTask.Scheduling, nextExecution),
+			IsActive:   scheduledTask.IsActive,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
