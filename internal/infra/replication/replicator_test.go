@@ -2,6 +2,8 @@ package replication_test
 
 import (
 	"context"
+	"log/slog"
+	"os"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -14,6 +16,9 @@ import (
 )
 
 var _ = ginkgo.Describe("Replicator", func() {
+	ginkgo.BeforeEach(func() {
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.Level(100)})))
+	})
 	ginkgo.Context("NewReplicator", func() {
 		var (
 			ctrl                *gomock.Controller
