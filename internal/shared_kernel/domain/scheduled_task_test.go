@@ -1,7 +1,6 @@
 package domain_test
 
 import (
-	"testing"
 	"time"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
@@ -9,11 +8,6 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 )
-
-func TestScheduledTask(t *testing.T) {
-	gomega.RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "ScheduledTask Suite")
-}
 
 var _ = ginkgo.Describe("ScheduledTask", func() {
 	ginkgo.Context("CalculateNextExecution", func() {
