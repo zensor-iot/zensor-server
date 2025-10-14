@@ -67,3 +67,12 @@
     ```
 - Avoid test dependencies on external systems; use mocks or test servers.
 - Run `go test -race` to check for race conditions.
+
+# Production Bug Fixes
+
+- When helping with a production bug, always follow this workflow:
+  1. First, create a unit or functional test that reproduces the issue
+  2. Verify that the test fails as expected (demonstrating the bug)
+  3. Then proceed with implementing the solution
+  4. Keep the test for future validation and regression prevention
+- This ensures bugs are properly documented and prevents regressions.
