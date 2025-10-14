@@ -114,7 +114,8 @@ func calculateNextIntervalExecution(
 		return candidate
 	}
 
-	lastExecutedDate := referenceTime.Truncate(24 * time.Hour)
+	year, month, day := referenceTime.Date()
+	lastExecutedDate := time.Date(year, month, day, 0, 0, 0, 0, location)
 	nextExecutionDate := lastExecutedDate.AddDate(0, 0, dayInterval)
 
 	nextExecution := time.Date(
