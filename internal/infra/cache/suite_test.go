@@ -1,6 +1,8 @@
 package cache_test
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -11,3 +13,7 @@ func TestCache(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Cache Suite")
 }
+
+var _ = BeforeEach(func() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+})

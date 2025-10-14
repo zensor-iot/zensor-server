@@ -1,6 +1,8 @@
 package utils_test
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -11,3 +13,7 @@ func TestUtils(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Utils Suite")
 }
+
+var _ = BeforeEach(func() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+})

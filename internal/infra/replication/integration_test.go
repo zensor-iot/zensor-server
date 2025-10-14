@@ -2,8 +2,8 @@ package replication_test
 
 import (
 	"context"
+	"io"
 	"log/slog"
-	"os"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	mockpubsub "zensor-server/test/unit/doubles/infra/pubsub"
@@ -16,7 +16,7 @@ import (
 
 var _ = ginkgo.Describe("Replication Integration", func() {
 	ginkgo.BeforeEach(func() {
-		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.Level(100)})))
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	})
 	ginkgo.Context("Integration", func() {
 		ginkgo.It("should require real database and pub/sub system", func() {

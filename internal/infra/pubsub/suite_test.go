@@ -1,6 +1,8 @@
 package pubsub_test
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -11,3 +13,7 @@ func TestPubsub(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Pubsub Suite")
 }
+
+var _ = BeforeEach(func() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+})
