@@ -159,10 +159,8 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 	var nextRun time.Time
 	var scheduleInfo string
 
-	// Handle different scheduling types
 	switch scheduledTask.Scheduling.Type {
 	case domain.SchedulingTypeInterval:
-		// Use interval-based scheduling
 		nextRun, err = scheduledTask.CalculateNextExecution(tenantConfig.Timezone)
 		if err != nil {
 			return false, fmt.Errorf("calculating next interval execution: %w", err)
@@ -172,7 +170,6 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 			*scheduledTask.Scheduling.ExecutionTime)
 
 	case domain.SchedulingTypeCron:
-		// Use traditional cron scheduling (backward compatibility)
 		if scheduledTask.Schedule == "" {
 			return false, errors.New("cron schedule is required for cron scheduling type")
 		}
@@ -185,7 +182,6 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 		scheduleInfo = fmt.Sprintf("cron: %s", scheduledTask.Schedule)
 
 	default:
-		// Fallback to old cron behavior for backward compatibility
 		if scheduledTask.Schedule == "" {
 			return false, errors.New("no valid scheduling configuration found")
 		}
@@ -220,16 +216,12 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		return
 	}
 
-	// Create a new task based on the scheduled task's command templates
-	// We need to create new commands from templates with fresh IDs and calculated timestamps
 	commands := make([]domain.Command, len(scheduledTask.CommandTemplates))
 	now := time.Now()
 
 	for i, template := range scheduledTask.CommandTemplates {
-		// Create command from template using the current device
-		// Use the fresh device information instead of the template's device
 		commandTemplate := domain.CommandTemplate{
-			Device:   device, // Use fresh device information
+			Device:   device,
 			Port:     template.Port,
 			Priority: template.Priority,
 			Payload:  template.Payload,
@@ -251,7 +243,6 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		return
 	}
 
-	// Set the Task field on each command so they have the correct task reference
 	for i := range task.Commands {
 		task.Commands[i].Task = task
 	}
@@ -265,7 +256,6 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		return
 	}
 
-	// Update the last executed time for the scheduled task
 	currentTime := utils.Time{Time: time.Now()}
 	updatedScheduledTask := scheduledTask
 	updatedScheduledTask.LastExecutedAt = &currentTime
@@ -276,7 +266,6 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		slog.Error("updating scheduled task last executed time",
 			slog.String("scheduled_task_id", scheduledTask.ID.String()),
 			slog.Any("error", err))
-		// Don't return here as the task was already created successfully
 	}
 
 	slog.Info("created task from scheduled task",
