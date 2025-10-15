@@ -4,10 +4,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 const (
@@ -48,7 +48,6 @@ func (c *TenantController) AddRoutes(router *http.ServeMux) {
 
 func (c *TenantController) listTenants() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Parse query parameter to include soft-deleted tenants
 		includeDeleted := false
 		if r.URL.Query().Get("include_deleted") == "true" {
 			includeDeleted = true

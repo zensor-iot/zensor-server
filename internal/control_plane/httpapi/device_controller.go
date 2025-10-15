@@ -39,14 +39,27 @@ func (c *DeviceController) AddRoutes(router *http.ServeMux) {
 
 func (c *DeviceController) listDevices() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result, err := c.service.AllDevices(r.Context())
+		// Extract pagination parameters from query string
+		paginationParams := httpserver.ExtractPaginationParams(r)
+		pagination := usecases.Pagination{
+			Limit:  paginationParams.Limit,
+			Offset: (paginationParams.Page - 1) * paginationParams.Limit,
+		}
+
+		devices, total, err := c.service.AllDevices(r.Context(), pagination)
 		if err != nil {
 			http.Error(w, "service all devices", http.StatusInternalServerError)
 			return
 		}
 
-		response := internal.ToDeviceListResponse(result)
-		httpserver.ReplyJSONResponse(w, http.StatusOK, response)
+		// Convert devices to response format
+		deviceResponses := make([]internal.DeviceResponse, len(devices))
+		for i, device := range devices {
+			deviceResponses[i] = internal.ToDeviceResponse(device)
+		}
+
+		// Return paginated response
+		httpserver.ReplyWithPaginatedData(w, http.StatusOK, deviceResponses, total, paginationParams)
 	}
 }
 

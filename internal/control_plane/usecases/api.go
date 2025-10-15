@@ -10,7 +10,7 @@ import (
 type DeviceService interface {
 	CreateDevice(context.Context, domain.Device) error
 	GetDevice(context.Context, domain.ID) (domain.Device, error)
-	AllDevices(context.Context) ([]domain.Device, error)
+	AllDevices(context.Context, Pagination) ([]domain.Device, int, error)
 	DevicesByTenant(context.Context, domain.ID, Pagination) ([]domain.Device, int, error)
 	UpdateDeviceDisplayName(context.Context, domain.ID, string) error
 	QueueCommand(context.Context, domain.Command) error

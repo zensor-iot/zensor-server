@@ -56,14 +56,14 @@ func (s *SimpleDeviceService) GetDevice(ctx context.Context, id domain.ID) (doma
 	return devices, nil
 }
 
-func (s *SimpleDeviceService) AllDevices(ctx context.Context) ([]domain.Device, error) {
-	devices, err := s.repository.FindAll(ctx)
+func (s *SimpleDeviceService) AllDevices(ctx context.Context, pagination Pagination) ([]domain.Device, int, error) {
+	devices, total, err := s.repository.FindAll(ctx, pagination)
 	if err != nil {
 		slog.Error("getting all devices", slog.String("error", err.Error()))
-		return nil, errUnknown
+		return nil, 0, errUnknown
 	}
 
-	return devices, nil
+	return devices, total, nil
 }
 
 func (s *SimpleDeviceService) DevicesByTenant(ctx context.Context, tenantID domain.ID, pagination Pagination) ([]domain.Device, int, error) {

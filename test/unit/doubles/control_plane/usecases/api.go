@@ -57,18 +57,19 @@ func (mr *MockDeviceServiceMockRecorder) AdoptDeviceToTenant(arg0, arg1, arg2 an
 }
 
 // AllDevices mocks base method.
-func (m *MockDeviceService) AllDevices(arg0 context.Context) ([]domain.Device, error) {
+func (m *MockDeviceService) AllDevices(arg0 context.Context, arg1 usecases.Pagination) ([]domain.Device, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AllDevices", arg0)
+	ret := m.ctrl.Call(m, "AllDevices", arg0, arg1)
 	ret0, _ := ret[0].([]domain.Device)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // AllDevices indicates an expected call of AllDevices.
-func (mr *MockDeviceServiceMockRecorder) AllDevices(arg0 any) *gomock.Call {
+func (mr *MockDeviceServiceMockRecorder) AllDevices(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllDevices", reflect.TypeOf((*MockDeviceService)(nil).AllDevices), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllDevices", reflect.TypeOf((*MockDeviceService)(nil).AllDevices), arg0, arg1)
 }
 
 // CreateDevice mocks base method.

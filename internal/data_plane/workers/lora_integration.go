@@ -138,7 +138,7 @@ func (w *LoraIntegrationWorker) reconciliation(ctx context.Context, done func())
 	span := trace.SpanFromContext(ctx)
 
 	defer done()
-	devices, err := w.service.AllDevices(ctx)
+	devices, _, err := w.service.AllDevices(ctx, usecases.Pagination{Limit: 1000, Offset: 0})
 	if err != nil {
 		slog.Error("getting all devices",
 			slog.String("trace_id", span.SpanContext().TraceID().String()),

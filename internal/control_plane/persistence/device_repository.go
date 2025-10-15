@@ -180,15 +180,27 @@ func (s *SimpleDeviceRepository) Get(ctx context.Context, id string) (domain.Dev
 	return entity.ToDomain(), nil
 }
 
-func (s *SimpleDeviceRepository) FindAll(ctx context.Context) ([]domain.Device, error) {
-	var entities []internal.Device
+func (s *SimpleDeviceRepository) FindAll(ctx context.Context, pagination usecases.Pagination) ([]domain.Device, int, error) {
+	var total int64
 	err := s.orm.
 		WithContext(ctx).
+		Model(&internal.Device{}).
+		Count(&total).
+		Error()
+	if err != nil {
+		return nil, 0, fmt.Errorf("count query: %w", err)
+	}
+
+	var entities []internal.Device
+	err = s.orm.
+		WithContext(ctx).
+		Limit(pagination.Limit).
+		Offset(pagination.Offset).
 		Find(&entities).
 		Error()
 
 	if err != nil {
-		return nil, fmt.Errorf("database query: %w", err)
+		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
 
 	result := make([]domain.Device, len(entities))
@@ -196,7 +208,7 @@ func (s *SimpleDeviceRepository) FindAll(ctx context.Context) ([]domain.Device, 
 		result[i] = entity.ToDomain()
 	}
 
-	return result, nil
+	return result, int(total), nil
 }
 
 func (s *SimpleDeviceRepository) FindByTenant(ctx context.Context, tenantID string, pagination usecases.Pagination) ([]domain.Device, int, error) {

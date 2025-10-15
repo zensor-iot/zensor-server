@@ -26,7 +26,7 @@ type DeviceRepository interface {
 	UpdateDevice(context.Context, domain.Device) error
 	Get(context.Context, string) (domain.Device, error)
 	FindByName(context.Context, string) (domain.Device, error)
-	FindAll(context.Context) ([]domain.Device, error)
+	FindAll(context.Context, Pagination) ([]domain.Device, int, error)
 	FindByTenant(context.Context, string, Pagination) ([]domain.Device, int, error)
 	AddEvaluationRule(context.Context, domain.Device, domain.EvaluationRule) error
 	FindAllEvaluationRules(context.Context, domain.Device) ([]domain.EvaluationRule, error)
