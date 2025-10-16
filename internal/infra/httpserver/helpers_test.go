@@ -77,9 +77,9 @@ var _ = ginkgo.Describe("Helpers", func() {
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 
-			ginkgo.It("should default to 10 when limit is too high", func() {
+			ginkgo.It("should cap to 100 when limit is too high", func() {
 				query = "page=1&limit=150"
-				expected = PaginationParams{Page: 1, Limit: 10}
+				expected = PaginationParams{Page: 1, Limit: 100}
 
 				req = &http.Request{
 					URL: &url.URL{},

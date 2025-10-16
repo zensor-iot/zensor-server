@@ -106,15 +106,12 @@ var _ = ginkgo.Describe("RedisCache", func() {
 				success := redisCache.Set(ctx, key, value, ttl)
 				gomega.Expect(success).To(gomega.BeTrue())
 
-				// Value should be available immediately
 				retrieved, found := redisCache.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeTrue())
 				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-				// Wait for TTL to expire
 				time.Sleep(2 * time.Second)
 
-				// Value should be gone
 				retrieved, found = redisCache.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeFalse())
 			})
@@ -137,15 +134,12 @@ var _ = ginkgo.Describe("RedisCache", func() {
 				success := redisCache.Set(ctx, key, value, 0)
 				gomega.Expect(success).To(gomega.BeTrue())
 
-				// Verify value exists
 				retrieved, found := redisCache.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeTrue())
 				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-				// Delete the value
 				redisCache.Delete(ctx, key)
 
-				// Verify value is gone
 				retrieved, found = redisCache.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeFalse())
 			})
@@ -171,12 +165,10 @@ var _ = ginkgo.Describe("RedisCache", func() {
 			})
 
 			ginkgo.It("should load and cache the value", func() {
-				// First call should set the value
 				value, err := redisCache.GetOrSet(ctx, key, ttl, loader)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(value).To(gomega.Equal(expectedValue))
 
-				// Second call should get the cached value
 				value, err = redisCache.GetOrSet(ctx, key, ttl, loader)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(value).To(gomega.Equal(expectedValue))
@@ -187,12 +179,10 @@ var _ = ginkgo.Describe("RedisCache", func() {
 	ginkgo.Context("Keys", func() {
 		ginkgo.When("getting keys matching a pattern", func() {
 			ginkgo.It("should return matching keys", func() {
-				// Set some test keys
 				redisCache.Set(ctx, "test_keys_1", "value1", 0)
 				redisCache.Set(ctx, "test_keys_2", "value2", 0)
 				redisCache.Set(ctx, "other_key", "value3", 0)
 
-				// Get keys matching pattern
 				keys, err := redisCache.Keys(ctx, "test_keys_*")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(keys).To(gomega.HaveLen(2))
@@ -215,19 +205,15 @@ var _ = ginkgo.Describe("RedisCache", func() {
 			})
 
 			ginkgo.It("should handle context operations correctly", func() {
-				// Test Set
 				success := redisCache.Set(ctx, key, value, 5*time.Second)
 				gomega.Expect(success).To(gomega.BeTrue())
 
-				// Test Get
 				retrieved, found := redisCache.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeTrue())
 				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-				// Test Delete
 				redisCache.Delete(ctx, key)
 
-				// Verify value is gone
 				retrieved, found = redisCache.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeFalse())
 			})
@@ -237,11 +223,9 @@ var _ = ginkgo.Describe("RedisCache", func() {
 	ginkgo.Context("Ping", func() {
 		ginkgo.When("pinging the Redis server", func() {
 			ginkgo.It("should respond to ping", func() {
-				// Test ping
 				err := redisCache.Ping()
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-				// Test ping with context
 				err = redisCache.PingWithContext(ctx)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			})

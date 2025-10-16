@@ -43,14 +43,11 @@ var _ = ginkgo.Describe("Cache", func() {
 			})
 
 			ginkgo.It("should store and retrieve the value correctly", func() {
-				// Set value
 				success := cacheInstance.Set(ctx, key, value, 0)
 				gomega.Expect(success).To(gomega.BeTrue())
 
-				// Small delay for Ristretto to process the value
 				time.Sleep(10 * time.Millisecond)
 
-				// Get value
 				retrieved, found := cacheInstance.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeTrue())
 				gomega.Expect(retrieved).To(gomega.Equal(value))
@@ -73,22 +70,17 @@ var _ = ginkgo.Describe("Cache", func() {
 			})
 
 			ginkgo.It("should expire the value after TTL", func() {
-				// Set value with TTL
 				success := cacheInstance.Set(ctx, key, value, ttl)
 				gomega.Expect(success).To(gomega.BeTrue())
 
-				// Small delay for Ristretto to process the value
 				time.Sleep(10 * time.Millisecond)
 
-				// Get value immediately
 				retrieved, found := cacheInstance.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeTrue())
 				gomega.Expect(retrieved).To(gomega.Equal(value))
 
-				// Wait for TTL to expire
 				time.Sleep(ttl + 50*time.Millisecond)
 
-				// Value should be expired
 				retrieved, found = cacheInstance.Get(ctx, key)
 				gomega.Expect(found).To(gomega.BeFalse())
 				gomega.Expect(retrieved).To(gomega.BeNil())
@@ -153,12 +145,10 @@ var _ = ginkgo.Describe("Cache", func() {
 			})
 
 			ginkgo.It("should load and cache the value", func() {
-				// GetOrSet should load the value
 				value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(value).To(gomega.Equal(expectedValue))
 
-				// Second call should return cached value
 				value, err = cacheInstance.GetOrSet(ctx, key, ttl, loader)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(value).To(gomega.Equal(expectedValue))
@@ -185,12 +175,10 @@ var _ = ginkgo.Describe("Cache", func() {
 			})
 
 			ginkgo.It("should handle context correctly", func() {
-				// GetOrSet should load the value
 				value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(value).To(gomega.Equal(expectedValue))
 
-				// Second call should return cached value
 				value, err = cacheInstance.GetOrSet(ctx, key, ttl, loader)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(value).To(gomega.Equal(expectedValue))
@@ -216,11 +204,9 @@ var _ = ginkgo.Describe("Cache", func() {
 			})
 
 			ginkgo.It("should return context error", func() {
-				// Create a cancelled context
 				cancelledCtx, cancel := context.WithCancel(context.Background())
 				cancel()
 
-				// GetOrSet should return context error
 				_, err := cacheInstance.GetOrSet(cancelledCtx, key, ttl, loader)
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(err).To(gomega.Equal(context.Canceled))
@@ -242,13 +228,12 @@ var _ = ginkgo.Describe("Cache", func() {
 				expectedValue = "concurrent-value"
 				ttl = 1 * time.Second
 				loader = func() (any, error) {
-					time.Sleep(10 * time.Millisecond) // Simulate work
+					time.Sleep(10 * time.Millisecond)
 					return expectedValue, nil
 				}
 			})
 
 			ginkgo.It("should handle concurrent operations safely", func() {
-				// Run multiple concurrent GetOrSet operations
 				const numGoroutines = 10
 				results := make(chan any, numGoroutines)
 				errors := make(chan error, numGoroutines)
@@ -261,7 +246,6 @@ var _ = ginkgo.Describe("Cache", func() {
 					}()
 				}
 
-				// Collect results
 				for i := 0; i < numGoroutines; i++ {
 					value := <-results
 					err := <-errors
@@ -278,8 +262,8 @@ var _ = ginkgo.Describe("Cache", func() {
 		ginkgo.When("creating cache with custom config", func() {
 			ginkgo.BeforeEach(func() {
 				config = &cache.CacheConfig{
-					MaxCost:     1 << 20, // 1MB
-					NumCounters: 1e6,     // 1M
+					MaxCost:     1 << 20,
+					NumCounters: 1e6,
 					BufferItems: 32,
 				}
 			})

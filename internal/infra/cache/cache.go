@@ -26,11 +26,8 @@ type RistrettoCache struct {
 
 // CacheConfig holds configuration for the cache
 type CacheConfig struct {
-	// MaxCost is the maximum cost of the cache (in bytes)
-	MaxCost int64
-	// NumCounters is the number of counters for the cache
+	MaxCost     int64
 	NumCounters int64
-	// BufferItems is the number of items to buffer
 	BufferItems int64
 }
 
@@ -66,7 +63,6 @@ func New(config *CacheConfig) (*RistrettoCache, error) {
 		config: config,
 	}
 
-	// Wait for the cache to be ready
 	cache.store.Wait()
 
 	return cache, nil
@@ -74,7 +70,6 @@ func New(config *CacheConfig) (*RistrettoCache, error) {
 
 // Get retrieves a value from the cache
 func (c *RistrettoCache) Get(ctx context.Context, key string) (any, bool) {
-	// Check context cancellation
 	select {
 	case <-ctx.Done():
 		return nil, false
@@ -85,7 +80,6 @@ func (c *RistrettoCache) Get(ctx context.Context, key string) (any, bool) {
 
 // Set stores a value in the cache with TTL
 func (c *RistrettoCache) Set(ctx context.Context, key string, value any, ttl time.Duration) bool {
-	// Check context cancellation
 	select {
 	case <-ctx.Done():
 		return false
@@ -96,7 +90,6 @@ func (c *RistrettoCache) Set(ctx context.Context, key string, value any, ttl tim
 
 // Delete removes a value from the cache
 func (c *RistrettoCache) Delete(ctx context.Context, key string) {
-	// Check context cancellation
 	select {
 	case <-ctx.Done():
 		return
@@ -108,32 +101,26 @@ func (c *RistrettoCache) Delete(ctx context.Context, key string) {
 // GetOrSet retrieves a value from the cache, or sets it if not found
 // This method uses singleflight to prevent cache stampede
 func (c *RistrettoCache) GetOrSet(ctx context.Context, key string, ttl time.Duration, loader func() (any, error)) (any, error) {
-	// Try to get from cache first
 	if value, found := c.Get(ctx, key); found {
 		return value, nil
 	}
 
-	// Use singleflight to prevent multiple concurrent loads of the same key
 	value, err, _ := c.singleGroup.Do(key, func() (any, error) {
-		// Check context cancellation
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
 
-		// Double-check cache after acquiring the lock
 		if value, found := c.Get(ctx, key); found {
 			return value, nil
 		}
 
-		// Load the value
 		value, err := loader()
 		if err != nil {
 			return nil, err
 		}
 
-		// Store in cache
 		c.Set(ctx, key, value, ttl)
 		return value, nil
 	})
@@ -143,12 +130,10 @@ func (c *RistrettoCache) GetOrSet(ctx context.Context, key string, ttl time.Dura
 
 // Keys returns all keys matching the pattern (not supported by Ristretto)
 func (c *RistrettoCache) Keys(ctx context.Context, pattern string) ([]string, error) {
-	// Check context cancellation
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 	}
-	// Ristretto doesn't support key enumeration, return empty slice
 	return []string{}, nil
 }
