@@ -15,7 +15,7 @@ import (
 
 // RedisCache provides a generic caching implementation with TTL support using Redis
 type RedisCache struct {
-	client *redis.Client
+	client CacheClient
 	config *RedisConfig
 }
 
@@ -65,6 +65,14 @@ func DefaultRedisConfig() *RedisConfig {
 	}
 }
 
+// NewRedisCacheWithClient creates a new RedisCache instance with a custom client (for testing)
+func NewRedisCacheWithClient(client CacheClient, config *RedisConfig) *RedisCache {
+	return &RedisCache{
+		client: client,
+		config: config,
+	}
+}
+
 // NewRedisCache creates a new RedisCache instance
 func NewRedisCache(config *RedisConfig) (*RedisCache, error) {
 	if config == nil {
@@ -84,7 +92,6 @@ func NewRedisCache(config *RedisConfig) (*RedisCache, error) {
 		PoolTimeout:  config.PoolTimeout,
 	})
 
-	// Test the connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -93,7 +100,7 @@ func NewRedisCache(config *RedisConfig) (*RedisCache, error) {
 	}
 
 	cache := &RedisCache{
-		client: client,
+		client: NewRedisClient(client),
 		config: config,
 	}
 
@@ -123,10 +130,8 @@ func (c *RedisCache) Get(ctx context.Context, key string) (any, bool) {
 		return nil, false
 	}
 
-	// Try to unmarshal as JSON first
 	var value any
 	if err := json.Unmarshal([]byte(result), &value); err != nil {
-		// If JSON unmarshaling fails, return the raw string
 		span.SetAttributes(attribute.Bool("cache.hit", true))
 		return result, true
 	}
@@ -142,7 +147,6 @@ func (c *RedisCache) Set(ctx context.Context, key string, value any, ttl time.Du
 
 	span.SetAttributes(attribute.Int64("db.redis.ttl_ms", ttl.Milliseconds()))
 
-	// Marshal the value to JSON
 	data, err := json.Marshal(value)
 	if err != nil {
 		span.RecordError(err)
@@ -185,18 +189,15 @@ func (c *RedisCache) Delete(ctx context.Context, key string) {
 
 // GetOrSet retrieves a value from the cache, or sets it if not found
 func (c *RedisCache) GetOrSet(ctx context.Context, key string, ttl time.Duration, loader func() (any, error)) (any, error) {
-	// Try to get from cache first
 	if value, found := c.Get(ctx, key); found {
 		return value, nil
 	}
 
-	// Load the value
 	value, err := loader()
 	if err != nil {
 		return nil, err
 	}
 
-	// Store in cache
 	c.Set(ctx, key, value, ttl)
 	return value, nil
 }
@@ -217,7 +218,6 @@ func (c *RedisCache) PingWithContext(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()
 }
 
-// createSpan creates a new OpenTelemetry span for Redis operations
 func (c *RedisCache) createSpan(ctx context.Context, operation, key string) (context.Context, trace.Span) {
 	tracer := otel.Tracer("zensor-server")
 	return tracer.Start(ctx, "redis."+operation,
