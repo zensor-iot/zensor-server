@@ -1,5 +1,16 @@
 # System Patterns
 
+## Project Management Integration
+
+### GitHub Project Tracking
+- **Associated Project**: zensor-iot Main Prioritization (Project #2)
+- **Tracking Requirement**: All development work must be tracked through GitHub project items
+- **Workflow**: 
+  1. Check existing project items before starting work
+  2. Create new issue or draft issue if none exists
+  3. Link commits and pull requests to project items
+  4. Update project status as work progresses
+
 ## Architecture Overview
 
 Zensor Server follows a clean architecture pattern with clear separation of concerns:

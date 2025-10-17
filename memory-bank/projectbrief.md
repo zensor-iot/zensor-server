@@ -3,6 +3,9 @@
 ## Project Name
 Zensor Server
 
+## Project Association
+This repository is associated with the **zensor-iot** organization's **Main Prioritization** project (Project #2). All development tasks, features, and work items must be tracked and managed through this GitHub project to ensure proper prioritization and visibility.
+
 ## Purpose
 Zensor Server is the core backend of the Zensor Ecosystem, responsible for orchestrating device management, event processing, and command sequencing for IoT devices. It provides APIs and integrations for device registration, event ingestion, command dispatch, and real-time monitoring.
 

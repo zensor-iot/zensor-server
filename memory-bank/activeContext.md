@@ -16,6 +16,12 @@
 - Ready for testing and validation
 - Next: Test replication functionality with actual data flow
 
+## Project Tracking Requirement
+**All tasks must be tracked in the zensor-iot Main Prioritization project (Project #2)**
+- Every development task, feature, bug fix, and work item must be created as an issue or draft issue in the GitHub project
+- This ensures proper prioritization, visibility, and coordination across the team
+- Before starting any work, check if a corresponding project item exists, and create one if needed
+
 ## Recent Changes
 - ✅ **Critical WebSocket Race Condition Fix**: Fixed panic-inducing race condition in websocket controllers
   - **Problem**: Multiple goroutines could simultaneously write to the same websocket connection, causing panics when one goroutine closed the connection while another was still writing
