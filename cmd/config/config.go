@@ -50,6 +50,11 @@ func LoadConfig() AppConfig {
 				Password: viper.GetString("redis.password"),
 				DB:       viper.GetInt("redis.db"),
 			},
+			MailerSend: MailerSendConfig{
+				APIKey:    viper.GetString("mailersend.api_key"),
+				FromEmail: viper.GetString("mailersend.from_email"),
+				FromName:  viper.GetString("mailersend.from_name"),
+			},
 		}
 	})
 
@@ -63,6 +68,7 @@ type AppConfig struct {
 	Kafka      KafkaConfig
 	Postgresql PostgresqlConfig
 	Redis      RedisConfig
+	MailerSend MailerSendConfig
 }
 
 type GeneralConfig struct {
@@ -95,4 +101,10 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+}
+
+type MailerSendConfig struct {
+	APIKey    string
+	FromEmail string
+	FromName  string
 }

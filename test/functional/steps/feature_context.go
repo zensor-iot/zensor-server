@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"syscall"
+	"time"
 	"zensor-server/test/functional/driver"
 
 	"github.com/cucumber/godog"
@@ -155,6 +158,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		fc.cleanupWebSocket()
+		fc.sendSIGHUPToServer()
 		return ctx, err
 	})
 }
@@ -168,6 +172,29 @@ func (fc *FeatureContext) reset() {
 	fc.scheduledTaskID = ""
 	fc.evaluationRuleID = ""
 	fc.updatedSchedule = ""
+}
+
+func (fc *FeatureContext) sendSIGHUPToServer() {
+	serverPID := os.Getenv("SERVER_PID")
+	if serverPID == "" {
+		return
+	}
+
+	var pid int
+	if _, err := fmt.Sscanf(serverPID, "%d", &pid); err != nil {
+		return
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return
+	}
+
+	if err := process.Signal(syscall.SIGHUP); err != nil {
+		return
+	}
+
+	time.Sleep(10 * time.Millisecond)
 }
 
 func (fc *FeatureContext) decodeBody(body io.ReadCloser, target any) error {

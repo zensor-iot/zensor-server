@@ -77,10 +77,15 @@ func (c *TenantConfigurationController) createTenantConfiguration() http.Handler
 			return
 		}
 
-		config, err := domain.NewTenantConfigurationBuilder().
+		builder := domain.NewTenantConfigurationBuilder().
 			WithTenantID(domain.ID(tenantID)).
-			WithTimezone(body.Timezone).
-			Build()
+			WithTimezone(body.Timezone)
+
+		if body.NotificationEmail != "" {
+			builder = builder.WithNotificationEmail(body.NotificationEmail)
+		}
+
+		config, err := builder.Build()
 		if err != nil {
 			slog.Error("building tenant configuration", slog.String("error", err.Error()))
 			http.Error(w, invalidTimezoneErrMessage, http.StatusBadRequest)
@@ -122,8 +127,9 @@ func (c *TenantConfigurationController) updateTenantConfiguration() http.Handler
 		// Create a configuration object with the update data (version handled internally)
 		tenant := domain.Tenant{ID: domain.ID(tenantID)}
 		config := domain.TenantConfiguration{
-			TenantID: domain.ID(tenantID),
-			Timezone: body.Timezone,
+			TenantID:          domain.ID(tenantID),
+			Timezone:          body.Timezone,
+			NotificationEmail: body.NotificationEmail,
 		}
 
 		err = c.service.UpdateTenantConfiguration(r.Context(), config)

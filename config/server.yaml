@@ -17,3 +17,6 @@ redis:
 mqtt_client:
   broker: nam1.cloud.thethings.network:1883
   client_id: zensor_server_local
+mailersend:
+  from_email: "noreply@zensor-iot.net"
+  from_name: "Zensor Server"
