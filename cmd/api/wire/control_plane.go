@@ -16,6 +16,7 @@ import (
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/mqtt"
+	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
@@ -249,9 +250,35 @@ func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWork
 	return nil, nil
 }
 
+func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.NotificationWorker, error) {
+	wire.Build(
+		provideAppConfig,
+		provideTicker,
+		provideNotificationClient,
+		DeviceServiceSet,
+		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		persistence.NewTenantConfigurationRepository,
+		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
+		usecases.NewTenantConfigurationService,
+		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
+		usecases.NewNotificationWorker,
+	)
+	return nil, nil
+}
+
 func provideTicker() *time.Ticker {
 	ticker := time.NewTicker(30 * time.Second)
 	return ticker
+}
+
+func provideNotificationClient(config config.AppConfig) notification.NotificationClient {
+	mailerSendConfig := notification.MailerSendConfig{
+		APIKey:    config.MailerSend.APIKey,
+		FromEmail: config.MailerSend.FromEmail,
+		FromName:  config.MailerSend.FromName,
+	}
+
+	return notification.NewMailerSendClient(mailerSendConfig)
 }
 
 func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*httpapi.DeviceMessageWebSocketController, error) {
@@ -290,7 +317,6 @@ func provideMemoryConsumerFactory() pubsub.ConsumerFactory {
 		return pubsub.NewMemoryConsumerFactory("replicator")
 	}
 
-	// Return nil for non-local environments - replication service will handle this
 	return nil
 }
 
@@ -358,12 +384,10 @@ var (
 	deviceStateCacheOnce    sync.Once
 )
 
-// provideDeviceStateCacheService provides a singleton instance of the device state cache service
 func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 	deviceStateCacheOnce.Do(func() {
 		appConfig := provideAppConfig()
 
-		// Create Redis cache instance
 		redisCache, err := cache.NewRedisCache(&cache.RedisConfig{
 			Addr:     appConfig.Redis.Addr,
 			Password: appConfig.Redis.Password,
@@ -371,13 +395,11 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 		})
 		if err != nil {
 			slog.Error("failed to create Redis cache", slog.String("error", err.Error()))
-			// Fallback to simple cache if Redis is not available
 			deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
 			slog.Info("falling back to simple device state cache service")
 			return
 		}
 
-		// Create Redis device state cache service
 		deviceStateCacheService, err = persistence.NewRedisDeviceStateCacheService(&persistence.RedisDeviceStateCacheConfig{
 			Cache:      redisCache,
 			KeyPrefix:  "device_state:",
@@ -385,7 +407,6 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 		})
 		if err != nil {
 			slog.Error("failed to create Redis device state cache service", slog.String("error", err.Error()))
-			// Fallback to simple cache if Redis service creation fails
 			deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
 			slog.Info("falling back to simple device state cache service")
 			return

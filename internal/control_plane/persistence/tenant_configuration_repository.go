@@ -8,6 +8,7 @@ import (
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/domain"
 )
@@ -39,12 +40,13 @@ type SimpleTenantConfigurationRepository struct {
 func (r *SimpleTenantConfigurationRepository) Create(ctx context.Context, config domain.TenantConfiguration) error {
 	// Convert domain config to Avro config
 	avroConfig := &avro.AvroTenantConfiguration{
-		ID:        config.ID.String(),
-		TenantID:  config.TenantID.String(),
-		Timezone:  config.Timezone,
-		Version:   config.Version,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+		ID:                config.ID.String(),
+		TenantID:          config.TenantID.String(),
+		Timezone:          config.Timezone,
+		NotificationEmail: utils.StringPtr(config.NotificationEmail),
+		Version:           config.Version,
+		CreatedAt:         config.CreatedAt,
+		UpdatedAt:         config.UpdatedAt,
 	}
 
 	// For testing, also write directly to database to ensure immediate availability
@@ -84,12 +86,13 @@ func (r *SimpleTenantConfigurationRepository) GetByTenantID(ctx context.Context,
 func (r *SimpleTenantConfigurationRepository) Update(ctx context.Context, config domain.TenantConfiguration) error {
 	// Convert domain config to Avro config
 	avroConfig := &avro.AvroTenantConfiguration{
-		ID:        config.ID.String(),
-		TenantID:  config.TenantID.String(),
-		Timezone:  config.Timezone,
-		Version:   config.Version,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+		ID:                config.ID.String(),
+		TenantID:          config.TenantID.String(),
+		Timezone:          config.Timezone,
+		NotificationEmail: utils.StringPtr(config.NotificationEmail),
+		Version:           config.Version,
+		CreatedAt:         config.CreatedAt,
+		UpdatedAt:         config.UpdatedAt,
 	}
 
 	// For testing, also write directly to database to ensure immediate availability

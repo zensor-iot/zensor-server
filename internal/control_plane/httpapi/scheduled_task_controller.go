@@ -126,7 +126,7 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 		scheduledTask, err := builder.Build()
 		if err != nil {
 			slog.Error("build scheduled task", slog.String("error", err.Error()))
-			http.Error(w, createScheduledTaskErrMessage, http.StatusInternalServerError)
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -310,6 +310,15 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 		}
 		if body.IsActive != nil {
 			scheduledTask.IsActive = *body.IsActive
+		}
+		if body.Scheduling != nil {
+			schedulingConfig := body.Scheduling.ToSchedulingConfiguration()
+			scheduledTask.Scheduling = schedulingConfig
+
+			// Update schedule field for cron type
+			if schedulingConfig.Type == domain.SchedulingTypeCron && body.Scheduling.Schedule != nil {
+				scheduledTask.Schedule = *body.Scheduling.Schedule
+			}
 		}
 		if body.Commands != nil {
 			// Convert API commands to domain command templates

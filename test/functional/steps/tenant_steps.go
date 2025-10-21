@@ -56,6 +56,9 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
 	fc.tenantID = data["id"].(string)
+
+	// Wait for replication to complete
+	time.Sleep(50 * time.Millisecond)
 	return nil
 }
 

@@ -6,12 +6,13 @@ import (
 )
 
 type TenantConfiguration struct {
-	ID        ID
-	TenantID  ID
-	Timezone  string
-	Version   int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID                ID
+	TenantID          ID
+	Timezone          string
+	NotificationEmail string
+	Version           int
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 func (tc *TenantConfiguration) UpdateTimezone(timezone string) error {
@@ -19,6 +20,16 @@ func (tc *TenantConfiguration) UpdateTimezone(timezone string) error {
 		return err
 	}
 	tc.Timezone = timezone
+	tc.Version++
+	tc.UpdatedAt = time.Now()
+	return nil
+}
+
+func (tc *TenantConfiguration) UpdateNotificationEmail(email string) error {
+	if err := utils.ValidateEmail(email); err != nil {
+		return err
+	}
+	tc.NotificationEmail = email
 	tc.Version++
 	tc.UpdatedAt = time.Now()
 	return nil
@@ -48,6 +59,17 @@ func (b *tenantConfigurationBuilder) WithTimezone(timezone string) *tenantConfig
 			return err
 		}
 		tc.Timezone = timezone
+		return nil
+	})
+	return b
+}
+
+func (b *tenantConfigurationBuilder) WithNotificationEmail(email string) *tenantConfigurationBuilder {
+	b.actions = append(b.actions, func(tc *TenantConfiguration) error {
+		if err := utils.ValidateEmail(email); err != nil {
+			return err
+		}
+		tc.NotificationEmail = email
 		return nil
 	})
 	return b
