@@ -168,7 +168,7 @@ functional tags="~@pending": build
     export ENV=local
     export ZENSOR_SERVER_GENERAL_LOG_LEVEL=debug
     ./server > api.log 2>&1 &
-    SERVER_PID=$!
+    export SERVER_PID=$!
     
     # Teardown function to ensure the server is killed
     teardown() {

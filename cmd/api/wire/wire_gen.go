@@ -20,6 +20,7 @@ import (
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/mqtt"
+	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
@@ -236,6 +237,30 @@ func InitializeCommandWorker(broker async.InternalBroker) (*usecases.CommandWork
 	return commandWorker, nil
 }
 
+func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.NotificationWorker, error) {
+	ticker := provideTicker()
+	appConfig := provideAppConfig()
+	notificationClient := provideNotificationClient(appConfig)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm, publisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository)
+	notificationWorker := usecases.NewNotificationWorker(ticker, notificationClient, simpleDeviceService, simpleTenantConfigurationService, broker)
+	return notificationWorker, nil
+}
+
 func InitializeDeviceMessageWebSocketController(broker async.InternalBroker) (*httpapi.DeviceMessageWebSocketController, error) {
 	usecasesDeviceStateCacheService := provideDeviceStateCacheService()
 	deviceMessageWebSocketController := httpapi.NewDeviceMessageWebSocketController(broker, usecasesDeviceStateCacheService)
@@ -350,6 +375,16 @@ func provideTicker() *time.Ticker {
 	return ticker
 }
 
+func provideNotificationClient(config2 config.AppConfig) notification.NotificationClient {
+	mailerSendConfig := notification.MailerSendConfig{
+		APIKey:    config2.MailerSend.APIKey,
+		FromEmail: config2.MailerSend.FromEmail,
+		FromName:  config2.MailerSend.FromName,
+	}
+
+	return notification.NewMailerSendClient(mailerSendConfig)
+}
+
 func provideMemoryConsumerFactory() pubsub.ConsumerFactory {
 	env, ok := os.LookupEnv("ENV")
 	if !ok {
@@ -382,7 +417,6 @@ var (
 	deviceStateCacheOnce    sync.Once
 )
 
-// provideDeviceStateCacheService provides a singleton instance of the device state cache service
 func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 	deviceStateCacheOnce.Do(func() {
 		appConfig := provideAppConfig()
@@ -394,7 +428,6 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 		})
 		if err != nil {
 			slog.Error("failed to create Redis cache", slog.String("error", err.Error()))
-
 			deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
 			slog.Info("falling back to simple device state cache service")
 			return
@@ -407,7 +440,6 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 		})
 		if err != nil {
 			slog.Error("failed to create Redis device state cache service", slog.String("error", err.Error()))
-
 			deviceStateCacheService = persistence.NewSimpleDeviceStateCacheService()
 			slog.Info("falling back to simple device state cache service")
 			return

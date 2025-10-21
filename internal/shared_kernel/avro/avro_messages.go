@@ -3,7 +3,7 @@ package avro
 import (
 	"encoding/json"
 	"time"
-
+	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
@@ -111,12 +111,13 @@ type AvroEvaluationRule struct {
 
 // AvroTenantConfiguration represents the Avro-compatible TenantConfiguration message
 type AvroTenantConfiguration struct {
-	ID        string    `avro:"id"`
-	TenantID  string    `avro:"tenant_id"`
-	Timezone  string    `avro:"timezone"`
-	Version   int       `avro:"version"`
-	CreatedAt time.Time `avro:"created_at"`
-	UpdatedAt time.Time `avro:"updated_at"`
+	ID                string    `avro:"id"`
+	TenantID          string    `avro:"tenant_id"`
+	Timezone          string    `avro:"timezone"`
+	NotificationEmail *string   `avro:"notification_email"`
+	Version           int       `avro:"version"`
+	CreatedAt         time.Time `avro:"created_at"`
+	UpdatedAt         time.Time `avro:"updated_at"`
 }
 
 // Conversion functions to convert from domain types to Avro types
@@ -330,14 +331,13 @@ func ToAvroEvaluationRule(evaluationRule domain.EvaluationRule) *AvroEvaluationR
 
 // ToAvroTenantConfiguration converts a domain.TenantConfiguration to AvroTenantConfiguration
 func ToAvroTenantConfiguration(config domain.TenantConfiguration) *AvroTenantConfiguration {
-	avroConfig := &AvroTenantConfiguration{
-		ID:        string(config.ID),
-		TenantID:  string(config.TenantID),
-		Timezone:  config.Timezone,
-		Version:   config.Version,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+	return &AvroTenantConfiguration{
+		ID:                string(config.ID),
+		TenantID:          string(config.TenantID),
+		Timezone:          config.Timezone,
+		NotificationEmail: utils.StringPtr(config.NotificationEmail),
+		Version:           config.Version,
+		CreatedAt:         config.CreatedAt,
+		UpdatedAt:         config.UpdatedAt,
 	}
-
-	return avroConfig
 }

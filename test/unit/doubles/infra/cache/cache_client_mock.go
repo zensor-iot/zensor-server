@@ -10,18 +10,19 @@
 package cache
 
 import (
-	"context"
-	"reflect"
-	"time"
+	context "context"
+	reflect "reflect"
+	time "time"
 
-	"github.com/redis/go-redis/v9"
-	"go.uber.org/mock/gomock"
+	redis "github.com/redis/go-redis/v9"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockCacheClient is a mock of CacheClient interface.
 type MockCacheClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockCacheClientMockRecorder
+	isgomock struct{}
 }
 
 // MockCacheClientMockRecorder is the mock recorder for MockCacheClient.
@@ -44,7 +45,7 @@ func (m *MockCacheClient) EXPECT() *MockCacheClientMockRecorder {
 // Del mocks base method.
 func (m *MockCacheClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx}
+	varargs := []any{ctx}
 	for _, a := range keys {
 		varargs = append(varargs, a)
 	}
@@ -54,9 +55,9 @@ func (m *MockCacheClient) Del(ctx context.Context, keys ...string) *redis.IntCmd
 }
 
 // Del indicates an expected call of Del.
-func (mr *MockCacheClientMockRecorder) Del(ctx interface{}, keys ...interface{}) *gomock.Call {
+func (mr *MockCacheClientMockRecorder) Del(ctx any, keys ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx}, keys...)
+	varargs := append([]any{ctx}, keys...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Del", reflect.TypeOf((*MockCacheClient)(nil).Del), varargs...)
 }
 
@@ -69,7 +70,7 @@ func (m *MockCacheClient) Get(ctx context.Context, key string) *redis.StringCmd 
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockCacheClientMockRecorder) Get(ctx, key interface{}) *gomock.Call {
+func (mr *MockCacheClientMockRecorder) Get(ctx, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCacheClient)(nil).Get), ctx, key)
 }
@@ -83,7 +84,7 @@ func (m *MockCacheClient) Keys(ctx context.Context, pattern string) *redis.Strin
 }
 
 // Keys indicates an expected call of Keys.
-func (mr *MockCacheClientMockRecorder) Keys(ctx, pattern interface{}) *gomock.Call {
+func (mr *MockCacheClientMockRecorder) Keys(ctx, pattern any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Keys", reflect.TypeOf((*MockCacheClient)(nil).Keys), ctx, pattern)
 }
@@ -97,13 +98,13 @@ func (m *MockCacheClient) Ping(ctx context.Context) *redis.StatusCmd {
 }
 
 // Ping indicates an expected call of Ping.
-func (mr *MockCacheClientMockRecorder) Ping(ctx interface{}) *gomock.Call {
+func (mr *MockCacheClientMockRecorder) Ping(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockCacheClient)(nil).Ping), ctx)
 }
 
 // Set mocks base method.
-func (m *MockCacheClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+func (m *MockCacheClient) Set(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Set", ctx, key, value, expiration)
 	ret0, _ := ret[0].(*redis.StatusCmd)
@@ -111,7 +112,7 @@ func (m *MockCacheClient) Set(ctx context.Context, key string, value interface{}
 }
 
 // Set indicates an expected call of Set.
-func (mr *MockCacheClientMockRecorder) Set(ctx, key, value, expiration interface{}) *gomock.Call {
+func (mr *MockCacheClientMockRecorder) Set(ctx, key, value, expiration any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCacheClient)(nil).Set), ctx, key, value, expiration)
 }

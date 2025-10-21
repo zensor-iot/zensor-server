@@ -10,6 +10,7 @@ Feature: Tenant Management
     Then the response status code should be 201
     And the response should contain the tenant details
 
+  @wip
   Scenario: List all tenants
     Given a tenant exists with name "ACME Corp List" and email "contact@acmelist.com"
     When I list all tenants

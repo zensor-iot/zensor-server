@@ -97,6 +97,8 @@ func main() {
 	go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 	wg.Add(1)
 	go handleWireInjector(wire.InitializeScheduledTaskWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+	wg.Add(1)
+	go handleWireInjector(wire.InitializeNotificationWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)

@@ -203,7 +203,6 @@ func (d DB) InnerJoins(value string, conds ...any) ORM {
 	return &d
 }
 
-// createSpan creates a new OpenTelemetry span for database operations
 func (d DB) createSpan(operation string) (context.Context, trace.Span) {
 	if ctx := d.DB.Statement.Context; ctx != nil {
 		tracer := otel.Tracer("zensor-server")

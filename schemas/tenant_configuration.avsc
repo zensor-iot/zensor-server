@@ -5,6 +5,7 @@
     {"name": "id", "type": "string"},
     {"name": "tenant_id", "type": "string"},
     {"name": "timezone", "type": "string"},
+    {"name": "notification_email", "type": ["null", "string"], "default": null},
     {"name": "version", "type": "int"},
     {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
     {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}

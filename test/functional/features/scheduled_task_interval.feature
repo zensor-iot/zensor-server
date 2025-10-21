@@ -14,7 +14,7 @@ Feature: Interval-Based Scheduled Task Management
       | command_priority | NORMAL     |
       | command_wait_for |         0s |
       | scheduling_type  | interval   |
-      | initial_day      | 2024-01-15 |
+      | initial_day      | 2025-12-15 |
       | day_interval     |          2 |
       | execution_time   |      02:00 |
       | is_active        | true       |
@@ -31,7 +31,7 @@ Feature: Interval-Based Scheduled Task Management
       | command_priority | HIGH       |
       | command_wait_for |         5s |
       | scheduling_type  | interval   |
-      | initial_day      | 2024-01-01 |
+      | initial_day      | 2025-12-01 |
       | day_interval     |          1 |
       | execution_time   |      01:00 |
       | is_active        | true       |
@@ -48,7 +48,7 @@ Feature: Interval-Based Scheduled Task Management
       | command_priority | NORMAL     |
       | command_wait_for |         0s |
       | scheduling_type  | interval   |
-      | initial_day      | 2024-01-10 |
+      | initial_day      | 2025-12-10 |
       | day_interval     |          3 |
       | execution_time   |      15:00 |
       | is_active        | true       |
@@ -78,7 +78,7 @@ Feature: Interval-Based Scheduled Task Management
     When I update the scheduled task with:
       | parameter       | value      |
       | scheduling_type | interval   |
-      | initial_day     | 2024-02-01 |
+      | initial_day     | 2025-12-20 |
       | day_interval    |          5 |
       | execution_time  |      10:30 |
     Then the response status code should be 200
