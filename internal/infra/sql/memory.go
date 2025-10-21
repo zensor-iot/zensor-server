@@ -58,13 +58,11 @@ func flushAllTables() error {
 		return nil
 	}
 
-	// Get all table names
 	var tables []string
 	if err := gormDB.Raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tables).Error; err != nil {
 		return err
 	}
 
-	// Truncate all tables (SQLite uses DELETE FROM instead of TRUNCATE)
 	for _, table := range tables {
 		if err := gormDB.Exec("DELETE FROM " + table).Error; err != nil {
 			slog.Error("failed to truncate table", slog.String("table", table), slog.Any("error", err))
