@@ -291,6 +291,11 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 	return scheduledTaskHandler, nil
 }
 
+func InitializeMetricPublisherWorker(broker async.InternalBroker) (*usecases.MetricPublisherWorker, error) {
+	metricPublisherWorker := usecases.NewMetricPublisherWorker(broker)
+	return metricPublisherWorker, nil
+}
+
 // control_plane.go:
 
 var DeviceServiceSet = wire.NewSet(

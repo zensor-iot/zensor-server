@@ -395,3 +395,10 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 	})
 	return deviceStateCacheService
 }
+
+func InitializeMetricPublisherWorker(broker async.InternalBroker) (*usecases.MetricPublisherWorker, error) {
+	wire.Build(
+		usecases.NewMetricPublisherWorker,
+	)
+	return nil, nil
+}

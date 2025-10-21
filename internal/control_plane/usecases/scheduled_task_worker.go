@@ -12,15 +12,10 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/robfig/cron/v3"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 const (
-	_metricKeyScheduledTasks = "scheduled_tasks"
-	_defaultTimezone         = "UTC"
+	_defaultTimezone = "UTC"
 )
 
 func NewScheduledTaskWorker(
@@ -38,7 +33,6 @@ func NewScheduledTaskWorker(
 		deviceService:              deviceService,
 		tenantConfigurationService: tenantConfigurationService,
 		broker:                     broker,
-		metricCounters:             make(map[string]metric.Float64Counter),
 		cronParser:                 cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow),
 	}
 }
@@ -52,7 +46,6 @@ type ScheduledTaskWorker struct {
 	deviceService              DeviceService
 	tenantConfigurationService TenantConfigurationService
 	broker                     async.InternalBroker
-	metricCounters             map[string]metric.Float64Counter
 	cronParser                 cron.Parser
 }
 
@@ -60,7 +53,6 @@ func (w *ScheduledTaskWorker) Run(ctx context.Context, done func()) {
 	slog.Debug("scheduled task worker started")
 	defer done()
 	var wg sync.WaitGroup
-	w.setupOtelCounters()
 
 	for {
 		select {
@@ -74,16 +66,6 @@ func (w *ScheduledTaskWorker) Run(ctx context.Context, done func()) {
 			w.evaluateSchedules(tickCtx, wg.Done)
 		}
 	}
-}
-
-func (w *ScheduledTaskWorker) setupOtelCounters() {
-	meter := otel.Meter("zensor_server")
-	scheduledTaskCounter, _ := meter.Float64Counter(
-		fmt.Sprintf("%s.%s", "zensor_server", "scheduled_tasks"),
-		metric.WithDescription("zensor_server scheduled task counter"),
-	)
-
-	w.metricCounters[_metricKeyScheduledTasks] = scheduledTaskCounter
 }
 
 func (w *ScheduledTaskWorker) evaluateSchedules(ctx context.Context, done func()) {
@@ -256,6 +238,15 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		return
 	}
 
+	// Publish scheduled task executed event for metrics
+	brokerMsg := async.BrokerMessage{
+		Event: "scheduled_task_executed",
+		Value: scheduledTask,
+	}
+	if err := w.broker.Publish(ctx, async.BrokerTopicName("scheduled_task_events"), brokerMsg); err != nil {
+		slog.Error("failed to publish scheduled task executed event", slog.Any("error", err))
+	}
+
 	currentTime := utils.Time{Time: time.Now()}
 	updatedScheduledTask := scheduledTask
 	updatedScheduledTask.LastExecutedAt = &currentTime
@@ -273,12 +264,7 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		slog.String("task_id", task.ID.String()),
 		slog.String("device_name", device.Name))
 
-	attributes := []attribute.KeyValue{
-		semconv.ServiceNameKey.String("zensor_server"),
-		attribute.String("device_name", device.Name),
-		attribute.String("scheduled_task_id", scheduledTask.ID.String()),
-	}
-	w.metricCounters[_metricKeyScheduledTasks].Add(ctx, 1, metric.WithAttributes(attributes...))
+	// Metrics are now handled by MetricPublisherWorker
 }
 
 func (w *ScheduledTaskWorker) Shutdown() {
