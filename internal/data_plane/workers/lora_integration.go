@@ -20,9 +20,6 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -48,7 +45,6 @@ func NewLoraIntegrationWorker(
 		mqttClient:     mqttClient,
 		broker:         broker,
 		pubsubConsumer: pubsubConsumerFactory.New(),
-		metricCounters: make(map[string]metric.Float64Gauge),
 	}
 }
 
@@ -62,7 +58,6 @@ type LoraIntegrationWorker struct {
 	broker         async.InternalBroker
 	pubsubConsumer pubsub.Consumer
 	devices        sync.Map
-	metricCounters map[string]metric.Float64Gauge
 }
 
 func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
@@ -70,7 +65,7 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 	defer done()
 	var wg sync.WaitGroup
 	commandsChannel := w.consumeCommandsToChannel()
-	w.setupOtelCounters()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,23 +89,6 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 			go w.deviceCommandHandler(procCtx, msg, wg.Done)
 		}
 	}
-}
-
-const (
-	_metricKeyTemperature = "temperature"
-	_metricKeyHumidity    = "humidity"
-	_metricKeyWaterFlow   = "waterFlow"
-)
-
-func (w *LoraIntegrationWorker) setupOtelCounters() {
-	meter := otel.Meter("zensor_server")
-	temperatureCounter, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.temperature"), metric.WithDescription("zensor_server temperature metric counter"))
-	humidityCounter, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.humidity"), metric.WithDescription("zensor_server humidity metric counter"))
-	waterFlowGauge, _ := meter.Float64Gauge(fmt.Sprintf("%s.%s", "zensor_server", "sensor.water_flow"), metric.WithDescription("zensor_server water flow metric gauge"))
-
-	w.metricCounters[_metricKeyTemperature] = temperatureCounter
-	w.metricCounters[_metricKeyHumidity] = humidityCounter
-	w.metricCounters[_metricKeyWaterFlow] = waterFlowGauge
 }
 
 func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.ConsumedMessage {
@@ -244,7 +222,6 @@ func (w *LoraIntegrationWorker) messageHandler(ctx context.Context) mqtt.Message
 	}
 }
 
-// handleDownlinkResponse is a unified handler for all downlink MQTT responses
 func (w *LoraIntegrationWorker) handleDownlinkResponse(ctx context.Context, msg mqtt.Message, status domain.CommandStatus) {
 	span := trace.SpanFromContext(ctx)
 	var envelop dto.Envelop
@@ -259,7 +236,6 @@ func (w *LoraIntegrationWorker) handleDownlinkResponse(ctx context.Context, msg 
 		return
 	}
 
-	// Log with appropriate level based on status
 	logMessage := fmt.Sprintf("downlink %s", status)
 	logAttrs := []any{
 		slog.String("topic", msg.Topic()),
@@ -273,23 +249,15 @@ func (w *LoraIntegrationWorker) handleDownlinkResponse(ctx context.Context, msg 
 	case domain.CommandStatusFailed:
 		logAttrs = append(logAttrs, slog.String("error", envelop.Error.MessageFormat))
 		slog.Error(logMessage, logAttrs...)
-	case domain.CommandStatusAck:
-		slog.Info(logMessage, logAttrs...)
-	case domain.CommandStatusQueued:
-		slog.Info(logMessage, logAttrs...)
-	case domain.CommandStatusSent:
-		slog.Info(logMessage, logAttrs...)
 	default:
 		slog.Debug(logMessage, logAttrs...)
 	}
 
-	// Extract error message for failed status
 	var errorMessage *string
 	if status == domain.CommandStatusFailed {
 		errorMessage = &envelop.Error.MessageFormat
 	}
 
-	// Update command status
 	w.updateCommandStatus(ctx, envelop, status, errorMessage)
 }
 
@@ -319,7 +287,6 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 		)
 	}
 
-	// Update device state cache with new sensor data
 	err = w.stateCache.SetState(ctx, deviceName, envelop.UplinkMessage.DecodedPayload)
 	if err != nil {
 		slog.Error("failed to update device state cache",
@@ -340,28 +307,7 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	}
 	slog.Debug("envelop", slog.Any("envelop", envelop))
 
-	temperatures := envelop.UplinkMessage.DecodedPayload[_metricKeyTemperature]
-	attributes := []attribute.KeyValue{
-		semconv.ServiceNameKey.String("zensor_server"),
-		attribute.String("device_name", envelop.EndDeviceIDs.DeviceID),
-		attribute.String("app_id", envelop.EndDeviceIDs.ApplicationIDs["application_id"]),
-	}
-	for _, t := range temperatures {
-		extAttributes := append(attributes, attribute.Int("index", int(t.Index)))
-		w.metricCounters[_metricKeyTemperature].Record(ctx, t.Value, metric.WithAttributes(extAttributes...))
-	}
-
-	humidities := envelop.UplinkMessage.DecodedPayload[_metricKeyHumidity]
-	for _, h := range humidities {
-		extAttributes := append(attributes, attribute.Int("index", int(h.Index)))
-		w.metricCounters[_metricKeyHumidity].Record(ctx, h.Value, metric.WithAttributes(extAttributes...))
-	}
-
-	waterFlows := envelop.UplinkMessage.DecodedPayload[_metricKeyWaterFlow]
-	for _, wf := range waterFlows {
-		extAttributes := append(attributes, attribute.Int("index", int(wf.Index)))
-		w.metricCounters[_metricKeyWaterFlow].Record(ctx, wf.Value, metric.WithAttributes(extAttributes...))
-	}
+	w.handleSensorData(ctx, envelop)
 }
 
 func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pubsub.ConsumedMessage, done func()) {
@@ -434,14 +380,16 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 		slog.String("topic", topic),
 	)
 
-	w.broker.Publish(
+	if err := w.broker.Publish(
 		ctx,
 		BrokerTopicUplinkMessage,
 		async.BrokerMessage{
 			Event: "command_sent",
 			Value: *command,
 		},
-	)
+	); err != nil {
+		slog.Error("failed to publish command sent event", slog.Any("error", err))
+	}
 }
 
 func (w *LoraIntegrationWorker) convertToSharedCommand(ctx context.Context, msg pubsub.Prototype) (*device.Command, error) {
@@ -452,7 +400,6 @@ func (w *LoraIntegrationWorker) convertToSharedCommand(ctx context.Context, msg 
 		slog.String("type", fmt.Sprintf("%T", msg)),
 	)
 
-	// Try to convert directly from AvroCommand
 	if avroCmd, ok := msg.(*avro.AvroCommand); ok {
 		return &device.Command{
 			ID:         avroCmd.ID,
@@ -474,7 +421,6 @@ func (w *LoraIntegrationWorker) convertToSharedCommand(ctx context.Context, msg 
 		}, nil
 	}
 
-	// Fallback to JSON marshaling/unmarshaling for other types
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling message to JSON: %w", err)
@@ -489,7 +435,6 @@ func (w *LoraIntegrationWorker) convertToSharedCommand(ctx context.Context, msg 
 	return &command, nil
 }
 
-// updateCommandStatus updates the status of a command based on MQTT response
 func (w *LoraIntegrationWorker) updateCommandStatus(ctx context.Context, envelop dto.Envelop, status domain.CommandStatus, errorMessage *string) {
 	span := trace.SpanFromContext(ctx)
 
@@ -530,7 +475,6 @@ func (w *LoraIntegrationWorker) updateCommandStatus(ctx context.Context, envelop
 
 	deviceName := envelop.EndDeviceIDs.DeviceID
 
-	// Publish status update event to internal broker
 	statusUpdate := domain.CommandStatusUpdate{
 		CommandID:    commandID,
 		DeviceName:   deviceName,
@@ -564,6 +508,51 @@ func (w *LoraIntegrationWorker) updateCommandStatus(ctx context.Context, envelop
 		slog.String("trace_id", span.SpanContext().TraceID().String()),
 		slog.String("span_id", span.SpanContext().SpanID().String()),
 	)
+}
+
+type SensorDataReceived struct {
+	DeviceName string  `json:"device_name"`
+	AppID      string  `json:"app_id"`
+	Value      float64 `json:"value"`
+	Index      uint    `json:"index"`
+}
+
+func (w *LoraIntegrationWorker) handleSensorData(ctx context.Context, envelope dto.Envelop) {
+	slog.Warn("handleSensorData called")
+	deviceID := envelope.EndDeviceIDs.DeviceID
+	appID := envelope.EndDeviceIDs.ApplicationIDs["application_id"]
+	uplink := envelope.UplinkMessage
+
+	for sensorType, sensorDataArray := range uplink.DecodedPayload {
+		for _, sensorData := range sensorDataArray {
+			sensorDataReceived := SensorDataReceived{
+				DeviceName: deviceID,
+				AppID:      appID,
+				Value:      sensorData.Value,
+				Index:      sensorData.Index,
+			}
+
+			brokerMsg := async.BrokerMessage{
+				Event: "sensor_data_received",
+				Value: sensorDataReceived,
+			}
+
+			if err := w.broker.Publish(ctx, BrokerTopicUplinkMessage, brokerMsg); err != nil {
+				slog.Error("failed to publish sensor data to internal broker",
+					slog.String("device_id", deviceID),
+					slog.String("sensor_type", sensorType),
+					slog.Uint64("index", uint64(sensorData.Index)),
+					slog.Any("error", err))
+				return
+			}
+
+			slog.Warn("published sensor data to internal broker",
+				slog.String("device_id", deviceID),
+				slog.String("sensor_type", sensorType),
+				slog.Uint64("index", uint64(sensorData.Index)),
+				slog.Float64("value", sensorData.Value))
+		}
+	}
 }
 
 func (w *LoraIntegrationWorker) Shutdown() {

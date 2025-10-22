@@ -20,3 +20,43 @@ mqtt_client:
 mailersend:
   from_email: "noreply@zensor-iot.net"
   from_name: "Zensor Server"
+metrics:
+  - name: "commands_total"
+    type: "counter"
+    topic: "device_messages"
+    event_type: "command_status_update"
+    custom_attributes:
+      device_name: "DeviceName"
+      status: "Status"
+  - name: "scheduled_tasks_total"
+    type: "counter"
+    topic: "scheduled_task_events"
+    event_type: "task_executed"
+    custom_attributes: {}
+  - name: "temperature"
+    type: "gauge"
+    topic: "device_messages"
+    event_type: "sensor_data_received"
+    value_property_name: "Value"
+    custom_attributes:
+      device_name: "DeviceName"
+      app_id: "AppID"
+      index: "Index"
+  - name: "humidity"
+    type: "gauge"
+    topic: "device_messages"
+    event_type: "sensor_data_received"
+    value_property_name: "Value"
+    custom_attributes:
+      device_name: "device_id"
+      app_id: "AppID"
+      index: "Index"
+  - name: "water_flow"
+    type: "gauge"
+    topic: "device_messages"
+    event_type: "sensor_data_received"
+    value_property_name: "Value"
+    custom_attributes:
+      device_name: "device_id"
+      app_id: "AppID"
+      index: "Index"

@@ -124,7 +124,6 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 
 	slog.Debug("new message ready to be sent", slog.String("id", cmd.ID.String()))
 
-	// Publish command processed event for metrics
 	brokerMsg := async.BrokerMessage{
 		Event: "command_processed",
 		Value: cmd,
@@ -132,8 +131,6 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 	if err := w.broker.Publish(ctx, async.BrokerTopicName("command_events"), brokerMsg); err != nil {
 		slog.Error("failed to publish command processed event", slog.Any("error", err))
 	}
-
-	// Metrics are now handled by MetricPublisherWorker
 }
 
 func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Command, done func()) {

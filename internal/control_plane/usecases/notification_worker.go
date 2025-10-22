@@ -59,7 +59,7 @@ func (w *NotificationWorker) Run(ctx context.Context, done func()) {
 		return
 	}
 
-	if err := w.initializeMetrics(ctx); err != nil {
+	if err := w.initializeMetrics(); err != nil {
 		slog.Error("initializing metrics", slog.Any("error", err))
 		return
 	}
@@ -205,7 +205,7 @@ func (w *NotificationWorker) createTaskNotificationBody(device domain.Device, ta
 	return body
 }
 
-func (w *NotificationWorker) initializeMetrics(ctx context.Context) error {
+func (w *NotificationWorker) initializeMetrics() error {
 	meter := otel.Meter("notification-worker")
 
 	notificationCounter, err := meter.Float64Counter(

@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"zensor-server/internal/infra/utils"
+
 	"github.com/spf13/viper"
 )
 
@@ -55,10 +57,40 @@ func LoadConfig() AppConfig {
 				FromEmail: viper.GetString("mailersend.from_email"),
 				FromName:  viper.GetString("mailersend.from_name"),
 			},
+			Metrics: loadMetricsConfig(),
 		}
 	})
 
 	return configInstance
+}
+
+func loadMetricsConfig() []MetricWorkerConfig {
+	metricsInterface := viper.Get("metrics")
+	if metricsSlice, ok := metricsInterface.([]interface{}); ok {
+		var metrics []MetricWorkerConfig
+		for _, item := range metricsSlice {
+			if metricMap, ok := item.(map[string]interface{}); ok {
+				metric := MetricWorkerConfig{
+					Name:              utils.ExtractStringValue(metricMap, "name"),
+					Type:              utils.ExtractStringValue(metricMap, "type"),
+					Topic:             utils.ExtractStringValue(metricMap, "topic"),
+					EventType:         utils.ExtractStringValue(metricMap, "event_type"),
+					ValuePropertyName: utils.ExtractStringValue(metricMap, "value_property_name"),
+					CustomAttributes:  make(map[string]string),
+				}
+				if customAttributes, exists := metricMap["custom_attributes"]; exists {
+					if attrMap, ok := customAttributes.(map[string]any); ok {
+						for k, v := range attrMap {
+							metric.CustomAttributes[k] = fmt.Sprintf("%v", v)
+						}
+					}
+				}
+				metrics = append(metrics, metric)
+			}
+		}
+		return metrics
+	}
+	return []MetricWorkerConfig{}
 }
 
 type AppConfig struct {
@@ -69,6 +101,7 @@ type AppConfig struct {
 	Postgresql PostgresqlConfig
 	Redis      RedisConfig
 	MailerSend MailerSendConfig
+	Metrics    MetricsConfig
 }
 
 type GeneralConfig struct {
@@ -107,4 +140,15 @@ type MailerSendConfig struct {
 	APIKey    string
 	FromEmail string
 	FromName  string
+}
+
+type MetricsConfig []MetricWorkerConfig
+
+type MetricWorkerConfig struct {
+	Name              string
+	Type              string // "counter", "gauge", "histogram"
+	Topic             string
+	EventType         string
+	ValuePropertyName string            // Name of the property to extract the metric value from the message (e.g., "Value")
+	CustomAttributes  map[string]string // Key: label name, Value: path to extract attribute value
 }

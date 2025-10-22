@@ -316,11 +316,6 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 	return scheduledTaskHandler, nil
 }
 
-func InitializeMetricPublisherWorker(broker async.InternalBroker) (*usecases.MetricPublisherWorker, error) {
-	metricPublisherWorker := usecases.NewMetricPublisherWorker(broker)
-	return metricPublisherWorker, nil
-}
-
 // control_plane.go:
 
 var DeviceServiceSet = wire.NewSet(
@@ -452,4 +447,8 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 		slog.Info("Redis device state cache service singleton created")
 	})
 	return deviceStateCacheService
+}
+
+func InitializeMetricWorkerFactory(broker async.InternalBroker) *usecases.MetricWorkerFactory {
+	return usecases.NewMetricWorkerFactory(broker)
 }
