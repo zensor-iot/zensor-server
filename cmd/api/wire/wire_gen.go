@@ -448,3 +448,7 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 	})
 	return deviceStateCacheService
 }
+
+func InitializeMetricWorkerFactory(broker async.InternalBroker) *usecases.MetricWorkerFactory {
+	return usecases.NewMetricWorkerFactory(broker)
+}

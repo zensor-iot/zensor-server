@@ -12,6 +12,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/linkedin/goavro/v2 v2.14.0
 	github.com/lovoo/goka v1.0.6
+	github.com/mailersend/mailersend-go v1.6.1
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/prometheus/client_golang v1.19.1
@@ -22,6 +23,7 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.13.0
 	github.com/stretchr/testify v1.11.1
+	github.com/thoas/go-funk v0.9.3
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.49.0
 	go.opentelemetry.io/contrib/propagators/b3 v1.38.0
@@ -78,7 +80,6 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/mailersend/mailersend-go v1.6.1 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/onsi/ginkgo v1.12.0 // indirect
@@ -95,7 +96,6 @@ require (
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

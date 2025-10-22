@@ -20,11 +20,11 @@ type CommandValue uint8
 type CommandStatus string
 
 const (
-	CommandStatusPending CommandStatus = "pending"   // Initial state when command is created
-	CommandStatusQueued  CommandStatus = "queued"    // Command is queued in TTN server
-	CommandStatusSent    CommandStatus = "confirmed" // Command was sent to device
-	CommandStatusAck     CommandStatus = "ack"       // Command was acknowledged by device
-	CommandStatusFailed  CommandStatus = "failed"    // Command failed to be delivered
+	CommandStatusPending CommandStatus = "pending" // Initial state when command is created
+	CommandStatusQueued  CommandStatus = "queued"  // Command is queued in TTN server
+	CommandStatusSent    CommandStatus = "sent"    // Command was sent to device
+	CommandStatusAck     CommandStatus = "ack"     // Command was acknowledged by device
+	CommandStatusFailed  CommandStatus = "failed"  // Command failed to be delivered
 )
 
 type CommandSequence struct {

@@ -12,14 +12,7 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
-)
-
-const (
-	_metricKeyCommands = "commands"
 )
 
 func NewCommandWorker(
@@ -31,7 +24,6 @@ func NewCommandWorker(
 		ticker:            ticker,
 		commandRepository: commandRepository,
 		broker:            broker,
-		metricCounters:    make(map[string]metric.Float64Counter),
 	}
 }
 
@@ -39,7 +31,6 @@ type CommandWorker struct {
 	ticker            *time.Ticker
 	commandRepository CommandRepository
 	broker            async.InternalBroker
-	metricCounters    map[string]metric.Float64Counter
 }
 
 func (w *CommandWorker) Run(ctx context.Context, done func()) {
@@ -51,7 +42,6 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 		return
 	}
 	var wg sync.WaitGroup
-	w.setupOtelCounters()
 	for {
 		select {
 		case <-ctx.Done():
@@ -85,16 +75,6 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 			w.reconciliation(tickCtx, wg.Done)
 		}
 	}
-}
-
-func (w *CommandWorker) setupOtelCounters() {
-	meter := otel.Meter("zensor_server")
-	commandCounter, _ := meter.Float64Counter(
-		fmt.Sprintf("%s.%s", "zensor_server", "commands"),
-		metric.WithDescription("zensor_server command counter"),
-	)
-
-	w.metricCounters[_metricKeyCommands] = commandCounter
 }
 
 func (w *CommandWorker) reconciliation(ctx context.Context, done func()) {
@@ -144,11 +124,13 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 
 	slog.Debug("new message ready to be sent", slog.String("id", cmd.ID.String()))
 
-	attributes := []attribute.KeyValue{
-		semconv.ServiceNameKey.String("zensor_server"),
-		attribute.String("device_name", cmd.Device.Name),
+	brokerMsg := async.BrokerMessage{
+		Event: "command_processed",
+		Value: cmd,
 	}
-	w.metricCounters[_metricKeyCommands].Add(ctx, 1, metric.WithAttributes(attributes...))
+	if err := w.broker.Publish(ctx, async.BrokerTopicName("command_events"), brokerMsg); err != nil {
+		slog.Error("failed to publish command processed event", slog.Any("error", err))
+	}
 }
 
 func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Command, done func()) {
@@ -167,11 +149,7 @@ func (w *CommandWorker) handleCommandSent(ctx context.Context, cmd device.Comman
 		slog.Error("failed to update command", slog.Any("error", err))
 	}
 
-	attributes := []attribute.KeyValue{
-		semconv.ServiceNameKey.String("zensor_server"),
-		attribute.String("device_name", cmd.DeviceName),
-	}
-	w.metricCounters[_metricKeyCommands].Add(ctx, 1, metric.WithAttributes(attributes...))
+	// Metrics are now handled by MetricPublisherWorker
 }
 
 func (w *CommandWorker) handleCommandStatusUpdate(ctx context.Context, statusUpdate domain.CommandStatusUpdate, done func()) {
