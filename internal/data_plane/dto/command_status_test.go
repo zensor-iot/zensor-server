@@ -79,7 +79,7 @@ var _ = ginkgo.Describe("CommandStatusUpdateDTO", func() {
 				// Verify conversion
 				gomega.Expect(dto.CommandID).To(gomega.Equal("test-command-456"))
 				gomega.Expect(dto.DeviceName).To(gomega.Equal("test-device-2"))
-				gomega.Expect(dto.Status).To(gomega.Equal("confirmed"))
+				gomega.Expect(dto.Status).To(gomega.Equal("sent"))
 				gomega.Expect(dto.ErrorMessage).To(gomega.BeNil())
 				gomega.Expect(dto.Timestamp).To(gomega.Equal(domainObj.Timestamp))
 			})
