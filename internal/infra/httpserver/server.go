@@ -200,11 +200,17 @@ func getHealthz() http.HandlerFunc {
 		span.SetAttributes(attribute.String("endpoint", "healthz"))
 
 		nodeInfo := node.GetNodeInfo()
-		output := map[string]string{
-			"status":      "success",
-			"VERSION":     nodeInfo.Version,
-			"COMMIT_HASH": nodeInfo.CommitHash,
+		output := HealthzResponse{
+			Status:     "success",
+			Version:    nodeInfo.Version,
+			CommitHash: nodeInfo.CommitHash,
 		}
 		ReplyJSONResponse(w, http.StatusOK, output)
 	}
+}
+
+type HealthzResponse struct {
+	Status     string `json:"status"`
+	Version    string `json:"version"`
+	CommitHash string `json:"commit_hash"`
 }
