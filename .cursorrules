@@ -22,8 +22,15 @@
 - Use clear, concise naming. Exported names must be capitalized; unexported names should be short and meaningful.
 - Avoid unnecessary abstraction; keep code simple and readable.
 - Group related code into packages; avoid large monolithic files.
-- Only comment public (exported) methods, functions, types, and packages with Go-style comments.
-- Never add comments within function bodies or to explain what the code does.
+# Code Comments - STRICT RULES
+
+- ONLY comment public (exported) methods, functions, types, and packages with Go-style comments
+- NEVER add comments within function bodies or to explain what the code does
+- NEVER add comments for private functions, variables, or obvious code
+- NEVER add inline comments explaining implementation details
+- Code should be self-documenting through clear naming
+- If you need a comment to explain code, refactor the code to be clearer instead
+- Comments should only explain WHY, not WHAT or HOW
 - All variable names, method names, function names, structure names and interface names must be in camel or pascal case.
 - always use the global slog method and never inject a *slog.Logger instance
 
@@ -76,3 +83,17 @@
   3. Then proceed with implementing the solution
   4. Keep the test for future validation and regression prevention
 - This ensures bugs are properly documented and prevents regressions.
+
+# Git Workflow and Branch Management
+
+- NEVER work directly on the main branch - always create a feature branch
+- Always associate work with a GitHub issue before starting development
+- Branch naming pattern: `feature/<issue_id>` (e.g., `feature/12`, `feature/123`)
+- Create GitHub issue first, then create branch following the pattern
+- All development work must be done on feature branches
+- Use pull requests to merge feature branches back to main
+- Example workflow:
+  1. Create GitHub issue
+  2. Create branch: `git checkout -b feature/<issue_id>`
+  3. Implement changes on feature branch
+  4. Create pull request to merge to main

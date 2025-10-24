@@ -2,7 +2,7 @@ name: Test and Build Application
 
 on:
   push:
-    branches: ["main"]
+    branches: ["**"]
     tags: ["v*"]
   pull_request:
     branches: ["main"]
@@ -16,7 +16,7 @@ jobs:
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,7 +56,7 @@ jobs:
   test-functional:
     name: Functional Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -164,9 +164,12 @@ jobs:
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=My multi-arch image
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT_HASH=${{ github.sha }}
 
       - name: Sign the published Docker image
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST} 
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}

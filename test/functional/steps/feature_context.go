@@ -56,6 +56,12 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the response should contain the evaluation rule details$`, fc.theResponseShouldContainTheEvaluationRuleDetails)
 	ctx.Then(`^the tenant should be soft deleted$`, fc.theTenantShouldBeSoftDeleted)
 
+	// Healthz endpoint steps
+	ctx.When(`^I call the healthz endpoint$`, fc.iCallTheHealthzEndpoint)
+	ctx.Then(`^the response should contain status information$`, fc.theResponseShouldContainStatusInformation)
+	ctx.Then(`^the response should contain version information$`, fc.theResponseShouldContainVersionInformation)
+	ctx.Then(`^the response should contain commit hash information$`, fc.theResponseShouldContainCommitHashInformation)
+
 	// Tenant steps
 	ctx.When(`^I create a new tenant with name "([^"]*)" and email "([^"]*)"$`, fc.iCreateANewTenantWithNameAndEmail)
 	ctx.Given(`^a tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.aTenantExistsWithNameAndEmail)
