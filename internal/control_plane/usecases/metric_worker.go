@@ -7,6 +7,7 @@ import (
 
 	"zensor-server/cmd/config"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/node"
 	"zensor-server/internal/infra/utils"
 
 	"go.opentelemetry.io/otel"
@@ -109,7 +110,7 @@ func (w *MetricWorker) Shutdown() {
 func createCounterHandler(metricInstance any, _ string, customAttributes map[string]string) func(context.Context, async.BrokerMessage) {
 	return func(ctx context.Context, msg async.BrokerMessage) {
 		if counter, ok := metricInstance.(metric.Float64Counter); ok {
-			attributes := []attribute.KeyValue{}
+			attributes := getGlobalAttributes()
 
 			for labelName, path := range customAttributes {
 				if value := utils.ExtractStringValue(msg.Value, path); value != "" {
@@ -126,7 +127,7 @@ func createGaugeHandler(metricInstance any, propertyName string, customAttribute
 	return func(ctx context.Context, msg async.BrokerMessage) {
 		if gauge, ok := metricInstance.(metric.Float64Gauge); ok {
 			value := utils.ExtractFloat64Value(msg.Value, propertyName)
-			attributes := []attribute.KeyValue{}
+			attributes := getGlobalAttributes()
 
 			for labelName, path := range customAttributes {
 				if value := utils.ExtractStringValue(msg.Value, path); value != "" {
@@ -143,7 +144,7 @@ func createHistogramHandler(metricInstance any, propertyName string, customAttri
 	return func(ctx context.Context, msg async.BrokerMessage) {
 		if histogram, ok := metricInstance.(metric.Float64Histogram); ok {
 			value := utils.ExtractFloat64Value(msg.Value, propertyName)
-			attributes := []attribute.KeyValue{}
+			attributes := getGlobalAttributes()
 
 			for labelName, path := range customAttributes {
 				if value := utils.ExtractStringValue(msg.Value, path); value != "" {
@@ -153,5 +154,14 @@ func createHistogramHandler(metricInstance any, propertyName string, customAttri
 
 			histogram.Record(ctx, value, metric.WithAttributes(attributes...))
 		}
+	}
+}
+
+// getGlobalAttributes returns global attributes that should be included in all metrics
+func getGlobalAttributes() []attribute.KeyValue {
+	nodeInfo := node.GetNodeInfo()
+	return []attribute.KeyValue{
+		attribute.String("version", nodeInfo.Version),
+		attribute.String("commit_hash", nodeInfo.CommitHash),
 	}
 }

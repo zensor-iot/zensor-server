@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sync"
 	"time"
+	"zensor-server/internal/infra/node"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -90,12 +91,12 @@ func MetricsMiddleware() func(http.Handler) http.Handler {
 
 			endpoint := normalizeEndpoint(r.URL.Path)
 
-			httpRequestActive.Add(r.Context(), 1,
-				metric.WithAttributes(
-					attribute.String("http.method", r.Method),
-					attribute.String("http.endpoint", endpoint),
-				),
+			globalAttrs := getGlobalAttributes()
+			activeAttrs := append(globalAttrs,
+				attribute.String("http.method", r.Method),
+				attribute.String("http.endpoint", endpoint),
 			)
+			httpRequestActive.Add(r.Context(), 1, metric.WithAttributes(activeAttrs...))
 
 			wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 
@@ -103,22 +104,17 @@ func MetricsMiddleware() func(http.Handler) http.Handler {
 
 			duration := time.Since(start).Seconds()
 
-			attrs := []attribute.KeyValue{
+			attrs := append(globalAttrs,
 				attribute.String("http.method", r.Method),
 				attribute.String("http.endpoint", endpoint),
 				attribute.Int("http.status_code", wrappedWriter.statusCode),
-			}
+			)
 
 			httpRequestDuration.Record(r.Context(), duration, metric.WithAttributes(attrs...))
 
 			httpRequestTotal.Add(r.Context(), 1, metric.WithAttributes(attrs...))
 
-			httpRequestActive.Add(r.Context(), -1,
-				metric.WithAttributes(
-					attribute.String("http.method", r.Method),
-					attribute.String("http.endpoint", endpoint),
-				),
-			)
+			httpRequestActive.Add(r.Context(), -1, metric.WithAttributes(activeAttrs...))
 		})
 	}
 }
@@ -154,4 +150,13 @@ func normalizeEndpoint(path string) string {
 	})
 
 	return normalizedPath
+}
+
+// getGlobalAttributes returns global attributes that should be included in all HTTP metrics
+func getGlobalAttributes() []attribute.KeyValue {
+	nodeInfo := node.GetNodeInfo()
+	return []attribute.KeyValue{
+		attribute.String("version", nodeInfo.Version),
+		attribute.String("commit_hash", nodeInfo.CommitHash),
+	}
 }

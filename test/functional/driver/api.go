@@ -233,3 +233,7 @@ func (d *APIDriver) UpdateTenantConfiguration(tenantID, timezone string) (*http.
 	req.Header.Set("Content-Type", "application/json")
 	return d.client.Do(req)
 }
+
+func (d *APIDriver) GetHealthz() (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/healthz", d.baseURL))
+}

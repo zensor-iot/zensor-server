@@ -36,7 +36,6 @@ var _ = ginkgo.Describe("Node", func() {
 			nodeInfo := node.GetNodeInfo()
 			gomega.Expect(nodeInfo.IPAddress).ToNot(gomega.BeEmpty())
 
-			// Should be a valid IP address
 			ip := net.ParseIP(nodeInfo.IPAddress)
 			gomega.Expect(ip).ToNot(gomega.BeNil())
 		})

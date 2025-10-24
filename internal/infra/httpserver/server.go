@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"zensor-server/internal/infra/node"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
@@ -198,7 +199,12 @@ func getHealthz() http.HandlerFunc {
 		span := GetSpanFromContext(r)
 		span.SetAttributes(attribute.String("endpoint", "healthz"))
 
-		output := map[string]string{"status": "success"}
+		nodeInfo := node.GetNodeInfo()
+		output := map[string]string{
+			"status":      "success",
+			"VERSION":     nodeInfo.Version,
+			"COMMIT_HASH": nodeInfo.CommitHash,
+		}
 		ReplyJSONResponse(w, http.StatusOK, output)
 	}
 }
