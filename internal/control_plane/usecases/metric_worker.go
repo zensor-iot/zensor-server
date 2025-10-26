@@ -32,15 +32,17 @@ func NewMetricWorker(cfg config.MetricWorkerConfig, broker async.InternalBroker)
 	var handler func(ctx context.Context, msg async.BrokerMessage)
 	var err error
 
+	metricName := fmt.Sprintf("zensor_server.%s", cfg.Name)
+
 	switch cfg.Type {
 	case "counter":
-		metric, err = meter.Float64Counter(cfg.Name)
+		metric, err = meter.Float64Counter(metricName)
 		handler = createCounterHandler(metric, cfg.ValuePropertyName, cfg.CustomAttributes)
 	case "gauge":
-		metric, err = meter.Float64Gauge(cfg.Name)
+		metric, err = meter.Float64Gauge(metricName)
 		handler = createGaugeHandler(metric, cfg.ValuePropertyName, cfg.CustomAttributes)
 	case "histogram":
-		metric, err = meter.Float64Histogram(cfg.Name)
+		metric, err = meter.Float64Histogram(metricName)
 		handler = createHistogramHandler(metric, cfg.ValuePropertyName, cfg.CustomAttributes)
 	default:
 		return nil, fmt.Errorf("unsupported metric type: %s", cfg.Type)
