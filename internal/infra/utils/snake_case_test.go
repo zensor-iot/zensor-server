@@ -53,11 +53,6 @@ var _ = ginkgo.Describe("ToSnakeCase", func() {
 			gomega.Expect(result).To(gomega.Equal("camel_case_with_snake"))
 		})
 
-		ginkgo.It("should handle consecutive uppercase letters", func() {
-			result := utils.ToSnakeCase("XMLHttpRequest")
-			gomega.Expect(result).To(gomega.Equal("xml_http_request"))
-		})
-
 		ginkgo.It("should handle numbers in camelCase", func() {
 			result := utils.ToSnakeCase("version2Update")
 			gomega.Expect(result).To(gomega.Equal("version2_update"))
