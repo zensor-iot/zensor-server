@@ -36,7 +36,7 @@ metrics:
   - name: "temperature"
     type: "gauge"
     topic: "device_messages"
-    event_type: "sensor_data_received"
+    event_type: "temperature_data_received"
     value_property_name: "Value"
     custom_attributes:
       device_name: "DeviceName"
@@ -45,7 +45,7 @@ metrics:
   - name: "humidity"
     type: "gauge"
     topic: "device_messages"
-    event_type: "sensor_data_received"
+    event_type: "humidity_data_received"
     value_property_name: "Value"
     custom_attributes:
       device_name: "device_id"
@@ -54,7 +54,16 @@ metrics:
   - name: "water_flow"
     type: "gauge"
     topic: "device_messages"
-    event_type: "sensor_data_received"
+    event_type: "water_flow_data_received"
+    value_property_name: "Value"
+    custom_attributes:
+      device_name: "device_id"
+      app_id: "AppID"
+      index: "Index"
+  - name: "relay"
+    type: "gauge"
+    topic: "device_messages"
+    event_type: "relay_data_received"
     value_property_name: "Value"
     custom_attributes:
       device_name: "device_id"

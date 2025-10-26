@@ -532,8 +532,9 @@ func (w *LoraIntegrationWorker) handleSensorData(ctx context.Context, envelope d
 				Index:      sensorData.Index,
 			}
 
+			eventName := fmt.Sprintf("%s_data_received", utils.ToSnakeCase(sensorType))
 			brokerMsg := async.BrokerMessage{
-				Event: "sensor_data_received",
+				Event: eventName,
 				Value: sensorDataReceived,
 			}
 
