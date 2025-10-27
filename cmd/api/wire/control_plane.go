@@ -158,6 +158,23 @@ func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationCont
 	return nil, nil
 }
 
+func InitializeUserController() (*httpapi.UserController, error) {
+	wire.Build(
+		provideAppConfig,
+		providePublisherFactoryForEnvironment,
+		provideDatabase,
+		persistence.NewUserRepository,
+		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		usecases.NewUserService,
+		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
+		httpapi.NewUserController,
+	)
+
+	return nil, nil
+}
+
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	wire.Build(
 		provideAppConfig,

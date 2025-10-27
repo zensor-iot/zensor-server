@@ -38,3 +38,8 @@ type ScheduledTaskService interface {
 	Update(context.Context, domain.ScheduledTask) error
 	Delete(context.Context, domain.ID) error
 }
+
+type UserService interface {
+	AssociateTenants(context.Context, domain.ID, []domain.ID) error
+	GetUser(context.Context, domain.ID) (domain.User, error)
+}

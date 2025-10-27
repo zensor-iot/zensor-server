@@ -237,3 +237,22 @@ func (d *APIDriver) UpdateTenantConfiguration(tenantID, timezone string) (*http.
 func (d *APIDriver) GetHealthz() (*http.Response, error) {
 	return d.client.Get(fmt.Sprintf("%s/healthz", d.baseURL))
 }
+
+func (d *APIDriver) AssociateUserWithTenants(userID string, tenantIDs []string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"tenants": tenantIDs,
+	})
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/users/%s", d.baseURL, userID), bytes.NewBuffer(reqBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) GetUser(userID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/users/%s", d.baseURL, userID))
+}

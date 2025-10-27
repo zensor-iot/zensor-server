@@ -55,7 +55,10 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
-	fc.tenantID = data["id"].(string)
+
+	tenantID := data["id"].(string)
+	fc.tenantID = tenantID
+	fc.tenantIDs = append(fc.tenantIDs, tenantID)
 
 	// Wait for replication to complete
 	time.Sleep(50 * time.Millisecond)

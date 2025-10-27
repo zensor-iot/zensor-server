@@ -1,0 +1,19 @@
+{
+    "name": "zensor-users-sink",
+    "config": {
+        "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+        "tasks.max": "1",
+        "topics": "users",
+        "connection.url": "jdbc:postgresql://materialize:5432/defaultdb",
+        "connection.user": "materialize",
+        "connection.password": "materialize",
+        "insert.mode": "upsert",
+        "pk.mode": "record_value",
+        "pk.fields": "id",
+        "auto.create": "true",
+        "auto.evolve": "true",
+        "table.name.format": "users",
+        "value.converter": "io.confluent.connect.avro.AvroConverter",
+        "value.converter.schema.registry.url": "http://schema-registry:8081"
+    }
+}

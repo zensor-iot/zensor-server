@@ -31,10 +31,12 @@ type FeatureContext struct {
 	responseData     map[string]any
 	responseListData []map[string]any
 	tenantID         string
+	tenantIDs        []string
 	deviceID         string
 	scheduledTaskID  string
 	evaluationRuleID string
 	updatedSchedule  string
+	userID           string
 	require          *require.Assertions
 	t                godog.TestingT
 }
@@ -154,6 +156,20 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the tenant configuration should be retrieved successfully$`, fc.theTenantConfigurationShouldBeRetrievedSuccessfully)
 	ctx.Then(`^the tenant configuration should be updated successfully$`, fc.theTenantConfigurationShouldBeUpdatedSuccessfully)
 
+	// User steps
+	ctx.When(`^I associate user "([^"]*)" with tenants$`, fc.iAssociateUserWithTenants)
+	ctx.Given(`^user "([^"]*)" is associated with tenants$`, fc.userIsAssociatedWithTenants)
+	ctx.When(`^I get the user "([^"]*)"$`, fc.iGetTheUser)
+	ctx.Then(`^the response should contain the user with id "([^"]*)"$`, fc.theResponseShouldContainTheUserWithId)
+	ctx.Then(`^the response should contain exactly (\d+) tenants$`, fc.theResponseShouldContainExactlyTenants)
+	ctx.When(`^I update user "([^"]*)" with different tenants$`, fc.iUpdateUserWithDifferentTenants)
+	ctx.Given(`^user "([^"]*)" is associated with (\d+) tenants$`, fc.userIsAssociatedWithTenantsCount)
+	ctx.When(`^I associate user "([^"]*)" with empty tenant list$`, fc.iAssociateUserWithEmptyTenantList)
+	ctx.When(`^I attempt to associate user "([^"]*)" with non-existent tenant$`, fc.iAttemptToAssociateUserWithNonExistentTenant)
+	ctx.When(`^I attempt to associate user "([^"]*)" with mixed tenant list$`, fc.iAttemptToAssociateUserWithMixedTenantList)
+	ctx.Given(`^another tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.anotherTenantExistsWithNameAndEmail)
+	ctx.Given(`^a third tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.aThirdTenantExistsWithNameAndEmail)
+
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
 		fc.require = require.New(fc.t)
@@ -174,10 +190,12 @@ func (fc *FeatureContext) reset() {
 	fc.responseData = nil
 	fc.responseListData = nil
 	fc.tenantID = ""
+	fc.tenantIDs = nil
 	fc.deviceID = ""
 	fc.scheduledTaskID = ""
 	fc.evaluationRuleID = ""
 	fc.updatedSchedule = ""
+	fc.userID = ""
 }
 
 func (fc *FeatureContext) sendSIGHUPToServer() {

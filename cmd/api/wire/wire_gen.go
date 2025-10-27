@@ -190,6 +190,23 @@ func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationCont
 	return tenantConfigurationController, nil
 }
 
+func InitializeUserController() (*httpapi.UserController, error) {
+	appConfig := provideAppConfig()
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	userController := httpapi.NewUserController(simpleUserService)
+	return userController, nil
+}
+
 func InitializeDeviceService() (usecases.DeviceService, error) {
 	appConfig := provideAppConfig()
 	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
