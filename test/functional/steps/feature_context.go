@@ -42,9 +42,19 @@ type FeatureContext struct {
 }
 
 func NewFeatureContext() *FeatureContext {
-	return &FeatureContext{
-		apiDriver: driver.NewAPIDriver("http://localhost:3000"),
+	baseURL := "http://localhost:3000"
+	
+	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
+		baseURL = externalURL
 	}
+	
+	return &FeatureContext{
+		apiDriver: driver.NewAPIDriver(baseURL),
+	}
+}
+
+func IsExternalMode() bool {
+	return os.Getenv("EXTERNAL_API_URL") != ""
 }
 
 func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
@@ -180,7 +190,9 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		fc.cleanupWebSocket()
-		fc.sendSIGHUPToServer()
+		if !IsExternalMode() {
+			fc.sendSIGHUPToServer()
+		}
 		return ctx, err
 	})
 }

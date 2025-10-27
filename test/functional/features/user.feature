@@ -1,4 +1,4 @@
-@user
+@user @beta
 Feature: User-Tenant Association
   In order to manage user-tenant associations in Zensor Server
   As an API user

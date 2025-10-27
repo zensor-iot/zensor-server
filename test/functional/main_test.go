@@ -19,6 +19,15 @@ func init() {
 func TestMain(m *testing.M) {
 	pflag.Parse()
 
+	var apiURL string
+	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
+		apiURL = externalURL
+		fmt.Printf("🌍 Running tests against external API: %s\n", apiURL)
+	} else {
+		apiURL = "http://localhost:3000"
+		fmt.Printf("🏠 Running tests against local server: %s\n", apiURL)
+	}
+
 	featureContext := steps.NewFeatureContext()
 
 	status := godog.TestSuite{
@@ -37,6 +46,10 @@ func TestMain(m *testing.M) {
 
 func InitializeTestSuite(suite *godog.TestSuiteContext) {
 	suite.BeforeSuite(func() {
-		fmt.Println("Before suite")
+		if steps.IsExternalMode() {
+			fmt.Println("Running tests in external mode - skipping local setup")
+		} else {
+			fmt.Println("Running tests in local mode")
+		}
 	})
 }

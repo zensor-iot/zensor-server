@@ -179,6 +179,30 @@ functional tags="~@pending": build
     
     exit $TEST_EXIT_CODE
 
+functional-external tags="@beta" api_url="http://localhost:3000":
+    #!/bin/bash
+    echo "🌍 Running functional tests against external API..."
+    
+    if [ -z "{{api_url}}" ]; then
+        echo "❌ EXTERNAL_API_URL environment variable is required"
+        exit 1
+    fi
+    
+    echo "🔗 Target API URL: {{api_url}}"
+    echo "🏷️  Running tests with tags: {{tags}}"
+    
+    cd test/functional
+    EXTERNAL_API_URL="{{api_url}}" go test -v --godog.tags={{tags}}
+    TEST_EXIT_CODE=$?
+    
+    if [ $TEST_EXIT_CODE -eq 0 ]; then
+        echo "✅ External tests passed"
+    else
+        echo "❌ External tests failed"
+    fi
+    
+    exit $TEST_EXIT_CODE
+
 c4:
     docker run -it \
         --rm \
