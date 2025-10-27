@@ -222,7 +222,11 @@ func (fc *FeatureContext) sendSIGHUPToServer() {
 }
 
 func (fc *FeatureContext) decodeBody(body io.ReadCloser, target any) error {
-	return json.NewDecoder(body).Decode(target)
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(bodyBytes, target)
 }
 
 func (fc *FeatureContext) decodePaginatedResponse(body *http.Response) ([]map[string]any, error) {

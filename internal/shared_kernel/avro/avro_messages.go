@@ -128,6 +128,19 @@ type AvroUser struct {
 	UpdatedAt time.Time `avro:"updated_at"`
 }
 
+// ToDomainUser converts an AvroUser to a domain.User
+func (a *AvroUser) ToDomainUser() domain.User {
+	tenantIDs := make([]domain.ID, len(a.Tenants))
+	for i, tenantID := range a.Tenants {
+		tenantIDs[i] = domain.ID(tenantID)
+	}
+
+	return domain.User{
+		ID:      domain.ID(a.ID),
+		Tenants: tenantIDs,
+	}
+}
+
 // Conversion functions to convert from domain types to Avro types
 
 // ToAvroCommand converts a domain.Command to an AvroCommand for serialization

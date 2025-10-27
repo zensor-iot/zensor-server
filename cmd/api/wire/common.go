@@ -12,3 +12,7 @@ func provideAppConfig() config.AppConfig {
 func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
 	return handlers.NewTenantConfigurationHandler(provideDatabase(provideAppConfig())), nil
 }
+
+func InitializeUserHandler() (*handlers.UserHandler, error) {
+	return handlers.NewUserHandler(provideDatabase(provideAppConfig())), nil
+}

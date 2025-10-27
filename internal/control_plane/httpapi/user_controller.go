@@ -69,7 +69,7 @@ func (c *UserController) getUser() http.HandlerFunc {
 
 		user, err := c.service.GetUser(r.Context(), domain.ID(id))
 		if errors.Is(err, usecases.ErrUserNotFound) {
-			http.Error(w, "user not found", http.StatusNotFound)
+			httpserver.ReplyJSONResponse(w, http.StatusNotFound, map[string]string{"error": "user not found"})
 			return
 		}
 		if err != nil {

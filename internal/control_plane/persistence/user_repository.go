@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
@@ -54,15 +55,18 @@ func (r *SimpleUserRepository) Upsert(ctx context.Context, user domain.User) err
 		UpdatedAt: time.Now(),
 	}
 
+	slog.Info("publishing user to pubsub", slog.String("user_id", user.ID.String()), slog.Any("tenants", tenantIDStrs))
 	err := r.publisher.Publish(ctx, pubsub.Key(user.ID), avroUser)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
+	slog.Info("published user to pubsub", slog.String("user_id", user.ID.String()))
 
 	return nil
 }
 
 func (r *SimpleUserRepository) GetByID(ctx context.Context, id domain.ID) (domain.User, error) {
+	slog.Info("getting user by ID", slog.String("user_id", id.String()))
 	var entity internal.User
 	err := r.orm.
 		WithContext(ctx).
@@ -70,12 +74,15 @@ func (r *SimpleUserRepository) GetByID(ctx context.Context, id domain.ID) (domai
 		Error()
 
 	if errors.Is(err, sql.ErrRecordNotFound) {
+		slog.Warn("user not found in database", slog.String("user_id", id.String()))
 		return domain.User{}, usecases.ErrUserNotFound
 	}
 
 	if err != nil {
+		slog.Error("database query error", slog.String("error", err.Error()))
 		return domain.User{}, fmt.Errorf("database query: %w", err)
 	}
 
+	slog.Info("found user in database", slog.String("user_id", id.String()), slog.Any("tenants", entity.Tenants))
 	return entity.ToDomain(), nil
 }

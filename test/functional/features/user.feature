@@ -20,7 +20,7 @@ Feature: User-Tenant Association
     And the response should contain the user with id "user-456"
     And the response should contain exactly 2 tenants
 
-  Scenario: Update user-tenant associations
+  Scenario: Update user-tenant associations and verify
     Given a tenant exists with name "ACME Corp" and email "contact@acme.com"
     And another tenant exists with name "ACME Corp 2" and email "contact2@acme.com"
     And a third tenant exists with name "ACME Corp 3" and email "contact3@acme.com"
@@ -28,8 +28,15 @@ Feature: User-Tenant Association
     When I update user "user-789" with different tenants
     And wait for 50ms
     Then the response status code should be 200
-    And I get the user "user-789"
-    Then the response should contain the user with id "user-789"
+
+  Scenario: Retrieve updated user-tenant associations
+    Given a tenant exists with name "ACME Corp" and email "contact@acme.com"
+    And another tenant exists with name "ACME Corp 2" and email "contact2@acme.com"
+    And a third tenant exists with name "ACME Corp 3" and email "contact3@acme.com"
+    And user "user-789" is associated with 3 tenants
+    When I get the user "user-789"
+    Then the response status code should be 200
+    And the response should contain the user with id "user-789"
     And the response should contain exactly 3 tenants
 
   Scenario: Associate user with empty tenant list

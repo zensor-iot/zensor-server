@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
@@ -11,14 +14,35 @@ import (
 )
 
 type UserData struct {
-	ID        string    `json:"id" gorm:"primaryKey"`
-	Tenants   string    `json:"tenants" gorm:"type:jsonb"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string     `json:"id" gorm:"primaryKey"`
+	Tenants   TenantIDs  `json:"tenants" gorm:"type:jsonb"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 func (UserData) TableName() string {
 	return "users"
+}
+
+type TenantIDs []string
+
+func (t *TenantIDs) Scan(value interface{}) error {
+	if value == nil {
+		*t = TenantIDs{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil
+	}
+	return json.Unmarshal(bytes, t)
+}
+
+func (t TenantIDs) Value() (driver.Value, error) {
+	if len(t) == 0 {
+		return []byte("[]"), nil
+	}
+	return json.Marshal(t)
 }
 
 type UserHandler struct {
@@ -36,13 +60,21 @@ func (h *UserHandler) TopicName() pubsub.Topic {
 }
 
 func (h *UserHandler) Create(ctx context.Context, key pubsub.Key, message pubsub.Message) error {
-	userData := h.extractUserFields(message)
+	avroUser := h.extractAvroUser(message)
+	userData := UserData{
+		ID:        avroUser.ID,
+		Tenants:   avroUser.Tenants,
+		CreatedAt: avroUser.CreatedAt,
+		UpdatedAt: avroUser.UpdatedAt,
+	}
 
 	err := h.orm.WithContext(ctx).Create(&userData).Error()
 	if err != nil {
+		slog.Error("failed to create user in database", slog.String("error", err.Error()))
 		return fmt.Errorf("creating user: %w", err)
 	}
 
+	slog.Info("successfully created user", slog.String("key", string(key)), slog.Any("tenants", userData.Tenants))
 	return nil
 }
 
@@ -51,57 +83,46 @@ func (h *UserHandler) GetByID(ctx context.Context, id string) (pubsub.Message, e
 
 	err := h.orm.WithContext(ctx).First(&userData, "id = ?", id).Error()
 	if err != nil {
+		if errors.Is(err, sql.ErrRecordNotFound) {
+			return nil, fmt.Errorf("user not found")
+		}
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
 
-	user := h.toAvroUser(userData)
-	return user, nil
+	avroUser := &avro.AvroUser{
+		ID:        userData.ID,
+		Tenants:   userData.Tenants,
+		CreatedAt: userData.CreatedAt,
+		UpdatedAt: userData.UpdatedAt,
+	}
+	return avroUser, nil
 }
 
 func (h *UserHandler) Update(ctx context.Context, key pubsub.Key, message pubsub.Message) error {
-	userData := h.extractUserFields(message)
-
-	err := h.orm.WithContext(ctx).Save(&userData).Error()
-	if err != nil {
-		return fmt.Errorf("updating user: %w", err)
-	}
-
-	return nil
-}
-
-func (h *UserHandler) extractUserFields(msg pubsub.Message) UserData {
-	avroUser, ok := msg.(*avro.AvroUser)
-	if !ok {
-		panic("invalid message type for UserHandler")
-	}
-
-	return UserData{
+	avroUser := h.extractAvroUser(message)
+	userData := UserData{
 		ID:        avroUser.ID,
-		Tenants:   marshallTenants(avroUser.Tenants),
+		Tenants:   avroUser.Tenants,
 		CreatedAt: avroUser.CreatedAt,
 		UpdatedAt: avroUser.UpdatedAt,
 	}
-}
 
-func (h *UserHandler) toAvroUser(data UserData) *avro.AvroUser {
-	return &avro.AvroUser{
-		ID:        data.ID,
-		Tenants:   unmarshallTenants(data.Tenants),
-		CreatedAt: data.CreatedAt,
-		UpdatedAt: data.UpdatedAt,
+	err := h.orm.WithContext(ctx).Save(&userData).Error()
+	if err != nil {
+		slog.Error("failed to update user in database", slog.String("error", err.Error()))
+		return fmt.Errorf("updating user: %w", err)
 	}
+
+	slog.Info("successfully updated user", slog.String("key", string(key)), slog.Any("tenants", userData.Tenants))
+	return nil
 }
 
-func marshallTenants(tenants []string) string {
-	if len(tenants) == 0 {
-		return "[]"
+func (h *UserHandler) extractAvroUser(msg pubsub.Message) *avro.AvroUser {
+	avroUser, ok := msg.(*avro.AvroUser)
+	if !ok {
+		slog.Error("invalid message type for UserHandler", slog.String("type", fmt.Sprintf("%T", msg)))
+		panic("invalid message type for UserHandler")
 	}
-	bytes, _ := json.Marshal(tenants)
-	return string(bytes)
-}
-
-func unmarshallTenants(tenantsJSON string) []string {
-	var tenants []string
-	json.Unmarshal([]byte(tenantsJSON), &tenants)
-	return tenants
+	slog.Debug("extracting user fields", slog.String("user_id", avroUser.ID))
+	return avroUser
 }
