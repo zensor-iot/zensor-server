@@ -86,6 +86,7 @@ register_schema "scheduled_tasks" "scheduled_task.avsc"
 register_schema "tenants" "tenant.avsc"
 register_schema "evaluation_rules" "evaluation_rule.avsc"
 register_schema "tenant_configurations" "tenant_configuration.avsc"
+register_schema "users" "user.avsc"
 
 echo "=== Schema registration complete ==="
 
