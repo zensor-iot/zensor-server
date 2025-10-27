@@ -7,7 +7,6 @@
 package wire
 
 import (
-	"github.com/google/wire"
 	"log/slog"
 	"os"
 	"sync"
@@ -25,6 +24,8 @@ import (
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
+
+	"github.com/google/wire"
 )
 
 // Injectors from control_plane.go:
@@ -150,7 +151,16 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository)
+	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
 	scheduledTaskWorker := usecases.NewScheduledTaskWorker(ticker, simpleScheduledTaskRepository, simpleTaskService, simpleDeviceService, simpleTenantConfigurationService, broker)
 	return scheduledTaskWorker, nil
 }
@@ -185,7 +195,16 @@ func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationCont
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository)
+	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
 	tenantConfigurationController := httpapi.NewTenantConfigurationController(simpleTenantConfigurationService)
 	return tenantConfigurationController, nil
 }
@@ -273,7 +292,16 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.Notifi
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository)
+	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
 	notificationWorker := usecases.NewNotificationWorker(ticker, notificationClient, simpleDeviceService, simpleTenantConfigurationService, broker)
 	return notificationWorker, nil
 }

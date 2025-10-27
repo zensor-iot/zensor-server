@@ -25,19 +25,16 @@ func (t *Tenant) SoftDelete() {
 	now := time.Now()
 	t.DeletedAt = &now
 	t.IsActive = false
-	t.Version++
 	t.UpdatedAt = now
 }
 
 func (t *Tenant) Activate() {
 	t.IsActive = true
-	t.Version++
 	t.UpdatedAt = time.Now()
 }
 
 func (t *Tenant) Deactivate() {
 	t.IsActive = false
-	t.Version++
 	t.UpdatedAt = time.Now()
 }
 
@@ -51,7 +48,6 @@ func (t *Tenant) UpdateInfo(name, email, description string) {
 	if description != "" {
 		t.Description = description
 	}
-	t.Version++
 	t.UpdatedAt = time.Now()
 }
 

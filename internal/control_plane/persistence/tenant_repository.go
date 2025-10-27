@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"zensor-server/internal/shared_kernel/domain"
+	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/avro"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 func NewTenantRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleTenantRepository, error) {
@@ -37,7 +38,6 @@ type SimpleTenantRepository struct {
 }
 
 func (r *SimpleTenantRepository) Create(ctx context.Context, tenant domain.Tenant) error {
-	// Convert domain tenant to Avro tenant
 	avroTenant := &avro.AvroTenant{
 		ID:          tenant.ID.String(),
 		Version:     tenant.Version,
@@ -99,7 +99,9 @@ func (r *SimpleTenantRepository) GetByName(ctx context.Context, name string) (do
 }
 
 func (r *SimpleTenantRepository) Update(ctx context.Context, tenant domain.Tenant) error {
-	// Convert domain tenant to Avro tenant
+	tenant.Version++
+	tenant.UpdatedAt = time.Now()
+
 	avroTenant := &avro.AvroTenant{
 		ID:          tenant.ID.String(),
 		Version:     tenant.Version,
@@ -127,7 +129,6 @@ func (r *SimpleTenantRepository) FindAll(ctx context.Context, includeDeleted boo
 	var total int64
 	query := r.orm.WithContext(ctx).Model(&internal.Tenant{})
 
-	// Filter out soft-deleted tenants unless specifically requested
 	if !includeDeleted {
 		query = query.Where("deleted_at IS NULL")
 	}
@@ -140,7 +141,6 @@ func (r *SimpleTenantRepository) FindAll(ctx context.Context, includeDeleted boo
 	var entities []internal.Tenant
 	query = r.orm.WithContext(ctx)
 
-	// Filter out soft-deleted tenants unless specifically requested
 	if !includeDeleted {
 		query = query.Where("deleted_at IS NULL")
 	}

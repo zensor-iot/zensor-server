@@ -407,3 +407,125 @@ func (mr *MockScheduledTaskServiceMockRecorder) Update(arg0, arg1 any) *gomock.C
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockScheduledTaskService)(nil).Update), arg0, arg1)
 }
+
+// MockUserService is a mock of UserService interface.
+type MockUserService struct {
+	ctrl     *gomock.Controller
+	recorder *MockUserServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockUserServiceMockRecorder is the mock recorder for MockUserService.
+type MockUserServiceMockRecorder struct {
+	mock *MockUserService
+}
+
+// NewMockUserService creates a new mock instance.
+func NewMockUserService(ctrl *gomock.Controller) *MockUserService {
+	mock := &MockUserService{ctrl: ctrl}
+	mock.recorder = &MockUserServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserService) EXPECT() *MockUserServiceMockRecorder {
+	return m.recorder
+}
+
+// AssociateTenants mocks base method.
+func (m *MockUserService) AssociateTenants(arg0 context.Context, arg1 domain.ID, arg2 []domain.ID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssociateTenants", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AssociateTenants indicates an expected call of AssociateTenants.
+func (mr *MockUserServiceMockRecorder) AssociateTenants(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssociateTenants", reflect.TypeOf((*MockUserService)(nil).AssociateTenants), arg0, arg1, arg2)
+}
+
+// GetUser mocks base method.
+func (m *MockUserService) GetUser(arg0 context.Context, arg1 domain.ID) (domain.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUser", arg0, arg1)
+	ret0, _ := ret[0].(domain.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUser indicates an expected call of GetUser.
+func (mr *MockUserServiceMockRecorder) GetUser(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUser", reflect.TypeOf((*MockUserService)(nil).GetUser), arg0, arg1)
+}
+
+// MockTenantConfigurationService is a mock of TenantConfigurationService interface.
+type MockTenantConfigurationService struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantConfigurationServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockTenantConfigurationServiceMockRecorder is the mock recorder for MockTenantConfigurationService.
+type MockTenantConfigurationServiceMockRecorder struct {
+	mock *MockTenantConfigurationService
+}
+
+// NewMockTenantConfigurationService creates a new mock instance.
+func NewMockTenantConfigurationService(ctrl *gomock.Controller) *MockTenantConfigurationService {
+	mock := &MockTenantConfigurationService{ctrl: ctrl}
+	mock.recorder = &MockTenantConfigurationServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTenantConfigurationService) EXPECT() *MockTenantConfigurationServiceMockRecorder {
+	return m.recorder
+}
+
+// UpsertTenantConfiguration mocks base method.
+func (m *MockTenantConfigurationService) UpsertTenantConfiguration(ctx context.Context, userID domain.ID, config domain.TenantConfiguration) (domain.TenantConfiguration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertTenantConfiguration", ctx, userID, config)
+	ret0, _ := ret[0].(domain.TenantConfiguration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpsertTenantConfiguration indicates an expected call of UpsertTenantConfiguration.
+func (mr *MockTenantConfigurationServiceMockRecorder) UpsertTenantConfiguration(ctx, userID, config any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).UpsertTenantConfiguration), ctx, userID, config)
+}
+
+// GetTenantConfiguration mocks base method.
+func (m *MockTenantConfigurationService) GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTenantConfiguration", ctx, tenant)
+	ret0, _ := ret[0].(domain.TenantConfiguration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTenantConfiguration indicates an expected call of GetTenantConfiguration.
+func (mr *MockTenantConfigurationServiceMockRecorder) GetTenantConfiguration(ctx, tenant any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).GetTenantConfiguration), ctx, tenant)
+}
+
+// GetOrCreateTenantConfiguration mocks base method.
+func (m *MockTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrCreateTenantConfiguration", ctx, tenant, defaultTimezone)
+	ret0, _ := ret[0].(domain.TenantConfiguration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrCreateTenantConfiguration indicates an expected call of GetOrCreateTenantConfiguration.
+func (mr *MockTenantConfigurationServiceMockRecorder) GetOrCreateTenantConfiguration(ctx, tenant, defaultTimezone any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).GetOrCreateTenantConfiguration), ctx, tenant, defaultTimezone)
+}

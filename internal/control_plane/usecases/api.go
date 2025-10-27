@@ -43,3 +43,9 @@ type UserService interface {
 	AssociateTenants(context.Context, domain.ID, []domain.ID) error
 	GetUser(context.Context, domain.ID) (domain.User, error)
 }
+
+type TenantConfigurationService interface {
+	UpsertTenantConfiguration(ctx context.Context, userID domain.ID, config domain.TenantConfiguration) (domain.TenantConfiguration, error)
+	GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error)
+	GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error)
+}

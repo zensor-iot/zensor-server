@@ -126,7 +126,6 @@ func createUserHeaderMiddleware() func(http.Handler) http.Handler {
 	}
 }
 
-// createTracingMiddleware creates a middleware that adds OpenTelemetry tracing to all requests
 func createTracingMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,10 +145,8 @@ func createTracingMiddleware() func(http.Handler) http.Handler {
 			)
 			defer span.End()
 
-			// Update request with the traced context
 			r = r.WithContext(ctx)
 
-			// Inject trace context into response headers for client propagation
 			propagator.Inject(ctx, propagation.HeaderCarrier(w.Header()))
 
 			wrapped := &statusCodeResponseWriter{ResponseWriter: w}
@@ -158,14 +155,11 @@ func createTracingMiddleware() func(http.Handler) http.Handler {
 
 			span.SetAttributes(attribute.Int("http.status_code", wrapped.statusCode))
 
-			// Set trace status based on HTTP status code
 			setTraceStatus(span, wrapped.statusCode)
 		})
 	}
 }
 
-// setTraceStatus sets the trace status based on HTTP status code
-// 2XX = OK, 5XX = ERROR, any other case = UNSET
 func setTraceStatus(span trace.Span, statusCode int) {
 	switch {
 	case statusCode >= 200 && statusCode < 300:

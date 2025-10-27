@@ -20,7 +20,6 @@ func (tc *TenantConfiguration) UpdateTimezone(timezone string) error {
 		return err
 	}
 	tc.Timezone = timezone
-	tc.Version++
 	tc.UpdatedAt = time.Now()
 	return nil
 }
@@ -30,7 +29,6 @@ func (tc *TenantConfiguration) UpdateNotificationEmail(email string) error {
 		return err
 	}
 	tc.NotificationEmail = email
-	tc.Version++
 	tc.UpdatedAt = time.Now()
 	return nil
 }
