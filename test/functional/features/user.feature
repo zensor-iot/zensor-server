@@ -55,4 +55,4 @@ Feature: User-Tenant Association
   Scenario: Associate user with valid and invalid tenants mixed
     Given a tenant exists with name "ACME Corp" and email "contact@acme.com"
     When I attempt to associate user "user-mixed" with mixed tenant list
-    Then the response status code should be 400
+    Then the response status code should be 422

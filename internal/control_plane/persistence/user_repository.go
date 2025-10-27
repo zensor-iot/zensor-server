@@ -56,8 +56,6 @@ func (r *SimpleUserRepository) Upsert(ctx context.Context, user domain.User) err
 	}
 
 	slog.Info("publishing user to pubsub", slog.String("user_id", user.ID.String()), slog.Any("tenants", tenantIDStrs))
-	// log publisher type
-	slog.Debug("*** publisher type", slog.String("type", fmt.Sprintf("%T", r.publisher)))
 	err := r.publisher.Publish(ctx, pubsub.Key(user.ID), avroUser)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)

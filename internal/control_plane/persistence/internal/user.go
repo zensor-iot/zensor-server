@@ -70,8 +70,15 @@ func (t *TenantIDs) Scan(value interface{}) error {
 	case []interface{}:
 		result := make(TenantIDs, len(v))
 		for i, item := range v {
-			if str, ok := item.(string); ok {
-				result[i] = str
+			switch val := item.(type) {
+			case string:
+				result[i] = val
+			case []interface{}:
+				if len(val) > 0 {
+					if str, ok := val[0].(string); ok {
+						result[i] = str
+					}
+				}
 			}
 		}
 		*t = result

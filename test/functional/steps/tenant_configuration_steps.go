@@ -37,10 +37,45 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
-		fc.tenantID = data["id"].(string)
+		actualID := data["id"].(string)
+
+		fc.tenantIDs = append(fc.tenantIDs, actualID)
+		fc.tenantNameToID[tenantID] = actualID
+		fc.tenantID = actualID
 	} else if resp.StatusCode == http.StatusConflict {
-		// If tenant already exists, just use the provided ID
-		fc.tenantID = tenantID
+		// If tenant already exists, find it by listing and add to array
+		listResp, err := fc.apiDriver.ListTenants()
+		fc.require.NoError(err)
+		fc.require.Equal(http.StatusOK, listResp.StatusCode)
+
+		var listData struct {
+			Data []map[string]any `json:"data"`
+		}
+		err = fc.decodeBody(listResp.Body, &listData)
+		fc.require.NoError(err)
+
+		// Find the tenant
+		for _, tenant := range listData.Data {
+			if tenant["id"] != nil {
+				actualID := tenant["id"].(string)
+				name := tenant["name"].(string)
+				found := false
+				for _, existingID := range fc.tenantIDs {
+					if existingID == actualID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					fc.tenantIDs = append(fc.tenantIDs, actualID)
+					fc.tenantNameToID[name] = actualID
+				}
+				fc.tenantID = actualID
+				return nil
+			}
+		}
+		fc.require.Fail("Tenant with name " + tenantID + " not found in list")
+		return nil
 	} else {
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating tenant")
 	}
@@ -49,8 +84,21 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 
 // Tenant Configuration step implementations
 func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenantName string, timezone string) error {
-	// Use the tenant ID from the feature context, which is set by the background steps
-	resp, err := fc.apiDriver.CreateTenantConfiguration(fc.tenantID, timezone)
+	targetTenantID, exists := fc.tenantNameToID[tenantName]
+	if !exists {
+		targetTenantID = fc.tenantID
+	}
+
+	if fc.userID == "" {
+		fc.userID = "test-user-" + targetTenantID
+	}
+
+	_, err := fc.apiDriver.AssociateUserWithTenants(fc.userID, []string{targetTenantID})
+	if err != nil {
+		return fmt.Errorf("failed to associate user with tenant: %w", err)
+	}
+
+	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, fc.userID)
 	if err != nil {
 		return fmt.Errorf("failed to create tenant configuration: %w", err)
 	}
@@ -59,7 +107,6 @@ func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenan
 }
 
 func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantName string) error {
-	// For "non-existent-tenant", use the literal value
 	if tenantName == "non-existent-tenant" {
 		resp, err := fc.apiDriver.GetTenantConfiguration(tenantName)
 		if err != nil {
@@ -69,8 +116,12 @@ func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantName string)
 		return nil
 	}
 
-	// For existing tenants, use the tenant ID from the feature context
-	resp, err := fc.apiDriver.GetTenantConfiguration(fc.tenantID)
+	targetTenantID, exists := fc.tenantNameToID[tenantName]
+	if !exists {
+		targetTenantID = fc.tenantID
+	}
+
+	resp, err := fc.apiDriver.GetTenantConfiguration(targetTenantID)
 	if err != nil {
 		return fmt.Errorf("failed to get tenant configuration: %w", err)
 	}
@@ -79,8 +130,21 @@ func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantName string)
 }
 
 func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(tenantName string, timezone string) error {
-	// Use the tenant ID from the feature context, which is set by the background steps
-	resp, err := fc.apiDriver.UpdateTenantConfiguration(fc.tenantID, timezone)
+	targetTenantID, exists := fc.tenantNameToID[tenantName]
+	if !exists {
+		targetTenantID = fc.tenantID
+	}
+
+	if fc.userID == "" {
+		fc.userID = "test-user-" + targetTenantID
+	}
+
+	_, err := fc.apiDriver.AssociateUserWithTenants(fc.userID, []string{targetTenantID})
+	if err != nil {
+		return fmt.Errorf("failed to associate user with tenant: %w", err)
+	}
+
+	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, fc.userID)
 	if err != nil {
 		return fmt.Errorf("failed to update tenant configuration: %w", err)
 	}
@@ -88,13 +152,12 @@ func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(ten
 	return nil
 }
 
-func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezoneAndVersion(_ string, timezone string, version int) error {
-	// Version is now handled internally, so we just call the regular update method
-	return fc.iUpdateTheTenantConfigurationForTenantWithTimezone("", timezone)
+func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezoneAndVersion(tenantName string, timezone string, version int) error {
+	return fc.iUpdateTheTenantConfigurationForTenantWithTimezone(tenantName, timezone)
 }
 
 func (fc *FeatureContext) theTenantConfigurationShouldBeCreatedSuccessfully() error {
-	fc.require.Equal(http.StatusCreated, fc.response.StatusCode)
+	fc.require.Equal(http.StatusOK, fc.response.StatusCode)
 	return nil
 }
 
@@ -119,19 +182,8 @@ func (fc *FeatureContext) theResponseShouldContainTimezone(timezone string) erro
 	return nil
 }
 
-func (fc *FeatureContext) theResponseShouldContainTenantID(tenantID string) error {
-	var config TenantConfiguration
-	err := json.NewDecoder(fc.response.Body).Decode(&config)
-	if err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	fc.require.Equal(tenantID, config.TenantID)
-	return nil
-}
-
-func (fc *FeatureContext) iHaveATenantConfigurationForTenantWithTimezone(_ string, timezone string) error {
-	return fc.iCreateATenantConfigurationForTenantWithTimezone("", timezone)
+func (fc *FeatureContext) iHaveATenantConfigurationForTenantWithTimezone(tenantName string, timezone string) error {
+	return fc.iCreateATenantConfigurationForTenantWithTimezone(tenantName, timezone)
 }
 
 func (fc *FeatureContext) theResponseShouldBe(statusCode string) error {

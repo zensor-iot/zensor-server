@@ -32,6 +32,7 @@ type FeatureContext struct {
 	responseListData []map[string]any
 	tenantID         string
 	tenantIDs        []string
+	tenantNameToID   map[string]string
 	deviceID         string
 	scheduledTaskID  string
 	evaluationRuleID string
@@ -43,13 +44,14 @@ type FeatureContext struct {
 
 func NewFeatureContext() *FeatureContext {
 	baseURL := "http://localhost:3000"
-	
+
 	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
 		baseURL = externalURL
 	}
-	
+
 	return &FeatureContext{
-		apiDriver: driver.NewAPIDriver(baseURL),
+		apiDriver:      driver.NewAPIDriver(baseURL),
+		tenantNameToID: make(map[string]string),
 	}
 }
 
@@ -136,7 +138,6 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	// Background steps for scheduled task tasks feature
 	ctx.Given(`^a tenant with id "([^"]*)"$`, fc.aTenantWithId)
-	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.iHaveATenantWithIdForConfiguration)
 	ctx.Given(`^a device with id "([^"]*)" belonging to tenant "([^"]*)"$`, fc.aDeviceWithIdBelongingToTenant)
 	ctx.Given(`^a scheduled task with id "([^"]*)" for device "([^"]*)" with schedule "([^"]*)"$`, fc.aScheduledTaskWithIdForDeviceWithSchedule)
 
@@ -177,6 +178,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I associate user "([^"]*)" with empty tenant list$`, fc.iAssociateUserWithEmptyTenantList)
 	ctx.When(`^I attempt to associate user "([^"]*)" with non-existent tenant$`, fc.iAttemptToAssociateUserWithNonExistentTenant)
 	ctx.When(`^I attempt to associate user "([^"]*)" with mixed tenant list$`, fc.iAttemptToAssociateUserWithMixedTenantList)
+	ctx.Given(`^I have a user "([^"]*)" associated with tenant "([^"]*)"$`, fc.iHaveAUserAssociatedWithTenant)
 	ctx.Given(`^another tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.anotherTenantExistsWithNameAndEmail)
 	ctx.Given(`^a third tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.aThirdTenantExistsWithNameAndEmail)
 
@@ -203,6 +205,7 @@ func (fc *FeatureContext) reset() {
 	fc.responseListData = nil
 	fc.tenantID = ""
 	fc.tenantIDs = nil
+	fc.tenantNameToID = make(map[string]string)
 	fc.deviceID = ""
 	fc.scheduledTaskID = ""
 	fc.evaluationRuleID = ""

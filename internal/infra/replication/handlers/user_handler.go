@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
@@ -14,10 +14,10 @@ import (
 )
 
 type UserData struct {
-	ID        string     `json:"id" gorm:"primaryKey"`
-	Tenants   TenantIDs  `json:"tenants" gorm:"type:jsonb"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID        string    `json:"id" gorm:"primaryKey"`
+	Tenants   TenantIDs `json:"tenants" gorm:"type:text[]"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (UserData) TableName() string {
@@ -31,18 +31,68 @@ func (t *TenantIDs) Scan(value interface{}) error {
 		*t = TenantIDs{}
 		return nil
 	}
-	bytes, ok := value.([]byte)
-	if !ok {
+
+	switch v := value.(type) {
+	case string:
+		*t = parsePostgresArray(v)
 		return nil
+	case []byte:
+		result := parsePostgresArray(string(v))
+		*t = result
+		return nil
+	case []interface{}:
+		result := make(TenantIDs, len(v))
+		for i, item := range v {
+			switch val := item.(type) {
+			case string:
+				result[i] = val
+			case []interface{}:
+				if len(val) > 0 {
+					if str, ok := val[0].(string); ok {
+						result[i] = str
+					}
+				}
+			}
+		}
+		*t = result
+		return nil
+	default:
+		bytes, ok := value.([]byte)
+		if !ok {
+			*t = TenantIDs{}
+			return nil
+		}
+		return json.Unmarshal(bytes, t)
 	}
-	return json.Unmarshal(bytes, t)
 }
 
 func (t TenantIDs) Value() (driver.Value, error) {
 	if len(t) == 0 {
-		return []byte("[]"), nil
+		return "{}", nil
 	}
-	return json.Marshal(t)
+	result := "{"
+	for i, tenant := range t {
+		if i > 0 {
+			result += ","
+		}
+		result += tenant
+	}
+	result += "}"
+	return result, nil
+}
+
+func parsePostgresArray(s string) TenantIDs {
+	s = strings.Trim(s, "{}")
+	if s == "" {
+		return TenantIDs{}
+	}
+
+	parts := strings.Split(s, ",")
+	result := make(TenantIDs, len(parts))
+	for i, part := range parts {
+		result[i] = strings.TrimSpace(part)
+	}
+	return result
 }
 
 type UserHandler struct {
@@ -83,9 +133,6 @@ func (h *UserHandler) GetByID(ctx context.Context, id string) (pubsub.Message, e
 
 	err := h.orm.WithContext(ctx).First(&userData, "id = ?", id).Error()
 	if err != nil {
-		if errors.Is(err, sql.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user not found")
-		}
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
 

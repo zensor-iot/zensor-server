@@ -2,6 +2,7 @@ package steps
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -157,4 +158,29 @@ func (fc *FeatureContext) anotherTenantExistsWithNameAndEmail(name, email string
 
 func (fc *FeatureContext) aThirdTenantExistsWithNameAndEmail(name, email string) error {
 	return fc.anotherTenantExistsWithNameAndEmail(name, email)
+}
+
+func (fc *FeatureContext) iHaveAUserAssociatedWithTenant(userID, tenantID string) error {
+	targetTenantID, exists := fc.tenantNameToID[tenantID]
+	if !exists {
+		targetTenantID = fc.tenantID
+	}
+
+	if targetTenantID == "" {
+		return fmt.Errorf("no tenant ID available in context")
+	}
+
+	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, []string{targetTenantID})
+	if err != nil {
+		return fmt.Errorf("failed to associate user with tenant: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code %d when associating user %s with tenant %s: %s",
+			resp.StatusCode, userID, targetTenantID, string(bodyBytes))
+	}
+
+	fc.userID = userID
+	return nil
 }
