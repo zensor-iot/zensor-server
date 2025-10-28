@@ -48,6 +48,7 @@ type DeviceSpecificWebSocketController struct {
 	unregister chan *websocket.Conn
 	ctx        context.Context
 	cancel     context.CancelFunc
+	wg         sync.WaitGroup
 }
 
 // NewDeviceSpecificWebSocketController creates a new device-specific WebSocket controller
@@ -64,8 +65,11 @@ func NewDeviceSpecificWebSocketController(broker async.InternalBroker, stateCach
 		cancel:     cancel,
 	}
 
-	// Start the hub
-	go wsc.run()
+	wsc.wg.Add(1)
+	go func() {
+		defer wsc.wg.Done()
+		wsc.run()
+	}()
 
 	return wsc
 }
@@ -78,7 +82,6 @@ func (wsc *DeviceSpecificWebSocketController) AddRoutes(router *http.ServeMux) {
 
 func (wsc *DeviceSpecificWebSocketController) handleWebSocket() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract device ID from URL path
 		deviceID := r.PathValue("device_id")
 		if deviceID == "" || strings.TrimSpace(deviceID) == "" {
 			http.Error(w, "device_id is required", http.StatusBadRequest)
@@ -95,35 +98,27 @@ func (wsc *DeviceSpecificWebSocketController) handleWebSocket() http.HandlerFunc
 			slog.String("remote_addr", r.RemoteAddr),
 			slog.String("device_id", deviceID))
 
-		// Create client subscription
 		subscription := &ClientSubscription{
 			conn:     conn,
 			deviceID: deviceID,
 		}
 
-		// Register the new client
 		wsc.register <- subscription
 
-		// Set up ping/pong to keep connection alive
 		go wsc.handlePingPong(conn)
 
-		// Handle incoming messages (if any)
 		go wsc.handleClient(conn)
 	}
 }
 
 func (wsc *DeviceSpecificWebSocketController) handleClient(conn *websocket.Conn) {
 	defer func() {
-		// Check if context is done before trying to send to channel
 		select {
 		case <-wsc.ctx.Done():
-			// Controller is shutting down, just close the connection
 		default:
-			// Try to unregister the client
 			select {
 			case wsc.unregister <- conn:
 			default:
-				// Channel might be full, but that's okay
 			}
 		}
 		conn.Close()
@@ -142,7 +137,6 @@ func (wsc *DeviceSpecificWebSocketController) handleClient(conn *websocket.Conn)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				slog.Error("websocket read error", slog.String("error", err.Error()))
 			} else {
-				// Log normal closures as debug instead of error
 				slog.Debug("websocket connection closed", slog.String("error", err.Error()))
 			}
 			break
@@ -168,7 +162,11 @@ func (wsc *DeviceSpecificWebSocketController) handlePingPong(conn *websocket.Con
 }
 
 func (wsc *DeviceSpecificWebSocketController) run() {
-	// Subscribe to device messages
+	if wsc.clients == nil {
+		slog.Error("clients map is nil, aborting run")
+		return
+	}
+
 	subscription, err := wsc.broker.Subscribe(async.BrokerTopicName("device_messages"))
 	if err != nil {
 		slog.Error("failed to subscribe to device messages", slog.String("error", err.Error()))
@@ -189,7 +187,6 @@ func (wsc *DeviceSpecificWebSocketController) run() {
 				slog.String("device_id", clientSub.deviceID),
 				slog.Int("total_clients", len(wsc.clients)))
 
-			// Send cached device state to the new client if available
 			go wsc.sendCachedStateToClient(clientSub)
 
 		case client := <-wsc.unregister:
@@ -221,11 +218,9 @@ func (wsc *DeviceSpecificWebSocketController) run() {
 						Data:      envelop.UplinkMessage.DecodedPayload,
 					}
 
-					// Send message only to clients subscribed to this specific device
 					wsc.sendMessageToDeviceClients(envelop.EndDeviceIDs.DeviceID, deviceMsg)
 				}
 			} else if brokerMsg.Event == "command_sent" {
-				// Handle command sent events if needed
 				if command, ok := brokerMsg.Value.(domain.Command); ok {
 					deviceMsg := DeviceSpecificMessage{
 						Type:      "command_sent",
@@ -263,13 +258,11 @@ func (wsc *DeviceSpecificWebSocketController) sendMessageToDeviceClients(deviceI
 	}
 	wsc.clientsMux.RUnlock()
 
-	// Remove failed clients with proper synchronization
 	if len(clientsToRemove) > 0 {
 		wsc.clientsMux.Lock()
 		for _, conn := range clientsToRemove {
 			if _, ok := wsc.clients[conn]; ok {
 				delete(wsc.clients, conn)
-				// Close connection in a safe way
 				go func(c *websocket.Conn) {
 					defer func() {
 						if r := recover(); r != nil {
@@ -289,7 +282,6 @@ func (wsc *DeviceSpecificWebSocketController) sendCachedStateToClient(clientSub 
 		slog.String("remote_addr", clientSub.conn.RemoteAddr().String()),
 		slog.String("device_id", clientSub.deviceID))
 
-	// Get cached state for the specific device
 	state, exists := wsc.stateCache.GetState(context.Background(), clientSub.deviceID)
 	if !exists {
 		slog.Debug("no cached state found for device", slog.String("device_id", clientSub.deviceID))
@@ -332,4 +324,6 @@ func (wsc *DeviceSpecificWebSocketController) Shutdown() {
 
 	close(wsc.register)
 	close(wsc.unregister)
+
+	wsc.wg.Wait()
 }

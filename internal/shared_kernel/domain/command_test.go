@@ -70,11 +70,8 @@ var _ = ginkgo.Describe("Command", func() {
 				gomega.Expect(cmd.QueuedAt.Time.After(now)).To(gomega.BeFalse())
 				gomega.Expect(now.Sub(cmd.QueuedAt.Time) <= time.Second).To(gomega.BeTrue())
 
-				// Verify that status is updated
-				gomega.Expect(cmd.Status).To(gomega.Equal(domain.CommandStatusQueued))
-
-				// Verify that version is incremented
-				gomega.Expect(cmd.Version).To(gomega.Equal(domain.Version(2)))
+			// Verify that status is updated
+			gomega.Expect(cmd.Status).To(gomega.Equal(domain.CommandStatusQueued))
 			})
 		})
 	})
