@@ -9,53 +9,81 @@ import (
 )
 
 var (
-	ErrInvalidTimezone                  = errors.New("invalid timezone")
-	ErrTenantConfigurationAlreadyExists = errors.New("tenant configuration already exists")
+	ErrInvalidTimezone                    = errors.New("invalid timezone")
+	ErrForbiddenTenantConfigurationAccess = errors.New("forbidden tenant configuration access")
 )
 
-type TenantConfigurationService interface {
-	CreateTenantConfiguration(ctx context.Context, config domain.TenantConfiguration) error
-	GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error)
-	UpdateTenantConfiguration(ctx context.Context, config domain.TenantConfiguration) error
-	GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error)
-}
-
-func NewTenantConfigurationService(repository TenantConfigurationRepository) *SimpleTenantConfigurationService {
+func NewTenantConfigurationService(repository TenantConfigurationRepository, userService UserService) *SimpleTenantConfigurationService {
 	return &SimpleTenantConfigurationService{
-		repository: repository,
+		repository:  repository,
+		userService: userService,
 	}
 }
 
 var _ TenantConfigurationService = &SimpleTenantConfigurationService{}
 
 type SimpleTenantConfigurationService struct {
-	repository TenantConfigurationRepository
+	repository  TenantConfigurationRepository
+	userService UserService
 }
 
-func (s *SimpleTenantConfigurationService) CreateTenantConfiguration(ctx context.Context, config domain.TenantConfiguration) error {
-	// Check if configuration already exists for this tenant
-	existingConfig, err := s.repository.GetByTenantID(ctx, config.TenantID)
-	if err != nil && !errors.Is(err, ErrTenantConfigurationNotFound) {
-		slog.Error("checking existing tenant configuration", slog.String("error", err.Error()))
-		return fmt.Errorf("checking existing tenant configuration: %w", err)
-	}
-
-	if existingConfig.ID != "" {
-		slog.Warn("tenant configuration already exists", slog.String("tenant_id", config.TenantID.String()))
-		return ErrTenantConfigurationAlreadyExists
-	}
-
-	err = s.repository.Create(ctx, config)
+func (s *SimpleTenantConfigurationService) UpsertTenantConfiguration(ctx context.Context, userID domain.ID, config domain.TenantConfiguration) (domain.TenantConfiguration, error) {
+	user, err := s.userService.GetUser(ctx, userID)
 	if err != nil {
-		slog.Error("creating tenant configuration", slog.String("error", err.Error()))
-		return fmt.Errorf("creating tenant configuration: %w", err)
+		if errors.Is(err, ErrUserNotFound) {
+			slog.Warn("user not found", slog.String("user_id", userID.String()))
+			return domain.TenantConfiguration{}, ErrUserNotFound
+		}
+		return domain.TenantConfiguration{}, fmt.Errorf("getting user: %w", err)
 	}
 
-	slog.Info("tenant configuration created successfully",
-		slog.String("id", config.ID.String()),
-		slog.String("tenant_id", config.TenantID.String()))
+	if !user.HasTenant(config.TenantID) {
+		slog.Warn("user does not have permission to access tenant configuration",
+			slog.String("user_id", userID.String()),
+			slog.String("tenant_id", config.TenantID.String()))
+		return domain.TenantConfiguration{}, ErrForbiddenTenantConfigurationAccess
+	}
 
-	return nil
+	existingConfig, err := s.repository.GetByTenantID(ctx, config.TenantID)
+	if err != nil {
+		if errors.Is(err, ErrTenantConfigurationNotFound) {
+			err = s.repository.Create(ctx, config)
+			if err != nil {
+				slog.Error("creating tenant configuration", slog.String("error", err.Error()))
+				return domain.TenantConfiguration{}, fmt.Errorf("creating tenant configuration: %w", err)
+			}
+
+			slog.Info("tenant configuration created successfully",
+				slog.String("id", config.ID.String()),
+				slog.String("tenant_id", config.TenantID.String()))
+
+			return config, nil
+		}
+		slog.Error("getting tenant configuration", slog.String("error", err.Error()))
+		return domain.TenantConfiguration{}, fmt.Errorf("getting tenant configuration: %w", err)
+	}
+
+	err = existingConfig.UpdateTimezone(config.Timezone)
+	if err != nil {
+		slog.Error("updating tenant configuration timezone", slog.String("error", err.Error()))
+		return domain.TenantConfiguration{}, ErrInvalidTimezone
+	}
+
+	if config.NotificationEmail != "" {
+		existingConfig.NotificationEmail = config.NotificationEmail
+	}
+
+	err = s.repository.Update(ctx, existingConfig)
+	if err != nil {
+		slog.Error("updating tenant configuration", slog.String("error", err.Error()))
+		return domain.TenantConfiguration{}, fmt.Errorf("updating tenant configuration: %w", err)
+	}
+
+	slog.Info("tenant configuration updated successfully",
+		slog.String("tenant_id", config.TenantID.String()),
+		slog.Int("version", existingConfig.Version))
+
+	return existingConfig, nil
 }
 
 func (s *SimpleTenantConfigurationService) GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error) {
@@ -71,39 +99,10 @@ func (s *SimpleTenantConfigurationService) GetTenantConfiguration(ctx context.Co
 	return config, nil
 }
 
-func (s *SimpleTenantConfigurationService) UpdateTenantConfiguration(ctx context.Context, config domain.TenantConfiguration) error {
-	existingConfig, err := s.repository.GetByTenantID(ctx, config.TenantID)
-	if err != nil {
-		if errors.Is(err, ErrTenantConfigurationNotFound) {
-			return ErrTenantConfigurationNotFound
-		}
-		return fmt.Errorf("getting tenant configuration: %w", err)
-	}
-
-	// Update the existing configuration (version handled internally by the domain model)
-	err = existingConfig.UpdateTimezone(config.Timezone)
-	if err != nil {
-		slog.Error("updating tenant configuration timezone", slog.String("error", err.Error()))
-		return ErrInvalidTimezone
-	}
-
-	err = s.repository.Update(ctx, existingConfig)
-	if err != nil {
-		slog.Error("updating tenant configuration", slog.String("error", err.Error()))
-		return fmt.Errorf("updating tenant configuration: %w", err)
-	}
-
-	slog.Info("tenant configuration updated successfully",
-		slog.String("tenant_id", config.TenantID.String()),
-		slog.Int("version", existingConfig.Version))
-	return nil
-}
-
 func (s *SimpleTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error) {
 	config, err := s.repository.GetByTenantID(ctx, tenant.ID)
 	if err != nil {
 		if errors.Is(err, ErrTenantConfigurationNotFound) {
-			// Create default configuration
 			newConfig, err := domain.NewTenantConfigurationBuilder().
 				WithTenantID(tenant.ID).
 				WithTimezone(defaultTimezone).

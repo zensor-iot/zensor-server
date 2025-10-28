@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/domain"
 )
@@ -129,6 +131,9 @@ func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]do
 }
 
 func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTask domain.ScheduledTask) error {
+	scheduledTask.Version++
+	scheduledTask.UpdatedAt = utils.Time{Time: time.Now()}
+
 	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
 
 	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
@@ -146,6 +151,8 @@ func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID
 	}
 
 	scheduledTask.SoftDelete()
+	scheduledTask.Version++
+	scheduledTask.UpdatedAt = utils.Time{Time: time.Now()}
 
 	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
 

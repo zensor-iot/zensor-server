@@ -368,6 +368,88 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /v1/tenants/{id}/configuration:
+    put:
+      summary: Create or update tenant configuration
+      description: Upsert tenant configuration including timezone and notification email settings. Requires user authentication via X-User-ID header.
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-ID
+          in: header
+          required: true
+          description: User ID for authentication and permission checking
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantConfigurationRequest"
+      responses:
+        "200":
+          description: Tenant configuration created or updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantConfigurationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Unauthorized - missing or invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user does not have permission to access this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    get:
+      summary: Get tenant configuration
+      description: Retrieve tenant configuration including timezone and notification settings
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tenant ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Tenant configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantConfigurationResponse"
+        "404":
+          description: Tenant configuration not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /v1/tenants/{id}/devices:
     get:
       summary: List tenant devices
@@ -1201,6 +1283,58 @@ components:
           nullable: true
           description: Soft deletion timestamp
           example: null
+
+    TenantConfigurationRequest:
+      type: object
+      required:
+        - timezone
+      properties:
+        timezone:
+          type: string
+          description: IANA timezone identifier (e.g., "America/New_York", "Europe/London")
+          example: "America/New_York"
+        notification_email:
+          type: string
+          format: email
+          description: Email address for notifications
+          example: "notifications@acme.com"
+
+    TenantConfigurationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Configuration ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        timezone:
+          type: string
+          description: IANA timezone identifier
+          example: "America/New_York"
+        notification_email:
+          type: string
+          format: email
+          description: Email address for notifications
+          example: "notifications@acme.com"
+        version:
+          type: integer
+          description: Configuration version for optimistic locking
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-01T00:00:00Z"
 
     TenantListResponse:
       type: object

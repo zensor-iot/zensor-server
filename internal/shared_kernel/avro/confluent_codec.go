@@ -87,6 +87,8 @@ func (c *ConfluentAvroCodec) getSchemaForMessage(message any) (string, error) {
 		return "evaluation_rules", nil
 	case "TenantConfiguration", "AvroTenantConfiguration":
 		return "tenant_configurations", nil
+	case "User", "AvroUser":
+		return "users", nil
 	default:
 		return "", fmt.Errorf("no Avro schema found for message type: %s", schemaName)
 	}
@@ -157,6 +159,7 @@ func (c *ConfluentAvroCodec) loadSchemaFromFile(schemaName string) (string, erro
 		"evaluation_rules":      "evaluation_rule.avsc",
 		"device_commands":       "device_command.avsc",
 		"tenant_configurations": "tenant_configuration.avsc",
+		"users":                 "user.avsc",
 	}
 
 	fileName, exists := schemaFileMap[schemaName]
@@ -591,6 +594,20 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"created_at": v.CreatedAt,
 			"updated_at": v.UpdatedAt,
 		}, nil
+	case *AvroUser:
+		return map[string]any{
+			"id":         v.ID,
+			"tenants":    v.Tenants,
+			"created_at": v.CreatedAt,
+			"updated_at": v.UpdatedAt,
+		}, nil
+	case AvroUser:
+		return map[string]any{
+			"id":         v.ID,
+			"tenants":    v.Tenants,
+			"created_at": v.CreatedAt,
+			"updated_at": v.UpdatedAt,
+		}, nil
 	}
 
 	// Convert original structs to Avro structs
@@ -766,7 +783,26 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 						LastExecutedAt:   parseTimePtrRFC3339(getStringPtr(mapValue, "last_executed_at")),
 						DeletedAt:        parseTimePtrRFC3339(getStringPtr(mapValue, "deleted_at")),
 					}, nil
+				} else if _, hasTimezone := mapValue["timezone"]; hasTimezone {
+					// TenantConfiguration
+					return &AvroTenantConfiguration{
+						ID:                getString(mapValue, "id"),
+						TenantID:          getString(mapValue, "tenant_id"),
+						Timezone:          getString(mapValue, "timezone"),
+						NotificationEmail: getStringPtr(mapValue, "notification_email"),
+						Version:           getInt(mapValue, "version"),
+						CreatedAt:         parseTimeRFC3339(getString(mapValue, "created_at")),
+						UpdatedAt:         parseTimeRFC3339(getString(mapValue, "updated_at")),
+					}, nil
 				}
+			} else if _, hasTenants := mapValue["tenants"]; hasTenants {
+				// User - has id and tenants fields
+				return &AvroUser{
+					ID:        getString(mapValue, "id"),
+					Tenants:   getStringSlice(mapValue, "tenants"),
+					CreatedAt: parseTimestampMillis(mapValue, "created_at"),
+					UpdatedAt: parseTimestampMillis(mapValue, "updated_at"),
+				}, nil
 			}
 		}
 		return nil, fmt.Errorf("unable to determine type from map structure")
@@ -852,6 +888,13 @@ func (c *ConfluentAvroCodec) convertFromAvroStruct(value any) (any, error) {
 			CreatedAt:   v.CreatedAt,
 			UpdatedAt:   v.UpdatedAt,
 		}, nil
+	case *AvroUser:
+		return &AvroUser{
+			ID:        v.ID,
+			Tenants:   v.Tenants,
+			CreatedAt: v.CreatedAt,
+			UpdatedAt: v.UpdatedAt,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported type for conversion from Avro: %T", value)
 	}
@@ -905,6 +948,26 @@ func parseTimePtrRFC3339(s *string) *time.Time {
 		return nil
 	}
 	return &t
+}
+
+func getStringSlice(m map[string]any, key string) []string {
+	if v, ok := m[key]; ok {
+		// Handle slice of strings
+		if slice, ok := v.([]any); ok {
+			result := make([]string, len(slice))
+			for i, item := range slice {
+				if s, ok := item.(string); ok {
+					result[i] = s
+				}
+			}
+			return result
+		}
+		// Handle already []string
+		if slice, ok := v.([]string); ok {
+			return slice
+		}
+	}
+	return []string{}
 }
 
 func getStringPtr(m map[string]any, key string) *string {
@@ -968,6 +1031,32 @@ func getTime(m map[string]any, key string) time.Time {
 	if v, ok := m[key]; ok {
 		if t, ok := v.(time.Time); ok {
 			return t
+		}
+	}
+	return time.Time{}
+}
+
+func parseTimestampMillis(m map[string]any, key string) time.Time {
+	if v, ok := m[key]; ok {
+		// Handle direct time.Time value
+		if t, ok := v.(time.Time); ok {
+			return t
+		}
+		// Handle Avro timestamp-millis format: map[string]any{"long.timestamp-millis": int64}
+		if unionMap, ok := v.(map[string]any); ok {
+			if millis, ok := unionMap["long.timestamp-millis"].(int64); ok {
+				return time.Unix(0, millis*int64(time.Millisecond))
+			}
+			if millis, ok := unionMap["long.timestamp-millis"].(float64); ok {
+				return time.Unix(0, int64(millis)*int64(time.Millisecond))
+			}
+		}
+		// Handle direct int64 value (milliseconds since epoch)
+		if millis, ok := v.(int64); ok {
+			return time.Unix(0, millis*int64(time.Millisecond))
+		}
+		if millis, ok := v.(float64); ok {
+			return time.Unix(0, int64(millis)*int64(time.Millisecond))
 		}
 	}
 	return time.Time{}

@@ -58,6 +58,7 @@ func main() {
 		handleWireInjector(wire.InitializeTenantController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTenantConfigurationController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeScheduledTaskController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializeUserController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceSpecificWebSocketController(internalBroker)).(httpserver.Controller),
 	)
@@ -154,6 +155,7 @@ func initializeReplicationService() *replication.Service {
 	commandHandler := handleWireInjector(wire.InitializeCommandHandler()).(*handlers.CommandHandler)
 	scheduledTaskHandler := handleWireInjector(wire.InitializeScheduledTaskHandler()).(*handlers.ScheduledTaskHandler)
 	tenantConfigurationHandler := handleWireInjector(wire.InitializeTenantConfigurationHandler()).(*handlers.TenantConfigurationHandler)
+	userHandler := handleWireInjector(wire.InitializeUserHandler()).(*handlers.UserHandler)
 
 	if err := replicationService.RegisterHandler(deviceHandler); err != nil {
 		slog.Error("failed to register device handler", slog.Any("error", err))
@@ -182,6 +184,11 @@ func initializeReplicationService() *replication.Service {
 
 	if err := replicationService.RegisterHandler(tenantConfigurationHandler); err != nil {
 		slog.Error("failed to register tenant configuration handler", slog.Any("error", err))
+		panic(err)
+	}
+
+	if err := replicationService.RegisterHandler(userHandler); err != nil {
+		slog.Error("failed to register user handler", slog.Any("error", err))
 		panic(err)
 	}
 

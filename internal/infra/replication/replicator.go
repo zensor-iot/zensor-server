@@ -107,7 +107,7 @@ func (r *Replicator) replicateTopic(topic pubsub.Topic, handler TopicHandler) {
 
 // handleMessage processes a single message for replication
 func (r *Replicator) handleMessage(ctx context.Context, topic pubsub.Topic, handler TopicHandler, key pubsub.Key, msg pubsub.Message) error {
-	slog.Debug("replicating message",
+	slog.Info("replicating message",
 		slog.String("topic", string(topic)),
 		slog.String("key", string(key)))
 
@@ -124,7 +124,7 @@ func (r *Replicator) handleMessage(ctx context.Context, topic pubsub.Topic, hand
 			return fmt.Errorf("creating record: %w", err)
 		}
 
-		slog.Debug("created new record",
+		slog.Info("created new record",
 			slog.String("topic", string(topic)),
 			slog.String("key", string(key)))
 	} else {
@@ -138,7 +138,7 @@ func (r *Replicator) handleMessage(ctx context.Context, topic pubsub.Topic, hand
 			return fmt.Errorf("updating record: %w", err)
 		}
 
-		slog.Debug("updated existing record",
+		slog.Info("updated existing record",
 			slog.String("topic", string(topic)),
 			slog.String("key", string(key)))
 	}

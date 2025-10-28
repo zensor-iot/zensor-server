@@ -31,18 +31,32 @@ type FeatureContext struct {
 	responseData     map[string]any
 	responseListData []map[string]any
 	tenantID         string
+	tenantIDs        []string
+	tenantNameToID   map[string]string
 	deviceID         string
 	scheduledTaskID  string
 	evaluationRuleID string
 	updatedSchedule  string
+	userID           string
 	require          *require.Assertions
 	t                godog.TestingT
 }
 
 func NewFeatureContext() *FeatureContext {
-	return &FeatureContext{
-		apiDriver: driver.NewAPIDriver("http://localhost:3000"),
+	baseURL := "http://localhost:3000"
+
+	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
+		baseURL = externalURL
 	}
+
+	return &FeatureContext{
+		apiDriver:      driver.NewAPIDriver(baseURL),
+		tenantNameToID: make(map[string]string),
+	}
+}
+
+func IsExternalMode() bool {
+	return os.Getenv("EXTERNAL_API_URL") != ""
 }
 
 func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
@@ -124,7 +138,6 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	// Background steps for scheduled task tasks feature
 	ctx.Given(`^a tenant with id "([^"]*)"$`, fc.aTenantWithId)
-	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.iHaveATenantWithIdForConfiguration)
 	ctx.Given(`^a device with id "([^"]*)" belonging to tenant "([^"]*)"$`, fc.aDeviceWithIdBelongingToTenant)
 	ctx.Given(`^a scheduled task with id "([^"]*)" for device "([^"]*)" with schedule "([^"]*)"$`, fc.aScheduledTaskWithIdForDeviceWithSchedule)
 
@@ -154,6 +167,21 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the tenant configuration should be retrieved successfully$`, fc.theTenantConfigurationShouldBeRetrievedSuccessfully)
 	ctx.Then(`^the tenant configuration should be updated successfully$`, fc.theTenantConfigurationShouldBeUpdatedSuccessfully)
 
+	// User steps
+	ctx.When(`^I associate user "([^"]*)" with tenants$`, fc.iAssociateUserWithTenants)
+	ctx.Given(`^user "([^"]*)" is associated with tenants$`, fc.userIsAssociatedWithTenants)
+	ctx.When(`^I get the user "([^"]*)"$`, fc.iGetTheUser)
+	ctx.Then(`^the response should contain the user with id "([^"]*)"$`, fc.theResponseShouldContainTheUserWithId)
+	ctx.Then(`^the response should contain exactly (\d+) tenants$`, fc.theResponseShouldContainExactlyTenants)
+	ctx.When(`^I update user "([^"]*)" with different tenants$`, fc.iUpdateUserWithDifferentTenants)
+	ctx.Given(`^user "([^"]*)" is associated with (\d+) tenants$`, fc.userIsAssociatedWithTenantsCount)
+	ctx.When(`^I associate user "([^"]*)" with empty tenant list$`, fc.iAssociateUserWithEmptyTenantList)
+	ctx.When(`^I attempt to associate user "([^"]*)" with non-existent tenant$`, fc.iAttemptToAssociateUserWithNonExistentTenant)
+	ctx.When(`^I attempt to associate user "([^"]*)" with mixed tenant list$`, fc.iAttemptToAssociateUserWithMixedTenantList)
+	ctx.Given(`^I have a user "([^"]*)" associated with tenant "([^"]*)"$`, fc.iHaveAUserAssociatedWithTenant)
+	ctx.Given(`^another tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.anotherTenantExistsWithNameAndEmail)
+	ctx.Given(`^a third tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.aThirdTenantExistsWithNameAndEmail)
+
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
 		fc.require = require.New(fc.t)
@@ -164,7 +192,9 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		fc.cleanupWebSocket()
-		fc.sendSIGHUPToServer()
+		if !IsExternalMode() {
+			fc.sendSIGHUPToServer()
+		}
 		return ctx, err
 	})
 }
@@ -174,10 +204,13 @@ func (fc *FeatureContext) reset() {
 	fc.responseData = nil
 	fc.responseListData = nil
 	fc.tenantID = ""
+	fc.tenantIDs = nil
+	fc.tenantNameToID = make(map[string]string)
 	fc.deviceID = ""
 	fc.scheduledTaskID = ""
 	fc.evaluationRuleID = ""
 	fc.updatedSchedule = ""
+	fc.userID = ""
 }
 
 func (fc *FeatureContext) sendSIGHUPToServer() {
@@ -204,7 +237,11 @@ func (fc *FeatureContext) sendSIGHUPToServer() {
 }
 
 func (fc *FeatureContext) decodeBody(body io.ReadCloser, target any) error {
-	return json.NewDecoder(body).Decode(target)
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(bodyBytes, target)
 }
 
 func (fc *FeatureContext) decodePaginatedResponse(body *http.Response) ([]map[string]any, error) {

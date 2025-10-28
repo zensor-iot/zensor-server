@@ -120,6 +120,27 @@ type AvroTenantConfiguration struct {
 	UpdatedAt         time.Time `avro:"updated_at"`
 }
 
+// AvroUser represents the Avro-compatible User message
+type AvroUser struct {
+	ID        string    `avro:"id"`
+	Tenants   []string  `avro:"tenants"`
+	CreatedAt time.Time `avro:"created_at"`
+	UpdatedAt time.Time `avro:"updated_at"`
+}
+
+// ToDomainUser converts an AvroUser to a domain.User
+func (a *AvroUser) ToDomainUser() domain.User {
+	tenantIDs := make([]domain.ID, len(a.Tenants))
+	for i, tenantID := range a.Tenants {
+		tenantIDs[i] = domain.ID(tenantID)
+	}
+
+	return domain.User{
+		ID:      domain.ID(a.ID),
+		Tenants: tenantIDs,
+	}
+}
+
 // Conversion functions to convert from domain types to Avro types
 
 // ToAvroCommand converts a domain.Command to an AvroCommand for serialization
@@ -339,5 +360,20 @@ func ToAvroTenantConfiguration(config domain.TenantConfiguration) *AvroTenantCon
 		Version:           config.Version,
 		CreatedAt:         config.CreatedAt,
 		UpdatedAt:         config.UpdatedAt,
+	}
+}
+
+// ToAvroUser converts a domain.User to AvroUser
+func ToAvroUser(user domain.User) *AvroUser {
+	tenantIDs := make([]string, len(user.Tenants))
+	for i, tenantID := range user.Tenants {
+		tenantIDs[i] = tenantID.String()
+	}
+
+	return &AvroUser{
+		ID:        user.ID.String(),
+		Tenants:   tenantIDs,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 }

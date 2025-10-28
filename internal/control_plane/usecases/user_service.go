@@ -1,0 +1,71 @@
+package usecases
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"zensor-server/internal/shared_kernel/domain"
+)
+
+func NewUserService(
+	repository UserRepository,
+	tenantRepository TenantRepository,
+) *SimpleUserService {
+	return &SimpleUserService{
+		repository:       repository,
+		tenantRepository: tenantRepository,
+	}
+}
+
+var _ UserService = &SimpleUserService{}
+
+type SimpleUserService struct {
+	repository       UserRepository
+	tenantRepository TenantRepository
+}
+
+func (s *SimpleUserService) AssociateTenants(ctx context.Context, userID domain.ID, tenantIDs []domain.ID) error {
+	for _, tenantID := range tenantIDs {
+		_, err := s.tenantRepository.GetByID(ctx, tenantID)
+		if errors.Is(err, ErrTenantNotFound) {
+			slog.Warn("tenant not found", slog.String("tenant_id", tenantID.String()))
+			return fmt.Errorf("tenant not found: %w", ErrTenantNotFound)
+		}
+		if err != nil {
+			slog.Error("getting tenant", slog.String("error", err.Error()))
+			return fmt.Errorf("validating tenant: %w", err)
+		}
+	}
+
+	user := domain.User{
+		ID:      userID,
+		Tenants: tenantIDs,
+	}
+
+	err := s.repository.Upsert(ctx, user)
+	if err != nil {
+		slog.Error("associating tenants with user", slog.String("error", err.Error()))
+		return fmt.Errorf("associating tenants: %w", err)
+	}
+
+	slog.Info("tenants associated with user",
+		slog.String("user_id", userID.String()),
+		slog.Int("tenant_count", len(tenantIDs)))
+
+	return nil
+}
+
+func (s *SimpleUserService) GetUser(ctx context.Context, userID domain.ID) (domain.User, error) {
+	user, err := s.repository.GetByID(ctx, userID)
+	if errors.Is(err, ErrUserNotFound) {
+		slog.Warn("user not found", slog.String("user_id", userID.String()))
+		return domain.User{}, ErrUserNotFound
+	}
+	if err != nil {
+		slog.Error("getting user", slog.String("error", err.Error()))
+		return domain.User{}, fmt.Errorf("getting user: %w", err)
+	}
+
+	return user, nil
+}

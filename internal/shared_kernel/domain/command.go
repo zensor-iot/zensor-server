@@ -85,8 +85,6 @@ func (c *Command) UpdateStatus(status CommandStatus, errorMessage *string) {
 		c.FailedAt = &now
 		c.ErrorMessage = errorMessage
 	}
-
-	c.Version++
 }
 
 type CommandPayload struct {

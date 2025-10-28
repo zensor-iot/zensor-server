@@ -6,13 +6,14 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-//go:generate mockgen -source=repository_port.go -destination=../../../test/unit/doubles/control_plane/usecases/repository_port_mock.go -package=usecases -mock_names=DeviceRepository=MockDeviceRepository,CommandRepository=MockCommandRepository,EvaluationRuleRepository=MockEvaluationRuleRepository,TaskRepository=MockTaskRepository,ScheduledTaskRepository=MockScheduledTaskRepository,TenantConfigurationRepository=MockTenantConfigurationRepository
+//go:generate mockgen -source=repository_port.go -destination=../../../test/unit/doubles/control_plane/usecases/repository_port_mock.go -package=usecases -mock_names=DeviceRepository=MockDeviceRepository,CommandRepository=MockCommandRepository,EvaluationRuleRepository=MockEvaluationRuleRepository,TaskRepository=MockTaskRepository,ScheduledTaskRepository=MockScheduledTaskRepository,TenantConfigurationRepository=MockTenantConfigurationRepository,UserRepository=MockUserRepository
 
 var (
 	ErrDeviceNotFound              = errors.New("device not found")
 	ErrDeviceDuplicated            = errors.New("device already exists")
 	ErrCommandOverlap              = errors.New("command overlap detected")
 	ErrTenantConfigurationNotFound = errors.New("tenant configuration not found")
+	ErrUserNotFound                = errors.New("user not found")
 )
 
 // Pagination encapsulates pagination parameters for repository queries
@@ -66,4 +67,9 @@ type TenantConfigurationRepository interface {
 	Create(context.Context, domain.TenantConfiguration) error
 	GetByTenantID(context.Context, domain.ID) (domain.TenantConfiguration, error)
 	Update(context.Context, domain.TenantConfiguration) error
+}
+
+type UserRepository interface {
+	Upsert(context.Context, domain.User) error
+	GetByID(context.Context, domain.ID) (domain.User, error)
 }

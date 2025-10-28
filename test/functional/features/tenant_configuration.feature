@@ -9,6 +9,7 @@ Feature: Tenant Configuration Management
     And I have a tenant with id "test-tenant-2"
 
   Scenario: Create tenant configuration with valid timezone
+    Given I have a user "test-user-1" associated with tenant "test-tenant-1"
     When I create a tenant configuration for tenant "test-tenant-1" with timezone "America/New_York"
     Then the tenant configuration should be created successfully
     And the response should contain timezone "America/New_York"
@@ -36,11 +37,12 @@ Feature: Tenant Configuration Management
     Then the response should be "400 Bad Request"
     And the error message should be "invalid timezone"
 
-  Scenario: Create duplicate tenant configuration
-    Given I have a tenant configuration for tenant "test-tenant-1" with timezone "America/New_York"
+  Scenario: Upsert updates existing tenant configuration
+    Given I have a user "test-user-1" associated with tenant "test-tenant-1"
+    And I have a tenant configuration for tenant "test-tenant-1" with timezone "America/New_York"
     When I create a tenant configuration for tenant "test-tenant-1" with timezone "Europe/London"
-    Then the response should be "409 Conflict"
-    And the error message should be "tenant configuration already exists"
+    Then the tenant configuration should be created successfully
+    And the response should contain timezone "Europe/London"
 
   Scenario: Get non-existent tenant configuration
     When I get the tenant configuration for tenant "non-existent-tenant"

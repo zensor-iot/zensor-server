@@ -20,7 +20,6 @@ const (
 	maxRetries int = 10
 )
 
-// publisherKey represents a unique key for a publisher instance
 type publisherKey struct {
 	brokers        string
 	topic          string
@@ -28,21 +27,18 @@ type publisherKey struct {
 	schemaRegistry avro.SchemaRegistry
 }
 
-// publisherInstance holds a publisher and its initialization state
 type publisherInstance struct {
 	publisher *SimpleKafkaPublisher
 	once      sync.Once
 	err       error
 }
 
-// publishersMap stores singleton instances of publishers
 var (
 	publishersMap   = make(map[publisherKey]*publisherInstance)
 	publishersMutex sync.RWMutex
 )
 
 func NewKafkaPublisher(brokers []string, topic string, prototype any, schemaRegistry avro.SchemaRegistry) (*SimpleKafkaPublisher, error) {
-	// Create a unique key for this publisher configuration
 	key := publisherKey{
 		brokers:        strings.Join(brokers, ","),
 		topic:          topic,
@@ -50,7 +46,6 @@ func NewKafkaPublisher(brokers []string, topic string, prototype any, schemaRegi
 		schemaRegistry: schemaRegistry,
 	}
 
-	// Get or create the publisher instance
 	publishersMutex.Lock()
 	instance, exists := publishersMap[key]
 	if !exists {
@@ -114,7 +109,6 @@ func (p *SimpleKafkaPublisher) Publish(ctx context.Context, key Key, message Mes
 		slog.String("span_id", span.SpanContext().SpanID().String()),
 	)
 
-	// Extract trace context and serialize to headers
 	traceHeaders := ExtractTraceFromContext(ctx)
 	kafkaHeaders := SerializeTraceHeaders(traceHeaders)
 
@@ -132,34 +126,29 @@ func (p *SimpleKafkaPublisher) Publish(ctx context.Context, key Key, message Mes
 	return nil
 }
 
-// consumerKey represents a unique key for a consumer instance
 type consumerKey struct {
 	brokers        string
 	group          string
 	schemaRegistry avro.SchemaRegistry
 }
 
-// consumerInstance holds a consumer and its initialization state
 type consumerInstance struct {
 	consumer *SimpleKafkaConsumer
 	once     sync.Once
 }
 
-// consumersMap stores singleton instances of consumers
 var (
 	consumersMap   = make(map[consumerKey]*consumerInstance)
 	consumersMutex sync.RWMutex
 )
 
 func NewKafkaConsumer(brokers []string, group string, schemaRegistry avro.SchemaRegistry) *SimpleKafkaConsumer {
-	// Create a unique key for this consumer configuration
 	key := consumerKey{
 		brokers:        strings.Join(brokers, ","),
 		group:          group,
 		schemaRegistry: schemaRegistry,
 	}
 
-	// Get or create the consumer instance
 	consumersMutex.Lock()
 	instance, exists := consumersMap[key]
 	if !exists {
@@ -168,7 +157,6 @@ func NewKafkaConsumer(brokers []string, group string, schemaRegistry avro.Schema
 	}
 	consumersMutex.Unlock()
 
-	// Initialize the consumer exactly once
 	instance.once.Do(func() {
 		slog.Debug("creating kafka consumer",
 			slog.String("group", group),
@@ -197,10 +185,8 @@ func (c *SimpleKafkaConsumer) Consume(topic Topic, handler MessageHandler, proto
 	cb := func(ctx goka.Context, msg any) {
 		key := Key(ctx.Key())
 
-		// Extract trace context from Kafka headers and inject into context
 		traceCtx := ExtractTraceFromKafkaHeaders(context.Background(), ctx.Headers())
 
-		// Create a child span for message processing
 		spanCtx, span := CreateChildSpan(traceCtx, "kafka.message.process",
 			trace.WithAttributes(
 				attribute.String("kafka.topic", string(topic)),

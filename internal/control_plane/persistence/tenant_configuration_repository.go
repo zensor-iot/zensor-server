@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/pubsub"
@@ -84,6 +85,9 @@ func (r *SimpleTenantConfigurationRepository) GetByTenantID(ctx context.Context,
 }
 
 func (r *SimpleTenantConfigurationRepository) Update(ctx context.Context, config domain.TenantConfiguration) error {
+	config.Version++
+	config.UpdatedAt = time.Now()
+
 	// Convert domain config to Avro config
 	avroConfig := &avro.AvroTenantConfiguration{
 		ID:                config.ID.String(),

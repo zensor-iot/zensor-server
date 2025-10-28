@@ -128,28 +128,6 @@ mock-interface interface path="internal":
     @echo "🔧 Generating mock for interface: {{interface}}"
     @mockgen -source={{path}} -destination={{path}}_mock.go -package=$(basename {{path}}) -mock_names={{interface}}=Mock{{interface}}
 
-mock-example:
-    @echo "📝 Example of using generated mocks:"
-    @echo ""
-    @echo "import ("
-    @echo "    'github.com/onsi/ginkgo/v2'"
-    @echo "    'github.com/onsi/gomega'"
-    @echo "    'go.uber.org/mock/gomock'"
-    @echo "    'zensor-server/test/unit/doubles/control_plane/usecases'"
-    @echo ")"
-    @echo ""
-    @echo "var _ = ginkgo.Describe('Example', func() {"
-    @echo "    ginkgo.It('should use mock', func() {"
-    @echo "        ctrl := gomock.NewController(ginkgo.GinkgoT())"
-    @echo "        defer ctrl.Finish()"
-    @echo ""
-    @echo "        mockRepo := usecases.NewMockCommandRepository(ctrl)"
-    @echo "        mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)"
-    @echo ""
-    @echo "        // Use mockRepo in your test..."
-    @echo "    })"
-    @echo "})"
-
 lint:
     golangci-lint run --max-issues-per-linter=0 --max-same-issues=0 --config=./build/ci/golangci.yml --timeout 7m
 
@@ -198,6 +176,30 @@ functional tags="~@pending": build
     cd test/functional
     go test -v --godog.tags={{tags}}
     TEST_EXIT_CODE=$?
+    
+    exit $TEST_EXIT_CODE
+
+functional-external tags="@beta" api_url="http://localhost:3000":
+    #!/bin/bash
+    echo "🌍 Running functional tests against external API..."
+    
+    if [ -z "{{api_url}}" ]; then
+        echo "❌ EXTERNAL_API_URL environment variable is required"
+        exit 1
+    fi
+    
+    echo "🔗 Target API URL: {{api_url}}"
+    echo "🏷️  Running tests with tags: {{tags}}"
+    
+    cd test/functional
+    EXTERNAL_API_URL="{{api_url}}" go test -v --godog.tags={{tags}}
+    TEST_EXIT_CODE=$?
+    
+    if [ $TEST_EXIT_CODE -eq 0 ]; then
+        echo "✅ External tests passed"
+    else
+        echo "❌ External tests failed"
+    fi
     
     exit $TEST_EXIT_CODE
 

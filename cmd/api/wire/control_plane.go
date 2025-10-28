@@ -121,6 +121,12 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		persistence.NewTenantConfigurationRepository,
 		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
+		persistence.NewUserRepository,
+		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		usecases.NewUserService,
+		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
 		usecases.NewTenantConfigurationService,
 		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
 		usecases.NewScheduledTaskWorker,
@@ -150,9 +156,32 @@ func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationCont
 		provideDatabase,
 		persistence.NewTenantConfigurationRepository,
 		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
+		persistence.NewUserRepository,
+		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		usecases.NewUserService,
+		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
 		usecases.NewTenantConfigurationService,
 		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
 		httpapi.NewTenantConfigurationController,
+	)
+
+	return nil, nil
+}
+
+func InitializeUserController() (*httpapi.UserController, error) {
+	wire.Build(
+		provideAppConfig,
+		providePublisherFactoryForEnvironment,
+		provideDatabase,
+		persistence.NewUserRepository,
+		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		usecases.NewUserService,
+		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
+		httpapi.NewUserController,
 	)
 
 	return nil, nil
@@ -259,6 +288,12 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.Notifi
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		persistence.NewTenantConfigurationRepository,
 		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
+		persistence.NewUserRepository,
+		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		usecases.NewUserService,
+		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
 		usecases.NewTenantConfigurationService,
 		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
 		usecases.NewNotificationWorker,

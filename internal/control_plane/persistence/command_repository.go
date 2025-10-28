@@ -39,7 +39,6 @@ type SimpleCommandRepository struct {
 }
 
 func (r *SimpleCommandRepository) Create(ctx context.Context, cmd domain.Command) error {
-	// Publish to Kafka - the replication layer will handle the database persistence
 	avroCmd := avro.ToAvroCommand(cmd)
 	err := r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), avroCmd)
 	if err != nil {

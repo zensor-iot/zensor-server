@@ -44,7 +44,6 @@ func (st *ScheduledTask) SoftDelete() {
 	now := utils.Time{Time: time.Now()}
 	st.DeletedAt = &now
 	st.IsActive = false
-	st.Version++
 	st.UpdatedAt = now
 }
 
