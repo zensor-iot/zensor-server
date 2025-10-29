@@ -222,7 +222,7 @@ func (d *APIDriver) UpsertTenantConfiguration(tenantID, timezone, userID string)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if userID != "" {
-		req.Header.Set("X-User-ID", userID)
+		req.Header.Set("X-User-Email", userID)
 	}
 	return d.client.Do(req)
 }

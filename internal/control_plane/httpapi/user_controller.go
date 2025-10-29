@@ -50,6 +50,10 @@ func (c *UserController) associateTenants() http.HandlerFunc {
 
 		err = c.service.AssociateTenants(r.Context(), domain.ID(id), tenantIDs)
 		if errors.Is(err, usecases.ErrTenantNotFound) {
+			http.Error(w, invalidTenantErrMessage, http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, usecases.ErrMixedTenantValidation) {
 			http.Error(w, invalidTenantErrMessage, http.StatusUnprocessableEntity)
 			return
 		}

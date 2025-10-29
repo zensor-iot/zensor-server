@@ -42,7 +42,6 @@ type ScheduledTaskService interface {
 type UserService interface {
 	AssociateTenants(context.Context, domain.ID, []domain.ID) error
 	GetUser(context.Context, domain.ID) (domain.User, error)
-	GetUserByEmail(context.Context, string) (domain.User, error)
 }
 
 type TenantConfigurationService interface {

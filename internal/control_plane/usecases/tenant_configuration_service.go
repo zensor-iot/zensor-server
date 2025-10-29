@@ -28,7 +28,9 @@ type SimpleTenantConfigurationService struct {
 }
 
 func (s *SimpleTenantConfigurationService) UpsertTenantConfiguration(ctx context.Context, userEmail string, config domain.TenantConfiguration) (domain.TenantConfiguration, error) {
-	user, err := s.userService.GetUserByEmail(ctx, userEmail)
+	// Convert email to domain.ID for user lookup
+	userID := domain.ID(userEmail)
+	user, err := s.userService.GetUser(ctx, userID)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			slog.Warn("user not found", slog.String("user_email", userEmail))

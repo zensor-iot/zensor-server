@@ -8,6 +8,10 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
+var (
+	ErrMixedTenantValidation = errors.New("mixed tenant validation failed")
+)
+
 func NewUserService(
 	repository UserRepository,
 	tenantRepository TenantRepository,
@@ -26,18 +30,34 @@ type SimpleUserService struct {
 }
 
 func (s *SimpleUserService) AssociateTenants(ctx context.Context, userID domain.ID, tenantIDs []domain.ID) error {
+	var invalidTenants []domain.ID
+	var validTenants []domain.ID
+
 	for _, tenantID := range tenantIDs {
 		_, err := s.tenantRepository.GetByID(ctx, tenantID)
 		if errors.Is(err, ErrTenantNotFound) {
 			slog.Warn("tenant not found", slog.String("tenant_id", tenantID.String()))
-			return fmt.Errorf("tenant not found: %w", ErrTenantNotFound)
-		}
-		if err != nil {
+			invalidTenants = append(invalidTenants, tenantID)
+		} else if err != nil {
 			slog.Error("getting tenant", slog.String("error", err.Error()))
 			return fmt.Errorf("validating tenant: %w", err)
+		} else {
+			validTenants = append(validTenants, tenantID)
 		}
 	}
 
+	// Determine the appropriate error based on validation results
+	if len(invalidTenants) > 0 {
+		if len(validTenants) > 0 {
+			// Mixed valid and invalid tenants
+			return ErrMixedTenantValidation
+		} else {
+			// All tenants are invalid
+			return ErrTenantNotFound
+		}
+	}
+
+	// All tenants are valid, proceed with association
 	user := domain.User{
 		ID:      userID,
 		Tenants: tenantIDs,
@@ -64,20 +84,6 @@ func (s *SimpleUserService) GetUser(ctx context.Context, userID domain.ID) (doma
 	}
 	if err != nil {
 		slog.Error("getting user", slog.String("error", err.Error()))
-		return domain.User{}, fmt.Errorf("getting user: %w", err)
-	}
-
-	return user, nil
-}
-
-func (s *SimpleUserService) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
-	user, err := s.repository.GetByEmail(ctx, email)
-	if errors.Is(err, ErrUserNotFound) {
-		slog.Warn("user not found", slog.String("user_email", email))
-		return domain.User{}, ErrUserNotFound
-	}
-	if err != nil {
-		slog.Error("getting user by email", slog.String("error", err.Error()))
 		return domain.User{}, fmt.Errorf("getting user: %w", err)
 	}
 

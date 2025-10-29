@@ -485,19 +485,19 @@ func (m *MockTenantConfigurationService) EXPECT() *MockTenantConfigurationServic
 	return m.recorder
 }
 
-// UpsertTenantConfiguration mocks base method.
-func (m *MockTenantConfigurationService) UpsertTenantConfiguration(ctx context.Context, userID domain.ID, config domain.TenantConfiguration) (domain.TenantConfiguration, error) {
+// GetOrCreateTenantConfiguration mocks base method.
+func (m *MockTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpsertTenantConfiguration", ctx, userID, config)
+	ret := m.ctrl.Call(m, "GetOrCreateTenantConfiguration", ctx, tenant, defaultTimezone)
 	ret0, _ := ret[0].(domain.TenantConfiguration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// UpsertTenantConfiguration indicates an expected call of UpsertTenantConfiguration.
-func (mr *MockTenantConfigurationServiceMockRecorder) UpsertTenantConfiguration(ctx, userID, config any) *gomock.Call {
+// GetOrCreateTenantConfiguration indicates an expected call of GetOrCreateTenantConfiguration.
+func (mr *MockTenantConfigurationServiceMockRecorder) GetOrCreateTenantConfiguration(ctx, tenant, defaultTimezone any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).UpsertTenantConfiguration), ctx, userID, config)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).GetOrCreateTenantConfiguration), ctx, tenant, defaultTimezone)
 }
 
 // GetTenantConfiguration mocks base method.
@@ -515,17 +515,17 @@ func (mr *MockTenantConfigurationServiceMockRecorder) GetTenantConfiguration(ctx
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).GetTenantConfiguration), ctx, tenant)
 }
 
-// GetOrCreateTenantConfiguration mocks base method.
-func (m *MockTenantConfigurationService) GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error) {
+// UpsertTenantConfiguration mocks base method.
+func (m *MockTenantConfigurationService) UpsertTenantConfiguration(ctx context.Context, userEmail string, config domain.TenantConfiguration) (domain.TenantConfiguration, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOrCreateTenantConfiguration", ctx, tenant, defaultTimezone)
+	ret := m.ctrl.Call(m, "UpsertTenantConfiguration", ctx, userEmail, config)
 	ret0, _ := ret[0].(domain.TenantConfiguration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetOrCreateTenantConfiguration indicates an expected call of GetOrCreateTenantConfiguration.
-func (mr *MockTenantConfigurationServiceMockRecorder) GetOrCreateTenantConfiguration(ctx, tenant, defaultTimezone any) *gomock.Call {
+// UpsertTenantConfiguration indicates an expected call of UpsertTenantConfiguration.
+func (mr *MockTenantConfigurationServiceMockRecorder) UpsertTenantConfiguration(ctx, userEmail, config any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrCreateTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).GetOrCreateTenantConfiguration), ctx, tenant, defaultTimezone)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).UpsertTenantConfiguration), ctx, userEmail, config)
 }

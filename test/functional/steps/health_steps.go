@@ -22,8 +22,8 @@ func (fc *FeatureContext) theResponseShouldContainStatusInformation() error {
 
 	// Check that all required fields are present
 	fc.require.Contains(data, "status", "Status should be present")
-	fc.require.Contains(data, "VERSION", "VERSION should be present")
-	fc.require.Contains(data, "COMMIT_HASH", "COMMIT_HASH should be present")
+	fc.require.Contains(data, "version", "Version should be present")
+	fc.require.Contains(data, "commit_hash", "Commit hash should be present")
 
 	// Validate status field
 	status, ok := data["status"].(string)
@@ -35,17 +35,17 @@ func (fc *FeatureContext) theResponseShouldContainStatusInformation() error {
 }
 
 func (fc *FeatureContext) theResponseShouldContainVersionInformation() error {
-	version, ok := fc.responseData["VERSION"].(string)
-	fc.require.True(ok, "VERSION should be a string")
-	fc.require.NotEmpty(version, "VERSION should not be empty")
+	version, ok := fc.responseData["version"].(string)
+	fc.require.True(ok, "version should be a string")
+	fc.require.NotEmpty(version, "version should not be empty")
 
 	return nil
 }
 
 func (fc *FeatureContext) theResponseShouldContainCommitHashInformation() error {
-	commitHash, ok := fc.responseData["COMMIT_HASH"].(string)
-	fc.require.True(ok, "COMMIT_HASH should be a string")
-	fc.require.NotEmpty(commitHash, "COMMIT_HASH should not be empty")
+	commitHash, ok := fc.responseData["commit_hash"].(string)
+	fc.require.True(ok, "commit_hash should be a string")
+	fc.require.NotEmpty(commitHash, "commit_hash should not be empty")
 
 	// Accept either a valid git commit hash or "unknown" for development
 	if commitHash != "unknown" {
