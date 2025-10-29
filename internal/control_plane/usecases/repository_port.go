@@ -72,4 +72,5 @@ type TenantConfigurationRepository interface {
 type UserRepository interface {
 	Upsert(context.Context, domain.User) error
 	GetByID(context.Context, domain.ID) (domain.User, error)
+	GetByEmail(context.Context, string) (domain.User, error)
 }

@@ -27,11 +27,11 @@ type SimpleTenantConfigurationService struct {
 	userService UserService
 }
 
-func (s *SimpleTenantConfigurationService) UpsertTenantConfiguration(ctx context.Context, userID domain.ID, config domain.TenantConfiguration) (domain.TenantConfiguration, error) {
-	user, err := s.userService.GetUser(ctx, userID)
+func (s *SimpleTenantConfigurationService) UpsertTenantConfiguration(ctx context.Context, userEmail string, config domain.TenantConfiguration) (domain.TenantConfiguration, error) {
+	user, err := s.userService.GetUserByEmail(ctx, userEmail)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
-			slog.Warn("user not found", slog.String("user_id", userID.String()))
+			slog.Warn("user not found", slog.String("user_email", userEmail))
 			return domain.TenantConfiguration{}, ErrUserNotFound
 		}
 		return domain.TenantConfiguration{}, fmt.Errorf("getting user: %w", err)
@@ -39,7 +39,7 @@ func (s *SimpleTenantConfigurationService) UpsertTenantConfiguration(ctx context
 
 	if !user.HasTenant(config.TenantID) {
 		slog.Warn("user does not have permission to access tenant configuration",
-			slog.String("user_id", userID.String()),
+			slog.String("user_email", userEmail),
 			slog.String("tenant_id", config.TenantID.String()))
 		return domain.TenantConfiguration{}, ErrForbiddenTenantConfigurationAccess
 	}

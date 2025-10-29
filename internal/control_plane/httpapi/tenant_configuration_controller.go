@@ -67,9 +67,9 @@ func (c *TenantConfigurationController) upsertTenantConfiguration() http.Handler
 			return
 		}
 
-		userID := r.Header.Get("X-User-ID")
-		if userID == "" {
-			slog.Error("missing user ID in auth header")
+		userEmail := r.Header.Get("X-User-Email")
+		if userEmail == "" {
+			slog.Error("missing user email in auth header")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -97,7 +97,7 @@ func (c *TenantConfigurationController) upsertTenantConfiguration() http.Handler
 			return
 		}
 
-		resultConfig, err := c.service.UpsertTenantConfiguration(r.Context(), domain.ID(userID), config)
+		resultConfig, err := c.service.UpsertTenantConfiguration(r.Context(), userEmail, config)
 		if errors.Is(err, usecases.ErrUserNotFound) {
 			slog.Warn("user not found")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)

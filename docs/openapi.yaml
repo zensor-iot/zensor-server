@@ -810,6 +810,80 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  # Users
+  /v1/users/{id}:
+    get:
+      summary: Get user
+      description: Retrieve a specific user by ID
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "user not found"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      summary: Associate tenants with user
+      description: Associate one or more tenants with a user
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: Tenants associated successfully
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          description: One or more tenants are invalid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "one or more tenants are invalid"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   # Scheduled Tasks
   /v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks:
     get:
@@ -1913,6 +1987,44 @@ components:
         pagination:
           $ref: "#/components/schemas/PaginationInfo"
 
+    # User schemas
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        tenants:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of tenant IDs associated with the user
+          example:
+            [
+              "123e4567-e89b-12d3-a456-426614174000",
+              "987fcdeb-51a2-43d7-8765-426614174111",
+            ]
+
+    UserUpdateRequest:
+      type: object
+      required:
+        - tenants
+      properties:
+        tenants:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of tenant IDs to associate with the user
+          example:
+            [
+              "123e4567-e89b-12d3-a456-426614174000",
+              "987fcdeb-51a2-43d7-8765-426614174111",
+            ]
+
   responses:
     BadRequest:
       description: Bad request
@@ -1944,6 +2056,8 @@ tags:
     description: Real-time communication endpoints
   - name: Tenants
     description: Multi-tenant management
+  - name: Users
+    description: User management and tenant associations
   - name: Devices
     description: IoT device management
   - name: Tasks

@@ -69,3 +69,17 @@ func (s *SimpleUserService) GetUser(ctx context.Context, userID domain.ID) (doma
 
 	return user, nil
 }
+
+func (s *SimpleUserService) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
+	user, err := s.repository.GetByEmail(ctx, email)
+	if errors.Is(err, ErrUserNotFound) {
+		slog.Warn("user not found", slog.String("user_email", email))
+		return domain.User{}, ErrUserNotFound
+	}
+	if err != nil {
+		slog.Error("getting user by email", slog.String("error", err.Error()))
+		return domain.User{}, fmt.Errorf("getting user: %w", err)
+	}
+
+	return user, nil
+}
