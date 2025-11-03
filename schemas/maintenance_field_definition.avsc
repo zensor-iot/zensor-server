@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "MaintenanceFieldDefinition",
+  "fields": [
+    {"name": "name", "type": "string"},
+    {"name": "display_name", "type": "string"},
+    {"name": "type", "type": "string"},
+    {"name": "is_required", "type": "boolean"},
+    {"name": "default_value", "type": ["null", "string"], "default": null}
+  ]
+}
+

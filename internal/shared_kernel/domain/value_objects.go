@@ -9,3 +9,5 @@ func (vo ID) String() string {
 
 type Name string
 type Index uint8
+type DisplayName string
+type Description string
