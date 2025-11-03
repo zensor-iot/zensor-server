@@ -1,7 +1,6 @@
 name: zensor-server
 
 services:
-
   kafka-console:
     image: docker.redpanda.com/redpandadata/console:latest
     configs:
@@ -17,7 +16,7 @@ services:
       - kafka
 
   kafka:
-    image: bitnami/kafka:3.9.0
+    image: apache/kafka:4.0.1
     environment:
       - KAFKA_KRAFT_CLUSTER_ID=101
       - KAFKA_CFG_NODE_ID=0
@@ -73,7 +72,7 @@ services:
       - zensor
 
   postgresql:
-    image: bitnami/postgresql:17.5.0
+    image: postgres:14-alpine3.21
     environment:
       ALLOW_EMPTY_PASSWORD: true
     volumes:
@@ -84,7 +83,7 @@ services:
       - zensor
 
   redis:
-    image: bitnami/valkey:8.1.3
+    image: valkey/valkey:9.0-alpine3.22
     environment:
       ALLOW_EMPTY_PASSWORD: true
     volumes:
@@ -95,7 +94,7 @@ services:
       - zensor
 
   prometheus:
-    image: bitnami/prometheus:2.55.1
+    image: prom/prometheus:v3.7.3
     command:
       - --config.file=/opt/bitnami/prometheus/conf/prometheus.yml
       - --storage.tsdb.path=/opt/bitnami/prometheus/data
@@ -137,7 +136,6 @@ networks:
     driver: bridge
 
 configs:
-
   server:
     content: |
       general:
@@ -183,11 +181,11 @@ configs:
               endpoint: 0.0.0.0:4317
             http:
               endpoint: 0.0.0.0:4318
-      
+
       processors:
         batch:
           timeout: 0ms
-      
+
       exporters:
         prometheusremotewrite:
           endpoint: http://prometheus:9090/api/v1/write
@@ -195,7 +193,7 @@ configs:
             insecure: true
         debug:
           verbosity: detailed
-      
+
       service:
         pipelines:
           traces:

@@ -3,13 +3,13 @@ package domain
 import (
 	"time"
 	"zensor-server/internal/infra/utils"
-	sharedDomain "zensor-server/internal/shared_kernel/domain"
+	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
 type MaintenanceExecution struct {
-	ID            sharedDomain.ID
-	Version       sharedDomain.Version
-	ActivityID    sharedDomain.ID
+	ID            shareddomain.ID
+	Version       shareddomain.Version
+	ActivityID    shareddomain.ID
 	ScheduledDate utils.Time
 	CompletedAt   *utils.Time
 	CompletedBy   *CompletedBy
@@ -61,7 +61,7 @@ type maintenanceExecutionBuilder struct {
 
 type maintenanceExecutionHandler func(v *MaintenanceExecution) error
 
-func (b *maintenanceExecutionBuilder) WithActivityID(value sharedDomain.ID) *maintenanceExecutionBuilder {
+func (b *maintenanceExecutionBuilder) WithActivityID(value shareddomain.ID) *maintenanceExecutionBuilder {
 	b.actions = append(b.actions, func(d *MaintenanceExecution) error {
 		d.ActivityID = value
 		return nil
@@ -88,7 +88,7 @@ func (b *maintenanceExecutionBuilder) WithFieldValues(value map[string]any) *mai
 func (b *maintenanceExecutionBuilder) Build() (MaintenanceExecution, error) {
 	now := utils.Time{Time: time.Now()}
 	result := MaintenanceExecution{
-		ID:          sharedDomain.ID(utils.GenerateUUID()),
+		ID:          shareddomain.ID(utils.GenerateUUID()),
 		Version:     1,
 		FieldValues: make(map[string]any),
 		CreatedAt:   now,

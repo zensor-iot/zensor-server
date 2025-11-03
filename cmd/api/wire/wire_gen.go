@@ -7,6 +7,7 @@
 package wire
 
 import (
+	"github.com/google/wire"
 	"log/slog"
 	"os"
 	"sync"
@@ -24,8 +25,9 @@ import (
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
-
-	"github.com/google/wire"
+	httpapi2 "zensor-server/internal/maintenance/httpapi"
+	persistence2 "zensor-server/internal/maintenance/persistence"
+	usecases2 "zensor-server/internal/maintenance/usecases"
 )
 
 // Injectors from control_plane.go:
@@ -359,6 +361,39 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 	orm := provideDatabase(appConfig)
 	scheduledTaskHandler := handlers.NewScheduledTaskHandler(orm)
 	return scheduledTaskHandler, nil
+}
+
+// Injectors from maintenance.go:
+
+func InitializeMaintenanceActivityController() (*httpapi2.MaintenanceActivityController, error) {
+	appConfig := provideAppConfig()
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleMaintenanceActivityRepository, err := persistence2.NewMaintenanceActivityRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleMaintenanceActivityService := usecases2.NewMaintenanceActivityService(simpleMaintenanceActivityRepository)
+	maintenanceActivityController := httpapi2.NewMaintenanceActivityController(simpleMaintenanceActivityService)
+	return maintenanceActivityController, nil
+}
+
+func InitializeMaintenanceExecutionController() (*httpapi2.MaintenanceExecutionController, error) {
+	appConfig := provideAppConfig()
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleMaintenanceExecutionRepository, err := persistence2.NewMaintenanceExecutionRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleMaintenanceActivityRepository, err := persistence2.NewMaintenanceActivityRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleMaintenanceExecutionService := usecases2.NewMaintenanceExecutionService(simpleMaintenanceExecutionRepository, simpleMaintenanceActivityRepository)
+	simpleMaintenanceActivityService := usecases2.NewMaintenanceActivityService(simpleMaintenanceActivityRepository)
+	maintenanceExecutionController := httpapi2.NewMaintenanceExecutionController(simpleMaintenanceExecutionService, simpleMaintenanceActivityService)
+	return maintenanceExecutionController, nil
 }
 
 // control_plane.go:

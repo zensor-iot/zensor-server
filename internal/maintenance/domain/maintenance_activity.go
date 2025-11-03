@@ -3,17 +3,17 @@ package domain
 import (
 	"time"
 	"zensor-server/internal/infra/utils"
-	sharedDomain "zensor-server/internal/shared_kernel/domain"
+	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
 type MaintenanceActivity struct {
-	ID                     sharedDomain.ID
-	Version                sharedDomain.Version
-	TenantID               sharedDomain.ID
+	ID                     shareddomain.ID
+	Version                shareddomain.Version
+	TenantID               shareddomain.ID
 	Type                   ActivityType
 	CustomTypeName         *CustomTypeName
-	Name                   sharedDomain.Name
-	Description            sharedDomain.Description
+	Name                   shareddomain.Name
+	Description            shareddomain.Description
 	Schedule               Schedule
 	NotificationDaysBefore Days
 	Fields                 []FieldDefinition
@@ -54,7 +54,7 @@ type maintenanceActivityBuilder struct {
 
 type maintenanceActivityHandler func(v *MaintenanceActivity) error
 
-func (b *maintenanceActivityBuilder) WithTenantID(value sharedDomain.ID) *maintenanceActivityBuilder {
+func (b *maintenanceActivityBuilder) WithTenantID(value shareddomain.ID) *maintenanceActivityBuilder {
 	b.actions = append(b.actions, func(d *MaintenanceActivity) error {
 		d.TenantID = value
 		return nil
@@ -81,7 +81,7 @@ func (b *maintenanceActivityBuilder) WithCustomTypeName(value string) *maintenan
 
 func (b *maintenanceActivityBuilder) WithName(value string) *maintenanceActivityBuilder {
 	b.actions = append(b.actions, func(d *MaintenanceActivity) error {
-		d.Name = sharedDomain.Name(value)
+		d.Name = shareddomain.Name(value)
 		return nil
 	})
 	return b
@@ -89,7 +89,7 @@ func (b *maintenanceActivityBuilder) WithName(value string) *maintenanceActivity
 
 func (b *maintenanceActivityBuilder) WithDescription(value string) *maintenanceActivityBuilder {
 	b.actions = append(b.actions, func(d *MaintenanceActivity) error {
-		d.Description = sharedDomain.Description(value)
+		d.Description = shareddomain.Description(value)
 		return nil
 	})
 	return b
@@ -122,7 +122,7 @@ func (b *maintenanceActivityBuilder) WithFields(value []FieldDefinition) *mainte
 func (b *maintenanceActivityBuilder) Build() (MaintenanceActivity, error) {
 	now := utils.Time{Time: time.Now()}
 	result := MaintenanceActivity{
-		ID:                     sharedDomain.ID(utils.GenerateUUID()),
+		ID:                     shareddomain.ID(utils.GenerateUUID()),
 		Version:                1,
 		NotificationDaysBefore: Days(make([]int, 0)),
 		Fields:                 make([]FieldDefinition, 0),

@@ -89,6 +89,10 @@ func (c *ConfluentAvroCodec) getSchemaForMessage(message any) (string, error) {
 		return "tenant_configurations", nil
 	case "User", "AvroUser":
 		return "users", nil
+	case "MaintenanceActivity", "AvroMaintenanceActivity":
+		return "maintenance_activities", nil
+	case "MaintenanceExecution", "AvroMaintenanceExecution":
+		return "maintenance_executions", nil
 	default:
 		return "", fmt.Errorf("no Avro schema found for message type: %s", schemaName)
 	}
@@ -152,14 +156,16 @@ func (c *ConfluentAvroCodec) getCodecByID(schemaID int) (*goavro.Codec, error) {
 func (c *ConfluentAvroCodec) loadSchemaFromFile(schemaName string) (string, error) {
 	// Map schema names to file names
 	schemaFileMap := map[string]string{
-		"tasks":                 "task.avsc",
-		"devices":               "device.avsc",
-		"scheduled_tasks":       "scheduled_task.avsc",
-		"tenants":               "tenant.avsc",
-		"evaluation_rules":      "evaluation_rule.avsc",
-		"device_commands":       "device_command.avsc",
-		"tenant_configurations": "tenant_configuration.avsc",
-		"users":                 "user.avsc",
+		"tasks":                  "task.avsc",
+		"devices":                "device.avsc",
+		"scheduled_tasks":        "scheduled_task.avsc",
+		"tenants":                "tenant.avsc",
+		"evaluation_rules":       "evaluation_rule.avsc",
+		"device_commands":        "device_command.avsc",
+		"tenant_configurations":  "tenant_configuration.avsc",
+		"users":                  "user.avsc",
+		"maintenance_activities": "maintenance_activity.avsc",
+		"maintenance_executions": "maintenance_execution.avsc",
 	}
 
 	fileName, exists := schemaFileMap[schemaName]
@@ -608,6 +614,14 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"created_at": v.CreatedAt,
 			"updated_at": v.UpdatedAt,
 		}, nil
+	case *AvroMaintenanceActivity:
+		return c.convertMaintenanceActivityToMap(v)
+	case AvroMaintenanceActivity:
+		return c.convertMaintenanceActivityToMap(&v)
+	case *AvroMaintenanceExecution:
+		return c.convertMaintenanceExecutionToMap(v)
+	case AvroMaintenanceExecution:
+		return c.convertMaintenanceExecutionToMap(&v)
 	}
 
 	// Convert original structs to Avro structs
@@ -1317,4 +1331,98 @@ func getTimeField(val reflect.Value, fieldName string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+// convertMaintenanceActivityToMap converts AvroMaintenanceActivity to Avro-compatible map
+func (c *ConfluentAvroCodec) convertMaintenanceActivityToMap(v *AvroMaintenanceActivity) (any, error) {
+	result := map[string]any{
+		"id":                       v.ID,
+		"version":                  v.Version,
+		"tenant_id":                v.TenantID,
+		"type_name":                v.TypeName,
+		"name":                     v.Name,
+		"description":              v.Description,
+		"schedule":                 v.Schedule,
+		"notification_days_before": v.NotificationDaysBefore,
+		"is_active":                v.IsActive,
+		"created_at":               v.CreatedAt,
+		"updated_at":               v.UpdatedAt,
+	}
+
+	// Handle nullable custom_type_name
+	if v.CustomTypeName != nil {
+		result["custom_type_name"] = map[string]any{"string": *v.CustomTypeName}
+	} else {
+		result["custom_type_name"] = nil
+	}
+
+	// Convert fields array
+	fieldsArray := make([]map[string]any, len(v.Fields))
+	for i, field := range v.Fields {
+		fieldMap := map[string]any{
+			"name":         field.Name,
+			"display_name": field.DisplayName,
+			"type":         field.Type,
+			"is_required":  field.IsRequired,
+		}
+		if field.DefaultValue != nil {
+			fieldMap["default_value"] = map[string]any{"string": *field.DefaultValue}
+		} else {
+			fieldMap["default_value"] = nil
+		}
+		fieldsArray[i] = fieldMap
+	}
+	result["fields"] = fieldsArray
+
+	// Handle nullable deleted_at
+	if v.DeletedAt != nil {
+		result["deleted_at"] = map[string]any{
+			"long.timestamp-millis": v.DeletedAt.UnixMilli(),
+		}
+	} else {
+		result["deleted_at"] = nil
+	}
+
+	return result, nil
+}
+
+// convertMaintenanceExecutionToMap converts AvroMaintenanceExecution to Avro-compatible map
+func (c *ConfluentAvroCodec) convertMaintenanceExecutionToMap(v *AvroMaintenanceExecution) (any, error) {
+	result := map[string]any{
+		"id":             v.ID,
+		"version":        v.Version,
+		"activity_id":    v.ActivityID,
+		"scheduled_date": v.ScheduledDate,
+		"overdue_days":   v.OverdueDays,
+		"field_values":   v.FieldValues,
+		"created_at":     v.CreatedAt,
+		"updated_at":     v.UpdatedAt,
+	}
+
+	// Handle nullable completed_at
+	if v.CompletedAt != nil {
+		result["completed_at"] = map[string]any{
+			"long.timestamp-millis": v.CompletedAt.UnixMilli(),
+		}
+	} else {
+		result["completed_at"] = nil
+	}
+
+	// Handle nullable completed_by
+	if v.CompletedBy != nil {
+		result["completed_by"] = map[string]any{"string": *v.CompletedBy}
+	} else {
+		result["completed_by"] = nil
+	}
+
+	// Handle nullable deleted_at
+	if v.DeletedAt != nil {
+		result["deleted_at"] = map[string]any{
+			"long.timestamp-millis": v.DeletedAt.UnixMilli(),
+		}
+	} else {
+		result["deleted_at"] = nil
+	}
+
+	return result, nil
 }
