@@ -5,12 +5,14 @@ import (
 	"log/slog"
 	"net/http"
 	"zensor-server/internal/infra/httpserver"
+	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	"zensor-server/internal/maintenance/httpapi/internal"
 	"zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
 const (
+	createExecutionErrMessage           = "failed to create maintenance execution"
 	getExecutionErrMessage              = "failed to get maintenance execution"
 	markCompletedErrMessage             = "failed to mark execution as completed"
 	executionNotFoundErrMessage         = "maintenance execution not found"
@@ -35,9 +37,42 @@ type MaintenanceExecutionController struct {
 }
 
 func (c *MaintenanceExecutionController) AddRoutes(router *http.ServeMux) {
+	router.Handle("POST /v1/maintenance/executions", c.createExecution())
 	router.Handle("GET /v1/maintenance/executions", c.listExecutions())
 	router.Handle("GET /v1/maintenance/executions/{id}", c.getExecution())
 	router.Handle("POST /v1/maintenance/executions/{id}/complete", c.markCompleted())
+}
+
+func (c *MaintenanceExecutionController) createExecution() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body internal.MaintenanceExecutionCreateRequest
+		err := httpserver.DecodeJSONBody(r, &body)
+		if err != nil {
+			http.Error(w, createExecutionErrMessage, http.StatusBadRequest)
+			return
+		}
+
+		execution, err := maintenanceDomain.NewMaintenanceExecutionBuilder().
+			WithActivityID(shareddomain.ID(body.ActivityID)).
+			WithScheduledDate(body.ScheduledDate).
+			WithFieldValues(body.FieldValues).
+			Build()
+		if err != nil {
+			slog.Error("building maintenance execution", slog.String("error", err.Error()))
+			http.Error(w, createExecutionErrMessage, http.StatusBadRequest)
+			return
+		}
+
+		err = c.service.CreateExecution(r.Context(), execution)
+		if err != nil {
+			slog.Error("creating maintenance execution", slog.String("error", err.Error()))
+			http.Error(w, createExecutionErrMessage, http.StatusInternalServerError)
+			return
+		}
+
+		response := internal.ToMaintenanceExecutionResponse(execution)
+		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
+	}
 }
 
 func (c *MaintenanceExecutionController) listExecutions() http.HandlerFunc {

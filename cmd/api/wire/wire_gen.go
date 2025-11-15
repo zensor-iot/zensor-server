@@ -363,6 +363,20 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 	return scheduledTaskHandler, nil
 }
 
+func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	tenantConfigurationHandler := handlers.NewTenantConfigurationHandler(orm)
+	return tenantConfigurationHandler, nil
+}
+
+func InitializeUserHandler() (*handlers.UserHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	userHandler := handlers.NewUserHandler(orm)
+	return userHandler, nil
+}
+
 // Injectors from maintenance.go:
 
 func InitializeMaintenanceActivityController() (*httpapi2.MaintenanceActivityController, error) {
@@ -414,6 +428,10 @@ func providePubSubFactory(config2 config.AppConfig) *pubsub.Factory {
 		ConsumerGroup:     "zensor-server",
 		SchemaRegistryURL: config2.Kafka.SchemaRegistry,
 	})
+}
+
+func provideAppConfig() config.AppConfig {
+	return config.LoadConfig()
 }
 
 func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {

@@ -26,20 +26,23 @@ type PaginatedResponse[T any] struct {
 }
 
 type FeatureContext struct {
-	apiDriver        *driver.APIDriver
-	response         *http.Response
-	responseData     map[string]any
-	responseListData []map[string]any
-	tenantID         string
-	tenantIDs        []string
-	tenantNameToID   map[string]string
-	deviceID         string
-	scheduledTaskID  string
-	evaluationRuleID string
-	updatedSchedule  string
-	userID           string
-	require          *require.Assertions
-	t                godog.TestingT
+	apiDriver            *driver.APIDriver
+	response             *http.Response
+	responseData         map[string]any
+	responseListData     []map[string]any
+	tenantID             string
+	tenantIDs            []string
+	tenantNameToID       map[string]string
+	deviceID             string
+	scheduledTaskID      string
+	evaluationRuleID     string
+	updatedSchedule      string
+	userID               string
+	maintenanceActivityID string
+	maintenanceExecutionID string
+	maintenanceExecutionIDs []string
+	require              *require.Assertions
+	t                    godog.TestingT
 }
 
 func NewFeatureContext() *FeatureContext {
@@ -182,6 +185,36 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Given(`^another tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.anotherTenantExistsWithNameAndEmail)
 	ctx.Given(`^a third tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.aThirdTenantExistsWithNameAndEmail)
 
+	// Maintenance Activity steps
+	ctx.When(`^I create a maintenance activity for tenant with type "([^"]*)" and name "([^"]*)"$`, fc.iCreateAMaintenanceActivityForTenantWithTypeAndName)
+	ctx.When(`^I create a maintenance activity for tenant with custom type "([^"]*)" and name "([^"]*)"$`, fc.iCreateAMaintenanceActivityForTenantWithCustomTypeAndName)
+	ctx.Given(`^a maintenance activity exists for tenant with type "([^"]*)" and name "([^"]*)"$`, fc.aMaintenanceActivityExistsForTenantWithTypeAndName)
+	ctx.Given(`^a deactivated maintenance activity exists for tenant with type "([^"]*)" and name "([^"]*)"$`, fc.aDeactivatedMaintenanceActivityExistsForTenantWithTypeAndName)
+	ctx.When(`^I list all maintenance activities for the tenant$`, fc.iListAllMaintenanceActivitiesForTheTenant)
+	ctx.Then(`^the list should contain the maintenance activity with name "([^"]*)"$`, fc.theListShouldContainTheMaintenanceActivityWithName)
+	ctx.When(`^I get the maintenance activity by its ID$`, fc.iGetTheMaintenanceActivityByItsID)
+	ctx.Then(`^the response should contain the maintenance activity with name "([^"]*)"$`, fc.theResponseShouldContainTheMaintenanceActivityWithName)
+	ctx.Then(`^the response should contain the maintenance activity details$`, fc.theResponseShouldContainTheMaintenanceActivityDetails)
+	ctx.When(`^I update the maintenance activity with name "([^"]*)"$`, fc.iUpdateTheMaintenanceActivityWithName)
+	ctx.When(`^I activate the maintenance activity$`, fc.iActivateTheMaintenanceActivity)
+	ctx.When(`^I deactivate the maintenance activity$`, fc.iDeactivateTheMaintenanceActivity)
+	ctx.Then(`^the response should contain an active maintenance activity$`, fc.theResponseShouldContainAnActiveMaintenanceActivity)
+	ctx.Then(`^the response should contain an inactive maintenance activity$`, fc.theResponseShouldContainAnInactiveMaintenanceActivity)
+	ctx.When(`^I delete the maintenance activity$`, fc.iDeleteTheMaintenanceActivity)
+
+	// Maintenance Execution steps
+	ctx.Given(`^there are (\d+) maintenance executions for the activity$`, fc.thereAreMaintenanceExecutionsForTheActivity)
+	ctx.Given(`^a maintenance execution exists for the activity$`, fc.aMaintenanceExecutionExistsForTheActivity)
+	ctx.Given(`^an overdue maintenance execution exists for the activity$`, fc.anOverdueMaintenanceExecutionExistsForTheActivity)
+	ctx.When(`^I list all maintenance executions for the activity$`, fc.iListAllMaintenanceExecutionsForTheActivity)
+	ctx.Then(`^I should receive (\d+) executions$`, fc.iShouldReceiveExecutions)
+	ctx.When(`^I get the maintenance execution by its ID$`, fc.iGetTheMaintenanceExecutionByItsID)
+	ctx.Then(`^the response should contain the maintenance execution details$`, fc.theResponseShouldContainTheMaintenanceExecutionDetails)
+	ctx.When(`^I mark the maintenance execution as completed by "([^"]*)"$`, fc.iMarkTheMaintenanceExecutionAsCompletedBy)
+	ctx.Then(`^the response should contain a completed maintenance execution$`, fc.theResponseShouldContainACompletedMaintenanceExecution)
+	ctx.Then(`^the response should contain completed_by "([^"]*)"$`, fc.theResponseShouldContainCompletedBy)
+	ctx.Then(`^the response should contain an overdue maintenance execution$`, fc.theResponseShouldContainAnOverdueMaintenanceExecution)
+
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
 		fc.require = require.New(fc.t)
@@ -211,6 +244,9 @@ func (fc *FeatureContext) reset() {
 	fc.evaluationRuleID = ""
 	fc.updatedSchedule = ""
 	fc.userID = ""
+	fc.maintenanceActivityID = ""
+	fc.maintenanceExecutionID = ""
+	fc.maintenanceExecutionIDs = nil
 }
 
 func (fc *FeatureContext) sendSIGHUPToServer() {

@@ -45,10 +45,17 @@ type SimpleMaintenanceExecutionRepository struct {
 }
 
 func (r *SimpleMaintenanceExecutionRepository) Create(ctx context.Context, execution maintenanceDomain.MaintenanceExecution) error {
+	entity := internal.FromMaintenanceExecution(execution)
+
+	err := r.orm.WithContext(ctx).Create(&entity).Error()
+	if err != nil {
+		return fmt.Errorf("creating maintenance execution in database: %w", err)
+	}
+
 	avroExecution := convertToAvroMaintenanceExecution(execution)
 
 	slog.Debug("publishing maintenance execution to pubsub", slog.String("execution_id", execution.ID.String()))
-	err := r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
+	err = r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
@@ -109,9 +116,16 @@ func (r *SimpleMaintenanceExecutionRepository) FindAllByActivity(
 }
 
 func (r *SimpleMaintenanceExecutionRepository) Update(ctx context.Context, execution maintenanceDomain.MaintenanceExecution) error {
+	entity := internal.FromMaintenanceExecution(execution)
+
+	err := r.orm.WithContext(ctx).Save(&entity).Error()
+	if err != nil {
+		return fmt.Errorf("updating maintenance execution in database: %w", err)
+	}
+
 	avroExecution := convertToAvroMaintenanceExecution(execution)
 
-	err := r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
+	err = r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}

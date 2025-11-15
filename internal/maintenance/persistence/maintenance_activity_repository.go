@@ -48,10 +48,17 @@ type SimpleMaintenanceActivityRepository struct {
 }
 
 func (r *SimpleMaintenanceActivityRepository) Create(ctx context.Context, activity maintenanceDomain.MaintenanceActivity) error {
+	entity := internal.FromMaintenanceActivity(activity)
+
+	err := r.orm.WithContext(ctx).Create(&entity).Error()
+	if err != nil {
+		return fmt.Errorf("creating maintenance activity in database: %w", err)
+	}
+
 	avroActivity := convertToAvroMaintenanceActivity(activity)
 
 	slog.Debug("publishing maintenance activity to pubsub", slog.String("activity_id", activity.ID.String()))
-	err := r.publisher.Publish(ctx, pubsub.Key(activity.ID), avroActivity)
+	err = r.publisher.Publish(ctx, pubsub.Key(activity.ID), avroActivity)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
@@ -112,9 +119,16 @@ func (r *SimpleMaintenanceActivityRepository) FindAllByTenant(
 }
 
 func (r *SimpleMaintenanceActivityRepository) Update(ctx context.Context, activity maintenanceDomain.MaintenanceActivity) error {
+	entity := internal.FromMaintenanceActivity(activity)
+
+	err := r.orm.WithContext(ctx).Save(&entity).Error()
+	if err != nil {
+		return fmt.Errorf("updating maintenance activity in database: %w", err)
+	}
+
 	avroActivity := convertToAvroMaintenanceActivity(activity)
 
-	err := r.publisher.Publish(ctx, pubsub.Key(activity.ID), avroActivity)
+	err = r.publisher.Publish(ctx, pubsub.Key(activity.ID), avroActivity)
 	if err != nil {
 		return fmt.Errorf("publishing to kafka: %w", err)
 	}
