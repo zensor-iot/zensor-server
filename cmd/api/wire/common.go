@@ -1,18 +1,28 @@
+//go:build wireinject
+// +build wireinject
+
 package wire
 
 import (
-	"zensor-server/cmd/config"
 	"zensor-server/internal/infra/replication/handlers"
+
+	"github.com/google/wire"
 )
 
-func provideAppConfig() config.AppConfig {
-	return config.LoadConfig()
-}
-
 func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
-	return handlers.NewTenantConfigurationHandler(provideDatabase(provideAppConfig())), nil
+	wire.Build(
+		provideAppConfig,
+		provideDatabase,
+		handlers.NewTenantConfigurationHandler,
+	)
+	return nil, nil
 }
 
 func InitializeUserHandler() (*handlers.UserHandler, error) {
-	return handlers.NewUserHandler(provideDatabase(provideAppConfig())), nil
+	wire.Build(
+		provideAppConfig,
+		provideDatabase,
+		handlers.NewUserHandler,
+	)
+	return nil, nil
 }

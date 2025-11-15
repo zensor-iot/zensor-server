@@ -30,7 +30,7 @@ metrics:
       status: "Status"
   - name: "scheduled_tasks_total"
     type: "counter"
-    topic: "scheduled_task_events"
+    topic: "scheduled_tasks"
     event_type: "task_executed"
     custom_attributes: {}
   - name: "sensor_temperature"

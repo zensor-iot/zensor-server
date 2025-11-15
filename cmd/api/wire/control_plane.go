@@ -243,6 +243,10 @@ func provideKafkaPublisherFactoryOptions(config config.AppConfig) pubsub.KafkaPu
 	}
 }
 
+func provideAppConfig() config.AppConfig {
+	return config.LoadConfig()
+}
+
 func provideDatabase(config config.AppConfig) sql.ORM {
 	env, ok := os.LookupEnv("ENV")
 	if !ok {
@@ -286,6 +290,10 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.Notifi
 		provideNotificationClient,
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
+		persistence.NewTaskRepository,
+		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
+		usecases.NewTaskService,
+		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
 		persistence.NewTenantConfigurationRepository,
 		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
 		persistence.NewUserRepository,
