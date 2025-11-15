@@ -53,6 +53,10 @@ func (w *NotificationWorker) Run(ctx context.Context, done func()) {
 	slog.Debug("notification worker run with context initialized")
 	defer done()
 
+	slog.Info("starting notification worker",
+		slog.String("topic", _tasksTopic),
+	)
+
 	subscription, err := w.broker.Subscribe(async.BrokerTopicName(_tasksTopic))
 	if err != nil {
 		slog.Error("subscribing to tasks topic", slog.Any("error", err))
