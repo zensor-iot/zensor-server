@@ -15,6 +15,7 @@ import (
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
+	"zensor-server/internal/infra/node"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
@@ -42,7 +43,9 @@ func main() {
 	config := config.LoadConfig()
 
 	level := logLevelMapping[config.General.LogLevel]
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: level, ReplaceAttr: slogReplaceSource})))
+	baseHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: level, ReplaceAttr: slogReplaceAttr})
+	handler := baseHandler.WithAttrs([]slog.Attr{slog.String("version", node.Version)})
+	slog.SetDefault(slog.New(handler))
 	slog.Info("🚀 zensor is initializing")
 	slog.Debug("config loaded", "data", config)
 
@@ -204,15 +207,13 @@ func initializeReplicationService() *replication.Service {
 	return replicationService
 }
 
-func slogReplaceSource(groups []string, a slog.Attr) slog.Attr {
-	// Check if the attribute is the source key
+func slogReplaceAttr(groups []string, a slog.Attr) slog.Attr {
 	if a.Key == slog.SourceKey {
 		source := a.Value.Any().(*slog.Source)
-		// Set the file attribute to only its base name
 		source.File = filepath.Base(source.File)
 		return slog.Any(a.Key, source)
 	}
-	return a // Return unchanged attribute for others
+	return a
 }
 
 type ShutdownFunc func() error
