@@ -7,6 +7,7 @@
 package wire
 
 import (
+	"github.com/google/wire"
 	"log/slog"
 	"os"
 	"sync"
@@ -24,9 +25,23 @@ import (
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
-
-	"github.com/google/wire"
 )
+
+// Injectors from common.go:
+
+func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	tenantConfigurationHandler := handlers.NewTenantConfigurationHandler(orm)
+	return tenantConfigurationHandler, nil
+}
+
+func InitializeUserHandler() (*handlers.UserHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	userHandler := handlers.NewUserHandler(orm)
+	return userHandler, nil
+}
 
 // Injectors from control_plane.go:
 
@@ -302,7 +317,12 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.Notifi
 	}
 	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
 	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
-	notificationWorker := usecases.NewNotificationWorker(ticker, notificationClient, simpleDeviceService, simpleTenantConfigurationService, broker)
+	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository, simpleDeviceRepository)
+	notificationWorker := usecases.NewNotificationWorker(ticker, notificationClient, simpleDeviceService, simpleTenantConfigurationService, simpleTaskService, broker)
 	return notificationWorker, nil
 }
 
@@ -390,6 +410,10 @@ func provideKafkaPublisherFactoryOptions(config2 config.AppConfig) pubsub.KafkaP
 		Brokers:           config2.Kafka.Brokers,
 		SchemaRegistryURL: config2.Kafka.SchemaRegistry,
 	}
+}
+
+func provideAppConfig() config.AppConfig {
+	return config.LoadConfig()
 }
 
 func provideDatabase(config2 config.AppConfig) sql.ORM {
