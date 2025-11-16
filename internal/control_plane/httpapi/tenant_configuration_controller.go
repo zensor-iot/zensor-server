@@ -86,8 +86,8 @@ func (c *TenantConfigurationController) upsertTenantConfiguration() http.Handler
 			WithTenantID(domain.ID(tenantID)).
 			WithTimezone(body.Timezone)
 
-		if body.NotificationEmail != "" {
-			builder = builder.WithNotificationEmail(body.NotificationEmail)
+		if body.NotificationEmail != nil && *body.NotificationEmail != "" {
+			builder = builder.WithNotificationEmail(*body.NotificationEmail)
 		}
 
 		config, err := builder.Build()

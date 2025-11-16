@@ -24,8 +24,8 @@ type TenantConfigurationCreateRequest struct {
 
 // TenantConfigurationUpdateRequest represents the request for updating a tenant configuration
 type TenantConfigurationUpdateRequest struct {
-	Timezone          string `json:"timezone" validate:"required"`
-	NotificationEmail string `json:"notification_email,omitempty"`
+	Timezone          string  `json:"timezone" validate:"required"`
+	NotificationEmail *string `json:"notification_email,omitempty"`
 }
 
 // ToTenantConfigurationResponse converts a domain.TenantConfiguration to TenantConfigurationResponse

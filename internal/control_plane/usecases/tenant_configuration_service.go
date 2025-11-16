@@ -72,10 +72,25 @@ func (s *SimpleTenantConfigurationService) UpsertTenantConfiguration(ctx context
 	}
 
 	if config.NotificationEmail != "" {
-		existingConfig.NotificationEmail = config.NotificationEmail
+		slog.Info("updating notification email",
+			slog.String("incoming_email", config.NotificationEmail),
+			slog.String("existing_email", existingConfig.NotificationEmail))
+		err = existingConfig.UpdateNotificationEmail(config.NotificationEmail)
+		if err != nil {
+			slog.Error("updating tenant configuration notification email", slog.String("error", err.Error()))
+			return domain.TenantConfiguration{}, fmt.Errorf("updating notification email: %w", err)
+		}
+		slog.Info("notification email updated",
+			slog.String("updated_email", existingConfig.NotificationEmail))
+	} else {
+		slog.Info("notification email not provided in update",
+			slog.String("incoming_email", config.NotificationEmail),
+			slog.String("existing_email", existingConfig.NotificationEmail))
 	}
 
 	err = s.repository.Update(ctx, existingConfig)
+	slog.Info("publishing tenant configuration to kafka",
+		slog.String("notification_email", existingConfig.NotificationEmail))
 	if err != nil {
 		slog.Error("updating tenant configuration", slog.String("error", err.Error()))
 		return domain.TenantConfiguration{}, fmt.Errorf("updating tenant configuration: %w", err)
