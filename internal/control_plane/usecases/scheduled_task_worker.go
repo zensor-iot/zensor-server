@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	_defaultTimezone = "UTC"
+	_defaultTimezone     = "UTC"
+	_scheduledTasksTopic = "scheduled_tasks"
 )
 
 func NewScheduledTaskWorker(
@@ -243,7 +244,7 @@ func (w *ScheduledTaskWorker) createTaskFromScheduledTask(ctx context.Context, s
 		Event: "scheduled_task_executed",
 		Value: scheduledTask,
 	}
-	if err := w.broker.Publish(ctx, async.BrokerTopicName("scheduled_task_events"), brokerMsg); err != nil {
+	if err := w.broker.Publish(ctx, async.BrokerTopicName(_scheduledTasksTopic), brokerMsg); err != nil {
 		slog.Error("failed to publish scheduled task executed event", slog.Any("error", err))
 	}
 

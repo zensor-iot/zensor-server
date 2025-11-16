@@ -30,6 +30,22 @@ import (
 	usecases2 "zensor-server/internal/maintenance/usecases"
 )
 
+// Injectors from common.go:
+
+func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	tenantConfigurationHandler := handlers.NewTenantConfigurationHandler(orm)
+	return tenantConfigurationHandler, nil
+}
+
+func InitializeUserHandler() (*handlers.UserHandler, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	userHandler := handlers.NewUserHandler(orm)
+	return userHandler, nil
+}
+
 // Injectors from control_plane.go:
 
 func InitializeEvaluationRuleController() (*httpapi.EvaluationRuleController, error) {
@@ -304,7 +320,12 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.Notifi
 	}
 	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
 	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
-	notificationWorker := usecases.NewNotificationWorker(ticker, notificationClient, simpleDeviceService, simpleTenantConfigurationService, broker)
+	simpleTaskRepository, err := persistence.NewTaskRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTaskService := usecases.NewTaskService(simpleTaskRepository, simpleCommandRepository, simpleDeviceRepository)
+	notificationWorker := usecases.NewNotificationWorker(ticker, notificationClient, simpleDeviceService, simpleTenantConfigurationService, simpleTaskService, broker)
 	return notificationWorker, nil
 }
 
@@ -363,20 +384,6 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 	return scheduledTaskHandler, nil
 }
 
-func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	tenantConfigurationHandler := handlers.NewTenantConfigurationHandler(orm)
-	return tenantConfigurationHandler, nil
-}
-
-func InitializeUserHandler() (*handlers.UserHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	userHandler := handlers.NewUserHandler(orm)
-	return userHandler, nil
-}
-
 // Injectors from maintenance.go:
 
 func InitializeMaintenanceActivityController() (*httpapi2.MaintenanceActivityController, error) {
@@ -430,10 +437,6 @@ func providePubSubFactory(config2 config.AppConfig) *pubsub.Factory {
 	})
 }
 
-func provideAppConfig() config.AppConfig {
-	return config.LoadConfig()
-}
-
 func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {
 	return factory.GetPublisherFactory()
 }
@@ -443,6 +446,10 @@ func provideKafkaPublisherFactoryOptions(config2 config.AppConfig) pubsub.KafkaP
 		Brokers:           config2.Kafka.Brokers,
 		SchemaRegistryURL: config2.Kafka.SchemaRegistry,
 	}
+}
+
+func provideAppConfig() config.AppConfig {
+	return config.LoadConfig()
 }
 
 func provideDatabase(config2 config.AppConfig) sql.ORM {

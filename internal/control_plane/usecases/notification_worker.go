@@ -18,7 +18,8 @@ import (
 
 const (
 	_metricKeyNotifications = "notifications"
-	_tasksTopic             = "tasks"
+	_recentTasksLimit       = 10
+	_tasksTopic             = "scheduled_tasks"
 )
 
 func NewNotificationWorker(
@@ -26,6 +27,7 @@ func NewNotificationWorker(
 	notificationClient notification.NotificationClient,
 	deviceService DeviceService,
 	tenantConfigurationService TenantConfigurationService,
+	taskService TaskService,
 	broker async.InternalBroker,
 ) *NotificationWorker {
 	return &NotificationWorker{
@@ -33,6 +35,7 @@ func NewNotificationWorker(
 		notificationClient:         notificationClient,
 		deviceService:              deviceService,
 		tenantConfigurationService: tenantConfigurationService,
+		taskService:                taskService,
 		broker:                     broker,
 		metricCounters:             make(map[string]metric.Float64Counter),
 	}
@@ -45,6 +48,7 @@ type NotificationWorker struct {
 	notificationClient         notification.NotificationClient
 	deviceService              DeviceService
 	tenantConfigurationService TenantConfigurationService
+	taskService                TaskService
 	broker                     async.InternalBroker
 	metricCounters             map[string]metric.Float64Counter
 }
@@ -59,7 +63,7 @@ func (w *NotificationWorker) Run(ctx context.Context, done func()) {
 
 	subscription, err := w.broker.Subscribe(async.BrokerTopicName(_tasksTopic))
 	if err != nil {
-		slog.Error("subscribing to tasks topic", slog.Any("error", err))
+		slog.Error("subscribing to scheduled_tasks topic", slog.Any("error", err))
 		return
 	}
 
@@ -87,37 +91,68 @@ func (w *NotificationWorker) processMessages(ctx context.Context, subscription a
 			return
 		case msg := <-subscription.Receiver:
 			wg.Add(1)
-			go w.processTaskMessage(ctx, msg, wg.Done)
+			go w.processScheduledTaskEvent(ctx, msg, wg.Done)
 		}
 	}
 }
 
-func (w *NotificationWorker) processTaskMessage(ctx context.Context, message async.BrokerMessage, done func()) {
-	ctx, span := otel.Tracer("notification-worker").Start(ctx, "process-task-notification")
+func (w *NotificationWorker) processScheduledTaskEvent(ctx context.Context, message async.BrokerMessage, done func()) {
+	ctx, span := otel.Tracer("notification-worker").Start(ctx, "process-scheduled-task-event")
 	defer span.End()
 	defer done()
 
-	taskData, ok := message.Value.(map[string]any)
-	if !ok {
-		slog.Warn("invalid task message format", slog.Any("value", message.Value))
-		span.RecordError(fmt.Errorf("invalid task message format"))
+	if message.Event != "scheduled_task_executed" {
+		slog.Debug("ignoring event", slog.String("event", message.Event))
 		return
 	}
 
-	deviceIDStr, ok := taskData["device_id"].(string)
+	scheduledTask, ok := message.Value.(domain.ScheduledTask)
 	if !ok {
-		slog.Warn("missing device_id in task message", slog.Any("data", taskData))
-		span.RecordError(fmt.Errorf("missing device_id in task message"))
+		slog.Warn("invalid scheduled task message format", slog.Any("value", message.Value))
+		span.RecordError(fmt.Errorf("invalid scheduled task message format"))
 		return
 	}
 
-	deviceID := domain.ID(deviceIDStr)
-	span.SetAttributes(attribute.String("device.id", deviceIDStr))
+	scheduledTaskID := scheduledTask.ID
+	span.SetAttributes(attribute.String("scheduled_task.id", scheduledTaskID.String()))
+	span.SetAttributes(attribute.String("device.id", scheduledTask.Device.ID.String()))
+
+	tasks, _, err := w.taskService.FindAllByScheduledTask(ctx, scheduledTaskID, Pagination{
+		Limit:  _recentTasksLimit,
+		Offset: 0,
+	})
+	if err != nil {
+		slog.Error("failed to find tasks for scheduled task",
+			slog.String("scheduled_task_id", scheduledTaskID.String()),
+			slog.Any("error", err))
+		span.RecordError(fmt.Errorf("failed to find tasks: %w", err))
+		return
+	}
+
+	if len(tasks) == 0 {
+		slog.Debug("no tasks found for scheduled task",
+			slog.String("scheduled_task_id", scheduledTaskID.String()))
+		return
+	}
+
+	for _, task := range tasks {
+		w.processTaskNotification(ctx, task, scheduledTask)
+	}
+}
+
+func (w *NotificationWorker) processTaskNotification(ctx context.Context, task domain.Task, scheduledTask domain.ScheduledTask) {
+	ctx, span := otel.Tracer("notification-worker").Start(ctx, "process-task-notification")
+	defer span.End()
+
+	deviceID := task.Device.ID
+	span.SetAttributes(attribute.String("task.id", task.ID.String()))
+	span.SetAttributes(attribute.String("device.id", deviceID.String()))
 
 	device, err := w.deviceService.GetDevice(ctx, deviceID)
 	if err != nil {
 		slog.Warn("failed to get device for notification",
-			slog.String("device_id", deviceIDStr),
+			slog.String("device_id", deviceID.String()),
+			slog.String("task_id", task.ID.String()),
 			slog.Any("error", err))
 		span.RecordError(fmt.Errorf("failed to get device: %w", err))
 		return
@@ -125,7 +160,8 @@ func (w *NotificationWorker) processTaskMessage(ctx context.Context, message asy
 
 	if device.TenantID == nil {
 		slog.Warn("device has no tenant assigned, skipping notification",
-			slog.String("device_id", deviceIDStr))
+			slog.String("device_id", deviceID.String()),
+			slog.String("task_id", task.ID.String()))
 		span.SetAttributes(attribute.Bool("notification.skipped", true))
 		span.SetAttributes(attribute.String("notification.skip_reason", "no_tenant"))
 		return
@@ -138,6 +174,7 @@ func (w *NotificationWorker) processTaskMessage(ctx context.Context, message asy
 	if err != nil {
 		slog.Warn("failed to get tenant configuration for notification",
 			slog.String("tenant_id", string(tenantID)),
+			slog.String("task_id", task.ID.String()),
 			slog.Any("error", err))
 		span.RecordError(fmt.Errorf("failed to get tenant configuration: %w", err))
 		return
@@ -145,15 +182,17 @@ func (w *NotificationWorker) processTaskMessage(ctx context.Context, message asy
 
 	if tenantConfig.NotificationEmail == "" {
 		slog.Warn("tenant has no notification email configured, skipping notification",
-			slog.String("tenant_id", string(tenantID)))
+			slog.String("tenant_id", string(tenantID)),
+			slog.String("task_id", task.ID.String()))
 		span.SetAttributes(attribute.Bool("notification.skipped", true))
 		span.SetAttributes(attribute.String("notification.skip_reason", "no_notification_email"))
 		return
 	}
 
-	if err := w.sendTaskNotification(ctx, device, taskData, tenantConfig.NotificationEmail); err != nil {
+	if err := w.sendTaskNotification(ctx, device, task, scheduledTask, tenantConfig.NotificationEmail); err != nil {
 		slog.Error("failed to send task notification",
-			slog.String("device_id", deviceIDStr),
+			slog.String("device_id", deviceID.String()),
+			slog.String("task_id", task.ID.String()),
 			slog.String("tenant_id", string(tenantID)),
 			slog.String("notification_email", tenantConfig.NotificationEmail),
 			slog.Any("error", err))
@@ -165,14 +204,16 @@ func (w *NotificationWorker) processTaskMessage(ctx context.Context, message asy
 	span.SetAttributes(attribute.Bool("notification.sent", true))
 
 	slog.Info("task notification sent successfully",
-		slog.String("device_id", deviceIDStr),
+		slog.String("device_id", deviceID.String()),
+		slog.String("task_id", task.ID.String()),
+		slog.String("scheduled_task_id", scheduledTask.ID.String()),
 		slog.String("tenant_id", string(tenantID)),
 		slog.String("notification_email", tenantConfig.NotificationEmail))
 }
 
-func (w *NotificationWorker) sendTaskNotification(ctx context.Context, device domain.Device, taskData map[string]any, notificationEmail string) error {
+func (w *NotificationWorker) sendTaskNotification(ctx context.Context, device domain.Device, task domain.Task, scheduledTask domain.ScheduledTask, notificationEmail string) error {
 	subject := fmt.Sprintf("New Task Created for Device: %s", device.DisplayName)
-	body := w.createTaskNotificationBody(device, taskData)
+	body := w.createTaskNotificationBody(device, task, scheduledTask)
 
 	emailRequest := notification.EmailRequest{
 		To:      notificationEmail,
@@ -183,7 +224,7 @@ func (w *NotificationWorker) sendTaskNotification(ctx context.Context, device do
 	return w.notificationClient.SendEmail(ctx, emailRequest)
 }
 
-func (w *NotificationWorker) createTaskNotificationBody(device domain.Device, taskData map[string]any) string {
+func (w *NotificationWorker) createTaskNotificationBody(device domain.Device, task domain.Task, scheduledTask domain.ScheduledTask) string {
 	body := fmt.Sprintf("A new task has been created for device: %s\n\n", device.DisplayName)
 	body += "Device Details:\n"
 	body += "- Device ID: " + string(device.ID) + "\n"
@@ -197,12 +238,10 @@ func (w *NotificationWorker) createTaskNotificationBody(device domain.Device, ta
 	}
 
 	body += "\nTask Details:\n"
-	body += "- Task ID: " + fmt.Sprintf("%v", taskData["id"]) + "\n"
-	body += "- Created At: " + fmt.Sprintf("%v", taskData["created_at"]) + "\n"
-
-	if scheduledTaskID, ok := taskData["scheduled_task_id"]; ok && scheduledTaskID != nil {
-		body += "- Scheduled Task ID: " + fmt.Sprintf("%v", scheduledTaskID) + "\n"
-	}
+	body += "- Task ID: " + task.ID.String() + "\n"
+	body += "- Created At: " + task.CreatedAt.Time.Format(time.RFC3339) + "\n"
+	body += "- Scheduled Task ID: " + scheduledTask.ID.String() + "\n"
+	body += "- Number of Commands: " + fmt.Sprintf("%d", len(task.Commands)) + "\n"
 
 	body += "\nThis is an automated notification from Zensor Server.\n"
 

@@ -25,7 +25,16 @@ services:
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:19092
       - KAFKA_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_KAFKA_OPTS=-XX:UseSVE=0
+      - KAFKA_LOG_DIRS=/tmp/kraft-combined-logs
+      - KAFKA_OPTS=-XX:UseSVE=0
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS=50
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    volumes:
+      - kafkadata:/tmp/kraft-combined-logs
     ports:
       - "19092:19092"
     networks:
@@ -56,18 +65,27 @@ services:
     networks:
       - zensor
     depends_on:
-      - kafka
+      kafka:
+        condition: service_started
+      schema-registry:
+        condition: service_started
 
   schema-registry:
     image: ghcr.io/zensor-iot/zensor-infra/schema-registry:0.5.2
     depends_on:
-      - kafka
+      kafka:
+        condition: service_started
     ports:
       - "8081:8081"
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: "1"
+      SCHEMA_REGISTRY_LEADER_ELECTION_TIMEOUT_MS: "10000"
+      SCHEMA_REGISTRY_KAFKASTORE_TIMEOUT_MS: "10000"
+      SCHEMA_REGISTRY_KAFKASTORE_REQUEST_TIMEOUT_MS: "10000"
+      SCHEMA_REGISTRY_MASTER_ELIGIBILITY: "true"
     networks:
       - zensor
 
@@ -128,6 +146,8 @@ volumes:
   pgdata:
     driver: local
   redisdata:
+    driver: local
+  kafkadata:
     driver: local
 
 networks:

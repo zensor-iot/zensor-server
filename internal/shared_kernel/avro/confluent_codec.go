@@ -583,23 +583,45 @@ func (c *ConfluentAvroCodec) convertToAvroStruct(value any) (any, error) {
 			"updated_at":  v.UpdatedAt,
 		}, nil
 	case *AvroTenantConfiguration:
-		return map[string]any{
+		result := map[string]any{
 			"id":         v.ID,
 			"tenant_id":  v.TenantID,
 			"timezone":   v.Timezone,
 			"version":    v.Version,
 			"created_at": v.CreatedAt,
 			"updated_at": v.UpdatedAt,
-		}, nil
+		}
+
+		// Handle nullable notification_email field for Avro union type
+		if v.NotificationEmail != nil {
+			result["notification_email"] = map[string]any{
+				"string": *v.NotificationEmail,
+			}
+		} else {
+			result["notification_email"] = nil
+		}
+
+		return result, nil
 	case AvroTenantConfiguration:
-		return map[string]any{
+		result := map[string]any{
 			"id":         v.ID,
 			"tenant_id":  v.TenantID,
 			"timezone":   v.Timezone,
 			"version":    v.Version,
 			"created_at": v.CreatedAt,
 			"updated_at": v.UpdatedAt,
-		}, nil
+		}
+
+		// Handle nullable notification_email field for Avro union type
+		if v.NotificationEmail != nil {
+			result["notification_email"] = map[string]any{
+				"string": *v.NotificationEmail,
+			}
+		} else {
+			result["notification_email"] = nil
+		}
+
+		return result, nil
 	case *AvroUser:
 		return map[string]any{
 			"id":         v.ID,
@@ -1228,12 +1250,13 @@ func (c *ConfluentAvroCodec) convertInternalCommand(cmd *domain.Command) (*AvroC
 
 func (c *ConfluentAvroCodec) convertInternalTenantConfiguration(config *domain.TenantConfiguration) (*AvroTenantConfiguration, error) {
 	avroConfig := &AvroTenantConfiguration{
-		ID:        string(config.ID),
-		TenantID:  string(config.TenantID),
-		Timezone:  config.Timezone,
-		Version:   config.Version,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+		ID:                string(config.ID),
+		TenantID:          string(config.TenantID),
+		Timezone:          config.Timezone,
+		NotificationEmail: utils.StringPtr(config.NotificationEmail),
+		Version:           config.Version,
+		CreatedAt:         config.CreatedAt,
+		UpdatedAt:         config.UpdatedAt,
 	}
 
 	return avroConfig, nil
