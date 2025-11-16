@@ -4,7 +4,8 @@ ARG TARGETARCH
 ARG VERSION=development
 ARG COMMIT_HASH=unknown
 RUN adduser -D -u 1000 zensor
-RUN apk --no-cache add tzdata
+RUN apk --no-cache add tzdata ca-certificates && update-ca-certificates
+#RUN apk --no-cache add tzdata
 WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -15,6 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM scratch
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /app/server /server
 USER 1000
