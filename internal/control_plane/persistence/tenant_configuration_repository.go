@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
@@ -89,11 +90,22 @@ func (r *SimpleTenantConfigurationRepository) Update(ctx context.Context, config
 	config.UpdatedAt = time.Now()
 
 	// Convert domain config to Avro config
+	notificationEmailPtr := utils.StringPtr(config.NotificationEmail)
+	if notificationEmailPtr == nil {
+		slog.Warn("notification email is empty when publishing to kafka",
+			slog.String("config_id", config.ID.String()),
+			slog.String("notification_email", config.NotificationEmail))
+	} else {
+		slog.Info("publishing notification email to kafka",
+			slog.String("config_id", config.ID.String()),
+			slog.String("notification_email", *notificationEmailPtr))
+	}
+
 	avroConfig := &avro.AvroTenantConfiguration{
 		ID:                config.ID.String(),
 		TenantID:          config.TenantID.String(),
 		Timezone:          config.Timezone,
-		NotificationEmail: utils.StringPtr(config.NotificationEmail),
+		NotificationEmail: notificationEmailPtr,
 		Version:           config.Version,
 		CreatedAt:         config.CreatedAt,
 		UpdatedAt:         config.UpdatedAt,
