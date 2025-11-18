@@ -22,8 +22,25 @@ type MailerSendConfig struct {
 	FromName  string
 }
 
+func (c *MailerSendConfig) validateConfig() error {
+	if c.APIKey == "" {
+		return fmt.Errorf("API key is required")
+	}
+	if c.FromEmail == "" {
+		return fmt.Errorf("From email is required")
+	}
+	if c.FromName == "" {
+		return fmt.Errorf("From name is required")
+	}
+	return nil
+}
+
 // NewMailerSendClient creates a new MailerSend client
 func NewMailerSendClient(config MailerSendConfig) *MailerSendClient {
+	if err := config.validateConfig(); err != nil {
+		panic(err)
+	}
+
 	client := mailersend.NewMailersend(config.APIKey)
 
 	return &MailerSendClient{
@@ -35,36 +52,29 @@ func NewMailerSendClient(config MailerSendConfig) *MailerSendClient {
 
 // SendEmail sends an email using MailerSend API
 func (c *MailerSendClient) SendEmail(ctx context.Context, request EmailRequest) error {
-	// Create email message using the official library
 	message := c.client.Email.NewMessage()
 
-	// Set sender
 	message.SetFrom(mailersend.From{
 		Email: c.fromEmail,
 		Name:  c.fromName,
 	})
 
-	// Set recipient
 	message.SetRecipients([]mailersend.Recipient{
 		{
 			Email: request.To,
 		},
 	})
 
-	// Set subject and text content
 	message.SetSubject(request.Subject)
 	message.SetText(request.Body)
 
-	// Send email with retry logic
 	return c.sendWithRetry(ctx, message)
 }
 
-// sendWithRetry sends the email with retry logic (3 attempts)
 func (c *MailerSendClient) sendWithRetry(ctx context.Context, message *mailersend.Message) error {
 	var lastErr error
 
 	for attempt := 1; attempt <= 3; attempt++ {
-		// Send the email using the official library
 		_, err := c.client.Email.Send(ctx, message)
 		if err != nil {
 			lastErr = &NotificationError{
@@ -73,14 +83,12 @@ func (c *MailerSendClient) sendWithRetry(ctx context.Context, message *mailersen
 			}
 
 			if attempt < 3 {
-				// Wait before retry (exponential backoff)
 				time.Sleep(time.Duration(attempt) * time.Second)
 				continue
 			}
 			return lastErr
 		}
 
-		// Success
 		return nil
 	}
 
