@@ -1241,6 +1241,332 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  # Maintenance Activities
+  /v1/maintenance/activities:
+    get:
+      summary: List maintenance activities
+      description: Retrieve all maintenance activities for a specific tenant
+      tags:
+        - Maintenance Activities
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          description: Tenant ID to filter activities
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: List of maintenance activities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedActivityResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      summary: Create maintenance activity
+      description: Create a new maintenance activity
+      tags:
+        - Maintenance Activities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityCreateRequest"
+      responses:
+        "201":
+          description: Maintenance activity created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/maintenance/activities/{id}:
+    get:
+      summary: Get maintenance activity
+      description: Retrieve a specific maintenance activity by ID
+      tags:
+        - Maintenance Activities
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Maintenance activity ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Maintenance activity details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      summary: Update maintenance activity
+      description: Update an existing maintenance activity
+      tags:
+        - Maintenance Activities
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Maintenance activity ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityUpdateRequest"
+      responses:
+        "200":
+          description: Maintenance activity updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      summary: Delete maintenance activity
+      description: Soft delete a maintenance activity
+      tags:
+        - Maintenance Activities
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Maintenance activity ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Maintenance activity deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Maintenance activity is already deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/maintenance/activities/{id}/activate:
+    post:
+      summary: Activate maintenance activity
+      description: Activate a deactivated maintenance activity
+      tags:
+        - Maintenance Activities
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Maintenance activity ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Maintenance activity activated successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/maintenance/activities/{id}/deactivate:
+    post:
+      summary: Deactivate maintenance activity
+      description: Deactivate an active maintenance activity
+      tags:
+        - Maintenance Activities
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Maintenance activity ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Maintenance activity deactivated successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # Maintenance Executions
+  /v1/maintenance/executions:
+    get:
+      summary: List maintenance executions
+      description: Retrieve all maintenance executions for a specific activity
+      tags:
+        - Maintenance Executions
+      parameters:
+        - name: activity_id
+          in: query
+          required: true
+          description: Activity ID to filter executions
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: List of maintenance executions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedExecutionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      summary: Create maintenance execution
+      description: Create a new maintenance execution
+      tags:
+        - Maintenance Executions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecutionCreateRequest"
+      responses:
+        "201":
+          description: Maintenance execution created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/maintenance/executions/{id}:
+    get:
+      summary: Get maintenance execution
+      description: Retrieve a specific maintenance execution by ID
+      tags:
+        - Maintenance Executions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Maintenance execution ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Maintenance execution details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/maintenance/executions/{id}/complete:
+    post:
+      summary: Mark maintenance execution as completed
+      description: Mark a maintenance execution as completed
+      tags:
+        - Maintenance Executions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Maintenance execution ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecutionCompleteRequest"
+      responses:
+        "200":
+          description: Maintenance execution marked as completed successfully
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Maintenance execution is already completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   schemas:
     # Common schemas
@@ -2025,6 +2351,315 @@ components:
               "987fcdeb-51a2-43d7-8765-426614174111",
             ]
 
+    # Maintenance Activity schemas
+    MaintenanceActivityCreateRequest:
+      type: object
+      required:
+        - tenant_id
+        - type_name
+        - name
+        - description
+        - schedule
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        type_name:
+          type: string
+          description: Maintenance activity type name
+          example: "inspection"
+        custom_type_name:
+          type: string
+          description: Custom maintenance activity type name
+          example: "Custom Inspection Type"
+        name:
+          type: string
+          description: Maintenance activity name
+          example: "Monthly Equipment Inspection"
+        description:
+          type: string
+          description: Maintenance activity description
+          example: "Monthly inspection of all equipment"
+        schedule:
+          type: string
+          description: Cron expression for scheduling maintenance activities
+          example: "0 0 1 * *"
+        notification_days_before:
+          type: array
+          items:
+            type: integer
+          description: Days before scheduled date to send notifications
+          example: [7, 3, 1]
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldDefinitionRequest"
+          description: Field definitions for the maintenance activity
+
+    ActivityUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Maintenance activity name
+          example: "Monthly Equipment Inspection"
+        description:
+          type: string
+          description: Maintenance activity description
+          example: "Monthly inspection of all equipment"
+        schedule:
+          type: string
+          description: Cron expression for scheduling maintenance activities
+          example: "0 0 1 * *"
+        notification_days_before:
+          type: array
+          items:
+            type: integer
+          description: Days before scheduled date to send notifications
+          example: [7, 3, 1]
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldDefinitionRequest"
+          description: Field definitions for the maintenance activity
+
+    ActivityResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Maintenance activity ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        version:
+          type: integer
+          description: Version for optimistic locking
+          example: 1
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        type_name:
+          type: string
+          description: Maintenance activity type name
+          example: "inspection"
+        custom_type_name:
+          type: string
+          nullable: true
+          description: Custom maintenance activity type name
+          example: "Custom Inspection Type"
+        name:
+          type: string
+          description: Maintenance activity name
+          example: "Monthly Equipment Inspection"
+        description:
+          type: string
+          description: Maintenance activity description
+          example: "Monthly inspection of all equipment"
+        schedule:
+          type: string
+          description: Cron expression for scheduling maintenance activities
+          example: "0 0 1 * *"
+        notification_days_before:
+          type: array
+          items:
+            type: integer
+          description: Days before scheduled date to send notifications
+          example: [7, 3, 1]
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldDefinitionResponse"
+          description: Field definitions for the maintenance activity
+        is_active:
+          type: boolean
+          description: Whether the maintenance activity is active
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-01T00:00:00Z"
+
+    FieldDefinitionRequest:
+      type: object
+      required:
+        - name
+        - display_name
+        - type
+      properties:
+        name:
+          type: string
+          description: Field name (identifier)
+          example: "temperature"
+        display_name:
+          type: string
+          description: Human-readable field name
+          example: "Temperature"
+        type:
+          type: string
+          description: Field type
+          example: "number"
+        is_required:
+          type: boolean
+          description: Whether the field is required
+          default: false
+          example: true
+        default_value:
+          type: string
+          nullable: true
+          description: Default value for the field
+          example: "25.0"
+
+    FieldDefinitionResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Field name (identifier)
+          example: "temperature"
+        display_name:
+          type: string
+          description: Human-readable field name
+          example: "Temperature"
+        type:
+          type: string
+          description: Field type
+          example: "number"
+        is_required:
+          type: boolean
+          description: Whether the field is required
+          example: true
+        default_value:
+          type: string
+          nullable: true
+          description: Default value for the field
+          example: "25.0"
+
+    PaginatedActivityResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityResponse"
+          description: Array of maintenance activity objects
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+
+    # Maintenance Execution schemas
+    ExecutionCreateRequest:
+      type: object
+      required:
+        - activity_id
+        - scheduled_date
+      properties:
+        activity_id:
+          type: string
+          format: uuid
+          description: Maintenance activity ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        scheduled_date:
+          type: string
+          format: date-time
+          description: Scheduled date and time for the execution
+          example: "2024-01-15T10:00:00Z"
+        field_values:
+          type: object
+          additionalProperties: true
+          description: Field values for the maintenance execution
+          example:
+            temperature: 25.5
+            notes: "All systems operational"
+
+    ExecutionCompleteRequest:
+      type: object
+      required:
+        - completed_by
+      properties:
+        completed_by:
+          type: string
+          description: User ID or identifier who completed the execution
+          example: "user-123"
+
+    ExecutionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Maintenance execution ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        version:
+          type: integer
+          description: Version for optimistic locking
+          example: 1
+        activity_id:
+          type: string
+          format: uuid
+          description: Maintenance activity ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        scheduled_date:
+          type: string
+          format: date-time
+          description: Scheduled date and time for the execution
+          example: "2024-01-15T10:00:00Z"
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date and time when the execution was completed
+          example: "2024-01-15T10:30:00Z"
+        completed_by:
+          type: string
+          nullable: true
+          description: User ID or identifier who completed the execution
+          example: "user-123"
+        is_overdue:
+          type: boolean
+          description: Whether the execution is overdue
+          example: false
+        overdue_days:
+          type: integer
+          description: Number of days the execution is overdue
+          example: 0
+        field_values:
+          type: object
+          additionalProperties: true
+          description: Field values for the maintenance execution
+          example:
+            temperature: 25.5
+            notes: "All systems operational"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-01T00:00:00Z"
+
+    PaginatedExecutionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExecutionResponse"
+          description: Array of maintenance execution objects
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+
   responses:
     BadRequest:
       description: Bad request
@@ -2066,3 +2701,7 @@ tags:
     description: Scheduled task management with cron-based scheduling
   - name: Evaluation Rules
     description: Device behavior evaluation rules
+  - name: Maintenance Activities
+    description: Maintenance activity management and scheduling
+  - name: Maintenance Executions
+    description: Maintenance execution tracking and completion

@@ -386,35 +386,35 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 
 // Injectors from maintenance.go:
 
-func InitializeMaintenanceActivityController() (*httpapi2.MaintenanceActivityController, error) {
+func InitializeMaintenanceActivityController() (*httpapi2.ActivityController, error) {
 	appConfig := provideAppConfig()
 	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleMaintenanceActivityRepository, err := persistence2.NewMaintenanceActivityRepository(publisherFactory, orm)
+	simpleActivityRepository, err := persistence2.NewActivityRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleMaintenanceActivityService := usecases2.NewMaintenanceActivityService(simpleMaintenanceActivityRepository)
-	maintenanceActivityController := httpapi2.NewMaintenanceActivityController(simpleMaintenanceActivityService)
-	return maintenanceActivityController, nil
+	simpleActivityService := usecases2.NewActivityService(simpleActivityRepository)
+	activityController := httpapi2.NewActivityController(simpleActivityService)
+	return activityController, nil
 }
 
-func InitializeMaintenanceExecutionController() (*httpapi2.MaintenanceExecutionController, error) {
+func InitializeMaintenanceExecutionController() (*httpapi2.ExecutionController, error) {
 	appConfig := provideAppConfig()
 	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleMaintenanceExecutionRepository, err := persistence2.NewMaintenanceExecutionRepository(publisherFactory, orm)
+	simpleExecutionRepository, err := persistence2.NewExecutionRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleMaintenanceActivityRepository, err := persistence2.NewMaintenanceActivityRepository(publisherFactory, orm)
+	simpleActivityRepository, err := persistence2.NewActivityRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleMaintenanceExecutionService := usecases2.NewMaintenanceExecutionService(simpleMaintenanceExecutionRepository, simpleMaintenanceActivityRepository)
-	simpleMaintenanceActivityService := usecases2.NewMaintenanceActivityService(simpleMaintenanceActivityRepository)
-	maintenanceExecutionController := httpapi2.NewMaintenanceExecutionController(simpleMaintenanceExecutionService, simpleMaintenanceActivityService)
-	return maintenanceExecutionController, nil
+	simpleExecutionService := usecases2.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
+	simpleActivityService := usecases2.NewActivityService(simpleActivityRepository)
+	executionController := httpapi2.NewExecutionController(simpleExecutionService, simpleActivityService)
+	return executionController, nil
 }
 
 // control_plane.go:
