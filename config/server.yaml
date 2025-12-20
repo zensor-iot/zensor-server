@@ -69,3 +69,8 @@ metrics:
       device_name: "device_id"
       app_id: "AppID"
       index: "Index"
+modules:
+  permaculture:
+    enabled: false
+  maintenance:
+    enabled: true

@@ -58,6 +58,7 @@ func LoadConfig() AppConfig {
 				FromName:  viper.GetString("mailersend.from_name"),
 			},
 			Metrics: loadMetricsConfig(),
+			Modules: loadModulesConfig(),
 		}
 	})
 
@@ -93,6 +94,17 @@ func loadMetricsConfig() []MetricWorkerConfig {
 	return []MetricWorkerConfig{}
 }
 
+func loadModulesConfig() ModulesConfig {
+	return ModulesConfig{
+		Permaculture: ModuleConfig{
+			Enabled: viper.GetBool("modules.permaculture.enabled"),
+		},
+		Maintenance: ModuleConfig{
+			Enabled: viper.GetBool("modules.maintenance.enabled"),
+		},
+	}
+}
+
 type AppConfig struct {
 	General    GeneralConfig
 	mqtt       MqttConfig
@@ -102,6 +114,7 @@ type AppConfig struct {
 	Redis      RedisConfig
 	MailerSend MailerSendConfig
 	Metrics    MetricsConfig
+	Modules    ModulesConfig
 }
 
 type GeneralConfig struct {
@@ -146,9 +159,18 @@ type MetricsConfig []MetricWorkerConfig
 
 type MetricWorkerConfig struct {
 	Name              string
-	Type              string // "counter", "gauge", "histogram"
+	Type              string
 	Topic             string
 	EventType         string
-	ValuePropertyName string            // Name of the property to extract the metric value from the message (e.g., "Value")
-	CustomAttributes  map[string]string // Key: label name, Value: path to extract attribute value
+	ValuePropertyName string
+	CustomAttributes  map[string]string
+}
+
+type ModulesConfig struct {
+	Permaculture ModuleConfig
+	Maintenance  ModuleConfig
+}
+
+type ModuleConfig struct {
+	Enabled bool
 }

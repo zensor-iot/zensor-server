@@ -40,21 +40,21 @@ var (
 )
 
 func main() {
-	config := config.LoadConfig()
+	appConfig := config.LoadConfig()
 
-	level := logLevelMapping[config.General.LogLevel]
+	level := logLevelMapping[appConfig.General.LogLevel]
 	baseHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: level, ReplaceAttr: slogReplaceAttr})
 	handler := baseHandler.WithAttrs([]slog.Attr{slog.String("version", node.Version)})
 	slog.SetDefault(slog.New(handler))
 	slog.Info("🚀 zensor is initializing")
-	slog.Debug("config loaded", "data", config)
+	slog.Debug("config loaded", "data", appConfig)
 
 	shutdownOtel := startOTel()
 
 	// DATA PLANE - Set up broker and dependencies first
 	internalBroker := async.NewLocalBroker()
 
-	httpServer := httpserver.NewServer(
+	controllers := []httpserver.Controller{
 		handleWireInjector(wire.InitializeDeviceController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeTaskController()).(httpserver.Controller),
@@ -64,9 +64,21 @@ func main() {
 		handleWireInjector(wire.InitializeUserController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceSpecificWebSocketController(internalBroker)).(httpserver.Controller),
-		handleWireInjector(wire.InitializeMaintenanceActivityController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeMaintenanceExecutionController()).(httpserver.Controller),
-	)
+	}
+
+	if appConfig.Modules.Maintenance.Enabled {
+		slog.Info("module enabled and will be wired", slog.String("module", "maintenance"))
+		controllers = append(controllers,
+			handleWireInjector(wire.InitializeMaintenanceActivityController()).(httpserver.Controller),
+			handleWireInjector(wire.InitializeMaintenanceExecutionController()).(httpserver.Controller),
+		)
+	}
+
+	if appConfig.Modules.Permaculture.Enabled {
+		slog.Info("module enabled and will be wired", slog.String("module", "permaculture"))
+	}
+
+	httpServer := httpserver.NewServer(controllers...)
 
 	appCtx, cancelFn := context.WithCancel(context.Background())
 	go httpServer.Run()
@@ -77,10 +89,10 @@ func main() {
 	var wg sync.WaitGroup
 	ticker := time.NewTicker(30 * time.Second)
 	simpleClientOpts := mqtt.SimpleClientOpts{
-		Broker:   config.MQTTClient.Broker,
-		ClientID: config.MQTTClient.ClientID,
-		Username: config.MQTTClient.Username,
-		Password: config.MQTTClient.Password, //pragma: allowlist secret
+		Broker:   appConfig.MQTTClient.Broker,
+		ClientID: appConfig.MQTTClient.ClientID,
+		Username: appConfig.MQTTClient.Username,
+		Password: appConfig.MQTTClient.Password, //pragma: allowlist secret
 	}
 	mqttClient := mqtt.NewSimpleClient(simpleClientOpts)
 
@@ -93,7 +105,7 @@ func main() {
 	if env == "local" {
 		consumerFactory = pubsub.NewMemoryConsumerFactory("lora-integration")
 	} else {
-		consumerFactory = pubsub.NewKafkaConsumerFactory(config.Kafka.Brokers, config.Kafka.Group, config.Kafka.SchemaRegistry)
+		consumerFactory = pubsub.NewKafkaConsumerFactory(appConfig.Kafka.Brokers, appConfig.Kafka.Group, appConfig.Kafka.SchemaRegistry)
 	}
 
 	// TODO: capture workers into a variable to shutdown them later
@@ -108,7 +120,7 @@ func main() {
 
 	// Initialize metric workers based on configuration
 	metricWorkerFactory := wire.InitializeMetricWorkerFactory(internalBroker)
-	metricWorkers, err := metricWorkerFactory.CreateWorkers(config.Metrics)
+	metricWorkers, err := metricWorkerFactory.CreateWorkers(appConfig.Metrics)
 	if err != nil {
 		slog.Error("failed to create metric workers", slog.Any("error", err))
 		panic(err)

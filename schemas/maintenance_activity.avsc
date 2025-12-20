@@ -2,20 +2,52 @@
   "type": "record",
   "name": "MaintenanceActivity",
   "fields": [
-    {"name": "id", "type": "string"},
-    {"name": "version", "type": "int"},
-    {"name": "tenant_id", "type": "string"},
-    {"name": "type_name", "type": "string"},
-    {"name": "custom_type_name", "type": ["null", "string"], "default": null},
-    {"name": "name", "type": "string"},
-    {"name": "description", "type": "string"},
-    {"name": "schedule", "type": "string"},
-    {"name": "notification_days_before", "type": {"type": "array", "items": "int"}},
-    {"name": "fields", "type": {"type": "array", "items": "MaintenanceFieldDefinition"}},
-    {"name": "is_active", "type": "boolean"},
-    {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
-    {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
-    {"name": "deleted_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}], "default": null}
+    { "name": "id", "type": "string" },
+    { "name": "version", "type": "int" },
+    { "name": "tenant_id", "type": "string" },
+    { "name": "type_name", "type": "string" },
+    { "name": "custom_type_name", "type": ["null", "string"], "default": null },
+    { "name": "name", "type": "string" },
+    { "name": "description", "type": "string" },
+    { "name": "schedule", "type": "string" },
+    {
+      "name": "notification_days_before",
+      "type": { "type": "array", "items": "int" }
+    },
+    {
+      "name": "fields",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "MaintenanceFieldDefinition",
+          "fields": [
+            { "name": "name", "type": "string" },
+            { "name": "display_name", "type": "string" },
+            { "name": "type", "type": "string" },
+            { "name": "is_required", "type": "boolean" },
+            {
+              "name": "default_value",
+              "type": ["null", "string"],
+              "default": null
+            }
+          ]
+        }
+      }
+    },
+    { "name": "is_active", "type": "boolean" },
+    {
+      "name": "created_at",
+      "type": { "type": "long", "logicalType": "timestamp-millis" }
+    },
+    {
+      "name": "updated_at",
+      "type": { "type": "long", "logicalType": "timestamp-millis" }
+    },
+    {
+      "name": "deleted_at",
+      "type": ["null", { "type": "long", "logicalType": "timestamp-millis" }],
+      "default": null
+    }
   ]
 }
-
