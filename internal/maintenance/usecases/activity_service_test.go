@@ -3,10 +3,12 @@ package usecases_test
 import (
 	"context"
 	"errors"
+	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
+	mockcontrolplane "zensor-server/test/unit/doubles/control_plane/usecases"
 	mockmaintenance "zensor-server/test/unit/doubles/maintenance/usecases"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -16,15 +18,17 @@ import (
 
 var _ = Describe("MaintenanceActivityService", func() {
 	var (
-		ctrl           *gomock.Controller
-		mockRepository *mockmaintenance.MockActivityRepository
-		service        maintenanceUsecases.ActivityService
+		ctrl              *gomock.Controller
+		mockRepository    *mockmaintenance.MockActivityRepository
+		mockTenantService *mockcontrolplane.MockTenantService
+		service           maintenanceUsecases.ActivityService
 	)
 
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
 		mockRepository = mockmaintenance.NewMockActivityRepository(ctrl)
-		service = maintenanceUsecases.NewActivityService(mockRepository)
+		mockTenantService = mockcontrolplane.NewMockTenantService(ctrl)
+		service = maintenanceUsecases.NewActivityService(mockRepository, mockTenantService)
 	})
 
 	AfterEach(func() {
@@ -58,6 +62,13 @@ var _ = Describe("MaintenanceActivityService", func() {
 
 		When("creating a valid activity", func() {
 			It("should successfully create the activity", func() {
+				tenant := shareddomain.Tenant{
+					ID:   activity.TenantID,
+					Name: "Test Tenant",
+				}
+				mockTenantService.EXPECT().
+					GetTenant(gomock.Any(), activity.TenantID).
+					Return(tenant, nil)
 				mockRepository.EXPECT().
 					Create(gomock.Any(), activity).
 					Return(nil)
@@ -67,8 +78,27 @@ var _ = Describe("MaintenanceActivityService", func() {
 			})
 		})
 
+		When("tenant does not exist", func() {
+			It("should return an error", func() {
+				mockTenantService.EXPECT().
+					GetTenant(gomock.Any(), activity.TenantID).
+					Return(shareddomain.Tenant{}, controlPlaneUsecases.ErrTenantNotFound)
+
+				err := service.CreateActivity(context.Background(), activity)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("tenant not found"))
+			})
+		})
+
 		When("repository returns an error", func() {
 			It("should return the error", func() {
+				tenant := shareddomain.Tenant{
+					ID:   activity.TenantID,
+					Name: "Test Tenant",
+				}
+				mockTenantService.EXPECT().
+					GetTenant(gomock.Any(), activity.TenantID).
+					Return(tenant, nil)
 				mockRepository.EXPECT().
 					Create(gomock.Any(), activity).
 					Return(errors.New("database error"))

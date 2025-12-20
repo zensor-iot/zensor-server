@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
@@ -21,20 +22,36 @@ type ActivityService interface {
 	DeactivateActivity(ctx context.Context, id shareddomain.ID) error
 }
 
-func NewActivityService(repository ActivityRepository) *SimpleActivityService {
+func NewActivityService(repository ActivityRepository, tenantService controlPlaneUsecases.TenantService) *SimpleActivityService {
 	return &SimpleActivityService{
-		repository: repository,
+		repository:    repository,
+		tenantService: tenantService,
 	}
 }
 
 var _ ActivityService = (*SimpleActivityService)(nil)
 
 type SimpleActivityService struct {
-	repository ActivityRepository
+	repository    ActivityRepository
+	tenantService controlPlaneUsecases.TenantService
 }
 
 func (s *SimpleActivityService) CreateActivity(ctx context.Context, activity maintenanceDomain.Activity) error {
-	err := s.repository.Create(ctx, activity)
+	_, err := s.tenantService.GetTenant(ctx, activity.TenantID)
+	if err != nil {
+		if errors.Is(err, controlPlaneUsecases.ErrTenantNotFound) {
+			slog.Error("tenant not found when creating activity",
+				slog.String("tenant_id", activity.TenantID.String()),
+				slog.String("error", err.Error()))
+			return fmt.Errorf("tenant not found: %w", err)
+		}
+		slog.Error("getting tenant when creating activity",
+			slog.String("tenant_id", activity.TenantID.String()),
+			slog.String("error", err.Error()))
+		return fmt.Errorf("getting tenant: %w", err)
+	}
+
+	err = s.repository.Create(ctx, activity)
 	if err != nil {
 		slog.Error("creating maintenance activity", slog.String("error", err.Error()))
 		return fmt.Errorf("creating maintenance activity: %w", err)

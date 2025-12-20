@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	"zensor-server/internal/maintenance/httpapi/internal"
@@ -151,6 +152,14 @@ func (c *ActivityController) createActivity() http.HandlerFunc {
 
 		err = c.service.CreateActivity(r.Context(), activity)
 		if err != nil {
+			if errors.Is(err, usecases.ErrActivityNotFound) {
+				http.Error(w, activityNotFoundErrMessage, http.StatusNotFound)
+				return
+			}
+			if errors.Is(err, controlPlaneUsecases.ErrTenantNotFound) {
+				http.Error(w, "tenant not found", http.StatusBadRequest)
+				return
+			}
 			slog.Error("creating maintenance activity", slog.String("error", err.Error()))
 			http.Error(w, createActivityErrMessage, http.StatusInternalServerError)
 			return

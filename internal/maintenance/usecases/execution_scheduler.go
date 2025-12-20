@@ -58,7 +58,7 @@ type ExecutionScheduler struct {
 }
 
 func (w *ExecutionScheduler) Run(ctx context.Context, done func()) {
-	slog.Debug("execution scheduler started")
+	slog.Info("execution scheduler started")
 	defer done()
 	var wg sync.WaitGroup
 
@@ -82,7 +82,7 @@ func (w *ExecutionScheduler) ScheduleExecutions(ctx context.Context) {
 }
 
 func (w *ExecutionScheduler) scheduleExecutions(ctx context.Context, done func()) {
-	slog.Debug("scheduling executions", slog.Time("time", time.Now()))
+	slog.Info("scheduling executions", slog.Time("time", time.Now()))
 	defer done()
 
 	activities, err := w.activityRepository.FindAllActive(ctx)
@@ -147,7 +147,7 @@ func (w *ExecutionScheduler) processActivity(ctx context.Context, activity maint
 	fieldValues := w.buildFieldValuesFromActivity(activity)
 
 	lastExecutionTime := now
-	for i := 0; i < _nextExecutionsCount; i++ {
+	for range _nextExecutionsCount {
 		nextTime := scheduleSpec.Next(lastExecutionTime)
 
 		if nextTime.Before(now) || nextTime.Equal(now) {

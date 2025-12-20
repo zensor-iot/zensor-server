@@ -109,14 +109,16 @@ func main() {
 	}
 
 	// TODO: capture workers into a variable to shutdown them later
-	wg.Add(1)
-	go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker, consumerFactory)).(async.Worker).Run(appCtx, wg.Done)
-	wg.Add(1)
-	go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
-	wg.Add(1)
-	go handleWireInjector(wire.InitializeScheduledTaskWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
-	wg.Add(1)
-	go handleWireInjector(wire.InitializeNotificationWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+	if appConfig.Modules.Permaculture.Enabled {
+		wg.Add(1)
+		go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker, consumerFactory)).(async.Worker).Run(appCtx, wg.Done)
+		wg.Add(1)
+		go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		wg.Add(1)
+		go handleWireInjector(wire.InitializeScheduledTaskWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		wg.Add(1)
+		go handleWireInjector(wire.InitializeNotificationWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+	}
 
 	if appConfig.Modules.Maintenance.Enabled {
 		wg.Add(1)
