@@ -7,6 +7,7 @@
 package wire
 
 import (
+	"github.com/google/wire"
 	"log/slog"
 	"os"
 	"sync"
@@ -27,8 +28,6 @@ import (
 	httpapi2 "zensor-server/internal/maintenance/httpapi"
 	persistence2 "zensor-server/internal/maintenance/persistence"
 	usecases2 "zensor-server/internal/maintenance/usecases"
-
-	"github.com/google/wire"
 )
 
 // Injectors from common.go:
@@ -427,7 +426,21 @@ func InitializeMaintenanceExecutionController() (*httpapi2.ExecutionController, 
 		return nil, err
 	}
 	simpleExecutionService := usecases2.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
-	simpleActivityService := usecases2.NewActivityService(simpleActivityRepository)
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm, publisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	simpleActivityService := usecases2.NewActivityService(simpleActivityRepository, simpleTenantService)
 	executionController := httpapi2.NewExecutionController(simpleExecutionService, simpleActivityService)
 	return executionController, nil
 }
