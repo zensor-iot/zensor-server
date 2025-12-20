@@ -115,6 +115,25 @@ func (r *SimpleExecutionRepository) FindAllByActivity(
 	return result, int(total), nil
 }
 
+func (r *SimpleExecutionRepository) FindByActivityAndScheduledDate(ctx context.Context, activityID shareddomain.ID, scheduledDate time.Time) (maintenanceDomain.Execution, error) {
+	var entity internal.Execution
+	err := r.orm.
+		WithContext(ctx).
+		Where("activity_id = ? AND scheduled_date = ? AND deleted_at IS NULL", activityID.String(), scheduledDate).
+		First(&entity).
+		Error()
+
+	if errors.Is(err, sql.ErrRecordNotFound) {
+		return maintenanceDomain.Execution{}, usecases.ErrExecutionNotFound
+	}
+
+	if err != nil {
+		return maintenanceDomain.Execution{}, fmt.Errorf("database query: %w", err)
+	}
+
+	return entity.ToDomain(), nil
+}
+
 func (r *SimpleExecutionRepository) Update(ctx context.Context, execution maintenanceDomain.Execution) error {
 	entity := internal.FromExecution(execution)
 

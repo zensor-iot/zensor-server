@@ -127,8 +127,9 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 
 		ginkgo.When("listing executions by activity", func() {
 			ginkgo.It("should return empty list since data is not in database", func() {
+				emptyActivityID := shareddomain.ID(utils.GenerateUUID())
 				pagination := maintenanceUsecases.Pagination{Limit: 10, Offset: 0}
-				result, total, err := repo.FindAllByActivity(ctx, activityID, pagination)
+				result, total, err := repo.FindAllByActivity(ctx, emptyActivityID, pagination)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(result).To(gomega.BeEmpty())
 				gomega.Expect(total).To(gomega.Equal(0))

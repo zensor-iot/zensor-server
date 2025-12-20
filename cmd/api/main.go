@@ -118,6 +118,11 @@ func main() {
 	wg.Add(1)
 	go handleWireInjector(wire.InitializeNotificationWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 
+	if appConfig.Modules.Maintenance.Enabled {
+		wg.Add(1)
+		go handleWireInjector(wire.InitializeExecutionScheduler(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+	}
+
 	// Initialize metric workers based on configuration
 	metricWorkerFactory := wire.InitializeMetricWorkerFactory(internalBroker)
 	metricWorkers, err := metricWorkerFactory.CreateWorkers(appConfig.Metrics)

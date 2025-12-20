@@ -7,18 +7,28 @@ import (
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
+	mockmaintenance "zensor-server/test/unit/doubles/maintenance/usecases"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 )
 
 var _ = Describe("MaintenanceActivityService", func() {
-	var service maintenanceUsecases.ActivityService
-	var mockRepository *mockMaintenanceActivityRepository
+	var (
+		ctrl           *gomock.Controller
+		mockRepository *mockmaintenance.MockActivityRepository
+		service        maintenanceUsecases.ActivityService
+	)
 
 	BeforeEach(func() {
-		mockRepository = newMockMaintenanceActivityRepository()
+		ctrl = gomock.NewController(GinkgoT())
+		mockRepository = mockmaintenance.NewMockActivityRepository(ctrl)
 		service = maintenanceUsecases.NewActivityService(mockRepository)
+	})
+
+	AfterEach(func() {
+		ctrl.Finish()
 	})
 
 	Context("CreateActivity", func() {
@@ -48,19 +58,21 @@ var _ = Describe("MaintenanceActivityService", func() {
 
 		When("creating a valid activity", func() {
 			It("should successfully create the activity", func() {
+				mockRepository.EXPECT().
+					Create(gomock.Any(), activity).
+					Return(nil)
+
 				err := service.CreateActivity(context.Background(), activity)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(mockRepository.createCalled).To(BeTrue())
-				Expect(mockRepository.activities[activity.ID.String()]).To(Equal(activity))
 			})
 		})
 
 		When("repository returns an error", func() {
-			BeforeEach(func() {
-				mockRepository.createError = errors.New("database error")
-			})
-
 			It("should return the error", func() {
+				mockRepository.EXPECT().
+					Create(gomock.Any(), activity).
+					Return(errors.New("database error"))
+
 				err := service.CreateActivity(context.Background(), activity)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("creating maintenance activity"))
@@ -91,12 +103,14 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
-
-			mockRepository.activities[activityID.String()] = activity
 		})
 
 		When("activity exists", func() {
 			It("should return the activity", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activityID).
+					Return(activity, nil)
+
 				result, err := service.GetActivity(context.Background(), activityID)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result.ID).To(Equal(activityID))
@@ -105,11 +119,11 @@ var _ = Describe("MaintenanceActivityService", func() {
 		})
 
 		When("activity does not exist", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = maintenanceUsecases.ErrActivityNotFound
-			})
-
 			It("should return ErrMaintenanceActivityNotFound", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activityID).
+					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
+
 				result, err := service.GetActivity(context.Background(), activityID)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
 				Expect(result.ID).To(BeEmpty())
@@ -117,11 +131,11 @@ var _ = Describe("MaintenanceActivityService", func() {
 		})
 
 		When("repository returns an error", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = errors.New("database error")
-			})
-
 			It("should return the error", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activityID).
+					Return(maintenanceDomain.Activity{}, errors.New("database error"))
+
 				result, err := service.GetActivity(context.Background(), activityID)
 				Expect(err).To(HaveOccurred())
 				Expect(result.ID).To(BeEmpty())
@@ -157,14 +171,15 @@ var _ = Describe("MaintenanceActivityService", func() {
 					Build()
 				activities = append(activities, activity)
 			}
-
-			mockRepository.activitiesByTenant[tenantID.String()] = activities
-			mockRepository.totalByTenant[tenantID.String()] = len(activities)
 		})
 
 		When("listing activities", func() {
 			It("should return all activities for the tenant", func() {
 				pagination := maintenanceUsecases.Pagination{Limit: 10, Offset: 0}
+				mockRepository.EXPECT().
+					FindAllByTenant(gomock.Any(), tenantID, pagination).
+					Return(activities, len(activities), nil)
+
 				result, total, err := service.ListActivitiesByTenant(context.Background(), tenantID, pagination)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(HaveLen(3))
@@ -173,12 +188,12 @@ var _ = Describe("MaintenanceActivityService", func() {
 		})
 
 		When("repository returns an error", func() {
-			BeforeEach(func() {
-				mockRepository.findAllByTenantError = errors.New("database error")
-			})
-
 			It("should return the error", func() {
 				pagination := maintenanceUsecases.Pagination{Limit: 10, Offset: 0}
+				mockRepository.EXPECT().
+					FindAllByTenant(gomock.Any(), tenantID, pagination).
+					Return(nil, 0, errors.New("database error"))
+
 				result, total, err := service.ListActivitiesByTenant(context.Background(), tenantID, pagination)
 				Expect(err).To(HaveOccurred())
 				Expect(result).To(BeNil())
@@ -210,37 +225,41 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
-
-			mockRepository.activities[activityID.String()] = activity
 		})
 
 		When("updating an existing activity", func() {
 			It("should successfully update the activity", func() {
 				activity.Description = shareddomain.Description("Updated Description")
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+				mockRepository.EXPECT().
+					Update(gomock.Any(), activity).
+					Return(nil)
+
 				err := service.UpdateActivity(context.Background(), activity)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(mockRepository.updateCalled).To(BeTrue())
 			})
 		})
 
 		When("activity does not exist", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = maintenanceUsecases.ErrActivityNotFound
-			})
-
 			It("should return ErrMaintenanceActivityNotFound", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
+
 				err := service.UpdateActivity(context.Background(), activity)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
 			})
 		})
 
 		When("activity is deleted", func() {
-			BeforeEach(func() {
-				activity.SoftDelete()
-				mockRepository.activities[activity.ID.String()] = activity
-			})
-
 			It("should return an error", func() {
+				activity.SoftDelete()
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+
 				err := service.UpdateActivity(context.Background(), activity)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("deleted"))
@@ -270,36 +289,40 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
-
-			mockRepository.activities[activityID.String()] = activity
 		})
 
 		When("deleting an existing activity", func() {
 			It("should successfully delete the activity", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+				mockRepository.EXPECT().
+					Delete(gomock.Any(), activity.ID).
+					Return(nil)
+
 				err := service.DeleteActivity(context.Background(), activity.ID)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(mockRepository.deleteCalled).To(BeTrue())
 			})
 		})
 
 		When("activity does not exist", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = maintenanceUsecases.ErrActivityNotFound
-			})
-
 			It("should return ErrMaintenanceActivityNotFound", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
+
 				err := service.DeleteActivity(context.Background(), activity.ID)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
 			})
 		})
 
 		When("activity is already deleted", func() {
-			BeforeEach(func() {
-				activity.SoftDelete()
-				mockRepository.activities[activity.ID.String()] = activity
-			})
-
 			It("should return an error", func() {
+				activity.SoftDelete()
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+
 				err := service.DeleteActivity(context.Background(), activity.ID)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("already deleted"))
@@ -330,36 +353,40 @@ var _ = Describe("MaintenanceActivityService", func() {
 				Build()
 			activity.ID = activityID
 			activity.IsActive = false
-
-			mockRepository.activities[activityID.String()] = activity
 		})
 
 		When("activating an existing activity", func() {
 			It("should successfully activate the activity", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+				mockRepository.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					Return(nil)
+
 				err := service.ActivateActivity(context.Background(), activity.ID)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(mockRepository.updateCalled).To(BeTrue())
 			})
 		})
 
 		When("activity does not exist", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = maintenanceUsecases.ErrActivityNotFound
-			})
-
 			It("should return ErrMaintenanceActivityNotFound", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
+
 				err := service.ActivateActivity(context.Background(), activity.ID)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
 			})
 		})
 
 		When("activity is deleted", func() {
-			BeforeEach(func() {
-				activity.SoftDelete()
-				mockRepository.activities[activity.ID.String()] = activity
-			})
-
 			It("should return an error", func() {
+				activity.SoftDelete()
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+
 				err := service.ActivateActivity(context.Background(), activity.ID)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("deleted"))
@@ -390,36 +417,40 @@ var _ = Describe("MaintenanceActivityService", func() {
 				Build()
 			activity.ID = activityID
 			activity.IsActive = true
-
-			mockRepository.activities[activityID.String()] = activity
 		})
 
 		When("deactivating an existing activity", func() {
 			It("should successfully deactivate the activity", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+				mockRepository.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					Return(nil)
+
 				err := service.DeactivateActivity(context.Background(), activity.ID)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(mockRepository.updateCalled).To(BeTrue())
 			})
 		})
 
 		When("activity does not exist", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = maintenanceUsecases.ErrActivityNotFound
-			})
-
 			It("should return ErrMaintenanceActivityNotFound", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
+
 				err := service.DeactivateActivity(context.Background(), activity.ID)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
 			})
 		})
 
 		When("activity is deleted", func() {
-			BeforeEach(func() {
-				activity.SoftDelete()
-				mockRepository.activities[activity.ID.String()] = activity
-			})
-
 			It("should return an error", func() {
+				activity.SoftDelete()
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+
 				err := service.DeactivateActivity(context.Background(), activity.ID)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("deleted"))
@@ -427,77 +458,3 @@ var _ = Describe("MaintenanceActivityService", func() {
 		})
 	})
 })
-
-type mockMaintenanceActivityRepository struct {
-	activities            map[string]maintenanceDomain.Activity
-	activitiesByTenant    map[string][]maintenanceDomain.Activity
-	totalByTenant         map[string]int
-	createCalled          bool
-	getByIDCalled         bool
-	findAllByTenantCalled bool
-	updateCalled          bool
-	deleteCalled          bool
-	createError           error
-	getByIDError          error
-	findAllByTenantError  error
-	updateError           error
-	deleteError           error
-}
-
-func newMockMaintenanceActivityRepository() *mockMaintenanceActivityRepository {
-	return &mockMaintenanceActivityRepository{
-		activities:         make(map[string]maintenanceDomain.Activity),
-		activitiesByTenant: make(map[string][]maintenanceDomain.Activity),
-		totalByTenant:      make(map[string]int),
-	}
-}
-
-func (m *mockMaintenanceActivityRepository) Create(ctx context.Context, activity maintenanceDomain.Activity) error {
-	m.createCalled = true
-	if m.createError != nil {
-		return m.createError
-	}
-	m.activities[activity.ID.String()] = activity
-	return nil
-}
-
-func (m *mockMaintenanceActivityRepository) GetByID(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Activity, error) {
-	m.getByIDCalled = true
-	if m.getByIDError != nil {
-		return maintenanceDomain.Activity{}, m.getByIDError
-	}
-	if activity, ok := m.activities[id.String()]; ok {
-		return activity, nil
-	}
-	return maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound
-}
-
-func (m *mockMaintenanceActivityRepository) FindAllByTenant(ctx context.Context, tenantID shareddomain.ID, pagination maintenanceUsecases.Pagination) ([]maintenanceDomain.Activity, int, error) {
-	m.findAllByTenantCalled = true
-	if m.findAllByTenantError != nil {
-		return nil, 0, m.findAllByTenantError
-	}
-	if activities, ok := m.activitiesByTenant[tenantID.String()]; ok {
-		total := m.totalByTenant[tenantID.String()]
-		return activities, total, nil
-	}
-	return []maintenanceDomain.Activity{}, 0, nil
-}
-
-func (m *mockMaintenanceActivityRepository) Update(ctx context.Context, activity maintenanceDomain.Activity) error {
-	m.updateCalled = true
-	if m.updateError != nil {
-		return m.updateError
-	}
-	m.activities[activity.ID.String()] = activity
-	return nil
-}
-
-func (m *mockMaintenanceActivityRepository) Delete(ctx context.Context, id shareddomain.ID) error {
-	m.deleteCalled = true
-	if m.deleteError != nil {
-		return m.deleteError
-	}
-	delete(m.activities, id.String())
-	return nil
-}

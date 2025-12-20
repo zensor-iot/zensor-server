@@ -118,6 +118,26 @@ func (r *SimpleActivityRepository) FindAllByTenant(
 	return result, int(total), nil
 }
 
+func (r *SimpleActivityRepository) FindAllActive(ctx context.Context) ([]maintenanceDomain.Activity, error) {
+	var entities []internal.Activity
+	err := r.orm.
+		WithContext(ctx).
+		Where("is_active = ? AND deleted_at IS NULL", true).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	result := make([]maintenanceDomain.Activity, len(entities))
+	for i, entity := range entities {
+		result[i] = entity.ToDomain()
+	}
+
+	return result, nil
+}
+
 func (r *SimpleActivityRepository) Update(ctx context.Context, activity maintenanceDomain.Activity) error {
 	entity := internal.FromActivity(activity)
 

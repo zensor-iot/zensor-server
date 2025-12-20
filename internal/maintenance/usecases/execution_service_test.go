@@ -8,20 +8,30 @@ import (
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
+	mockmaintenance "zensor-server/test/unit/doubles/maintenance/usecases"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 )
 
 var _ = Describe("MaintenanceExecutionService", func() {
-	var service maintenanceUsecases.ExecutionService
-	var mockRepository *mockMaintenanceExecutionRepository
-	var mockActivityRepository *mockMaintenanceActivityRepository
+	var (
+		ctrl                   *gomock.Controller
+		mockRepository         *mockmaintenance.MockExecutionRepository
+		mockActivityRepository *mockmaintenance.MockActivityRepository
+		service                maintenanceUsecases.ExecutionService
+	)
 
 	BeforeEach(func() {
-		mockRepository = newMockMaintenanceExecutionRepository()
-		mockActivityRepository = newMockMaintenanceActivityRepository()
+		ctrl = gomock.NewController(GinkgoT())
+		mockRepository = mockmaintenance.NewMockExecutionRepository(ctrl)
+		mockActivityRepository = mockmaintenance.NewMockActivityRepository(ctrl)
 		service = maintenanceUsecases.NewExecutionService(mockRepository, mockActivityRepository)
+	})
+
+	AfterEach(func() {
+		ctrl.Finish()
 	})
 
 	Context("CreateExecution", func() {
@@ -48,8 +58,6 @@ var _ = Describe("MaintenanceExecutionService", func() {
 				Build()
 			activity.ID = activityID
 
-			mockActivityRepository.activities[activityID.String()] = activity
-
 			execution, _ = maintenanceDomain.NewExecutionBuilder().
 				WithActivityID(activityID).
 				WithScheduledDate(time.Now().AddDate(0, 0, 30)).
@@ -59,31 +67,39 @@ var _ = Describe("MaintenanceExecutionService", func() {
 
 		When("creating a valid execution", func() {
 			It("should successfully create the execution", func() {
+				mockActivityRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ActivityID).
+					Return(activity, nil)
+				mockRepository.EXPECT().
+					Create(gomock.Any(), execution).
+					Return(nil)
+
 				err := service.CreateExecution(context.Background(), execution)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(mockRepository.createCalled).To(BeTrue())
-				Expect(mockRepository.executions[execution.ID.String()]).To(Equal(execution))
 			})
 		})
 
 		When("activity does not exist", func() {
-			BeforeEach(func() {
-				mockActivityRepository.getByIDError = maintenanceUsecases.ErrActivityNotFound
-			})
-
 			It("should return an error", func() {
+				mockActivityRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ActivityID).
+					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
+
 				err := service.CreateExecution(context.Background(), execution)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("maintenance activity not found"))
+				Expect(err.Error()).To(ContainSubstring("activity not found"))
 			})
 		})
 
 		When("repository returns an error", func() {
-			BeforeEach(func() {
-				mockRepository.createError = errors.New("database error")
-			})
-
 			It("should return the error", func() {
+				mockActivityRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ActivityID).
+					Return(activity, nil)
+				mockRepository.EXPECT().
+					Create(gomock.Any(), execution).
+					Return(errors.New("database error"))
+
 				err := service.CreateExecution(context.Background(), execution)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("creating maintenance execution"))
@@ -105,12 +121,14 @@ var _ = Describe("MaintenanceExecutionService", func() {
 				WithFieldValues(map[string]any{"maintenance_type": "Filter Replacement"}).
 				Build()
 			execution.ID = executionID
-
-			mockRepository.executions[executionID.String()] = execution
 		})
 
 		When("execution exists", func() {
 			It("should return the execution", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), executionID).
+					Return(execution, nil)
+
 				result, err := service.GetExecution(context.Background(), executionID)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result.ID).To(Equal(executionID))
@@ -119,11 +137,11 @@ var _ = Describe("MaintenanceExecutionService", func() {
 		})
 
 		When("execution does not exist", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = maintenanceUsecases.ErrExecutionNotFound
-			})
-
 			It("should return ErrMaintenanceExecutionNotFound", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), executionID).
+					Return(maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound)
+
 				result, err := service.GetExecution(context.Background(), executionID)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrExecutionNotFound))
 				Expect(result.ID).To(BeEmpty())
@@ -131,11 +149,11 @@ var _ = Describe("MaintenanceExecutionService", func() {
 		})
 
 		When("repository returns an error", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = errors.New("database error")
-			})
-
 			It("should return the error", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), executionID).
+					Return(maintenanceDomain.Execution{}, errors.New("database error"))
+
 				result, err := service.GetExecution(context.Background(), executionID)
 				Expect(err).To(HaveOccurred())
 				Expect(result.ID).To(BeEmpty())
@@ -160,14 +178,15 @@ var _ = Describe("MaintenanceExecutionService", func() {
 					Build()
 				executions = append(executions, execution)
 			}
-
-			mockRepository.executionsByActivity[activityID.String()] = executions
-			mockRepository.totalByActivity[activityID.String()] = len(executions)
 		})
 
 		When("listing executions", func() {
 			It("should return all executions for the activity", func() {
 				pagination := maintenanceUsecases.Pagination{Limit: 10, Offset: 0}
+				mockRepository.EXPECT().
+					FindAllByActivity(gomock.Any(), activityID, pagination).
+					Return(executions, len(executions), nil)
+
 				result, total, err := service.ListExecutionsByActivity(context.Background(), activityID, pagination)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(HaveLen(3))
@@ -176,12 +195,12 @@ var _ = Describe("MaintenanceExecutionService", func() {
 		})
 
 		When("repository returns an error", func() {
-			BeforeEach(func() {
-				mockRepository.findAllByActivityError = errors.New("database error")
-			})
-
 			It("should return the error", func() {
 				pagination := maintenanceUsecases.Pagination{Limit: 10, Offset: 0}
+				mockRepository.EXPECT().
+					FindAllByActivity(gomock.Any(), activityID, pagination).
+					Return(nil, 0, errors.New("database error"))
+
 				result, total, err := service.ListExecutionsByActivity(context.Background(), activityID, pagination)
 				Expect(err).To(HaveOccurred())
 				Expect(result).To(BeNil())
@@ -206,36 +225,40 @@ var _ = Describe("MaintenanceExecutionService", func() {
 				WithFieldValues(map[string]any{"maintenance_type": "Filter Replacement"}).
 				Build()
 			execution.ID = executionID
-
-			mockRepository.executions[executionID.String()] = execution
 		})
 
 		When("marking completion for an existing execution", func() {
 			It("should successfully mark the execution as completed", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ID).
+					Return(execution, nil)
+				mockRepository.EXPECT().
+					MarkCompleted(gomock.Any(), execution.ID, completedBy).
+					Return(nil)
+
 				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(mockRepository.markCompletedCalled).To(BeTrue())
 			})
 		})
 
 		When("execution does not exist", func() {
-			BeforeEach(func() {
-				mockRepository.getByIDError = maintenanceUsecases.ErrExecutionNotFound
-			})
-
 			It("should return ErrMaintenanceExecutionNotFound", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ID).
+					Return(maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound)
+
 				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrExecutionNotFound))
 			})
 		})
 
 		When("execution is already completed", func() {
-			BeforeEach(func() {
-				execution.MarkCompleted(completedBy)
-				mockRepository.executions[execution.ID.String()] = execution
-			})
-
 			It("should return an error", func() {
+				execution.MarkCompleted(completedBy)
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ID).
+					Return(execution, nil)
+
 				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("already completed"))
@@ -243,12 +266,12 @@ var _ = Describe("MaintenanceExecutionService", func() {
 		})
 
 		When("execution is deleted", func() {
-			BeforeEach(func() {
-				execution.SoftDelete()
-				mockRepository.executions[execution.ID.String()] = execution
-			})
-
 			It("should return an error", func() {
+				execution.SoftDelete()
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ID).
+					Return(execution, nil)
+
 				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("deleted"))
@@ -256,87 +279,3 @@ var _ = Describe("MaintenanceExecutionService", func() {
 		})
 	})
 })
-
-type mockMaintenanceExecutionRepository struct {
-	executions              map[string]maintenanceDomain.Execution
-	executionsByActivity    map[string][]maintenanceDomain.Execution
-	totalByActivity         map[string]int
-	createCalled            bool
-	getByIDCalled           bool
-	findAllByActivityCalled bool
-	updateCalled            bool
-	markCompletedCalled     bool
-	createError             error
-	getByIDError            error
-	findAllByActivityError  error
-	updateError             error
-	markCompletedError      error
-}
-
-func newMockMaintenanceExecutionRepository() *mockMaintenanceExecutionRepository {
-	return &mockMaintenanceExecutionRepository{
-		executions:           make(map[string]maintenanceDomain.Execution),
-		executionsByActivity: make(map[string][]maintenanceDomain.Execution),
-		totalByActivity:      make(map[string]int),
-	}
-}
-
-func (m *mockMaintenanceExecutionRepository) Create(ctx context.Context, execution maintenanceDomain.Execution) error {
-	m.createCalled = true
-	if m.createError != nil {
-		return m.createError
-	}
-	m.executions[execution.ID.String()] = execution
-	return nil
-}
-
-func (m *mockMaintenanceExecutionRepository) GetByID(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Execution, error) {
-	m.getByIDCalled = true
-	if m.getByIDError != nil {
-		return maintenanceDomain.Execution{}, m.getByIDError
-	}
-	if execution, ok := m.executions[id.String()]; ok {
-		return execution, nil
-	}
-	return maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound
-}
-
-func (m *mockMaintenanceExecutionRepository) FindAllByActivity(ctx context.Context, activityID shareddomain.ID, pagination maintenanceUsecases.Pagination) ([]maintenanceDomain.Execution, int, error) {
-	m.findAllByActivityCalled = true
-	if m.findAllByActivityError != nil {
-		return nil, 0, m.findAllByActivityError
-	}
-	if executions, ok := m.executionsByActivity[activityID.String()]; ok {
-		total := m.totalByActivity[activityID.String()]
-		return executions, total, nil
-	}
-	return []maintenanceDomain.Execution{}, 0, nil
-}
-
-func (m *mockMaintenanceExecutionRepository) Update(ctx context.Context, execution maintenanceDomain.Execution) error {
-	m.updateCalled = true
-	if m.updateError != nil {
-		return m.updateError
-	}
-	m.executions[execution.ID.String()] = execution
-	return nil
-}
-
-func (m *mockMaintenanceExecutionRepository) MarkCompleted(ctx context.Context, id shareddomain.ID, completedBy string) error {
-	m.markCompletedCalled = true
-	if m.markCompletedError != nil {
-		return m.markCompletedError
-	}
-	execution := m.executions[id.String()]
-	execution.MarkCompleted(completedBy)
-	m.executions[id.String()] = execution
-	return nil
-}
-
-func (m *mockMaintenanceExecutionRepository) FindAllOverdue(ctx context.Context, tenantID shareddomain.ID) ([]maintenanceDomain.Execution, error) {
-	return nil, nil
-}
-
-func (m *mockMaintenanceExecutionRepository) FindAllDueSoon(ctx context.Context, tenantID shareddomain.ID, days int) ([]maintenanceDomain.Execution, error) {
-	return nil, nil
-}

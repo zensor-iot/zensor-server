@@ -1,6 +1,6 @@
 package usecases
 
-//go:generate mockgen -source=maintenance_execution_service.go -destination=../../../test/unit/doubles/maintenance/usecases/maintenance_execution_service_mock.go -package=usecases -mock_names=ExecutionService=MockExecutionService
+//go:generate mockgen -source=./execution_service.go -destination=../../../test/unit/doubles/maintenance/usecases/maintenance_execution_service_mock.go -package=usecases -mock_names=ExecutionService=MockExecutionService
 
 import (
 	"context"

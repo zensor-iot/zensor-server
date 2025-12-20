@@ -73,3 +73,11 @@ type UserRepository interface {
 	Upsert(context.Context, domain.User) error
 	GetByID(context.Context, domain.ID) (domain.User, error)
 }
+
+type TenantRepository interface {
+	Create(ctx context.Context, tenant domain.Tenant) error
+	GetByID(ctx context.Context, id domain.ID) (domain.Tenant, error)
+	GetByName(ctx context.Context, name string) (domain.Tenant, error)
+	Update(ctx context.Context, tenant domain.Tenant) error
+	FindAll(ctx context.Context, includeDeleted bool, pagination Pagination) ([]domain.Tenant, int, error)
+}

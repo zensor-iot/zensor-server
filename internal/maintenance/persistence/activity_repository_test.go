@@ -154,8 +154,9 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 
 		ginkgo.When("listing activities by tenant", func() {
 			ginkgo.It("should return empty list since data is not in database", func() {
+				emptyTenantID := shareddomain.ID(utils.GenerateUUID())
 				pagination := maintenanceUsecases.Pagination{Limit: 10, Offset: 0}
-				result, total, err := repo.FindAllByTenant(ctx, tenantID, pagination)
+				result, total, err := repo.FindAllByTenant(ctx, emptyTenantID, pagination)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(result).To(gomega.BeEmpty())
 				gomega.Expect(total).To(gomega.Equal(0))

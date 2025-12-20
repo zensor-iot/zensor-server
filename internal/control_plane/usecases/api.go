@@ -49,3 +49,16 @@ type TenantConfigurationService interface {
 	GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error)
 	GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error)
 }
+
+type TenantService interface {
+	CreateTenant(ctx context.Context, tenant domain.Tenant) error
+	GetTenant(ctx context.Context, id domain.ID) (domain.Tenant, error)
+	GetTenantByName(ctx context.Context, name string) (domain.Tenant, error)
+	ListTenants(ctx context.Context, includeDeleted bool, pagination Pagination) ([]domain.Tenant, int, error)
+	UpdateTenant(ctx context.Context, tenant domain.Tenant) error
+	SoftDeleteTenant(ctx context.Context, id domain.ID) error
+	ActivateTenant(ctx context.Context, id domain.ID) error
+	DeactivateTenant(ctx context.Context, id domain.ID) error
+	AdoptDevice(ctx context.Context, tenantID, deviceID domain.ID) error
+	ListTenantDevices(ctx context.Context, tenantID domain.ID, pagination Pagination) ([]domain.Device, int, error)
+}
