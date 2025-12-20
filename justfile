@@ -140,8 +140,20 @@ tdd path="internal":
 unit path="internal":
     go run github.com/onsi/ginkgo/v2/ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
 
-functional tags="~@pending": build
+functional module tags="~@pending": build
     #!/bin/bash
+    if [ -z "{{module}}" ]; then
+        echo "❌ Module name is required. Usage: just functional <module> [tags]"
+        echo "   Available modules: maintenance, permaculture"
+        exit 1
+    fi
+    
+    MODULE_PATH="test/functional/{{module}}"
+    if [ ! -d "$MODULE_PATH" ]; then
+        echo "❌ Module '{{module}}' not found at $MODULE_PATH"
+        exit 1
+    fi
+    
     echo "🚀 Starting server in background..."
     export ENV=local
     export ZENSOR_SERVER_GENERAL_LOG_LEVEL=debug
@@ -171,9 +183,60 @@ functional tags="~@pending": build
     done
     echo "✅ Server is ready."
     
-    echo "🧪 Running functional tests..."
+    echo "🧪 Running functional tests for module: {{module}}"
     echo "   - Running tests with tags: {{tags}}"
-    cd test/functional
+    cd $MODULE_PATH
+    go test -v --godog.tags={{tags}}
+    TEST_EXIT_CODE=$?
+    
+    exit $TEST_EXIT_CODE
+
+functional-module module tags="~@pending": build
+    #!/bin/bash
+    if [ -z "{{module}}" ]; then
+        echo "❌ Module name is required. Usage: just functional-module <module> [tags]"
+        echo "   Available modules: maintenance, permaculture"
+        exit 1
+    fi
+    
+    MODULE_PATH="test/functional/{{module}}"
+    if [ ! -d "$MODULE_PATH" ]; then
+        echo "❌ Module '{{module}}' not found at $MODULE_PATH"
+        exit 1
+    fi
+    
+    echo "🚀 Starting server in background..."
+    export ENV=local
+    export ZENSOR_SERVER_GENERAL_LOG_LEVEL=debug
+    ./server > api.log 2>&1 &
+    export SERVER_PID=$!
+    
+    # Teardown function to ensure the server is killed
+    teardown() {
+        echo "🔪 Tearing down server (PID: $SERVER_PID)..."
+        kill $SERVER_PID
+        wait $SERVER_PID 2>/dev/null
+    }
+    
+    # Trap exit signals to ensure teardown runs
+    trap teardown EXIT
+    
+    echo "⏳ Waiting for server to be ready..."
+    max_attempts=30
+    attempt=0
+    while ! nc -z localhost 3000; do
+        if [ $attempt -ge $max_attempts ]; then
+            echo "❌ Server failed to start after 30 seconds."
+            exit 1
+        fi
+        sleep 1
+        attempt=$((attempt+1))
+    done
+    echo "✅ Server is ready."
+    
+    echo "🧪 Running functional tests for module: {{module}}"
+    echo "   - Running tests with tags: {{tags}}"
+    cd $MODULE_PATH
     go test -v --godog.tags={{tags}}
     TEST_EXIT_CODE=$?
     
