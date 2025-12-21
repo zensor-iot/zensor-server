@@ -87,11 +87,12 @@ jobs:
 
       - name: Run functional tests
         run: |
-          just functional "@tenant"
-          just functional "@task"
-          just functional "@device"
-          just functional "@scheduled_task"
-          just functional "@tenant_configuration"
+          just functional permaculture "@tenant"
+          just functional permaculture "@task"
+          just functional permaculture "@device"
+          just functional permaculture "@scheduled_task"
+          just functional permaculture "@tenant_configuration"
+          just functional maintenance
         env:
           ENV: local
 
