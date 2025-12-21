@@ -19,32 +19,32 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var _ = Describe("ExecutionScheduler", func() {
+var _ = Describe("ExecutionWorker", func() {
 	var (
 		ctrl                           *gomock.Controller
 		ticker                         *time.Ticker
-		mockActivityRepository         *mockActivityRepository
-		mockExecutionRepository        *mockExecutionRepository
+		mockActivityRepository         *mockmaintenance.MockActivityRepository
+		mockExecutionRepository        *mockmaintenance.MockExecutionRepository
 		mockExecutionService           *mockmaintenance.MockExecutionService
 		mockTenantService              *mockcontrolplane.MockTenantService
 		mockTenantConfigurationService *mockcontrolplane.MockTenantConfigurationService
 		mockBroker                     *mockasync.MockInternalBroker
-		scheduler                      *maintenanceUsecases.ExecutionScheduler
+		worker                         *maintenanceUsecases.ExecutionWorker
 		ctx                            context.Context
 	)
 
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
 		ticker = time.NewTicker(100 * time.Millisecond)
-		mockActivityRepository = newMockActivityRepository()
-		mockExecutionRepository = newMockExecutionRepository()
+		mockActivityRepository = mockmaintenance.NewMockActivityRepository(ctrl)
+		mockExecutionRepository = mockmaintenance.NewMockExecutionRepository(ctrl)
 		mockExecutionService = mockmaintenance.NewMockExecutionService(ctrl)
 		mockTenantService = mockcontrolplane.NewMockTenantService(ctrl)
 		mockTenantConfigurationService = mockcontrolplane.NewMockTenantConfigurationService(ctrl)
 		mockBroker = mockasync.NewMockInternalBroker(ctrl)
 		ctx = context.Background()
 
-		scheduler = maintenanceUsecases.NewExecutionScheduler(
+		worker = maintenanceUsecases.NewExecutionWorker(
 			ticker,
 			mockActivityRepository,
 			mockExecutionRepository,
@@ -109,19 +109,20 @@ var _ = Describe("ExecutionScheduler", func() {
 
 		When("no active activities exist", func() {
 			It("should not create any executions", func() {
-				mockActivityRepository.findAllActiveActivities = []maintenanceDomain.Activity{}
+				mockActivityRepository.EXPECT().
+					FindAllActive(gomock.Any()).
+					Return([]maintenanceDomain.Activity{}, nil)
 				mockExecutionService.EXPECT().CreateExecution(gomock.Any(), gomock.Any()).Times(0)
-				scheduler.ScheduleExecutions(ctx)
+				worker.ScheduleExecutions(ctx)
 			})
 		})
 
 		When("active activities exist", func() {
-			BeforeEach(func() {
-				mockActivityRepository.findAllActiveActivities = []maintenanceDomain.Activity{activity}
-			})
-
 			When("executions do not exist", func() {
 				BeforeEach(func() {
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{activity}, nil)
 					mockTenantService.EXPECT().
 						GetTenant(gomock.Any(), activity.TenantID).
 						Return(tenant, nil).
@@ -130,7 +131,10 @@ var _ = Describe("ExecutionScheduler", func() {
 						GetOrCreateTenantConfiguration(ctx, tenant, "UTC").
 						Return(tenantConfig, nil).
 						AnyTimes()
-					mockExecutionRepository.findByActivityAndScheduledDateError = maintenanceUsecases.ErrExecutionNotFound
+					mockExecutionRepository.EXPECT().
+						FindByActivityAndScheduledDate(gomock.Any(), activity.ID, gomock.Any()).
+						Return(maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound).
+						AnyTimes()
 				})
 
 				It("should create three future executions", func() {
@@ -143,7 +147,7 @@ var _ = Describe("ExecutionScheduler", func() {
 						Return(nil).
 						Times(3)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 
 				It("should populate field values from activity template", func() {
@@ -160,7 +164,7 @@ var _ = Describe("ExecutionScheduler", func() {
 						Return(nil).
 						Times(3)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 
 					Expect(capturedExecutions).To(HaveLen(3))
 					for _, exec := range capturedExecutions {
@@ -185,18 +189,23 @@ var _ = Describe("ExecutionScheduler", func() {
 						}).
 						Times(3)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 			})
 
 			When("executions already exist", func() {
 				BeforeEach(func() {
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{activity}, nil)
 					existingExecution, _ := maintenanceDomain.NewExecutionBuilder().
 						WithActivityID(activity.ID).
 						WithScheduledDate(time.Now().Add(24 * time.Hour)).
 						Build()
-					mockExecutionRepository.executionsByActivityAndDate[activity.ID.String()] = existingExecution
-					mockExecutionRepository.findByActivityAndScheduledDateError = nil
+					mockExecutionRepository.EXPECT().
+						FindByActivityAndScheduledDate(gomock.Any(), activity.ID, gomock.Any()).
+						Return(existingExecution, nil).
+						AnyTimes()
 					mockTenantService.EXPECT().
 						GetTenant(gomock.Any(), activity.TenantID).
 						Return(tenant, nil).
@@ -212,7 +221,7 @@ var _ = Describe("ExecutionScheduler", func() {
 						CreateExecution(gomock.Any(), gomock.Any()).
 						Times(0)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 			})
 
@@ -222,16 +231,18 @@ var _ = Describe("ExecutionScheduler", func() {
 				BeforeEach(func() {
 					invalidActivity = activity
 					invalidActivity.Schedule = maintenanceDomain.Schedule("invalid cron expression that will definitely fail")
-					mockActivityRepository.findAllActiveActivities = []maintenanceDomain.Activity{invalidActivity}
-				})
-
-				It("should publish failure event", func() {
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{invalidActivity}, nil)
 					mockTenantService.EXPECT().
 						GetTenant(gomock.Any(), invalidActivity.TenantID).
 						Return(tenant, nil)
 					mockTenantConfigurationService.EXPECT().
 						GetOrCreateTenantConfiguration(ctx, tenant, "UTC").
 						Return(tenantConfig, nil)
+				})
+
+				It("should publish failure event", func() {
 					mockExecutionService.EXPECT().
 						CreateExecution(gomock.Any(), gomock.Any()).
 						Times(0)
@@ -245,13 +256,15 @@ var _ = Describe("ExecutionScheduler", func() {
 							return nil
 						})
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 			})
 
 			When("tenant is not found", func() {
 				BeforeEach(func() {
-					mockActivityRepository.findAllActiveActivities = []maintenanceDomain.Activity{activity}
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{activity}, nil)
 				})
 
 				It("should publish failure event", func() {
@@ -271,12 +284,15 @@ var _ = Describe("ExecutionScheduler", func() {
 							return nil
 						})
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 			})
 
 			When("tenant configuration retrieval fails", func() {
 				BeforeEach(func() {
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{activity}, nil)
 					mockTenantService.EXPECT().
 						GetTenant(gomock.Any(), activity.TenantID).
 						Return(tenant, nil).
@@ -285,7 +301,10 @@ var _ = Describe("ExecutionScheduler", func() {
 						GetOrCreateTenantConfiguration(ctx, tenant, "UTC").
 						Return(shareddomain.TenantConfiguration{}, errors.New("config error")).
 						AnyTimes()
-					mockExecutionRepository.findByActivityAndScheduledDateError = maintenanceUsecases.ErrExecutionNotFound
+					mockExecutionRepository.EXPECT().
+						FindByActivityAndScheduledDate(gomock.Any(), activity.ID, gomock.Any()).
+						Return(maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound).
+						AnyTimes()
 				})
 
 				It("should use default timezone and continue processing", func() {
@@ -298,12 +317,15 @@ var _ = Describe("ExecutionScheduler", func() {
 						Return(nil).
 						Times(3)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 			})
 
 			When("execution creation fails", func() {
 				BeforeEach(func() {
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{activity}, nil)
 					mockTenantService.EXPECT().
 						GetTenant(gomock.Any(), activity.TenantID).
 						Return(tenant, nil).
@@ -312,7 +334,10 @@ var _ = Describe("ExecutionScheduler", func() {
 						GetOrCreateTenantConfiguration(ctx, tenant, "UTC").
 						Return(tenantConfig, nil).
 						AnyTimes()
-					mockExecutionRepository.findByActivityAndScheduledDateError = maintenanceUsecases.ErrExecutionNotFound
+					mockExecutionRepository.EXPECT().
+						FindByActivityAndScheduledDate(gomock.Any(), activity.ID, gomock.Any()).
+						Return(maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound).
+						AnyTimes()
 					mockExecutionService.EXPECT().
 						CreateExecution(gomock.Any(), gomock.Any()).
 						Return(errors.New("creation failed")).
@@ -328,12 +353,15 @@ var _ = Describe("ExecutionScheduler", func() {
 						}).
 						Times(3)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 			})
 
 			When("checking execution existence fails", func() {
 				BeforeEach(func() {
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{activity}, nil)
 					mockTenantService.EXPECT().
 						GetTenant(gomock.Any(), activity.TenantID).
 						Return(tenant, nil).
@@ -342,7 +370,10 @@ var _ = Describe("ExecutionScheduler", func() {
 						GetOrCreateTenantConfiguration(ctx, tenant, "UTC").
 						Return(tenantConfig, nil).
 						AnyTimes()
-					mockExecutionRepository.findByActivityAndScheduledDateError = errors.New("database error")
+					mockExecutionRepository.EXPECT().
+						FindByActivityAndScheduledDate(gomock.Any(), activity.ID, gomock.Any()).
+						Return(maintenanceDomain.Execution{}, errors.New("database error")).
+						AnyTimes()
 				})
 
 				It("should publish failure event and continue", func() {
@@ -354,11 +385,13 @@ var _ = Describe("ExecutionScheduler", func() {
 						}).
 						Times(3)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 				})
 			})
 
 			When("activity has no default field values", func() {
+				var activityWithoutDefaults maintenanceDomain.Activity
+
 				BeforeEach(func() {
 					activityType := maintenanceDomain.ActivityType{
 						Name:         shareddomain.Name(maintenanceDomain.ActivityTypeWaterSystem),
@@ -375,7 +408,7 @@ var _ = Describe("ExecutionScheduler", func() {
 							},
 						},
 					}
-					newActivity, _ := maintenanceDomain.NewActivityBuilder().
+					activityWithoutDefaults, _ = maintenanceDomain.NewActivityBuilder().
 						WithTenantID(activity.TenantID).
 						WithType(activityType).
 						WithName(string(activity.Name)).
@@ -383,13 +416,17 @@ var _ = Describe("ExecutionScheduler", func() {
 						WithSchedule(string(activity.Schedule)).
 						WithFields(activityType.Fields).
 						Build()
-					newActivity.ID = activity.ID
-					newActivity.Activate()
-					activity = newActivity
-					mockActivityRepository.findAllActiveActivities = []maintenanceDomain.Activity{activity}
-					mockExecutionRepository.findByActivityAndScheduledDateError = maintenanceUsecases.ErrExecutionNotFound
+					activityWithoutDefaults.ID = activity.ID
+					activityWithoutDefaults.Activate()
+					mockActivityRepository.EXPECT().
+						FindAllActive(gomock.Any()).
+						Return([]maintenanceDomain.Activity{activityWithoutDefaults}, nil)
+					mockExecutionRepository.EXPECT().
+						FindByActivityAndScheduledDate(gomock.Any(), activityWithoutDefaults.ID, gomock.Any()).
+						Return(maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound).
+						AnyTimes()
 					mockTenantService.EXPECT().
-						GetTenant(gomock.Any(), activity.TenantID).
+						GetTenant(gomock.Any(), activityWithoutDefaults.TenantID).
 						Return(tenant, nil).
 						AnyTimes()
 					mockTenantConfigurationService.EXPECT().
@@ -412,7 +449,7 @@ var _ = Describe("ExecutionScheduler", func() {
 						Return(nil).
 						Times(3)
 
-					scheduler.ScheduleExecutions(ctx)
+					worker.ScheduleExecutions(ctx)
 
 					Expect(capturedExecutions).To(HaveLen(3))
 					for _, exec := range capturedExecutions {
@@ -424,7 +461,9 @@ var _ = Describe("ExecutionScheduler", func() {
 
 		When("finding active activities fails", func() {
 			BeforeEach(func() {
-				mockActivityRepository.findAllActiveError = errors.New("database error")
+				mockActivityRepository.EXPECT().
+					FindAllActive(gomock.Any()).
+					Return(nil, errors.New("database error"))
 			})
 
 			It("should not create any executions", func() {
@@ -432,100 +471,8 @@ var _ = Describe("ExecutionScheduler", func() {
 					CreateExecution(gomock.Any(), gomock.Any()).
 					Times(0)
 
-				scheduler.ScheduleExecutions(ctx)
+				worker.ScheduleExecutions(ctx)
 			})
 		})
 	})
 })
-
-type mockActivityRepository struct {
-	findAllActiveActivities []maintenanceDomain.Activity
-	findAllActiveError      error
-}
-
-func newMockActivityRepository() *mockActivityRepository {
-	return &mockActivityRepository{
-		findAllActiveActivities: []maintenanceDomain.Activity{},
-	}
-}
-
-func (m *mockActivityRepository) Create(ctx context.Context, activity maintenanceDomain.Activity) error {
-	return nil
-}
-
-func (m *mockActivityRepository) GetByID(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Activity, error) {
-	return maintenanceDomain.Activity{}, nil
-}
-
-func (m *mockActivityRepository) FindAllByTenant(ctx context.Context, tenantID shareddomain.ID, pagination maintenanceUsecases.Pagination) ([]maintenanceDomain.Activity, int, error) {
-	return nil, 0, nil
-}
-
-func (m *mockActivityRepository) FindAllActive(ctx context.Context) ([]maintenanceDomain.Activity, error) {
-	if m.findAllActiveError != nil {
-		return nil, m.findAllActiveError
-	}
-	return m.findAllActiveActivities, nil
-}
-
-func (m *mockActivityRepository) Update(ctx context.Context, activity maintenanceDomain.Activity) error {
-	return nil
-}
-
-func (m *mockActivityRepository) Delete(ctx context.Context, id shareddomain.ID) error {
-	return nil
-}
-
-type mockExecutionRepository struct {
-	executionsByActivityAndDate         map[string]maintenanceDomain.Execution
-	findByActivityAndScheduledDateError error
-}
-
-func newMockExecutionRepository() *mockExecutionRepository {
-	return &mockExecutionRepository{
-		executionsByActivityAndDate:         make(map[string]maintenanceDomain.Execution),
-		findByActivityAndScheduledDateError: maintenanceUsecases.ErrExecutionNotFound,
-	}
-}
-
-func (m *mockExecutionRepository) Create(ctx context.Context, execution maintenanceDomain.Execution) error {
-	return nil
-}
-
-func (m *mockExecutionRepository) GetByID(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Execution, error) {
-	return maintenanceDomain.Execution{}, nil
-}
-
-func (m *mockExecutionRepository) FindAllByActivity(ctx context.Context, activityID shareddomain.ID, pagination maintenanceUsecases.Pagination) ([]maintenanceDomain.Execution, int, error) {
-	return nil, 0, nil
-}
-
-func (m *mockExecutionRepository) FindByActivityAndScheduledDate(ctx context.Context, activityID shareddomain.ID, scheduledDate time.Time) (maintenanceDomain.Execution, error) {
-	if m.findByActivityAndScheduledDateError != nil {
-		if errors.Is(m.findByActivityAndScheduledDateError, maintenanceUsecases.ErrExecutionNotFound) {
-			return maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound
-		}
-		return maintenanceDomain.Execution{}, m.findByActivityAndScheduledDateError
-	}
-	key := activityID.String()
-	if exec, ok := m.executionsByActivityAndDate[key]; ok {
-		return exec, nil
-	}
-	return maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound
-}
-
-func (m *mockExecutionRepository) Update(ctx context.Context, execution maintenanceDomain.Execution) error {
-	return nil
-}
-
-func (m *mockExecutionRepository) MarkCompleted(ctx context.Context, id shareddomain.ID, completedBy string) error {
-	return nil
-}
-
-func (m *mockExecutionRepository) FindAllOverdue(ctx context.Context, tenantID shareddomain.ID) ([]maintenanceDomain.Execution, error) {
-	return nil, nil
-}
-
-func (m *mockExecutionRepository) FindAllDueSoon(ctx context.Context, tenantID shareddomain.ID, days int) ([]maintenanceDomain.Execution, error) {
-	return nil, nil
-}

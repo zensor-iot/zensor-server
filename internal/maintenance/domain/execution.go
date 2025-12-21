@@ -51,6 +51,20 @@ func (me *Execution) IsOverdue() bool {
 	return now.After(me.ScheduledDate.Time)
 }
 
+func (me *Execution) CalculateOverdueDays(currentDate time.Time) int {
+	if me.CompletedAt != nil {
+		return 0
+	}
+	if currentDate.Before(me.ScheduledDate.Time) || currentDate.Equal(me.ScheduledDate.Time) {
+		return 0
+	}
+	days := int(currentDate.Sub(me.ScheduledDate.Time).Hours() / 24)
+	if days < 0 {
+		return 0
+	}
+	return days
+}
+
 func NewExecutionBuilder() *executionBuilder {
 	return &executionBuilder{}
 }

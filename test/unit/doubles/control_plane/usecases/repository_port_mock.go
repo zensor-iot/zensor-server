@@ -740,3 +740,70 @@ func (mr *MockTenantRepositoryMockRecorder) Update(ctx, tenant any) *gomock.Call
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockTenantRepository)(nil).Update), ctx, tenant)
 }
+
+// MockPushTokenRepository is a mock of PushTokenRepository interface.
+type MockPushTokenRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockPushTokenRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockPushTokenRepositoryMockRecorder is the mock recorder for MockPushTokenRepository.
+type MockPushTokenRepositoryMockRecorder struct {
+	mock *MockPushTokenRepository
+}
+
+// NewMockPushTokenRepository creates a new mock instance.
+func NewMockPushTokenRepository(ctrl *gomock.Controller) *MockPushTokenRepository {
+	mock := &MockPushTokenRepository{ctrl: ctrl}
+	mock.recorder = &MockPushTokenRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPushTokenRepository) EXPECT() *MockPushTokenRepositoryMockRecorder {
+	return m.recorder
+}
+
+// DeleteByToken mocks base method.
+func (m *MockPushTokenRepository) DeleteByToken(ctx context.Context, token string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByToken", ctx, token)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByToken indicates an expected call of DeleteByToken.
+func (mr *MockPushTokenRepositoryMockRecorder) DeleteByToken(ctx, token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByToken", reflect.TypeOf((*MockPushTokenRepository)(nil).DeleteByToken), ctx, token)
+}
+
+// GetByUserID mocks base method.
+func (m *MockPushTokenRepository) GetByUserID(ctx context.Context, userID domain.ID) (domain.PushToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByUserID", ctx, userID)
+	ret0, _ := ret[0].(domain.PushToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByUserID indicates an expected call of GetByUserID.
+func (mr *MockPushTokenRepositoryMockRecorder) GetByUserID(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUserID", reflect.TypeOf((*MockPushTokenRepository)(nil).GetByUserID), ctx, userID)
+}
+
+// Upsert mocks base method.
+func (m *MockPushTokenRepository) Upsert(ctx context.Context, pushToken domain.PushToken) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Upsert", ctx, pushToken)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Upsert indicates an expected call of Upsert.
+func (mr *MockPushTokenRepositoryMockRecorder) Upsert(ctx, pushToken any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upsert", reflect.TypeOf((*MockPushTokenRepository)(nil).Upsert), ctx, pushToken)
+}

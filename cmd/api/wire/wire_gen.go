@@ -384,6 +384,41 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 	return scheduledTaskHandler, nil
 }
 
+func InitializePushTokenController() (*httpapi.PushTokenController, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	simplePushTokenRepository, err := persistence.NewPushTokenRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simplePushTokenService := usecases.NewPushTokenService(simplePushTokenRepository)
+	pushTokenController := httpapi.NewPushTokenController(simplePushTokenService)
+	return pushTokenController, nil
+}
+
+func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usecases.PushNotificationWorkerFactory, error) {
+	appConfig := provideAppConfig()
+	notificationClient := provideCompositeNotificationClient(appConfig)
+	orm := provideDatabase(appConfig)
+	simplePushTokenRepository, err := persistence.NewPushTokenRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simplePushTokenService := usecases.NewPushTokenService(simplePushTokenRepository)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	pushNotificationWorkerFactory := usecases.NewPushNotificationWorkerFactory(broker, notificationClient, simplePushTokenService, simpleUserService)
+	return pushNotificationWorkerFactory, nil
+}
+
 // Injectors from maintenance.go:
 
 func InitializeMaintenanceActivityController() (*httpapi2.ActivityController, error) {
@@ -445,8 +480,8 @@ func InitializeMaintenanceExecutionController() (*httpapi2.ExecutionController, 
 	return executionController, nil
 }
 
-func InitializeExecutionScheduler(broker async.InternalBroker) (*usecases2.ExecutionScheduler, error) {
-	ticker := provideExecutionSchedulerTicker()
+func InitializeExecutionWorker(broker async.InternalBroker) (*usecases2.ExecutionWorker, error) {
+	ticker := provideExecutionWorkerTicker()
 	appConfig := provideAppConfig()
 	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
@@ -483,8 +518,8 @@ func InitializeExecutionScheduler(broker async.InternalBroker) (*usecases2.Execu
 	}
 	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
 	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
-	executionScheduler := usecases2.NewExecutionScheduler(ticker, simpleActivityRepository, simpleExecutionRepository, simpleExecutionService, simpleTenantService, simpleTenantConfigurationService, broker)
-	return executionScheduler, nil
+	executionWorker := usecases2.NewExecutionWorker(ticker, simpleActivityRepository, simpleExecutionRepository, simpleExecutionService, simpleTenantService, simpleTenantConfigurationService, broker)
+	return executionWorker, nil
 }
 
 // control_plane.go:
@@ -628,8 +663,25 @@ func InitializeMetricWorkerFactory(broker async.InternalBroker) *usecases.Metric
 	return usecases.NewMetricWorkerFactory(broker)
 }
 
+func provideCompositeNotificationClient(config2 config.AppConfig) notification.NotificationClient {
+	mailerSendConfig := notification.MailerSendConfig{
+		APIKey:    config2.MailerSend.APIKey,
+		FromEmail: config2.MailerSend.FromEmail,
+		FromName:  config2.MailerSend.FromName,
+	}
+	emailClient := notification.NewMailerSendClient(mailerSendConfig)
+
+	fcmConfig := notification.FCMConfig{
+		ProjectID:   config2.FCM.ProjectID,
+		AccessToken: config2.FCM.AccessToken,
+	}
+	pushClient := notification.NewFCMClient(fcmConfig)
+
+	return notification.NewCompositeNotificationClient(emailClient, pushClient)
+}
+
 // maintenance.go:
 
-func provideExecutionSchedulerTicker() *time.Ticker {
+func provideExecutionWorkerTicker() *time.Ticker {
 	return time.NewTicker(5 * time.Minute)
 }

@@ -44,6 +44,16 @@ func (ma *Activity) Deactivate() {
 	ma.UpdatedAt = utils.Time{Time: time.Now()}
 }
 
+func (ma *Activity) IsReadyForNotification(scheduledDate, currentDate time.Time) (bool, int) {
+	daysUntil := int(scheduledDate.Sub(currentDate).Hours() / 24)
+	for _, notificationDay := range ma.NotificationDaysBefore {
+		if daysUntil == notificationDay {
+			return true, notificationDay
+		}
+	}
+	return false, 0
+}
+
 func NewActivityBuilder() *activityBuilder {
 	return &activityBuilder{}
 }

@@ -14,6 +14,7 @@ var (
 	ErrCommandOverlap              = errors.New("command overlap detected")
 	ErrTenantConfigurationNotFound = errors.New("tenant configuration not found")
 	ErrUserNotFound                = errors.New("user not found")
+	ErrPushTokenNotFound           = errors.New("push token not found")
 )
 
 // Pagination encapsulates pagination parameters for repository queries
@@ -80,4 +81,10 @@ type TenantRepository interface {
 	GetByName(ctx context.Context, name string) (domain.Tenant, error)
 	Update(ctx context.Context, tenant domain.Tenant) error
 	FindAll(ctx context.Context, includeDeleted bool, pagination Pagination) ([]domain.Tenant, int, error)
+}
+
+type PushTokenRepository interface {
+	Upsert(ctx context.Context, pushToken domain.PushToken) error
+	GetByUserID(ctx context.Context, userID domain.ID) (domain.PushToken, error)
+	DeleteByToken(ctx context.Context, token string) error
 }

@@ -57,8 +57,16 @@ func LoadConfig() AppConfig {
 				FromEmail: viper.GetString("mailersend.from_email"),
 				FromName:  viper.GetString("mailersend.from_name"),
 			},
-			Metrics: loadMetricsConfig(),
-			Modules: loadModulesConfig(),
+			FCM: FCMConfig{
+				ProjectID:   viper.GetString("fcm.project_id"),
+				AccessToken: viper.GetString("fcm.access_token"),
+			},
+			Metrics:        loadMetricsConfig(),
+			PushNotifications: loadPushNotificationsConfig(),
+			Modules:        loadModulesConfig(),
+			ExecutionWorker: ExecutionWorkerConfig{
+				TickerInterval: viper.GetDuration("execution_worker.ticker_interval"),
+			},
 		}
 	})
 
@@ -94,6 +102,33 @@ func loadMetricsConfig() []MetricWorkerConfig {
 	return []MetricWorkerConfig{}
 }
 
+func loadPushNotificationsConfig() []PushNotificationWorkerConfig {
+	notificationsInterface := viper.Get("push_notifications")
+	if notificationsSlice, ok := notificationsInterface.([]interface{}); ok {
+		var notifications []PushNotificationWorkerConfig
+		for _, item := range notificationsSlice {
+			if notificationMap, ok := item.(map[string]interface{}); ok {
+				notification := PushNotificationWorkerConfig{
+					Name:            utils.ExtractStringValue(notificationMap, "name"),
+					Topic:           utils.ExtractStringValue(notificationMap, "topic"),
+					EventType:       utils.ExtractStringValue(notificationMap, "event_type"),
+					TenantIDPath:    utils.ExtractStringValue(notificationMap, "tenant_id_path"),
+					UserIDPath:      utils.ExtractStringValue(notificationMap, "user_id_path"),
+					Title:           utils.ExtractStringValue(notificationMap, "title"),
+					TitleTemplate:   utils.ExtractStringValue(notificationMap, "title_template"),
+					Body:            utils.ExtractStringValue(notificationMap, "body"),
+					BodyTemplate:    utils.ExtractStringValue(notificationMap, "body_template"),
+					DeepLink:        utils.ExtractStringValue(notificationMap, "deeplink"),
+					DeepLinkTemplate: utils.ExtractStringValue(notificationMap, "deeplink_template"),
+				}
+				notifications = append(notifications, notification)
+			}
+		}
+		return notifications
+	}
+	return []PushNotificationWorkerConfig{}
+}
+
 func loadModulesConfig() ModulesConfig {
 	return ModulesConfig{
 		Permaculture: ModuleConfig{
@@ -106,15 +141,18 @@ func loadModulesConfig() ModulesConfig {
 }
 
 type AppConfig struct {
-	General    GeneralConfig
-	mqtt       MqttConfig
-	MQTTClient MQTTClientConfig
-	Kafka      KafkaConfig
-	Postgresql PostgresqlConfig
-	Redis      RedisConfig
-	MailerSend MailerSendConfig
-	Metrics    MetricsConfig
-	Modules    ModulesConfig
+	General          GeneralConfig
+	mqtt             MqttConfig
+	MQTTClient       MQTTClientConfig
+	Kafka            KafkaConfig
+	Postgresql       PostgresqlConfig
+	Redis            RedisConfig
+	MailerSend       MailerSendConfig
+	FCM              FCMConfig
+	Metrics          MetricsConfig
+	PushNotifications PushNotificationsConfig
+	Modules          ModulesConfig
+	ExecutionWorker  ExecutionWorkerConfig
 }
 
 type GeneralConfig struct {
@@ -155,7 +193,28 @@ type MailerSendConfig struct {
 	FromName  string
 }
 
+type FCMConfig struct {
+	ProjectID   string
+	AccessToken string
+}
+
 type MetricsConfig []MetricWorkerConfig
+
+type PushNotificationsConfig []PushNotificationWorkerConfig
+
+type PushNotificationWorkerConfig struct {
+	Name            string
+	Topic           string
+	EventType       string
+	TenantIDPath    string
+	UserIDPath      string
+	Title           string
+	TitleTemplate   string
+	Body            string
+	BodyTemplate    string
+	DeepLink        string
+	DeepLinkTemplate string
+}
 
 type MetricWorkerConfig struct {
 	Name              string
@@ -173,4 +232,8 @@ type ModulesConfig struct {
 
 type ModuleConfig struct {
 	Enabled bool
+}
+
+type ExecutionWorkerConfig struct {
+	TickerInterval time.Duration
 }

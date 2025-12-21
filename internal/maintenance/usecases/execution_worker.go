@@ -16,14 +16,16 @@ import (
 )
 
 const (
-	_defaultTimezone         = "UTC"
-	_executionsTopic         = "maintenance_executions"
-	_executionCreatedEvent   = "execution_created"
-	_executionCreationFailed = "execution_creation_failed"
-	_nextExecutionsCount     = 3
+	_defaultTimezone               = "UTC"
+	_executionsTopic               = "maintenance_executions"
+	_executionCreatedEvent         = "execution_created"
+	_executionCreationFailed       = "execution_creation_failed"
+	_executionReadyForNotification = "execution_ready_for_notification"
+	_executionOverdue              = "execution_overdue"
+	_nextExecutionsCount           = 3
 )
 
-func NewExecutionScheduler(
+func NewExecutionWorker(
 	ticker *time.Ticker,
 	activityRepository ActivityRepository,
 	executionRepository ExecutionRepository,
@@ -31,8 +33,8 @@ func NewExecutionScheduler(
 	tenantService controlPlaneUsecases.TenantService,
 	tenantConfigurationService controlPlaneUsecases.TenantConfigurationService,
 	broker async.InternalBroker,
-) *ExecutionScheduler {
-	return &ExecutionScheduler{
+) *ExecutionWorker {
+	return &ExecutionWorker{
 		ticker:                     ticker,
 		activityRepository:         activityRepository,
 		executionRepository:        executionRepository,
@@ -44,9 +46,9 @@ func NewExecutionScheduler(
 	}
 }
 
-var _ async.Worker = &ExecutionScheduler{}
+var _ async.Worker = &ExecutionWorker{}
 
-type ExecutionScheduler struct {
+type ExecutionWorker struct {
 	ticker                     *time.Ticker
 	activityRepository         ActivityRepository
 	executionRepository        ExecutionRepository
@@ -57,31 +59,33 @@ type ExecutionScheduler struct {
 	cronParser                 cron.Parser
 }
 
-func (w *ExecutionScheduler) Run(ctx context.Context, done func()) {
-	slog.Info("execution scheduler started")
+func (w *ExecutionWorker) Run(ctx context.Context, done func()) {
+	slog.Info("execution worker started")
 	defer done()
 	var wg sync.WaitGroup
 
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("execution scheduler cancelled")
+			slog.Info("execution worker cancelled")
 			wg.Wait()
 			return
 		case <-w.ticker.C:
 			wg.Add(1)
 			tickCtx := context.Background()
 			w.scheduleExecutions(tickCtx, wg.Done)
+			wg.Add(1)
+			w.checkAndNotifyExecutions(tickCtx, wg.Done)
 		}
 	}
 }
 
-func (w *ExecutionScheduler) ScheduleExecutions(ctx context.Context) {
+func (w *ExecutionWorker) ScheduleExecutions(ctx context.Context) {
 	done := func() {}
 	w.scheduleExecutions(ctx, done)
 }
 
-func (w *ExecutionScheduler) scheduleExecutions(ctx context.Context, done func()) {
+func (w *ExecutionWorker) scheduleExecutions(ctx context.Context, done func()) {
 	slog.Info("scheduling executions", slog.Time("time", time.Now()))
 	defer done()
 
@@ -99,7 +103,7 @@ func (w *ExecutionScheduler) scheduleExecutions(ctx context.Context, done func()
 	slog.Debug("execution scheduling completed", slog.Time("time", time.Now()))
 }
 
-func (w *ExecutionScheduler) processActivity(ctx context.Context, activity maintenanceDomain.Activity) {
+func (w *ExecutionWorker) processActivity(ctx context.Context, activity maintenanceDomain.Activity) {
 	slog.Debug("processing activity", slog.String("activity_id", activity.ID.String()))
 
 	tenant, err := w.tenantService.GetTenant(ctx, activity.TenantID)
@@ -191,7 +195,7 @@ func (w *ExecutionScheduler) processActivity(ctx context.Context, activity maint
 	}
 }
 
-func (w *ExecutionScheduler) executionExists(ctx context.Context, activityID shareddomain.ID, scheduledDate time.Time) (bool, error) {
+func (w *ExecutionWorker) executionExists(ctx context.Context, activityID shareddomain.ID, scheduledDate time.Time) (bool, error) {
 	_, err := w.executionRepository.FindByActivityAndScheduledDate(ctx, activityID, scheduledDate)
 	if err != nil {
 		if errors.Is(err, ErrExecutionNotFound) {
@@ -202,7 +206,7 @@ func (w *ExecutionScheduler) executionExists(ctx context.Context, activityID sha
 	return true, nil
 }
 
-func (w *ExecutionScheduler) createExecution(ctx context.Context, activity maintenanceDomain.Activity, scheduledDate time.Time, fieldValues map[string]any) error {
+func (w *ExecutionWorker) createExecution(ctx context.Context, activity maintenanceDomain.Activity, scheduledDate time.Time, fieldValues map[string]any) error {
 	executionBuilder := maintenanceDomain.NewExecutionBuilder()
 	execution, err := executionBuilder.
 		WithActivityID(activity.ID).
@@ -216,7 +220,7 @@ func (w *ExecutionScheduler) createExecution(ctx context.Context, activity maint
 	return w.executionService.CreateExecution(ctx, execution)
 }
 
-func (w *ExecutionScheduler) buildFieldValuesFromActivity(activity maintenanceDomain.Activity) map[string]any {
+func (w *ExecutionWorker) buildFieldValuesFromActivity(activity maintenanceDomain.Activity) map[string]any {
 	fieldValues := make(map[string]any)
 	for _, field := range activity.Fields {
 		if field.DefaultValue != nil {
@@ -226,7 +230,7 @@ func (w *ExecutionScheduler) buildFieldValuesFromActivity(activity maintenanceDo
 	return fieldValues
 }
 
-func (w *ExecutionScheduler) publishSuccessEvent(ctx context.Context, activity maintenanceDomain.Activity, scheduledDate time.Time) {
+func (w *ExecutionWorker) publishSuccessEvent(ctx context.Context, activity maintenanceDomain.Activity, scheduledDate time.Time) {
 	brokerMsg := async.BrokerMessage{
 		Event: _executionCreatedEvent,
 		Value: map[string]any{
@@ -239,7 +243,7 @@ func (w *ExecutionScheduler) publishSuccessEvent(ctx context.Context, activity m
 	}
 }
 
-func (w *ExecutionScheduler) publishFailureEvent(ctx context.Context, activity maintenanceDomain.Activity, err error) {
+func (w *ExecutionWorker) publishFailureEvent(ctx context.Context, activity maintenanceDomain.Activity, err error) {
 	brokerMsg := async.BrokerMessage{
 		Event: _executionCreationFailed,
 		Value: map[string]any{
@@ -253,6 +257,104 @@ func (w *ExecutionScheduler) publishFailureEvent(ctx context.Context, activity m
 	}
 }
 
-func (w *ExecutionScheduler) Shutdown() {
-	slog.Warn("execution scheduler shutdown is not yet implemented")
+func (w *ExecutionWorker) checkAndNotifyExecutions(ctx context.Context, done func()) {
+	slog.Info("checking executions for notifications", slog.Time("time", time.Now()))
+	defer done()
+
+	now := time.Now()
+	w.checkReadyForNotification(ctx, now)
+	w.checkOverdueExecutions(ctx, now)
+
+	slog.Debug("execution notification check completed", slog.Time("time", time.Now()))
+}
+
+func (w *ExecutionWorker) checkReadyForNotification(ctx context.Context, currentDate time.Time) {
+	executionsWithActivities, err := w.executionRepository.FindPendingExecutionsReadyForNotification(ctx, currentDate)
+	if err != nil {
+		slog.Error("finding executions ready for notification", slog.Any("error", err))
+		return
+	}
+
+	slog.Debug("found executions ready for notification", slog.Int("count", len(executionsWithActivities)))
+
+	for _, execWithActivity := range executionsWithActivities {
+		daysBefore := int(execWithActivity.Execution.ScheduledDate.Time.Sub(currentDate).Hours() / 24)
+		w.publishReadyForNotificationEvent(ctx, execWithActivity.Execution, execWithActivity.Activity, daysBefore)
+	}
+}
+
+func (w *ExecutionWorker) checkOverdueExecutions(ctx context.Context, currentDate time.Time) {
+	executionsWithActivities, err := w.executionRepository.FindOverdueExecutions(ctx)
+	if err != nil {
+		slog.Error("finding overdue executions", slog.Any("error", err))
+		return
+	}
+
+	slog.Debug("found overdue executions", slog.Int("count", len(executionsWithActivities)))
+
+	for _, execWithActivity := range executionsWithActivities {
+		currentOverdueDays := execWithActivity.Execution.CalculateOverdueDays(currentDate)
+		storedOverdueDays := int(execWithActivity.Execution.OverdueDays)
+
+		if currentOverdueDays > storedOverdueDays {
+			execWithActivity.Execution.OverdueDays = maintenanceDomain.OverdueDays(currentOverdueDays)
+			err := w.executionRepository.Update(ctx, execWithActivity.Execution)
+			if err != nil {
+				slog.Error("updating execution overdue days",
+					slog.String("execution_id", execWithActivity.Execution.ID.String()),
+					slog.Any("error", err))
+				continue
+			}
+
+			w.publishOverdueEvent(ctx, execWithActivity.Execution, execWithActivity.Activity, currentOverdueDays)
+		}
+	}
+}
+
+func (w *ExecutionWorker) publishReadyForNotificationEvent(ctx context.Context, execution maintenanceDomain.Execution, activity maintenanceDomain.Activity, daysBefore int) {
+	brokerMsg := async.BrokerMessage{
+		Event: _executionReadyForNotification,
+		Value: map[string]any{
+			"execution_id":   execution.ID.String(),
+			"activity_id":    activity.ID.String(),
+			"tenant_id":      activity.TenantID.String(),
+			"scheduled_date": execution.ScheduledDate.Time,
+			"days_before":    daysBefore,
+		},
+	}
+	if err := w.broker.Publish(ctx, async.BrokerTopicName(_executionsTopic), brokerMsg); err != nil {
+		slog.Error("failed to publish execution ready for notification event",
+			slog.String("execution_id", execution.ID.String()),
+			slog.Any("error", err))
+	} else {
+		slog.Info("published execution ready for notification event",
+			slog.String("execution_id", execution.ID.String()),
+			slog.Int("days_before", daysBefore))
+	}
+}
+
+func (w *ExecutionWorker) publishOverdueEvent(ctx context.Context, execution maintenanceDomain.Execution, activity maintenanceDomain.Activity, overdueDays int) {
+	brokerMsg := async.BrokerMessage{
+		Event: _executionOverdue,
+		Value: map[string]any{
+			"execution_id":   execution.ID.String(),
+			"activity_id":    activity.ID.String(),
+			"tenant_id":      activity.TenantID.String(),
+			"scheduled_date": execution.ScheduledDate.Time,
+			"overdue_days":   overdueDays,
+		},
+	}
+	if err := w.broker.Publish(ctx, async.BrokerTopicName(_executionsTopic), brokerMsg); err != nil {
+		slog.Error("failed to publish execution overdue event",
+			slog.String("execution_id", execution.ID.String()),
+			slog.Any("error", err))
+	} else {
+		slog.Info("published execution overdue event",
+			slog.String("execution_id", execution.ID.String()),
+			slog.Int("overdue_days", overdueDays))
+	}
+}
+
+func (w *ExecutionWorker) Shutdown() {
+	slog.Warn("execution worker shutdown is not yet implemented")
 }
