@@ -1,12 +1,12 @@
 package domain
 
 import (
-	sharedDomain "zensor-server/internal/shared_kernel/domain"
+	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
 type FieldDefinition struct {
-	Name         sharedDomain.Name
-	DisplayName  sharedDomain.DisplayName
+	Name         shareddomain.Name
+	DisplayName  shareddomain.DisplayName
 	Type         FieldType
 	IsRequired   bool
 	DefaultValue *any

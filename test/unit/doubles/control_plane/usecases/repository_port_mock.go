@@ -642,3 +642,101 @@ func (mr *MockUserRepositoryMockRecorder) Upsert(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Upsert", reflect.TypeOf((*MockUserRepository)(nil).Upsert), arg0, arg1)
 }
+
+// MockTenantRepository is a mock of TenantRepository interface.
+type MockTenantRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockTenantRepositoryMockRecorder is the mock recorder for MockTenantRepository.
+type MockTenantRepositoryMockRecorder struct {
+	mock *MockTenantRepository
+}
+
+// NewMockTenantRepository creates a new mock instance.
+func NewMockTenantRepository(ctrl *gomock.Controller) *MockTenantRepository {
+	mock := &MockTenantRepository{ctrl: ctrl}
+	mock.recorder = &MockTenantRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTenantRepository) EXPECT() *MockTenantRepositoryMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockTenantRepository) Create(ctx context.Context, tenant domain.Tenant) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, tenant)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockTenantRepositoryMockRecorder) Create(ctx, tenant any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockTenantRepository)(nil).Create), ctx, tenant)
+}
+
+// FindAll mocks base method.
+func (m *MockTenantRepository) FindAll(ctx context.Context, includeDeleted bool, pagination usecases.Pagination) ([]domain.Tenant, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindAll", ctx, includeDeleted, pagination)
+	ret0, _ := ret[0].([]domain.Tenant)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// FindAll indicates an expected call of FindAll.
+func (mr *MockTenantRepositoryMockRecorder) FindAll(ctx, includeDeleted, pagination any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAll", reflect.TypeOf((*MockTenantRepository)(nil).FindAll), ctx, includeDeleted, pagination)
+}
+
+// GetByID mocks base method.
+func (m *MockTenantRepository) GetByID(ctx context.Context, id domain.ID) (domain.Tenant, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByID", ctx, id)
+	ret0, _ := ret[0].(domain.Tenant)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByID indicates an expected call of GetByID.
+func (mr *MockTenantRepositoryMockRecorder) GetByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockTenantRepository)(nil).GetByID), ctx, id)
+}
+
+// GetByName mocks base method.
+func (m *MockTenantRepository) GetByName(ctx context.Context, name string) (domain.Tenant, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByName", ctx, name)
+	ret0, _ := ret[0].(domain.Tenant)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByName indicates an expected call of GetByName.
+func (mr *MockTenantRepositoryMockRecorder) GetByName(ctx, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByName", reflect.TypeOf((*MockTenantRepository)(nil).GetByName), ctx, name)
+}
+
+// Update mocks base method.
+func (m *MockTenantRepository) Update(ctx context.Context, tenant domain.Tenant) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, tenant)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockTenantRepositoryMockRecorder) Update(ctx, tenant any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockTenantRepository)(nil).Update), ctx, tenant)
+}

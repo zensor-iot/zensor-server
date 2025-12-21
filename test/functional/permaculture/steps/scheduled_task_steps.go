@@ -10,7 +10,6 @@ import (
 	"github.com/cucumber/godog"
 )
 
-// ScheduledTask represents a scheduled task entity in the response
 type ScheduledTask struct {
 	ID          string `json:"id"`
 	TenantID    string `json:"tenant_id"`
@@ -23,7 +22,6 @@ type ScheduledTask struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
-// Scheduled Task step implementations
 func (fc *FeatureContext) aScheduledTaskExistsForTheTenantAndDeviceWithSchedule(schedule string) error {
 	err := fc.aTenantExistsWithNameAndEmail("st-tenant", "st-tenant@example.com")
 	fc.require.NoError(err)
@@ -118,10 +116,7 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSche
 	return nil
 }
 
-// New high-level step definitions for scheduled task tasks feature
-
 func (fc *FeatureContext) thereAreTasksCreatedFromScheduledTask(count int, scheduledTaskID string) error {
-	// Create multiple tasks for the scheduled task
 	for i := 0; i < count; i++ {
 		resp, err := fc.apiDriver.CreateTaskFromScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID)
 		fc.require.NoError(err)
@@ -166,7 +161,6 @@ func (fc *FeatureContext) iShouldReceiveTasks(count int) error {
 	fc.require.NoError(err)
 	fc.require.Len(paginatedResp.Data, count)
 
-	// Store the response data for reuse
 	fc.responseData = map[string]any{
 		"data":       paginatedResp.Data,
 		"pagination": paginatedResp.Pagination,
@@ -178,7 +172,6 @@ func (fc *FeatureContext) theTasksShouldBeSortedByCreationDateInDescendingOrder(
 	data, ok := fc.responseData["data"].([]map[string]any)
 	fc.require.True(ok, "Response data should contain tasks")
 
-	// Check if tasks are sorted by created_at in descending order
 	for i := 0; i < len(data)-1; i++ {
 		currentCreatedAt := data[i]["created_at"].(string)
 		nextCreatedAt := data[i+1]["created_at"].(string)
@@ -198,11 +191,10 @@ func (fc *FeatureContext) thePaginationShouldIndicatePage(page int) error {
 	paginationData, ok := fc.responseData["pagination"]
 	fc.require.True(ok, "Response should contain pagination information")
 
-	// Convert to map to access the page field
 	paginationMap, ok := paginationData.(map[string]any)
 	fc.require.True(ok, "Pagination should be a map")
 
-	pageValue, ok := paginationMap["page"].(float64) // JSON numbers are unmarshaled as float64
+	pageValue, ok := paginationMap["page"].(float64)
 	fc.require.True(ok, "Pagination should have a page field")
 	fc.require.Equal(page, int(pageValue))
 	return nil
@@ -235,21 +227,16 @@ func (fc *FeatureContext) theOperationShouldFailWithAnError() error {
 	return nil
 }
 
-// Background step definitions for scheduled task tasks feature
-
 func (fc *FeatureContext) aTenantWithId(tenantID string) error {
-	// Create a tenant with the specified name (not ID, since IDs are auto-generated)
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for scheduled task tasks")
 	fc.require.NoError(err)
 
-	// Accept both 201 (Created) and 409 (Conflict - already exists)
 	if resp.StatusCode == http.StatusCreated {
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
 		fc.tenantID = data["id"].(string)
 	} else if resp.StatusCode == http.StatusConflict {
-		// If tenant already exists, find it by listing all tenants
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
@@ -260,7 +247,6 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 		err = fc.decodeBody(listResp.Body, &listData)
 		fc.require.NoError(err)
 
-		// Find the tenant with the given name
 		for _, tenant := range listData.Data {
 			if tenant["name"] == tenantID {
 				fc.tenantID = tenant["id"].(string)
@@ -276,18 +262,15 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 }
 
 func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID string) error {
-	// Create a device with the specified name (not ID, since IDs are auto-generated)
 	resp, err := fc.apiDriver.CreateDevice(deviceID, deviceID+" Display Name")
 	fc.require.NoError(err)
 
-	// Accept both 201 (Created) and 409 (Conflict - already exists)
 	if resp.StatusCode == http.StatusCreated {
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
 		fc.deviceID = data["id"].(string)
 	} else if resp.StatusCode == http.StatusConflict {
-		// If device already exists, find it by listing all devices
 		listResp, err := fc.apiDriver.ListDevices()
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
@@ -298,7 +281,6 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 		err = fc.decodeBody(listResp.Body, &listData)
 		fc.require.NoError(err)
 
-		// Find the device with the given name
 		for _, device := range listData.Data {
 			if device["name"] == deviceID {
 				fc.deviceID = device["id"].(string)
@@ -314,18 +296,15 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 }
 
 func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTaskID, deviceID, schedule string) error {
-	// Create a scheduled task with the specified ID
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
 
-	// Accept both 201 (Created) and 409 (Conflict - already exists)
 	if resp.StatusCode == http.StatusCreated {
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
 		fc.scheduledTaskID = data["id"].(string)
 	} else if resp.StatusCode == http.StatusConflict {
-		// If scheduled task already exists, we need to find it in the list
 		listResp, err := fc.apiDriver.ListScheduledTasks(fc.tenantID, fc.deviceID)
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
@@ -337,7 +316,6 @@ func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTas
 		fc.require.NoError(err)
 		fc.require.NotEmpty(paginatedResp.Data, "Should have at least one scheduled task")
 
-		// Use the first scheduled task found
 		fc.scheduledTaskID = paginatedResp.Data[0]["id"].(string)
 	} else {
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating scheduled task")
@@ -360,13 +338,11 @@ func (fc *FeatureContext) iTryToGetTheScheduledTaskByItsID() error {
 }
 
 func (fc *FeatureContext) iCreateAScheduledTaskWith(table *godog.Table) error {
-	// Convert table to map for easier access
 	params := make(map[string]string)
-	for _, row := range table.Rows[1:] { // Skip header row
+	for _, row := range table.Rows[1:] {
 		params[row.Cells[0].Value] = row.Cells[1].Value
 	}
 
-	// Build the request JSON from the parameters
 	requestBody, err := fc.buildScheduledTaskRequestFromParams(params)
 	if err != nil {
 		return err
@@ -379,13 +355,11 @@ func (fc *FeatureContext) iCreateAScheduledTaskWith(table *godog.Table) error {
 }
 
 func (fc *FeatureContext) iUpdateTheScheduledTaskWith(table *godog.Table) error {
-	// Convert table to map for easier access
 	params := make(map[string]string)
-	for _, row := range table.Rows[1:] { // Skip header row
+	for _, row := range table.Rows[1:] {
 		params[row.Cells[0].Value] = row.Cells[1].Value
 	}
 
-	// Build the update request JSON from the parameters
 	requestBody, err := fc.buildScheduledTaskUpdateRequestFromParams(params)
 	if err != nil {
 		return err
@@ -398,7 +372,6 @@ func (fc *FeatureContext) iUpdateTheScheduledTaskWith(table *godog.Table) error 
 }
 
 func (fc *FeatureContext) buildScheduledTaskRequestFromParams(params map[string]string) (string, error) {
-	// Build the JSON request from the parameters
 	request := map[string]interface{}{
 		"commands": []map[string]interface{}{
 			{
@@ -411,7 +384,6 @@ func (fc *FeatureContext) buildScheduledTaskRequestFromParams(params map[string]
 		"is_active": fc.parseBool(params["is_active"]),
 	}
 
-	// Add scheduling configuration if present
 	if schedulingType, exists := params["scheduling_type"]; exists {
 		scheduling := map[string]interface{}{
 			"type": schedulingType,
@@ -434,10 +406,8 @@ func (fc *FeatureContext) buildScheduledTaskRequestFromParams(params map[string]
 }
 
 func (fc *FeatureContext) buildScheduledTaskUpdateRequestFromParams(params map[string]string) (string, error) {
-	// Build the update JSON request from the parameters
 	request := make(map[string]interface{})
 
-	// Add scheduling configuration if present
 	if schedulingType, exists := params["scheduling_type"]; exists {
 		scheduling := map[string]interface{}{
 			"type": schedulingType,
@@ -486,7 +456,6 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetailsWithInt
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 
-	// Check that scheduling configuration is present
 	scheduling, exists := data["scheduling"]
 	fc.require.True(exists, "Response should contain scheduling configuration")
 
@@ -494,12 +463,9 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetailsWithInt
 	fc.require.True(ok, "Scheduling should be a map")
 	fc.require.Equal("interval", schedulingMap["type"], "Scheduling type should be 'interval'")
 
-	// Check required fields
 	fc.require.NotNil(schedulingMap["initial_day"], "Initial day should be present")
 	fc.require.NotNil(schedulingMap["day_interval"], "Day interval should be present")
 	fc.require.NotNil(schedulingMap["execution_time"], "Execution time should be present")
-
-	// Check that next_execution is calculated
 	fc.require.NotNil(schedulingMap["next_execution"], "Next execution time should be calculated")
 
 	fc.scheduledTaskID = data["id"].(string)
@@ -544,19 +510,11 @@ func (fc *FeatureContext) theResponseShouldContainAnErrorAboutMissingInitialDay(
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 
-	// Check that there's an error message
 	errorMsg, exists := data["error"]
 	fc.require.True(exists, "Response should contain an error")
 	fc.require.Contains(errorMsg, "initial_day", "Error should mention missing initial_day")
 
 	return nil
-}
-
-func (fc *FeatureContext) iUpdateTheScheduledTaskWithIntervalScheduling(requestBody string) error {
-	resp, err := fc.apiDriver.UpdateScheduledTaskWithJSON(fc.tenantID, fc.deviceID, fc.scheduledTaskID, requestBody)
-	fc.require.NoError(err)
-	fc.response = resp
-	return err
 }
 
 func (fc *FeatureContext) theResponseShouldContainTheUpdatedScheduledTaskWithIntervalScheduling() error {
@@ -571,3 +529,4 @@ func (fc *FeatureContext) theResponseShouldContainTheUpdatedScheduledTaskWithInt
 
 	return nil
 }
+

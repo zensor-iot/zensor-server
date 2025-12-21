@@ -19,6 +19,7 @@ import (
 const (
 	_metricKeyNotifications = "notifications"
 	_recentTasksLimit       = 10
+	_tasksTopic             = "scheduled_tasks"
 )
 
 func NewNotificationWorker(
@@ -56,7 +57,11 @@ func (w *NotificationWorker) Run(ctx context.Context, done func()) {
 	slog.Debug("notification worker run with context initialized")
 	defer done()
 
-	subscription, err := w.broker.Subscribe(async.BrokerTopicName(_scheduledTasksTopic))
+	slog.Info("starting notification worker",
+		slog.String("topic", _tasksTopic),
+	)
+
+	subscription, err := w.broker.Subscribe(async.BrokerTopicName(_tasksTopic))
 	if err != nil {
 		slog.Error("subscribing to scheduled_tasks topic", slog.Any("error", err))
 		return

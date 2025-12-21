@@ -39,3 +39,4 @@ Feature: Get Tasks by Scheduled Task
   Scenario: Get tasks by scheduled task with invalid device
     When I try to retrieve tasks for scheduled task "test-scheduled-task-1" using invalid device "invalid-device"
     Then the operation should fail with an error
+

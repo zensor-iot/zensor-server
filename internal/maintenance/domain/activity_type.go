@@ -3,14 +3,14 @@ package domain
 import (
 	"time"
 	"zensor-server/internal/infra/utils"
-	sharedDomain "zensor-server/internal/shared_kernel/domain"
+	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
 type ActivityType struct {
-	ID           sharedDomain.ID
-	Name         sharedDomain.Name
-	DisplayName  sharedDomain.DisplayName
-	Description  sharedDomain.Description
+	ID           shareddomain.ID
+	Name         shareddomain.Name
+	DisplayName  shareddomain.DisplayName
+	Description  shareddomain.Description
 	IsPredefined bool
 	Fields       []FieldDefinition
 	CreatedAt    time.Time
@@ -28,7 +28,7 @@ type activityTypeHandler func(v *ActivityType) error
 
 func (b *activityTypeBuilder) WithName(value string) *activityTypeBuilder {
 	b.actions = append(b.actions, func(d *ActivityType) error {
-		d.Name = sharedDomain.Name(value)
+		d.Name = shareddomain.Name(value)
 		return nil
 	})
 	return b
@@ -36,7 +36,7 @@ func (b *activityTypeBuilder) WithName(value string) *activityTypeBuilder {
 
 func (b *activityTypeBuilder) WithDisplayName(value string) *activityTypeBuilder {
 	b.actions = append(b.actions, func(d *ActivityType) error {
-		d.DisplayName = sharedDomain.DisplayName(value)
+		d.DisplayName = shareddomain.DisplayName(value)
 		return nil
 	})
 	return b
@@ -44,7 +44,7 @@ func (b *activityTypeBuilder) WithDisplayName(value string) *activityTypeBuilder
 
 func (b *activityTypeBuilder) WithDescription(value string) *activityTypeBuilder {
 	b.actions = append(b.actions, func(d *ActivityType) error {
-		d.Description = sharedDomain.Description(value)
+		d.Description = shareddomain.Description(value)
 		return nil
 	})
 	return b
@@ -68,7 +68,7 @@ func (b *activityTypeBuilder) WithFields(value []FieldDefinition) *activityTypeB
 
 func (b *activityTypeBuilder) Build() (ActivityType, error) {
 	result := ActivityType{
-		ID:        sharedDomain.ID(utils.GenerateUUID()),
+		ID:        shareddomain.ID(utils.GenerateUUID()),
 		Fields:    make([]FieldDefinition, 0),
 		CreatedAt: time.Now(),
 	}
@@ -91,40 +91,40 @@ const (
 
 var PredefinedActivityTypes = map[string]ActivityType{
 	ActivityTypeWaterSystem: {
-		Name:         sharedDomain.Name(ActivityTypeWaterSystem),
-		DisplayName:  sharedDomain.DisplayName("Water System Maintenance"),
-		Description:  sharedDomain.Description("Maintenance tasks for water filtration and treatment systems"),
+		Name:         shareddomain.Name(ActivityTypeWaterSystem),
+		DisplayName:  shareddomain.DisplayName("Water System Maintenance"),
+		Description:  shareddomain.Description("Maintenance tasks for water filtration and treatment systems"),
 		IsPredefined: true,
 		Fields: []FieldDefinition{
-			{Name: sharedDomain.Name("service_type"), DisplayName: sharedDomain.DisplayName("Service Type"), Type: FieldTypeText, IsRequired: true},
-			{Name: sharedDomain.Name("contact"), DisplayName: sharedDomain.DisplayName("Contact"), Type: FieldTypeText, IsRequired: false},
-			{Name: sharedDomain.Name("service_provider"), DisplayName: sharedDomain.DisplayName("Service Provider"), Type: FieldTypeText, IsRequired: false},
-			{Name: sharedDomain.Name("cost"), DisplayName: sharedDomain.DisplayName("Cost"), Type: FieldTypeNumber, IsRequired: false},
+			{Name: shareddomain.Name("service_type"), DisplayName: shareddomain.DisplayName("Service Type"), Type: FieldTypeText, IsRequired: true},
+			{Name: shareddomain.Name("contact"), DisplayName: shareddomain.DisplayName("Contact"), Type: FieldTypeText, IsRequired: false},
+			{Name: shareddomain.Name("service_provider"), DisplayName: shareddomain.DisplayName("Service Provider"), Type: FieldTypeText, IsRequired: false},
+			{Name: shareddomain.Name("cost"), DisplayName: shareddomain.DisplayName("Cost"), Type: FieldTypeNumber, IsRequired: false},
 		},
 	},
 	ActivityTypeCar: {
-		Name:         sharedDomain.Name(ActivityTypeCar),
-		DisplayName:  sharedDomain.DisplayName("Car Maintenance"),
-		Description:  sharedDomain.Description("Automotive maintenance and service tracking"),
+		Name:         shareddomain.Name(ActivityTypeCar),
+		DisplayName:  shareddomain.DisplayName("Car Maintenance"),
+		Description:  shareddomain.Description("Automotive maintenance and service tracking"),
 		IsPredefined: true,
 		Fields: []FieldDefinition{
-			{Name: sharedDomain.Name("service_type"), DisplayName: sharedDomain.DisplayName("Service Type"), Type: FieldTypeText, IsRequired: true},
-			{Name: sharedDomain.Name("mileage"), DisplayName: sharedDomain.DisplayName("Mileage at Last Service"), Type: FieldTypeNumber, IsRequired: false},
-			{Name: sharedDomain.Name("service_provider"), DisplayName: sharedDomain.DisplayName("Service Provider"), Type: FieldTypeText, IsRequired: false},
-			{Name: sharedDomain.Name("cost"), DisplayName: sharedDomain.DisplayName("Cost"), Type: FieldTypeNumber, IsRequired: false},
+			{Name: shareddomain.Name("service_type"), DisplayName: shareddomain.DisplayName("Service Type"), Type: FieldTypeText, IsRequired: true},
+			{Name: shareddomain.Name("mileage"), DisplayName: shareddomain.DisplayName("Mileage at Last Service"), Type: FieldTypeNumber, IsRequired: false},
+			{Name: shareddomain.Name("service_provider"), DisplayName: shareddomain.DisplayName("Service Provider"), Type: FieldTypeText, IsRequired: false},
+			{Name: shareddomain.Name("cost"), DisplayName: shareddomain.DisplayName("Cost"), Type: FieldTypeNumber, IsRequired: false},
 		},
 	},
 	ActivityTypePets: {
-		Name:         sharedDomain.Name(ActivityTypePets),
-		DisplayName:  sharedDomain.DisplayName("Pet Care"),
-		Description:  sharedDomain.Description("Pet health care and grooming tracking"),
+		Name:         shareddomain.Name(ActivityTypePets),
+		DisplayName:  shareddomain.DisplayName("Pet Care"),
+		Description:  shareddomain.Description("Pet health care and grooming tracking"),
 		IsPredefined: true,
 		Fields: []FieldDefinition{
-			{Name: sharedDomain.Name("service_type"), DisplayName: sharedDomain.DisplayName("Service Type"), Type: FieldTypeText, IsRequired: true},
-			{Name: sharedDomain.Name("provider_name"), DisplayName: sharedDomain.DisplayName("Veterinary/Groomer Name"), Type: FieldTypeText, IsRequired: false},
-			{Name: sharedDomain.Name("pet_name"), DisplayName: sharedDomain.DisplayName("Pet Name"), Type: FieldTypeText, IsRequired: false},
-			{Name: sharedDomain.Name("medicine"), DisplayName: sharedDomain.DisplayName("Medicine"), Type: FieldTypeText, IsRequired: false},
-			{Name: sharedDomain.Name("cost"), DisplayName: sharedDomain.DisplayName("Cost"), Type: FieldTypeNumber, IsRequired: false},
+			{Name: shareddomain.Name("service_type"), DisplayName: shareddomain.DisplayName("Service Type"), Type: FieldTypeText, IsRequired: true},
+			{Name: shareddomain.Name("provider_name"), DisplayName: shareddomain.DisplayName("Veterinary/Groomer Name"), Type: FieldTypeText, IsRequired: false},
+			{Name: shareddomain.Name("pet_name"), DisplayName: shareddomain.DisplayName("Pet Name"), Type: FieldTypeText, IsRequired: false},
+			{Name: shareddomain.Name("medicine"), DisplayName: shareddomain.DisplayName("Medicine"), Type: FieldTypeText, IsRequired: false},
+			{Name: shareddomain.Name("cost"), DisplayName: shareddomain.DisplayName("Cost"), Type: FieldTypeNumber, IsRequired: false},
 		},
 	},
 }

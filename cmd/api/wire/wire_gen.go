@@ -25,6 +25,9 @@ import (
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
+	httpapi2 "zensor-server/internal/maintenance/httpapi"
+	persistence2 "zensor-server/internal/maintenance/persistence"
+	usecases2 "zensor-server/internal/maintenance/usecases"
 )
 
 // Injectors from common.go:
@@ -381,6 +384,109 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 	return scheduledTaskHandler, nil
 }
 
+// Injectors from maintenance.go:
+
+func InitializeMaintenanceActivityController() (*httpapi2.ActivityController, error) {
+	appConfig := provideAppConfig()
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleActivityRepository, err := persistence2.NewActivityRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm, publisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	simpleActivityService := usecases2.NewActivityService(simpleActivityRepository, simpleTenantService)
+	activityController := httpapi2.NewActivityController(simpleActivityService)
+	return activityController, nil
+}
+
+func InitializeMaintenanceExecutionController() (*httpapi2.ExecutionController, error) {
+	appConfig := provideAppConfig()
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleExecutionRepository, err := persistence2.NewExecutionRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleActivityRepository, err := persistence2.NewActivityRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleExecutionService := usecases2.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm, publisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	simpleActivityService := usecases2.NewActivityService(simpleActivityRepository, simpleTenantService)
+	executionController := httpapi2.NewExecutionController(simpleExecutionService, simpleActivityService)
+	return executionController, nil
+}
+
+func InitializeExecutionScheduler(broker async.InternalBroker) (*usecases2.ExecutionScheduler, error) {
+	ticker := provideExecutionSchedulerTicker()
+	appConfig := provideAppConfig()
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleActivityRepository, err := persistence2.NewActivityRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleExecutionRepository, err := persistence2.NewExecutionRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleExecutionService := usecases2.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
+	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence.NewDeviceRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence.NewCommandRepository(orm, publisherFactory)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
+	executionScheduler := usecases2.NewExecutionScheduler(ticker, simpleActivityRepository, simpleExecutionRepository, simpleExecutionService, simpleTenantService, simpleTenantConfigurationService, broker)
+	return executionScheduler, nil
+}
+
 // control_plane.go:
 
 var DeviceServiceSet = wire.NewSet(
@@ -520,4 +626,10 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 
 func InitializeMetricWorkerFactory(broker async.InternalBroker) *usecases.MetricWorkerFactory {
 	return usecases.NewMetricWorkerFactory(broker)
+}
+
+// maintenance.go:
+
+func provideExecutionSchedulerTicker() *time.Ticker {
+	return time.NewTicker(5 * time.Minute)
 }

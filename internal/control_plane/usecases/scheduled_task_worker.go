@@ -51,7 +51,7 @@ type ScheduledTaskWorker struct {
 }
 
 func (w *ScheduledTaskWorker) Run(ctx context.Context, done func()) {
-	slog.Debug("scheduled task worker started")
+	slog.Info("scheduled task worker started")
 	defer done()
 	var wg sync.WaitGroup
 

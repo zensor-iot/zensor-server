@@ -98,6 +98,77 @@ func (d *APIDriver) UpdateDevice(id, newDisplayName string) (*http.Response, err
 	return d.client.Do(req)
 }
 
+func (d *APIDriver) CreateEvaluationRule(deviceID string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"description": "test rule",
+		"kind":        "threshold",
+		"parameters": []map[string]any{
+			{"key": "threshold", "value": 25},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return d.client.Post(fmt.Sprintf("%s/v1/devices/%s/evaluation-rules", d.baseURL, deviceID), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) ListEvaluationRules(deviceID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/devices/%s/evaluation-rules", d.baseURL, deviceID))
+}
+
+func (d *APIDriver) CreateTenantConfiguration(tenantID, timezone string) (*http.Response, error) {
+	return d.UpsertTenantConfiguration(tenantID, timezone, "")
+}
+
+func (d *APIDriver) UpsertTenantConfiguration(tenantID, timezone, userID string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"timezone": timezone,
+	})
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s/configuration", d.baseURL, tenantID), bytes.NewBuffer(reqBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if userID != "" {
+		req.Header.Set("X-User-Email", userID)
+	}
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) GetTenantConfiguration(tenantID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/configuration", d.baseURL, tenantID))
+}
+
+func (d *APIDriver) UpdateTenantConfiguration(tenantID, timezone string) (*http.Response, error) {
+	return d.UpsertTenantConfiguration(tenantID, timezone, "")
+}
+
+func (d *APIDriver) GetHealthz() (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/healthz", d.baseURL))
+}
+
+func (d *APIDriver) AssociateUserWithTenants(userID string, tenantIDs []string) (*http.Response, error) {
+	reqBody, err := json.Marshal(map[string]any{
+		"tenants": tenantIDs,
+	})
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/users/%s", d.baseURL, userID), bytes.NewBuffer(reqBody))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return d.client.Do(req)
+}
+
+func (d *APIDriver) GetUser(userID string) (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/users/%s", d.baseURL, userID))
+}
+
 func (d *APIDriver) CreateTask(deviceID string) (*http.Response, error) {
 	reqBody, err := json.Marshal(map[string]any{
 		"commands": []map[string]any{
@@ -166,24 +237,6 @@ func (d *APIDriver) UpdateScheduledTaskWithJSON(tenantID, deviceID, scheduledTas
 	return d.client.Do(req)
 }
 
-func (d *APIDriver) CreateEvaluationRule(deviceID string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]any{
-		"description": "test rule",
-		"kind":        "threshold",
-		"parameters": []map[string]any{
-			{"key": "threshold", "value": 25},
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-	return d.client.Post(fmt.Sprintf("%s/v1/devices/%s/evaluation-rules", d.baseURL, deviceID), "application/json", bytes.NewBuffer(reqBody))
-}
-
-func (d *APIDriver) ListEvaluationRules(deviceID string) (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/devices/%s/evaluation-rules", d.baseURL, deviceID))
-}
-
 func (d *APIDriver) GetTasksByScheduledTask(tenantID, deviceID, scheduledTaskID string, page, limit int) (*http.Response, error) {
 	url := fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s/tasks", d.baseURL, tenantID, deviceID, scheduledTaskID)
 	if page > 0 || limit > 0 {
@@ -205,55 +258,3 @@ func (d *APIDriver) CreateTaskFromScheduledTask(tenantID, deviceID, scheduledTas
 	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s/tasks", d.baseURL, tenantID, deviceID, scheduledTaskID), "application/json", bytes.NewBuffer(reqBody))
 }
 
-func (d *APIDriver) CreateTenantConfiguration(tenantID, timezone string) (*http.Response, error) {
-	return d.UpsertTenantConfiguration(tenantID, timezone, "")
-}
-
-func (d *APIDriver) UpsertTenantConfiguration(tenantID, timezone, userID string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]any{
-		"timezone": timezone,
-	})
-	if err != nil {
-		panic(err)
-	}
-	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/tenants/%s/configuration", d.baseURL, tenantID), bytes.NewBuffer(reqBody))
-	if err != nil {
-		panic(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if userID != "" {
-		req.Header.Set("X-User-Email", userID)
-	}
-	return d.client.Do(req)
-}
-
-func (d *APIDriver) GetTenantConfiguration(tenantID string) (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/tenants/%s/configuration", d.baseURL, tenantID))
-}
-
-func (d *APIDriver) UpdateTenantConfiguration(tenantID, timezone string) (*http.Response, error) {
-	return d.UpsertTenantConfiguration(tenantID, timezone, "")
-}
-
-func (d *APIDriver) GetHealthz() (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/healthz", d.baseURL))
-}
-
-func (d *APIDriver) AssociateUserWithTenants(userID string, tenantIDs []string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]any{
-		"tenants": tenantIDs,
-	})
-	if err != nil {
-		panic(err)
-	}
-	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/users/%s", d.baseURL, userID), bytes.NewBuffer(reqBody))
-	if err != nil {
-		panic(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	return d.client.Do(req)
-}
-
-func (d *APIDriver) GetUser(userID string) (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/users/%s", d.baseURL, userID))
-}

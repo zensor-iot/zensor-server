@@ -263,7 +263,7 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 			result.Scheduling.InitialDay.Time.Location(),
 		)
 
-		if firstExecutionTime.Before(time.Now()) {
+		if firstExecutionTime.UTC().Before(time.Now().UTC()) {
 			return ScheduledTask{}, errors.New("initial_day with execution_time must be in the future")
 		}
 	}

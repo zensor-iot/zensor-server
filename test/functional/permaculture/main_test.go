@@ -1,10 +1,10 @@
-package functional
+package permaculture
 
 import (
 	"fmt"
 	"os"
 	"testing"
-	"zensor-server/test/functional/steps"
+	"zensor-server/test/functional/permaculture/steps"
 
 	"github.com/cucumber/godog"
 	"github.com/spf13/pflag"
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	featureContext := steps.NewFeatureContext()
 
 	status := godog.TestSuite{
-		Name:                 "godogs",
+		Name:                 "permaculture",
 		TestSuiteInitializer: InitializeTestSuite,
 		ScenarioInitializer:  featureContext.RegisterSteps,
 		Options:              &opts,
@@ -53,3 +53,5 @@ func InitializeTestSuite(suite *godog.TestSuiteContext) {
 		}
 	})
 }
+
+

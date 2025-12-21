@@ -38,3 +38,4 @@ Feature: Scheduled Task Management
     And wait for 250ms
     And I try to get the scheduled task by its ID
     Then the response status code should be 404
+

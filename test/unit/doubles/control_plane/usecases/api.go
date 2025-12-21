@@ -529,3 +529,173 @@ func (mr *MockTenantConfigurationServiceMockRecorder) UpsertTenantConfiguration(
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertTenantConfiguration", reflect.TypeOf((*MockTenantConfigurationService)(nil).UpsertTenantConfiguration), ctx, userEmail, config)
 }
+
+// MockTenantService is a mock of TenantService interface.
+type MockTenantService struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockTenantServiceMockRecorder is the mock recorder for MockTenantService.
+type MockTenantServiceMockRecorder struct {
+	mock *MockTenantService
+}
+
+// NewMockTenantService creates a new mock instance.
+func NewMockTenantService(ctrl *gomock.Controller) *MockTenantService {
+	mock := &MockTenantService{ctrl: ctrl}
+	mock.recorder = &MockTenantServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTenantService) EXPECT() *MockTenantServiceMockRecorder {
+	return m.recorder
+}
+
+// ActivateTenant mocks base method.
+func (m *MockTenantService) ActivateTenant(ctx context.Context, id domain.ID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ActivateTenant", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ActivateTenant indicates an expected call of ActivateTenant.
+func (mr *MockTenantServiceMockRecorder) ActivateTenant(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateTenant", reflect.TypeOf((*MockTenantService)(nil).ActivateTenant), ctx, id)
+}
+
+// AdoptDevice mocks base method.
+func (m *MockTenantService) AdoptDevice(ctx context.Context, tenantID, deviceID domain.ID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AdoptDevice", ctx, tenantID, deviceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AdoptDevice indicates an expected call of AdoptDevice.
+func (mr *MockTenantServiceMockRecorder) AdoptDevice(ctx, tenantID, deviceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AdoptDevice", reflect.TypeOf((*MockTenantService)(nil).AdoptDevice), ctx, tenantID, deviceID)
+}
+
+// CreateTenant mocks base method.
+func (m *MockTenantService) CreateTenant(ctx context.Context, tenant domain.Tenant) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateTenant", ctx, tenant)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateTenant indicates an expected call of CreateTenant.
+func (mr *MockTenantServiceMockRecorder) CreateTenant(ctx, tenant any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTenant", reflect.TypeOf((*MockTenantService)(nil).CreateTenant), ctx, tenant)
+}
+
+// DeactivateTenant mocks base method.
+func (m *MockTenantService) DeactivateTenant(ctx context.Context, id domain.ID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeactivateTenant", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeactivateTenant indicates an expected call of DeactivateTenant.
+func (mr *MockTenantServiceMockRecorder) DeactivateTenant(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateTenant", reflect.TypeOf((*MockTenantService)(nil).DeactivateTenant), ctx, id)
+}
+
+// GetTenant mocks base method.
+func (m *MockTenantService) GetTenant(ctx context.Context, id domain.ID) (domain.Tenant, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTenant", ctx, id)
+	ret0, _ := ret[0].(domain.Tenant)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTenant indicates an expected call of GetTenant.
+func (mr *MockTenantServiceMockRecorder) GetTenant(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenant", reflect.TypeOf((*MockTenantService)(nil).GetTenant), ctx, id)
+}
+
+// GetTenantByName mocks base method.
+func (m *MockTenantService) GetTenantByName(ctx context.Context, name string) (domain.Tenant, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTenantByName", ctx, name)
+	ret0, _ := ret[0].(domain.Tenant)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTenantByName indicates an expected call of GetTenantByName.
+func (mr *MockTenantServiceMockRecorder) GetTenantByName(ctx, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByName", reflect.TypeOf((*MockTenantService)(nil).GetTenantByName), ctx, name)
+}
+
+// ListTenantDevices mocks base method.
+func (m *MockTenantService) ListTenantDevices(ctx context.Context, tenantID domain.ID, pagination usecases.Pagination) ([]domain.Device, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListTenantDevices", ctx, tenantID, pagination)
+	ret0, _ := ret[0].([]domain.Device)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListTenantDevices indicates an expected call of ListTenantDevices.
+func (mr *MockTenantServiceMockRecorder) ListTenantDevices(ctx, tenantID, pagination any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTenantDevices", reflect.TypeOf((*MockTenantService)(nil).ListTenantDevices), ctx, tenantID, pagination)
+}
+
+// ListTenants mocks base method.
+func (m *MockTenantService) ListTenants(ctx context.Context, includeDeleted bool, pagination usecases.Pagination) ([]domain.Tenant, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListTenants", ctx, includeDeleted, pagination)
+	ret0, _ := ret[0].([]domain.Tenant)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListTenants indicates an expected call of ListTenants.
+func (mr *MockTenantServiceMockRecorder) ListTenants(ctx, includeDeleted, pagination any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTenants", reflect.TypeOf((*MockTenantService)(nil).ListTenants), ctx, includeDeleted, pagination)
+}
+
+// SoftDeleteTenant mocks base method.
+func (m *MockTenantService) SoftDeleteTenant(ctx context.Context, id domain.ID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SoftDeleteTenant", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SoftDeleteTenant indicates an expected call of SoftDeleteTenant.
+func (mr *MockTenantServiceMockRecorder) SoftDeleteTenant(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SoftDeleteTenant", reflect.TypeOf((*MockTenantService)(nil).SoftDeleteTenant), ctx, id)
+}
+
+// UpdateTenant mocks base method.
+func (m *MockTenantService) UpdateTenant(ctx context.Context, tenant domain.Tenant) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateTenant", ctx, tenant)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateTenant indicates an expected call of UpdateTenant.
+func (mr *MockTenantServiceMockRecorder) UpdateTenant(ctx, tenant any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTenant", reflect.TypeOf((*MockTenantService)(nil).UpdateTenant), ctx, tenant)
+}

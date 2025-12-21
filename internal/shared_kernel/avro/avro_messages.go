@@ -128,6 +128,48 @@ type AvroUser struct {
 	UpdatedAt time.Time `avro:"updated_at"`
 }
 
+// AvroMaintenanceActivity represents the Avro-compatible MaintenanceActivity message
+type AvroMaintenanceActivity struct {
+	ID                     string                           `avro:"id"`
+	Version                int                              `avro:"version"`
+	TenantID               string                           `avro:"tenant_id"`
+	TypeName               string                           `avro:"type_name"`
+	CustomTypeName         *string                          `avro:"custom_type_name"`
+	Name                   string                           `avro:"name"`
+	Description            string                           `avro:"description"`
+	Schedule               string                           `avro:"schedule"`
+	NotificationDaysBefore []int                            `avro:"notification_days_before"`
+	Fields                 []AvroMaintenanceFieldDefinition `avro:"fields"`
+	IsActive               bool                             `avro:"is_active"`
+	CreatedAt              time.Time                        `avro:"created_at"`
+	UpdatedAt              time.Time                        `avro:"updated_at"`
+	DeletedAt              *time.Time                       `avro:"deleted_at"`
+}
+
+// AvroMaintenanceFieldDefinition represents the Avro-compatible FieldDefinition message
+type AvroMaintenanceFieldDefinition struct {
+	Name         string  `avro:"name"`
+	DisplayName  string  `avro:"display_name"`
+	Type         string  `avro:"type"`
+	IsRequired   bool    `avro:"is_required"`
+	DefaultValue *string `avro:"default_value"`
+}
+
+// AvroMaintenanceExecution represents the Avro-compatible MaintenanceExecution message
+type AvroMaintenanceExecution struct {
+	ID            string            `avro:"id"`
+	Version       int               `avro:"version"`
+	ActivityID    string            `avro:"activity_id"`
+	ScheduledDate time.Time         `avro:"scheduled_date"`
+	CompletedAt   *time.Time        `avro:"completed_at"`
+	CompletedBy   *string           `avro:"completed_by"`
+	OverdueDays   int               `avro:"overdue_days"`
+	FieldValues   map[string]string `avro:"field_values"`
+	CreatedAt     time.Time         `avro:"created_at"`
+	UpdatedAt     time.Time         `avro:"updated_at"`
+	DeletedAt     *time.Time        `avro:"deleted_at"`
+}
+
 // ToDomainUser converts an AvroUser to a domain.User
 func (a *AvroUser) ToDomainUser() domain.User {
 	tenantIDs := make([]domain.ID, len(a.Tenants))

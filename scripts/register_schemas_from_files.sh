@@ -87,6 +87,8 @@ register_schema "tenants" "tenant.avsc"
 register_schema "evaluation_rules" "evaluation_rule.avsc"
 register_schema "tenant_configurations" "tenant_configuration.avsc"
 register_schema "users" "user.avsc"
+register_schema "maintenance_activities" "maintenance_activity.avsc"
+register_schema "maintenance_executions" "maintenance_execution.avsc"
 
 echo "=== Schema registration complete ==="
 

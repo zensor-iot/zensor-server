@@ -9,7 +9,7 @@ import (
 	"os"
 	"syscall"
 	"time"
-	"zensor-server/test/functional/driver"
+	"zensor-server/test/functional/permaculture/driver"
 
 	"github.com/cucumber/godog"
 	"github.com/stretchr/testify/require"
@@ -26,20 +26,20 @@ type PaginatedResponse[T any] struct {
 }
 
 type FeatureContext struct {
-	apiDriver        *driver.APIDriver
-	response         *http.Response
-	responseData     map[string]any
-	responseListData []map[string]any
-	tenantID         string
-	tenantIDs        []string
-	tenantNameToID   map[string]string
-	deviceID         string
-	scheduledTaskID  string
-	evaluationRuleID string
-	updatedSchedule  string
-	userID           string
-	require          *require.Assertions
-	t                godog.TestingT
+	apiDriver            *driver.APIDriver
+	response             *http.Response
+	responseData         map[string]any
+	responseListData     []map[string]any
+	tenantID             string
+	tenantIDs            []string
+	tenantNameToID       map[string]string
+	deviceID             string
+	scheduledTaskID      string
+	evaluationRuleID     string
+	updatedSchedule      string
+	userID               string
+	require              *require.Assertions
+	t                    godog.TestingT
 }
 
 func NewFeatureContext() *FeatureContext {
@@ -65,8 +65,6 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the response status code should be (\d+)$`, fc.theResponseStatusCodeShouldBe)
 	ctx.Then(`^the response should contain the tenant details$`, fc.theResponseShouldContainTheTenantDetails)
 	ctx.Then(`^the response should contain the device details$`, fc.theResponseShouldContainTheDeviceDetails)
-	ctx.Then(`^the response should contain the task details$`, fc.theResponseShouldContainTheTaskDetails)
-	ctx.Then(`^the response should contain the scheduled task details$`, fc.theResponseShouldContainTheScheduledTaskDetails)
 	ctx.Then(`^the response should contain the evaluation rule details$`, fc.theResponseShouldContainTheEvaluationRuleDetails)
 	ctx.Then(`^the tenant should be soft deleted$`, fc.theTenantShouldBeSoftDeleted)
 
@@ -100,6 +98,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	// Task steps
 	ctx.When(`^I create a task for the device$`, fc.iCreateATaskForTheDevice)
+	ctx.Then(`^the response should contain the task details$`, fc.theResponseShouldContainTheTaskDetails)
 	ctx.Then(`^the response should contain command details$`, fc.theResponseShouldContainCommandDetails)
 
 	// Scheduled Task steps
@@ -112,6 +111,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the response should contain the scheduled task with the new schedule "([^"]*)"$`, fc.theResponseShouldContainTheScheduledTaskWithTheNewSchedule)
 	ctx.When(`^I delete the scheduled task$`, fc.iDeleteTheScheduledTask)
 	ctx.When(`^I try to get the scheduled task by its ID$`, fc.iTryToGetTheScheduledTaskByItsID)
+	ctx.Then(`^the response should contain the scheduled task details$`, fc.theResponseShouldContainTheScheduledTaskDetails)
 
 	// Interval-based Scheduled Task steps
 	ctx.When(`^I create a scheduled task with:$`, fc.iCreateAScheduledTaskWith)
@@ -181,6 +181,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Given(`^I have a user "([^"]*)" associated with tenant "([^"]*)"$`, fc.iHaveAUserAssociatedWithTenant)
 	ctx.Given(`^another tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.anotherTenantExistsWithNameAndEmail)
 	ctx.Given(`^a third tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.aThirdTenantExistsWithNameAndEmail)
+
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)

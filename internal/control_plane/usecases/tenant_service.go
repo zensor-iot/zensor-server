@@ -15,27 +15,6 @@ var (
 	ErrTenantVersionConflict = errors.New("tenant version conflict")
 )
 
-type TenantService interface {
-	CreateTenant(ctx context.Context, tenant domain.Tenant) error
-	GetTenant(ctx context.Context, id domain.ID) (domain.Tenant, error)
-	GetTenantByName(ctx context.Context, name string) (domain.Tenant, error)
-	ListTenants(ctx context.Context, includeDeleted bool, pagination Pagination) ([]domain.Tenant, int, error)
-	UpdateTenant(ctx context.Context, tenant domain.Tenant) error
-	SoftDeleteTenant(ctx context.Context, id domain.ID) error
-	ActivateTenant(ctx context.Context, id domain.ID) error
-	DeactivateTenant(ctx context.Context, id domain.ID) error
-	AdoptDevice(ctx context.Context, tenantID, deviceID domain.ID) error
-	ListTenantDevices(ctx context.Context, tenantID domain.ID, pagination Pagination) ([]domain.Device, int, error)
-}
-
-type TenantRepository interface {
-	Create(ctx context.Context, tenant domain.Tenant) error
-	GetByID(ctx context.Context, id domain.ID) (domain.Tenant, error)
-	GetByName(ctx context.Context, name string) (domain.Tenant, error)
-	Update(ctx context.Context, tenant domain.Tenant) error
-	FindAll(ctx context.Context, includeDeleted bool, pagination Pagination) ([]domain.Tenant, int, error)
-}
-
 func NewTenantService(repository TenantRepository, deviceService DeviceService) *SimpleTenantService {
 	return &SimpleTenantService{
 		repository:    repository,

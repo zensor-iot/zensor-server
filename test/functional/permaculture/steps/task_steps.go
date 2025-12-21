@@ -1,6 +1,5 @@
 package steps
 
-// Task step implementations
 func (fc *FeatureContext) iCreateATaskForTheDevice() error {
 	resp, err := fc.apiDriver.CreateTask(fc.deviceID)
 	fc.require.NoError(err)
@@ -19,7 +18,6 @@ func (fc *FeatureContext) theResponseShouldContainTheTaskDetails() error {
 }
 
 func (fc *FeatureContext) theResponseShouldContainCommandDetails() error {
-	// Use the already decoded response data instead of reading the body again
 	if fc.responseData == nil {
 		var data map[string]any
 		err := fc.decodeBody(fc.response.Body, &data)
@@ -27,18 +25,15 @@ func (fc *FeatureContext) theResponseShouldContainCommandDetails() error {
 		fc.responseData = data
 	}
 
-	// Validate commands array structure
 	fc.require.Contains(fc.responseData, "commands")
 	commands, ok := fc.responseData["commands"].([]any)
 	fc.require.True(ok, "commands should be an array")
 	fc.require.NotEmpty(commands, "commands array should not be empty")
 
-	// Validate each command has all required fields
 	for i, cmd := range commands {
 		command, ok := cmd.(map[string]any)
 		fc.require.True(ok, "command %d should be an object", i)
 
-		// Required fields
 		fc.require.Contains(command, "id", "command %d should have id", i)
 		fc.require.Contains(command, "index", "command %d should have index", i)
 		fc.require.Contains(command, "value", "command %d should have value", i)
@@ -48,10 +43,6 @@ func (fc *FeatureContext) theResponseShouldContainCommandDetails() error {
 		fc.require.Contains(command, "sent", "command %d should have sent", i)
 		fc.require.Contains(command, "port", "command %d should have port", i)
 
-		// Optional fields - sent_at is only present when command has been sent
-		// fc.require.Contains(command, "sent_at", "command %d should have sent_at", i)
-
-		// Validate data types
 		fc.require.IsType("", command["id"], "command %d id should be string", i)
 		fc.require.IsType(float64(0), command["index"], "command %d index should be number", i)
 		fc.require.IsType(float64(0), command["value"], "command %d value should be number", i)
@@ -64,3 +55,4 @@ func (fc *FeatureContext) theResponseShouldContainCommandDetails() error {
 
 	return nil
 }
+
