@@ -463,3 +463,54 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 func InitializeMetricWorkerFactory(broker async.InternalBroker) *usecases.MetricWorkerFactory {
 	return usecases.NewMetricWorkerFactory(broker)
 }
+
+func InitializePushTokenController() (*httpapi.PushTokenController, error) {
+	wire.Build(
+		provideAppConfig,
+		provideDatabase,
+		persistence.NewPushTokenRepository,
+		wire.Bind(new(usecases.PushTokenRepository), new(*persistence.SimplePushTokenRepository)),
+		usecases.NewPushTokenService,
+		wire.Bind(new(usecases.PushTokenService), new(*usecases.SimplePushTokenService)),
+		httpapi.NewPushTokenController,
+	)
+	return nil, nil
+}
+
+func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usecases.PushNotificationWorkerFactory, error) {
+	wire.Build(
+		provideAppConfig,
+		provideCompositeNotificationClient,
+		provideDatabase,
+		providePublisherFactoryForEnvironment,
+		persistence.NewPushTokenRepository,
+		wire.Bind(new(usecases.PushTokenRepository), new(*persistence.SimplePushTokenRepository)),
+		persistence.NewUserRepository,
+		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
+		persistence.NewTenantRepository,
+		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
+		usecases.NewUserService,
+		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
+		usecases.NewPushTokenService,
+		wire.Bind(new(usecases.PushTokenService), new(*usecases.SimplePushTokenService)),
+		usecases.NewPushNotificationWorkerFactory,
+	)
+	return nil, nil
+}
+
+func provideCompositeNotificationClient(config config.AppConfig) notification.NotificationClient {
+	mailerSendConfig := notification.MailerSendConfig{
+		APIKey:    config.MailerSend.APIKey,
+		FromEmail: config.MailerSend.FromEmail,
+		FromName:  config.MailerSend.FromName,
+	}
+	emailClient := notification.NewMailerSendClient(mailerSendConfig)
+
+	fcmConfig := notification.FCMConfig{
+		ProjectID:   config.FCM.ProjectID,
+		AccessToken: config.FCM.AccessToken,
+	}
+	pushClient := notification.NewFCMClient(fcmConfig)
+
+	return notification.NewCompositeNotificationClient(emailClient, pushClient)
+}

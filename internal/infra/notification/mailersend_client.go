@@ -8,6 +8,8 @@ import (
 	"github.com/mailersend/mailersend-go"
 )
 
+//go:generate mockgen -source=mailersend_client.go -destination=../../../test/unit/doubles/infra/notification/mailersend_client_mock.go -package=notification -mock_names=MailerSendClient=MockMailerSendClient
+
 // MailerSendClient implements NotificationClient using MailerSend API
 type MailerSendClient struct {
 	client    *mailersend.Mailersend
@@ -93,4 +95,12 @@ func (c *MailerSendClient) sendWithRetry(ctx context.Context, message *mailersen
 	}
 
 	return lastErr
+}
+
+// SendPushNotification is not supported by MailerSend
+func (c *MailerSendClient) SendPushNotification(ctx context.Context, request PushNotificationRequest) error {
+	return &NotificationError{
+		Message: "push notifications are not supported by MailerSend",
+		Err:     fmt.Errorf("use FCM client for push notifications"),
+	}
 }

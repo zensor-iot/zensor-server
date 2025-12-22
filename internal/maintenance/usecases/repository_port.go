@@ -29,6 +29,11 @@ type ActivityRepository interface {
 	Delete(ctx context.Context, id shareddomain.ID) error
 }
 
+type ExecutionWithActivity struct {
+	Execution maintenanceDomain.Execution
+	Activity  maintenanceDomain.Activity
+}
+
 type ExecutionRepository interface {
 	Create(ctx context.Context, execution maintenanceDomain.Execution) error
 	GetByID(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Execution, error)
@@ -38,4 +43,6 @@ type ExecutionRepository interface {
 	MarkCompleted(ctx context.Context, id shareddomain.ID, completedBy string) error
 	FindAllOverdue(ctx context.Context, tenantID shareddomain.ID) ([]maintenanceDomain.Execution, error)
 	FindAllDueSoon(ctx context.Context, tenantID shareddomain.ID, days int) ([]maintenanceDomain.Execution, error)
+	FindPendingExecutionsReadyForNotification(ctx context.Context, currentDate time.Time) ([]ExecutionWithActivity, error)
+	FindOverdueExecutions(ctx context.Context) ([]ExecutionWithActivity, error)
 }

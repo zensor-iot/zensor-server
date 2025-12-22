@@ -209,6 +209,88 @@ func (r *SimpleExecutionRepository) FindAllDueSoon(ctx context.Context, tenantID
 	return result, nil
 }
 
+func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ctx context.Context, currentDate time.Time) ([]usecases.ExecutionWithActivity, error) {
+	type ExecutionActivityJoin struct {
+		internal.Execution
+		internal.Activity
+	}
+
+	var joins []ExecutionActivityJoin
+
+	err := r.orm.
+		WithContext(ctx).
+		Model(&internal.Execution{}).
+		Joins("JOIN maintenance_activities ON maintenance_executions.activity_id = maintenance_activities.id").
+		Where("maintenance_executions.deleted_at IS NULL").
+		Where("maintenance_executions.completed_at IS NULL").
+		Where("maintenance_activities.deleted_at IS NULL").
+		Where("maintenance_activities.is_active = ?", true).
+		Where("maintenance_executions.scheduled_date > ?", currentDate).
+		Find(&joins).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	result := make([]usecases.ExecutionWithActivity, 0, len(joins))
+	for _, join := range joins {
+		execution := join.Execution.ToDomain()
+		activity := join.Activity.ToDomain()
+
+		daysUntil := int(execution.ScheduledDate.Time.Sub(currentDate).Hours() / 24)
+		notificationDays := []int(activity.NotificationDaysBefore)
+
+		for _, notificationDay := range notificationDays {
+			if daysUntil == notificationDay {
+				result = append(result, usecases.ExecutionWithActivity{
+					Execution: execution,
+					Activity:  activity,
+				})
+				break
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func (r *SimpleExecutionRepository) FindOverdueExecutions(ctx context.Context) ([]usecases.ExecutionWithActivity, error) {
+	type ExecutionActivityJoin struct {
+		internal.Execution
+		internal.Activity
+	}
+
+	var joins []ExecutionActivityJoin
+	now := time.Now()
+
+	err := r.orm.
+		WithContext(ctx).
+		Model(&internal.Execution{}).
+		Joins("JOIN maintenance_activities ON maintenance_executions.activity_id = maintenance_activities.id").
+		Where("maintenance_executions.deleted_at IS NULL").
+		Where("maintenance_executions.completed_at IS NULL").
+		Where("maintenance_activities.deleted_at IS NULL").
+		Where("maintenance_activities.is_active = ?", true).
+		Where("maintenance_executions.scheduled_date < ?", now).
+		Find(&joins).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	result := make([]usecases.ExecutionWithActivity, len(joins))
+	for i, join := range joins {
+		result[i] = usecases.ExecutionWithActivity{
+			Execution: join.Execution.ToDomain(),
+			Activity:  join.Activity.ToDomain(),
+		}
+	}
+
+	return result, nil
+}
+
 func convertToAvroMaintenanceExecution(execution maintenanceDomain.Execution) *avro.AvroMaintenanceExecution {
 	fieldValues := make(map[string]string)
 	for k, v := range execution.FieldValues {

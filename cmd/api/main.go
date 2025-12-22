@@ -12,6 +12,7 @@ import (
 
 	"zensor-server/cmd/api/wire"
 	"zensor-server/cmd/config"
+	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
@@ -62,6 +63,7 @@ func main() {
 		handleWireInjector(wire.InitializeTenantConfigurationController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeScheduledTaskController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeUserController()).(httpserver.Controller),
+		handleWireInjector(wire.InitializePushTokenController()).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
 		handleWireInjector(wire.InitializeDeviceSpecificWebSocketController(internalBroker)).(httpserver.Controller),
 	}
@@ -122,7 +124,7 @@ func main() {
 
 	if appConfig.Modules.Maintenance.Enabled {
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeExecutionScheduler(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		go handleWireInjector(wire.InitializeExecutionWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 	}
 
 	// Initialize metric workers based on configuration
@@ -135,6 +137,20 @@ func main() {
 
 	// Start all metric workers
 	for _, worker := range metricWorkers {
+		wg.Add(1)
+		go worker.Run(appCtx, wg.Done)
+	}
+
+	// Initialize push notification workers based on configuration
+	pushNotificationWorkerFactory := handleWireInjector(wire.InitializePushNotificationWorkerFactory(internalBroker)).(*usecases.PushNotificationWorkerFactory)
+	pushNotificationWorkers, err := pushNotificationWorkerFactory.CreateWorkers(appConfig.PushNotifications)
+	if err != nil {
+		slog.Error("failed to create push notification workers", slog.Any("error", err))
+		panic(err)
+	}
+
+	// Start all push notification workers
+	for _, worker := range pushNotificationWorkers {
 		wg.Add(1)
 		go worker.Run(appCtx, wg.Done)
 	}

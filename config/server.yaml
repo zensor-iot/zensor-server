@@ -20,6 +20,9 @@ mqtt_client:
 mailersend:
   from_email: "noreply@zensor-iot.net"
   from_name: "Zensor Server"
+fcm:
+  project_id: ""
+  access_token: ""
 metrics:
   - name: "commands_total"
     type: "counter"
@@ -74,3 +77,25 @@ modules:
     enabled: false
   maintenance:
     enabled: true
+execution_worker:
+  ticker_interval: "5m"
+
+push_notifications:
+  - name: "execution_reminder"
+    topic: "maintenance_executions"
+    event_type: "execution_reminder"
+    tenant_id_path: "tenant_id"
+    user_id_path: ""
+    title: "Execution Reminder"
+    body: "Scheduled execution is due soon"
+    deeplink: "app://execution"
+    deeplink_template: "app://execution/%s"
+  - name: "execution_overdue"
+    topic: "maintenance_executions"
+    event_type: "execution_overdue"
+    tenant_id_path: "tenant_id"
+    user_id_path: ""
+    title: "Execution Overdue"
+    body: "Scheduled execution is overdue"
+    deeplink: "app://execution"
+    deeplink_template: "app://execution/%s"

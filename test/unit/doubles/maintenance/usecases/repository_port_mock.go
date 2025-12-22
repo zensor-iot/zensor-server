@@ -231,6 +231,36 @@ func (mr *MockExecutionRepositoryMockRecorder) FindByActivityAndScheduledDate(ct
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByActivityAndScheduledDate", reflect.TypeOf((*MockExecutionRepository)(nil).FindByActivityAndScheduledDate), ctx, activityID, scheduledDate)
 }
 
+// FindOverdueExecutions mocks base method.
+func (m *MockExecutionRepository) FindOverdueExecutions(ctx context.Context) ([]usecases.ExecutionWithActivity, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindOverdueExecutions", ctx)
+	ret0, _ := ret[0].([]usecases.ExecutionWithActivity)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOverdueExecutions indicates an expected call of FindOverdueExecutions.
+func (mr *MockExecutionRepositoryMockRecorder) FindOverdueExecutions(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOverdueExecutions", reflect.TypeOf((*MockExecutionRepository)(nil).FindOverdueExecutions), ctx)
+}
+
+// FindPendingExecutionsReadyForNotification mocks base method.
+func (m *MockExecutionRepository) FindPendingExecutionsReadyForNotification(ctx context.Context, currentDate time.Time) ([]usecases.ExecutionWithActivity, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindPendingExecutionsReadyForNotification", ctx, currentDate)
+	ret0, _ := ret[0].([]usecases.ExecutionWithActivity)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindPendingExecutionsReadyForNotification indicates an expected call of FindPendingExecutionsReadyForNotification.
+func (mr *MockExecutionRepositoryMockRecorder) FindPendingExecutionsReadyForNotification(ctx, currentDate any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindPendingExecutionsReadyForNotification", reflect.TypeOf((*MockExecutionRepository)(nil).FindPendingExecutionsReadyForNotification), ctx, currentDate)
+}
+
 // GetByID mocks base method.
 func (m *MockExecutionRepository) GetByID(ctx context.Context, id domain0.ID) (domain.Execution, error) {
 	m.ctrl.T.Helper()
