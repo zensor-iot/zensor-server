@@ -131,7 +131,7 @@ func (w *CommandWorker) handle(ctx context.Context, cmd domain.Command) {
 	if err := w.broker.Publish(ctx, async.BrokerTopicName("command_events"), brokerMsg); err != nil {
 		slog.Error("failed to publish command processed event",
 			slog.String("command_id", cmd.ID.String()),
-			slog.String("device_name", cmd.DeviceName),
+			slog.String("device_name", cmd.Device.Name),
 			slog.String("topic", "command_events"),
 			slog.String("trace_id", span.SpanContext().TraceID().String()),
 			slog.String("span_id", span.SpanContext().SpanID().String()),
