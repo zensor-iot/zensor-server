@@ -19,3 +19,5 @@ c4model.json
 coverprofile.out
 
 *.test
+
+service_account.json

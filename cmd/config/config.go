@@ -58,8 +58,8 @@ func LoadConfig() AppConfig {
 				FromName:  viper.GetString("mailersend.from_name"),
 			},
 			FCM: FCMConfig{
-				ProjectID:   viper.GetString("fcm.project_id"),
-				AccessToken: viper.GetString("fcm.access_token"),
+				ProjectID:         viper.GetString("fcm.project_id"),
+				ServiceAccountPath: viper.GetString("fcm.service_account_path"),
 			},
 			Metrics:        loadMetricsConfig(),
 			PushNotifications: loadPushNotificationsConfig(),
@@ -194,8 +194,8 @@ type MailerSendConfig struct {
 }
 
 type FCMConfig struct {
-	ProjectID   string
-	AccessToken string
+	ProjectID         string
+	ServiceAccountPath string
 }
 
 type MetricsConfig []MetricWorkerConfig

@@ -7,11 +7,14 @@
 package wire
 
 import (
-	"github.com/google/wire"
+	"context"
 	"log/slog"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/google/wire"
+
 	"zensor-server/cmd/config"
 	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/persistence"
@@ -398,7 +401,10 @@ func InitializePushTokenController() (*httpapi.PushTokenController, error) {
 
 func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usecases.PushNotificationWorkerFactory, error) {
 	appConfig := provideAppConfig()
-	notificationClient := provideCompositeNotificationClient(appConfig)
+	notificationClient, err := provideCompositeNotificationClient(appConfig)
+	if err != nil {
+		return nil, err
+	}
 	orm := provideDatabase(appConfig)
 	simplePushTokenRepository, err := persistence.NewPushTokenRepository(orm)
 	if err != nil {
@@ -663,7 +669,7 @@ func InitializeMetricWorkerFactory(broker async.InternalBroker) *usecases.Metric
 	return usecases.NewMetricWorkerFactory(broker)
 }
 
-func provideCompositeNotificationClient(config2 config.AppConfig) notification.NotificationClient {
+func provideCompositeNotificationClient(config2 config.AppConfig) (notification.NotificationClient, error) {
 	mailerSendConfig := notification.MailerSendConfig{
 		APIKey:    config2.MailerSend.APIKey,
 		FromEmail: config2.MailerSend.FromEmail,
@@ -672,12 +678,15 @@ func provideCompositeNotificationClient(config2 config.AppConfig) notification.N
 	emailClient := notification.NewMailerSendClient(mailerSendConfig)
 
 	fcmConfig := notification.FCMConfig{
-		ProjectID:   config2.FCM.ProjectID,
-		AccessToken: config2.FCM.AccessToken,
+		ProjectID:         config2.FCM.ProjectID,
+		ServiceAccountPath: config2.FCM.ServiceAccountPath,
 	}
-	pushClient := notification.NewFCMClient(fcmConfig)
+	pushClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
+	if err != nil {
+		return nil, err
+	}
 
-	return notification.NewCompositeNotificationClient(emailClient, pushClient)
+	return notification.NewCompositeNotificationClient(emailClient, pushClient), nil
 }
 
 // maintenance.go:

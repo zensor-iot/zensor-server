@@ -4,6 +4,7 @@
 package wire
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"sync"
@@ -498,7 +499,7 @@ func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usec
 	return nil, nil
 }
 
-func provideCompositeNotificationClient(config config.AppConfig) notification.NotificationClient {
+func provideCompositeNotificationClient(config config.AppConfig) (notification.NotificationClient, error) {
 	mailerSendConfig := notification.MailerSendConfig{
 		APIKey:    config.MailerSend.APIKey,
 		FromEmail: config.MailerSend.FromEmail,
@@ -507,10 +508,13 @@ func provideCompositeNotificationClient(config config.AppConfig) notification.No
 	emailClient := notification.NewMailerSendClient(mailerSendConfig)
 
 	fcmConfig := notification.FCMConfig{
-		ProjectID:   config.FCM.ProjectID,
-		AccessToken: config.FCM.AccessToken,
+		ProjectID:         config.FCM.ProjectID,
+		ServiceAccountPath: config.FCM.ServiceAccountPath,
 	}
-	pushClient := notification.NewFCMClient(fcmConfig)
+	pushClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
+	if err != nil {
+		return nil, err
+	}
 
-	return notification.NewCompositeNotificationClient(emailClient, pushClient)
+	return notification.NewCompositeNotificationClient(emailClient, pushClient), nil
 }

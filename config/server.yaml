@@ -22,8 +22,8 @@ mailersend:
   from_email: "noreply@zensor-iot.net"
   from_name: "Zensor Server"
 fcm:
-  project_id: ""
-  access_token: ""
+  project_id: "my-first-action-8b831"
+  service_account_path: "./service_account.json"
 metrics:
   - name: "commands_total"
     type: "counter"
@@ -75,7 +75,7 @@ metrics:
       index: "Index"
 modules:
   permaculture:
-    enabled: false
+    enabled: true
   maintenance:
     enabled: true
 execution_worker:

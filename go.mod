@@ -3,6 +3,7 @@ module zensor-server
 go 1.23.6
 
 require (
+	cloud.google.com/go/compute/metadata v0.6.0
 	github.com/cucumber/godog v0.15.0
 	github.com/dgraph-io/ristretto v0.2.0
 	github.com/eclipse/paho.mqtt.golang v1.2.0
@@ -35,6 +36,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.37.0
 	go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/mock v0.4.0
+	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.15.0
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/driver/sqlite v1.6.0

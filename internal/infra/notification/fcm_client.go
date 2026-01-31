@@ -7,23 +7,33 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"sync"
 	"time"
+
+	_ "cloud.google.com/go/compute/metadata"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 const (
-	_fcmEndpoint = "https://fcm.googleapis.com/v1/projects/%s/messages:send"
-	_maxRetries  = 3
+	_fcmEndpoint        = "https://fcm.googleapis.com/v1/projects/%s/messages:send"
+	_fcmScope           = "https://www.googleapis.com/auth/firebase.messaging"
+	_maxRetries         = 3
+	_tokenRefreshBuffer = 5 * time.Minute
 )
 
 type FCMClient struct {
 	httpClient  *http.Client
 	projectID   string
-	accessToken string
+	tokenSource oauth2.TokenSource
+	mu          sync.Mutex
+	cachedToken *oauth2.Token
 }
 
 type FCMConfig struct {
-	ProjectID   string
-	AccessToken string
+	ProjectID          string
+	ServiceAccountPath string
 }
 
 type FCMRequest struct {
@@ -46,14 +56,31 @@ type FCAndroidConfig struct {
 	Priority string `json:"priority"`
 }
 
-func NewFCMClient(config FCMConfig) *FCMClient {
+func NewFCMClient(ctx context.Context, config FCMConfig) (*FCMClient, error) {
+	var creds *google.Credentials
+	var err error
+	if config.ServiceAccountPath != "" {
+		jsonBytes, err := os.ReadFile(config.ServiceAccountPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading service account file: %w", err)
+		}
+		creds, err = google.CredentialsFromJSON(ctx, jsonBytes, _fcmScope)
+		if err != nil {
+			return nil, fmt.Errorf("creating credentials from service account: %w", err)
+		}
+	} else {
+		creds, err = google.FindDefaultCredentials(ctx, _fcmScope)
+		if err != nil {
+			return nil, fmt.Errorf("finding default credentials (set GOOGLE_APPLICATION_CREDENTIALS or fcm.service_account_path): %w", err)
+		}
+	}
 	return &FCMClient{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 		projectID:   config.ProjectID,
-		accessToken: config.AccessToken,
-	}
+		tokenSource: creds.TokenSource,
+	}, nil
 }
 
 func (c *FCMClient) SendPushNotification(ctx context.Context, request PushNotificationRequest) error {
@@ -104,7 +131,36 @@ func (c *FCMClient) sendWithRetry(ctx context.Context, request FCMRequest) error
 	return lastErr
 }
 
+func isTokenValid(token *oauth2.Token) bool {
+	if token == nil {
+		return false
+	}
+	if token.Expiry.IsZero() {
+		return true
+	}
+	return time.Now().Add(_tokenRefreshBuffer).Before(token.Expiry)
+}
+
+func (c *FCMClient) getValidToken() (*oauth2.Token, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if isTokenValid(c.cachedToken) {
+		return c.cachedToken, nil
+	}
+	token, err := c.tokenSource.Token()
+	if err != nil {
+		return nil, err
+	}
+	c.cachedToken = token
+	return token, nil
+}
+
 func (c *FCMClient) send(ctx context.Context, request FCMRequest) error {
+	token, err := c.getValidToken()
+	if err != nil {
+		return fmt.Errorf("getting access token: %w", err)
+	}
+
 	url := fmt.Sprintf(_fcmEndpoint, c.projectID)
 
 	jsonData, err := json.Marshal(request)
@@ -118,7 +174,7 @@ func (c *FCMClient) send(ctx context.Context, request FCMRequest) error {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
