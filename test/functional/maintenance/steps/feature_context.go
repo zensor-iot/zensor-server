@@ -27,22 +27,22 @@ type PaginatedResponse[T any] struct {
 }
 
 type FeatureContext struct {
-	apiDriver                *driver.APIDriver
-	response                 *http.Response
-	responseData             map[string]any
-	responseListData         []map[string]any
-	tenantID                 string
-	tenantIDs                []string
-	tenantNameToID           map[string]string
-	maintenanceActivityID    string
-	maintenanceExecutionID   string
-	maintenanceExecutionIDs  []string
-	require                  *require.Assertions
-	t                        godog.TestingT
+	apiDriver               *driver.APIDriver
+	response                *http.Response
+	responseData            map[string]any
+	responseListData        []map[string]any
+	tenantID                string
+	tenantIDs               []string
+	tenantNameToID          map[string]string
+	maintenanceActivityID   string
+	maintenanceExecutionID  string
+	maintenanceExecutionIDs []string
+	require                 *require.Assertions
+	t                       godog.TestingT
 }
 
 func NewFeatureContext() *FeatureContext {
-	baseURL := "http://localhost:3000"
+	baseURL := "http://127.0.0.1:3000"
 
 	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
 		baseURL = externalURL
@@ -233,5 +233,3 @@ func (fc *FeatureContext) decodePaginatedResponse(body *http.Response) ([]map[st
 	}
 	return paginatedResp.Data, nil
 }
-
-

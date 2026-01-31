@@ -3,6 +3,7 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -33,8 +34,9 @@ func (fc *FeatureContext) theDeviceHasCachedSensorData() error {
 }
 
 func (fc *FeatureContext) iConnectToTheWebSocketEndpoint() error {
-	// Connect to the WebSocket endpoint
-	url := fmt.Sprintf("ws://localhost:3000/ws/device-messages")
+	wsURL := strings.Replace(fc.baseURL, "http://", "ws://", 1)
+	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
+	url := fmt.Sprintf("%s/ws/device-messages", wsURL)
 	conn, resp, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		if resp != nil {

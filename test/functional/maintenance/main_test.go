@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 		apiURL = externalURL
 		fmt.Printf("🌍 Running tests against external API: %s\n", apiURL)
 	} else {
-		apiURL = "http://localhost:3000"
+		apiURL = "http://127.0.0.1:3000"
 		fmt.Printf("🏠 Running tests against local server: %s\n", apiURL)
 	}
 
@@ -53,5 +53,3 @@ func InitializeTestSuite(suite *godog.TestSuiteContext) {
 		}
 	})
 }
-
-

@@ -173,7 +173,7 @@ functional module tags="~@pending": build
     echo "⏳ Waiting for server to be ready..."
     max_attempts=30
     attempt=0
-    while ! nc -z localhost 3000; do
+    while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
         if [ $attempt -ge $max_attempts ]; then
             echo "❌ Server failed to start after 30 seconds."
             exit 1
@@ -224,7 +224,7 @@ functional-module module tags="~@pending": build
     echo "⏳ Waiting for server to be ready..."
     max_attempts=30
     attempt=0
-    while ! nc -z localhost 3000; do
+    while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
         if [ $attempt -ge $max_attempts ]; then
             echo "❌ Server failed to start after 30 seconds."
             exit 1

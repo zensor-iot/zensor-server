@@ -26,24 +26,25 @@ type PaginatedResponse[T any] struct {
 }
 
 type FeatureContext struct {
-	apiDriver            *driver.APIDriver
-	response             *http.Response
-	responseData         map[string]any
-	responseListData     []map[string]any
-	tenantID             string
-	tenantIDs            []string
-	tenantNameToID       map[string]string
-	deviceID             string
-	scheduledTaskID      string
-	evaluationRuleID     string
-	updatedSchedule      string
-	userID               string
-	require              *require.Assertions
-	t                    godog.TestingT
+	apiDriver        *driver.APIDriver
+	baseURL          string
+	response         *http.Response
+	responseData     map[string]any
+	responseListData []map[string]any
+	tenantID         string
+	tenantIDs        []string
+	tenantNameToID   map[string]string
+	deviceID         string
+	scheduledTaskID  string
+	evaluationRuleID string
+	updatedSchedule  string
+	userID           string
+	require          *require.Assertions
+	t                godog.TestingT
 }
 
 func NewFeatureContext() *FeatureContext {
-	baseURL := "http://localhost:3000"
+	baseURL := "http://127.0.0.1:3000"
 
 	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
 		baseURL = externalURL
@@ -51,6 +52,7 @@ func NewFeatureContext() *FeatureContext {
 
 	return &FeatureContext{
 		apiDriver:      driver.NewAPIDriver(baseURL),
+		baseURL:        baseURL,
 		tenantNameToID: make(map[string]string),
 	}
 }
@@ -181,7 +183,6 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Given(`^I have a user "([^"]*)" associated with tenant "([^"]*)"$`, fc.iHaveAUserAssociatedWithTenant)
 	ctx.Given(`^another tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.anotherTenantExistsWithNameAndEmail)
 	ctx.Given(`^a third tenant exists with name "([^"]*)" and email "([^"]*)"$`, fc.aThirdTenantExistsWithNameAndEmail)
-
 
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
