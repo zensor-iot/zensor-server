@@ -176,18 +176,33 @@ functional module tags="~@pending": build
     while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
         if [ $attempt -ge $max_attempts ]; then
             echo "❌ Server failed to start after 30 seconds."
+            echo "📋 Server log (api.log):"
+            cat api.log 2>/dev/null || true
             exit 1
         fi
         sleep 1
         attempt=$((attempt+1))
     done
+    
+    echo "⏳ Verifying server stability (2s)..."
+    sleep 2
+    if ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; then
+        echo "❌ Server crashed during startup."
+        echo "📋 Server log (api.log):"
+        cat api.log 2>/dev/null || true
+        exit 1
+    fi
     echo "✅ Server is ready."
     
     echo "🧪 Running functional tests for module: {{module}}"
     echo "   - Running tests with tags: {{tags}}"
-    cd $MODULE_PATH
-    go test -v --godog.tags={{tags}}
+    go test ./$MODULE_PATH -v --godog.tags={{tags}}
     TEST_EXIT_CODE=$?
+    
+    if [ $TEST_EXIT_CODE -ne 0 ]; then
+        echo "📋 Server log (api.log) for debugging:"
+        cat api.log 2>/dev/null || true
+    fi
     
     exit $TEST_EXIT_CODE
 
@@ -227,18 +242,33 @@ functional-module module tags="~@pending": build
     while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
         if [ $attempt -ge $max_attempts ]; then
             echo "❌ Server failed to start after 30 seconds."
+            echo "📋 Server log (api.log):"
+            cat api.log 2>/dev/null || true
             exit 1
         fi
         sleep 1
         attempt=$((attempt+1))
     done
+    
+    echo "⏳ Verifying server stability (2s)..."
+    sleep 2
+    if ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; then
+        echo "❌ Server crashed during startup."
+        echo "📋 Server log (api.log):"
+        cat api.log 2>/dev/null || true
+        exit 1
+    fi
     echo "✅ Server is ready."
     
     echo "🧪 Running functional tests for module: {{module}}"
     echo "   - Running tests with tags: {{tags}}"
-    cd $MODULE_PATH
-    go test -v --godog.tags={{tags}}
+    go test ./$MODULE_PATH -v --godog.tags={{tags}}
     TEST_EXIT_CODE=$?
+    
+    if [ $TEST_EXIT_CODE -ne 0 ]; then
+        echo "📋 Server log (api.log) for debugging:"
+        cat api.log 2>/dev/null || true
+    fi
     
     exit $TEST_EXIT_CODE
 

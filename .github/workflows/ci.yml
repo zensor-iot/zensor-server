@@ -95,6 +95,7 @@ jobs:
           just functional maintenance
         env:
           ENV: local
+          ZENSOR_SERVER_OTELCOL_ENDPOINT: "127.0.0.1:4317"
 
       - name: Upload test results
         if: always()
