@@ -8,7 +8,7 @@ import (
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
-	mockcontrolplane "zensor-server/test/unit/doubles/control_plane/usecases"
+	mocksharedkernel "zensor-server/test/unit/doubles/shared_kernel/usecases"
 	mockmaintenance "zensor-server/test/unit/doubles/maintenance/usecases"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -20,14 +20,14 @@ var _ = Describe("MaintenanceActivityService", func() {
 	var (
 		ctrl              *gomock.Controller
 		mockRepository    *mockmaintenance.MockActivityRepository
-		mockTenantService *mockcontrolplane.MockTenantService
+		mockTenantService *mocksharedkernel.MockTenantService
 		service           maintenanceUsecases.ActivityService
 	)
 
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
 		mockRepository = mockmaintenance.NewMockActivityRepository(ctrl)
-		mockTenantService = mockcontrolplane.NewMockTenantService(ctrl)
+		mockTenantService = mocksharedkernel.NewMockTenantService(ctrl)
 		service = maintenanceUsecases.NewActivityService(mockRepository, mockTenantService)
 	})
 

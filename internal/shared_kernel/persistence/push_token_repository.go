@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"zensor-server/internal/control_plane/persistence/internal"
-	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/shared_kernel/persistence/internal"
+	"zensor-server/internal/shared_kernel/usecases"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/domain"
 )
@@ -114,4 +114,3 @@ func (r *SimplePushTokenRepository) DeleteByToken(ctx context.Context, token str
 	slog.Info("deleted push token", slog.String("token", token))
 	return nil
 }
-

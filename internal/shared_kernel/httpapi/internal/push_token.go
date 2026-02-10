@@ -8,4 +8,3 @@ type PushTokenRegistrationRequest struct {
 type PushTokenUnregistrationRequest struct {
 	Token string `json:"token"`
 }
-

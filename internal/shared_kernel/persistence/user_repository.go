@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-	"zensor-server/internal/control_plane/persistence/internal"
-	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/shared_kernel/persistence/internal"
+	"zensor-server/internal/shared_kernel/usecases"
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/avro"
@@ -85,4 +85,24 @@ func (r *SimpleUserRepository) GetByID(ctx context.Context, id domain.ID) (domai
 
 	slog.Info("found user in database", slog.String("user_id", id.String()), slog.Any("tenants", entity.Tenants))
 	return entity.ToDomain(), nil
+}
+
+func (r *SimpleUserRepository) FindByTenant(ctx context.Context, tenantID domain.ID) ([]domain.User, error) {
+	var entities []internal.User
+	err := r.orm.
+		WithContext(ctx).
+		Where("? = ANY(tenants)", tenantID.String()).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	users := make([]domain.User, len(entities))
+	for i, entity := range entities {
+		users[i] = entity.ToDomain()
+	}
+
+	return users, nil
 }

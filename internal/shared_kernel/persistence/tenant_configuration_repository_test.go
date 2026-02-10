@@ -2,7 +2,7 @@ package persistence_test
 
 import (
 	"time"
-	"zensor-server/internal/control_plane/persistence/internal"
+	"zensor-server/internal/shared_kernel/persistence/internal"
 	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/onsi/ginkgo/v2"

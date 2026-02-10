@@ -10,7 +10,7 @@ import (
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
-	mockcontrolplane "zensor-server/test/unit/doubles/control_plane/usecases"
+	mocksharedkernel "zensor-server/test/unit/doubles/shared_kernel/usecases"
 	mockasync "zensor-server/test/unit/doubles/infra/async"
 	mockmaintenance "zensor-server/test/unit/doubles/maintenance/usecases"
 
@@ -26,8 +26,8 @@ var _ = Describe("ExecutionWorker", func() {
 		mockActivityRepository         *mockmaintenance.MockActivityRepository
 		mockExecutionRepository        *mockmaintenance.MockExecutionRepository
 		mockExecutionService           *mockmaintenance.MockExecutionService
-		mockTenantService              *mockcontrolplane.MockTenantService
-		mockTenantConfigurationService *mockcontrolplane.MockTenantConfigurationService
+		mockTenantService              *mocksharedkernel.MockTenantService
+		mockTenantConfigurationService *mocksharedkernel.MockTenantConfigurationService
 		mockBroker                     *mockasync.MockInternalBroker
 		worker                         *maintenanceUsecases.ExecutionWorker
 		ctx                            context.Context
@@ -39,8 +39,8 @@ var _ = Describe("ExecutionWorker", func() {
 		mockActivityRepository = mockmaintenance.NewMockActivityRepository(ctrl)
 		mockExecutionRepository = mockmaintenance.NewMockExecutionRepository(ctrl)
 		mockExecutionService = mockmaintenance.NewMockExecutionService(ctrl)
-		mockTenantService = mockcontrolplane.NewMockTenantService(ctrl)
-		mockTenantConfigurationService = mockcontrolplane.NewMockTenantConfigurationService(ctrl)
+		mockTenantService = mocksharedkernel.NewMockTenantService(ctrl)
+		mockTenantConfigurationService = mocksharedkernel.NewMockTenantConfigurationService(ctrl)
 		mockBroker = mockasync.NewMockInternalBroker(ctrl)
 		ctx = context.Background()
 

@@ -8,10 +8,6 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-var (
-	ErrMixedTenantValidation = errors.New("mixed tenant validation failed")
-)
-
 func NewUserService(
 	repository UserRepository,
 	tenantRepository TenantRepository,
@@ -88,4 +84,14 @@ func (s *SimpleUserService) GetUser(ctx context.Context, userID domain.ID) (doma
 	}
 
 	return user, nil
+}
+
+func (s *SimpleUserService) FindByTenant(ctx context.Context, tenantID domain.ID) ([]domain.User, error) {
+	users, err := s.repository.FindByTenant(ctx, tenantID)
+	if err != nil {
+		slog.Error("finding users by tenant", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("finding users by tenant: %w", err)
+	}
+
+	return users, nil
 }

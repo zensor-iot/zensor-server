@@ -8,17 +8,10 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-var (
-	ErrTenantNotFound        = errors.New("tenant not found")
-	ErrTenantDuplicated      = errors.New("tenant already exists")
-	ErrTenantSoftDeleted     = errors.New("tenant is soft deleted")
-	ErrTenantVersionConflict = errors.New("tenant version conflict")
-)
-
-func NewTenantService(repository TenantRepository, deviceService DeviceService) *SimpleTenantService {
+func NewTenantService(repository TenantRepository, deviceAdopter DeviceAdopter) *SimpleTenantService {
 	return &SimpleTenantService{
 		repository:    repository,
-		deviceService: deviceService,
+		deviceAdopter: deviceAdopter,
 	}
 }
 
@@ -26,7 +19,7 @@ var _ TenantService = &SimpleTenantService{}
 
 type SimpleTenantService struct {
 	repository    TenantRepository
-	deviceService DeviceService
+	deviceAdopter DeviceAdopter
 }
 
 func (s *SimpleTenantService) CreateTenant(ctx context.Context, tenant domain.Tenant) error {
@@ -220,8 +213,8 @@ func (s *SimpleTenantService) AdoptDevice(ctx context.Context, tenantID, deviceI
 		return ErrTenantSoftDeleted
 	}
 
-	// Delegate to the device service to handle the adoption
-	err = s.deviceService.AdoptDeviceToTenant(ctx, tenantID, deviceID)
+	// Delegate to the device adopter to handle the adoption
+	err = s.deviceAdopter.AdoptDeviceToTenant(ctx, tenantID, deviceID)
 	if err != nil {
 		return fmt.Errorf("adopting device to tenant: %w", err)
 	}
@@ -248,7 +241,7 @@ func (s *SimpleTenantService) ListTenantDevices(ctx context.Context, tenantID do
 	}
 
 	// Get devices belonging to this tenant
-	devices, total, err := s.deviceService.DevicesByTenant(ctx, tenantID, pagination)
+	devices, total, err := s.deviceAdopter.DevicesByTenant(ctx, tenantID, pagination)
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting devices for tenant: %w", err)
 	}

@@ -41,6 +41,18 @@ type TenantListResponse struct {
 	Total   int              `json:"total"`
 }
 
+type DeviceResponse struct {
+	ID                    string     `json:"id"`
+	Name                  string     `json:"name"`
+	DisplayName           string     `json:"display_name"`
+	AppEUI                string     `json:"app_eui"`
+	DevEUI                string     `json:"dev_eui"`
+	AppKey                string     `json:"app_key"`
+	TenantID              *string    `json:"tenant_id,omitempty"`
+	Status                string     `json:"status"`
+	LastMessageReceivedAt *time.Time `json:"last_message_received_at,omitempty"`
+}
+
 // Conversion functions
 func ToTenantResponse(tenant domain.Tenant) TenantResponse {
 	return TenantResponse{
@@ -66,4 +78,27 @@ func ToTenantListResponse(tenants []domain.Tenant) TenantListResponse {
 		Tenants: responses,
 		Total:   len(tenants),
 	}
+}
+
+func ToDeviceResponse(device domain.Device) DeviceResponse {
+	response := DeviceResponse{
+		ID:          device.ID.String(),
+		Name:        device.Name,
+		DisplayName: device.DisplayName,
+		AppEUI:      device.AppEUI,
+		DevEUI:      device.DevEUI,
+		AppKey:      device.AppKey,
+		Status:      device.GetStatus(),
+	}
+
+	if !device.LastMessageReceivedAt.IsZero() {
+		response.LastMessageReceivedAt = &device.LastMessageReceivedAt.Time
+	}
+
+	if device.TenantID != nil {
+		tenantIDStr := device.TenantID.String()
+		response.TenantID = &tenantIDStr
+	}
+
+	return response
 }

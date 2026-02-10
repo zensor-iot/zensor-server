@@ -18,12 +18,6 @@ func NewPushTokenService(repository PushTokenRepository) *SimplePushTokenService
 
 var _ PushTokenService = &SimplePushTokenService{}
 
-type PushTokenService interface {
-	RegisterToken(ctx context.Context, userID domain.ID, token string, platform string) error
-	UnregisterToken(ctx context.Context, token string) error
-	GetTokenByUserID(ctx context.Context, userID domain.ID) (domain.PushToken, error)
-}
-
 type SimplePushTokenService struct {
 	repository PushTokenRepository
 }
@@ -100,4 +94,3 @@ func (s *SimplePushTokenService) GetTokenByUserID(ctx context.Context, userID do
 
 	return token, nil
 }
-

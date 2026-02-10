@@ -40,4 +40,3 @@ func FromPushToken(value domain.PushToken) PushToken {
 		UpdatedAt: value.UpdatedAt.Time,
 	}
 }
-

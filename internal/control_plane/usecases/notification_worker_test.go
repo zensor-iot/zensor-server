@@ -12,6 +12,7 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 	usecases_mocks "zensor-server/test/unit/doubles/control_plane/usecases"
 	notification_mocks "zensor-server/test/unit/doubles/infra/notification"
+	sharedkernel_mocks "zensor-server/test/unit/doubles/shared_kernel/usecases"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -24,7 +25,7 @@ var _ = Describe("NotificationWorker", func() {
 		ticker                  *time.Ticker
 		mockNotificationClient  *notification_mocks.MockNotificationClient
 		mockDeviceService       *usecases_mocks.MockDeviceService
-		mockTenantConfigService *usecases_mocks.MockTenantConfigurationService
+		mockTenantConfigService *sharedkernel_mocks.MockTenantConfigurationService
 		mockTaskService         *usecases_mocks.MockTaskService
 		worker                  *usecases.NotificationWorker
 		ctx                     context.Context
@@ -37,7 +38,7 @@ var _ = Describe("NotificationWorker", func() {
 		ticker = time.NewTicker(1 * time.Second)
 		mockNotificationClient = notification_mocks.NewMockNotificationClient(ctrl)
 		mockDeviceService = usecases_mocks.NewMockDeviceService(ctrl)
-		mockTenantConfigService = usecases_mocks.NewMockTenantConfigurationService(ctrl)
+		mockTenantConfigService = sharedkernel_mocks.NewMockTenantConfigurationService(ctrl)
 		mockTaskService = usecases_mocks.NewMockTaskService(ctrl)
 		realBroker = async.NewLocalBroker()
 		ctx, cancel = context.WithCancel(context.Background())

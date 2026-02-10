@@ -4,7 +4,6 @@
 package wire
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"sync"
@@ -22,6 +21,8 @@ import (
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
+	sharedPersistence "zensor-server/internal/shared_kernel/persistence"
+	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 
 	"github.com/google/wire"
 )
@@ -84,10 +85,11 @@ func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, erro
 		wire.Bind(new(usecases.DeviceRepository), new(*persistence.SimpleDeviceRepository)),
 		usecases.NewDeviceService,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
-		persistence.NewTenantRepository,
-		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
-		usecases.NewTenantService,
-		wire.Bind(new(usecases.TenantService), new(*usecases.SimpleTenantService)),
+		sharedPersistence.NewTenantRepository,
+		wire.Bind(new(sharedUsecases.TenantRepository), new(*sharedPersistence.SimpleTenantRepository)),
+		wire.Bind(new(sharedUsecases.DeviceAdopter), new(*usecases.SimpleDeviceService)),
+		sharedUsecases.NewTenantService,
+		wire.Bind(new(sharedUsecases.TenantService), new(*sharedUsecases.SimpleTenantService)),
 		usecases.NewScheduledTaskService,
 		wire.Bind(new(usecases.ScheduledTaskService), new(*usecases.SimpleScheduledTaskService)),
 		persistence.NewTaskRepository,
@@ -120,71 +122,18 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
 		usecases.NewDeviceService,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
-		persistence.NewTenantConfigurationRepository,
-		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
-		persistence.NewUserRepository,
-		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
-		persistence.NewTenantRepository,
-		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
-		usecases.NewUserService,
-		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
-		usecases.NewTenantConfigurationService,
-		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
+		sharedPersistence.NewTenantConfigurationRepository,
+		wire.Bind(new(sharedUsecases.TenantConfigurationRepository), new(*sharedPersistence.SimpleTenantConfigurationRepository)),
+		sharedPersistence.NewUserRepository,
+		wire.Bind(new(sharedUsecases.UserRepository), new(*sharedPersistence.SimpleUserRepository)),
+		sharedPersistence.NewTenantRepository,
+		wire.Bind(new(sharedUsecases.TenantRepository), new(*sharedPersistence.SimpleTenantRepository)),
+		sharedUsecases.NewUserService,
+		wire.Bind(new(sharedUsecases.UserService), new(*sharedUsecases.SimpleUserService)),
+		sharedUsecases.NewTenantConfigurationService,
+		wire.Bind(new(sharedUsecases.TenantConfigurationService), new(*sharedUsecases.SimpleTenantConfigurationService)),
 		usecases.NewScheduledTaskWorker,
 	)
-	return nil, nil
-}
-
-func InitializeTenantController() (*httpapi.TenantController, error) {
-	wire.Build(
-		provideAppConfig,
-		persistence.NewTenantRepository,
-		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
-		DeviceServiceSet,
-		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
-		usecases.NewTenantService,
-		wire.Bind(new(usecases.TenantService), new(*usecases.SimpleTenantService)),
-		httpapi.NewTenantController,
-	)
-
-	return nil, nil
-}
-
-func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationController, error) {
-	wire.Build(
-		provideAppConfig,
-		providePublisherFactoryForEnvironment,
-		provideDatabase,
-		persistence.NewTenantConfigurationRepository,
-		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
-		persistence.NewUserRepository,
-		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
-		persistence.NewTenantRepository,
-		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
-		usecases.NewUserService,
-		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
-		usecases.NewTenantConfigurationService,
-		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
-		httpapi.NewTenantConfigurationController,
-	)
-
-	return nil, nil
-}
-
-func InitializeUserController() (*httpapi.UserController, error) {
-	wire.Build(
-		provideAppConfig,
-		providePublisherFactoryForEnvironment,
-		provideDatabase,
-		persistence.NewUserRepository,
-		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
-		persistence.NewTenantRepository,
-		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
-		usecases.NewUserService,
-		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
-		httpapi.NewUserController,
-	)
-
 	return nil, nil
 }
 
@@ -295,16 +244,16 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.Notifi
 		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
 		usecases.NewTaskService,
 		wire.Bind(new(usecases.TaskService), new(*usecases.SimpleTaskService)),
-		persistence.NewTenantConfigurationRepository,
-		wire.Bind(new(usecases.TenantConfigurationRepository), new(*persistence.SimpleTenantConfigurationRepository)),
-		persistence.NewUserRepository,
-		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
-		persistence.NewTenantRepository,
-		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
-		usecases.NewUserService,
-		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
-		usecases.NewTenantConfigurationService,
-		wire.Bind(new(usecases.TenantConfigurationService), new(*usecases.SimpleTenantConfigurationService)),
+		sharedPersistence.NewTenantConfigurationRepository,
+		wire.Bind(new(sharedUsecases.TenantConfigurationRepository), new(*sharedPersistence.SimpleTenantConfigurationRepository)),
+		sharedPersistence.NewUserRepository,
+		wire.Bind(new(sharedUsecases.UserRepository), new(*sharedPersistence.SimpleUserRepository)),
+		sharedPersistence.NewTenantRepository,
+		wire.Bind(new(sharedUsecases.TenantRepository), new(*sharedPersistence.SimpleTenantRepository)),
+		sharedUsecases.NewUserService,
+		wire.Bind(new(sharedUsecases.UserService), new(*sharedUsecases.SimpleUserService)),
+		sharedUsecases.NewTenantConfigurationService,
+		wire.Bind(new(sharedUsecases.TenantConfigurationService), new(*sharedUsecases.SimpleTenantConfigurationService)),
 		usecases.NewNotificationWorker,
 	)
 	return nil, nil
@@ -463,58 +412,4 @@ func provideDeviceStateCacheService() usecases.DeviceStateCacheService {
 
 func InitializeMetricWorkerFactory(broker async.InternalBroker) *usecases.MetricWorkerFactory {
 	return usecases.NewMetricWorkerFactory(broker)
-}
-
-func InitializePushTokenController() (*httpapi.PushTokenController, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		persistence.NewPushTokenRepository,
-		wire.Bind(new(usecases.PushTokenRepository), new(*persistence.SimplePushTokenRepository)),
-		usecases.NewPushTokenService,
-		wire.Bind(new(usecases.PushTokenService), new(*usecases.SimplePushTokenService)),
-		httpapi.NewPushTokenController,
-	)
-	return nil, nil
-}
-
-func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usecases.PushNotificationWorkerFactory, error) {
-	wire.Build(
-		provideAppConfig,
-		provideCompositeNotificationClient,
-		provideDatabase,
-		providePublisherFactoryForEnvironment,
-		persistence.NewPushTokenRepository,
-		wire.Bind(new(usecases.PushTokenRepository), new(*persistence.SimplePushTokenRepository)),
-		persistence.NewUserRepository,
-		wire.Bind(new(usecases.UserRepository), new(*persistence.SimpleUserRepository)),
-		persistence.NewTenantRepository,
-		wire.Bind(new(usecases.TenantRepository), new(*persistence.SimpleTenantRepository)),
-		usecases.NewUserService,
-		wire.Bind(new(usecases.UserService), new(*usecases.SimpleUserService)),
-		usecases.NewPushTokenService,
-		wire.Bind(new(usecases.PushTokenService), new(*usecases.SimplePushTokenService)),
-		usecases.NewPushNotificationWorkerFactory,
-	)
-	return nil, nil
-}
-
-func provideCompositeNotificationClient(config config.AppConfig) (notification.NotificationClient, error) {
-	mailerSendConfig := notification.MailerSendConfig{
-		APIKey:    config.MailerSend.APIKey,
-		FromEmail: config.MailerSend.FromEmail,
-		FromName:  config.MailerSend.FromName,
-	}
-	emailClient := notification.NewMailerSendClient(mailerSendConfig)
-
-	fcmConfig := notification.FCMConfig{
-		ProjectID:         config.FCM.ProjectID,
-		ServiceAccountPath: config.FCM.ServiceAccountPath,
-	}
-	pushClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return notification.NewCompositeNotificationClient(emailClient, pushClient), nil
 }

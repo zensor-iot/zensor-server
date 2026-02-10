@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"zensor-server/internal/shared_kernel/domain"
+	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 )
 
 //go:generate mockgen -source=./api.go -destination=../../../test/unit/doubles/control_plane/usecases/api.go -package=usecases
@@ -39,26 +40,34 @@ type ScheduledTaskService interface {
 	Delete(context.Context, domain.ID) error
 }
 
-type UserService interface {
-	AssociateTenants(context.Context, domain.ID, []domain.ID) error
-	GetUser(context.Context, domain.ID) (domain.User, error)
-}
+// Type aliases for types moved to shared_kernel/usecases
+type UserService = sharedUsecases.UserService
+type TenantService = sharedUsecases.TenantService
+type TenantConfigurationService = sharedUsecases.TenantConfigurationService
+type PushTokenService = sharedUsecases.PushTokenService
+type UserRepository = sharedUsecases.UserRepository
+type TenantRepository = sharedUsecases.TenantRepository
+type TenantConfigurationRepository = sharedUsecases.TenantConfigurationRepository
+type PushTokenRepository = sharedUsecases.PushTokenRepository
+type SimpleUserService = sharedUsecases.SimpleUserService
+type SimpleTenantService = sharedUsecases.SimpleTenantService
+type SimpleTenantConfigurationService = sharedUsecases.SimpleTenantConfigurationService
+type SimplePushTokenService = sharedUsecases.SimplePushTokenService
 
-type TenantConfigurationService interface {
-	UpsertTenantConfiguration(ctx context.Context, userEmail string, config domain.TenantConfiguration) (domain.TenantConfiguration, error)
-	GetTenantConfiguration(ctx context.Context, tenant domain.Tenant) (domain.TenantConfiguration, error)
-	GetOrCreateTenantConfiguration(ctx context.Context, tenant domain.Tenant, defaultTimezone string) (domain.TenantConfiguration, error)
-}
+// Constructor aliases
+var NewUserService = sharedUsecases.NewUserService
+var NewTenantService = sharedUsecases.NewTenantService
+var NewTenantConfigurationService = sharedUsecases.NewTenantConfigurationService
+var NewPushTokenService = sharedUsecases.NewPushTokenService
 
-type TenantService interface {
-	CreateTenant(ctx context.Context, tenant domain.Tenant) error
-	GetTenant(ctx context.Context, id domain.ID) (domain.Tenant, error)
-	GetTenantByName(ctx context.Context, name string) (domain.Tenant, error)
-	ListTenants(ctx context.Context, includeDeleted bool, pagination Pagination) ([]domain.Tenant, int, error)
-	UpdateTenant(ctx context.Context, tenant domain.Tenant) error
-	SoftDeleteTenant(ctx context.Context, id domain.ID) error
-	ActivateTenant(ctx context.Context, id domain.ID) error
-	DeactivateTenant(ctx context.Context, id domain.ID) error
-	AdoptDevice(ctx context.Context, tenantID, deviceID domain.ID) error
-	ListTenantDevices(ctx context.Context, tenantID domain.ID, pagination Pagination) ([]domain.Device, int, error)
-}
+// Error aliases
+var ErrTenantConfigurationNotFound = sharedUsecases.ErrTenantConfigurationNotFound
+var ErrUserNotFound = sharedUsecases.ErrUserNotFound
+var ErrPushTokenNotFound = sharedUsecases.ErrPushTokenNotFound
+var ErrTenantNotFound = sharedUsecases.ErrTenantNotFound
+var ErrTenantDuplicated = sharedUsecases.ErrTenantDuplicated
+var ErrTenantSoftDeleted = sharedUsecases.ErrTenantSoftDeleted
+var ErrTenantVersionConflict = sharedUsecases.ErrTenantVersionConflict
+var ErrMixedTenantValidation = sharedUsecases.ErrMixedTenantValidation
+var ErrInvalidTimezone = sharedUsecases.ErrInvalidTimezone
+var ErrForbiddenTenantConfigurationAccess = sharedUsecases.ErrForbiddenTenantConfigurationAccess

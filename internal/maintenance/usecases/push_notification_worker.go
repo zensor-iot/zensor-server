@@ -9,6 +9,7 @@ import (
 	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
+	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -25,8 +26,8 @@ type PushNotificationWorker struct {
 	broker              async.InternalBroker
 	subscription        async.Subscription
 	notificationClient  notification.NotificationClient
-	pushTokenService    PushTokenService
-	userService         UserService
+	pushTokenService    sharedUsecases.PushTokenService
+	userService         sharedUsecases.UserService
 	metricCounters      map[string]metric.Float64Counter
 }
 
@@ -34,8 +35,8 @@ func NewPushNotificationWorker(
 	cfg config.PushNotificationWorkerConfig,
 	broker async.InternalBroker,
 	notificationClient notification.NotificationClient,
-	pushTokenService PushTokenService,
-	userService UserService,
+	pushTokenService sharedUsecases.PushTokenService,
+	userService sharedUsecases.UserService,
 ) (*PushNotificationWorker, error) {
 	worker := &PushNotificationWorker{
 		config:             cfg,
@@ -140,7 +141,7 @@ func (w *PushNotificationWorker) handleNotification(ctx context.Context, msg asy
 func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.ID, msg async.BrokerMessage) {
 	pushToken, err := w.pushTokenService.GetTokenByUserID(ctx, userID)
 	if err != nil {
-		if err == ErrPushTokenNotFound {
+		if err == sharedUsecases.ErrPushTokenNotFound {
 			slog.Debug("user has no push token registered",
 				slog.String("user_id", userID.String()),
 				slog.String("notification", w.config.Name))
@@ -180,9 +181,17 @@ func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.I
 }
 
 func (w *PushNotificationWorker) sendToTenantUsers(ctx context.Context, tenantID domain.ID, msg async.BrokerMessage) {
-	slog.Warn("sending to all tenant users not yet implemented",
-		slog.String("tenant_id", tenantID.String()),
-		slog.String("notification", w.config.Name))
+	users, err := w.userService.FindByTenant(ctx, tenantID)
+	if err != nil {
+		slog.Error("failed to find users for tenant",
+			slog.String("tenant_id", tenantID.String()),
+			slog.Any("error", err))
+		return
+	}
+
+	for _, user := range users {
+		w.sendToUser(ctx, user.ID, msg)
+	}
 }
 
 func (w *PushNotificationWorker) buildTitle(msg async.BrokerMessage) string {
@@ -211,7 +220,7 @@ func (w *PushNotificationWorker) interpolateTemplate(template string, data any) 
 	executionID := utils.ExtractStringValue(data, "execution_id")
 	activityID := utils.ExtractStringValue(data, "activity_id")
 	activityName := utils.ExtractStringValue(data, "activity_name")
-	
+
 	if executionID != "" {
 		result = fmt.Sprintf(result, executionID)
 	} else if activityID != "" {
@@ -219,7 +228,7 @@ func (w *PushNotificationWorker) interpolateTemplate(template string, data any) 
 	} else if activityName != "" {
 		result = fmt.Sprintf(result, activityName)
 	}
-	
+
 	return result
 }
 
@@ -249,4 +258,3 @@ func (w *PushNotificationWorker) recordNotificationMetrics(ctx context.Context, 
 		))
 	}
 }
-

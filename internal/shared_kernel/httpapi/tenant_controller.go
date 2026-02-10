@@ -4,8 +4,9 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"zensor-server/internal/control_plane/httpapi/internal"
-	"zensor-server/internal/control_plane/usecases"
+	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/shared_kernel/httpapi/internal"
+	"zensor-server/internal/shared_kernel/usecases"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/shared_kernel/domain"
 )
@@ -305,7 +306,7 @@ func (c *TenantController) adoptDevice() http.HandlerFunc {
 			http.Error(w, tenantSoftDeletedErrMessage, http.StatusConflict)
 			return
 		}
-		if errors.Is(err, usecases.ErrDeviceNotFound) {
+		if errors.Is(err, controlPlaneUsecases.ErrDeviceNotFound) {
 			http.Error(w, "device not found", http.StatusNotFound)
 			return
 		}
