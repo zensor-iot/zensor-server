@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	ErrActivityNotFound  = errors.New("activity not found")
-	ErrExecutionNotFound = errors.New("execution not found")
+	ErrActivityNotFound           = errors.New("activity not found")
+	ErrExecutionNotFound          = errors.New("execution not found")
+	ErrExecutionScheduledInFuture = errors.New("maintenance execution scheduled date is in the future")
 )
 
 type Pagination struct {

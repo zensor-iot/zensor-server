@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
@@ -99,6 +100,10 @@ func (s *SimpleExecutionService) MarkExecutionCompleted(ctx context.Context, id 
 
 	if execution.IsCompleted() {
 		return errors.New("maintenance execution is already completed")
+	}
+
+	if execution.IsScheduledInTheFuture(time.Now()) {
+		return ErrExecutionScheduledInFuture
 	}
 
 	err = s.repository.MarkCompleted(ctx, id, completedBy)

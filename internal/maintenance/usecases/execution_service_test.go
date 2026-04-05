@@ -277,5 +277,23 @@ var _ = Describe("MaintenanceExecutionService", func() {
 				Expect(err.Error()).To(ContainSubstring("deleted"))
 			})
 		})
+
+		When("scheduled date is in the future", func() {
+			It("should return ErrExecutionScheduledInFuture without marking completed", func() {
+				futureExecution, _ := maintenanceDomain.NewExecutionBuilder().
+					WithActivityID(execution.ActivityID).
+					WithScheduledDate(time.Now().Add(24 * time.Hour)).
+					WithFieldValues(map[string]any{"maintenance_type": "Filter Replacement"}).
+					Build()
+				futureExecution.ID = execution.ID
+
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ID).
+					Return(futureExecution, nil)
+
+				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
+				Expect(err).To(MatchError(maintenanceUsecases.ErrExecutionScheduledInFuture))
+			})
+		})
 	})
 })

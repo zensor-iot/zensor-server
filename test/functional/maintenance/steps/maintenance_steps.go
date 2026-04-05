@@ -241,7 +241,7 @@ func (fc *FeatureContext) thereAreMaintenanceExecutionsForTheActivity(count int)
 }
 
 func (fc *FeatureContext) aMaintenanceExecutionExistsForTheActivity() error {
-	scheduledDate := time.Now().Add(24 * time.Hour)
+	scheduledDate := time.Now().Add(-24 * time.Hour)
 	fieldValues := map[string]any{
 		"service_type": "Regular Service",
 	}
@@ -261,6 +261,30 @@ func (fc *FeatureContext) aMaintenanceExecutionExistsForTheActivity() error {
 		if fc.maintenanceExecutionID == "" {
 			fc.maintenanceExecutionID = id
 		}
+	}
+
+	return nil
+}
+
+func (fc *FeatureContext) aFutureMaintenanceExecutionExistsForTheActivity() error {
+	scheduledDate := time.Now().Add(48 * time.Hour)
+	fieldValues := map[string]any{
+		"service_type": "Future Service",
+	}
+
+	resp, err := fc.createMaintenanceExecution(fc.maintenanceActivityID, scheduledDate, fieldValues)
+	fc.require.NoError(err)
+	fc.require.Equal(http.StatusCreated, resp.StatusCode)
+
+	var data map[string]any
+	err = fc.decodeBody(resp.Body, &data)
+	fc.require.NoError(err)
+	if id, ok := data["id"].(string); ok {
+		if fc.maintenanceExecutionIDs == nil {
+			fc.maintenanceExecutionIDs = []string{}
+		}
+		fc.maintenanceExecutionIDs = append(fc.maintenanceExecutionIDs, id)
+		fc.maintenanceExecutionID = id
 	}
 
 	return nil

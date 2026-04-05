@@ -29,6 +29,11 @@ Feature: Maintenance Execution Management
     And the response should contain a completed maintenance execution
     And the response should contain completed_by "user@test.com"
 
+  Scenario: Cannot mark a future maintenance execution as completed
+    Given a future maintenance execution exists for the activity
+    When I mark the maintenance execution as completed by "user@test.com"
+    Then the response status code should be 400
+
   Scenario: Get an overdue maintenance execution
     Given an overdue maintenance execution exists for the activity
     When I get the maintenance execution by its ID

@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	createExecutionErrMessage           = "failed to create maintenance execution"
-	getExecutionErrMessage              = "failed to get maintenance execution"
-	markCompletedErrMessage             = "failed to mark execution as completed"
-	executionNotFoundErrMessage         = "maintenance execution not found"
-	executionAlreadyCompletedErrMessage = "maintenance execution is already completed"
+	createExecutionErrMessage            = "failed to create maintenance execution"
+	getExecutionErrMessage               = "failed to get maintenance execution"
+	markCompletedErrMessage              = "failed to mark execution as completed"
+	executionNotFoundErrMessage          = "maintenance execution not found"
+	executionAlreadyCompletedErrMessage  = "maintenance execution is already completed"
+	executionScheduledInFutureErrMessage = "cannot complete maintenance execution before its scheduled date"
 )
 
 func NewExecutionController(
@@ -139,6 +140,10 @@ func (c *ExecutionController) markCompleted() http.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, usecases.ErrExecutionNotFound) {
 				http.Error(w, executionNotFoundErrMessage, http.StatusNotFound)
+				return
+			}
+			if errors.Is(err, usecases.ErrExecutionScheduledInFuture) {
+				http.Error(w, executionScheduledInFutureErrMessage, http.StatusConflict)
 				return
 			}
 			slog.Error("marking execution as completed", slog.String("error", err.Error()))
