@@ -1,6 +1,7 @@
 package mqtt_test
 
 import (
+	"context"
 	"zensor-server/internal/infra/mqtt"
 
 	paho "github.com/eclipse/paho.mqtt.golang"
@@ -36,6 +37,37 @@ var _ = ginkgo.Describe("MQTT Client", func() {
 			ginkgo.It("should properly alias Message to paho.Message", func() {
 				// This test ensures that Message is properly aliased to paho.Message
 				var _ mqtt.Message = (paho.Message)(nil)
+			})
+		})
+	})
+
+	ginkgo.Context("NewNoOpClient", func() {
+		var client mqtt.Client
+
+		ginkgo.When("used as Client", func() {
+			ginkgo.BeforeEach(func() {
+				client = mqtt.NewNoOpClient()
+			})
+
+			ginkgo.It("should subscribe without error", func() {
+				err := client.Subscribe("any/topic", 0, func(mqtt.Client, mqtt.Message) {})
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should publish without error when context is active", func() {
+				err := client.Publish(context.Background(), "any/topic", map[string]string{"k": "v"})
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should return context error when context is cancelled", func() {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				err := client.Publish(ctx, "any/topic", "payload")
+				gomega.Expect(err).To(gomega.Equal(context.Canceled))
+			})
+
+			ginkgo.It("should disconnect without panic", func() {
+				client.Disconnect()
 			})
 		})
 	})
