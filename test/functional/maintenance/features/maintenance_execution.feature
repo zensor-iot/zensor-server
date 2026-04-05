@@ -32,11 +32,10 @@ Feature: Maintenance Execution Management
   Scenario: Cannot mark a future maintenance execution as completed
     Given a future maintenance execution exists for the activity
     When I mark the maintenance execution as completed by "user@test.com"
-    Then the response status code should be 400
+    Then the response status code should be 409
 
   Scenario: Get an overdue maintenance execution
     Given an overdue maintenance execution exists for the activity
     When I get the maintenance execution by its ID
     Then the response status code should be 200
     And the response should contain an overdue maintenance execution
-
