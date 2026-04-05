@@ -94,3 +94,20 @@ func (s *SimplePushTokenService) GetTokenByUserID(ctx context.Context, userID do
 
 	return token, nil
 }
+
+// ListTokensByUserID returns all push tokens for the user, or ErrPushTokenNotFound if the list is empty.
+func (s *SimplePushTokenService) ListTokensByUserID(ctx context.Context, userID domain.ID) ([]domain.PushToken, error) {
+	if userID == "" {
+		return nil, errors.New("user ID is required")
+	}
+
+	tokens, err := s.repository.ListByUserID(ctx, userID)
+	if err != nil {
+		slog.Error("listing push tokens", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("listing push tokens: %w", err)
+	}
+	if len(tokens) == 0 {
+		return nil, ErrPushTokenNotFound
+	}
+	return tokens, nil
+}

@@ -36,6 +36,21 @@ type PushTokenService interface {
 	RegisterToken(ctx context.Context, userID domain.ID, token string, platform string) error
 	UnregisterToken(ctx context.Context, token string) error
 	GetTokenByUserID(ctx context.Context, userID domain.ID) (domain.PushToken, error)
+	// ListTokensByUserID returns all device tokens for the user, or ErrPushTokenNotFound if none.
+	ListTokensByUserID(ctx context.Context, userID domain.ID) ([]domain.PushToken, error)
+}
+
+// UserPushBroadcastContent carries notification text and deep link for user-targeted push broadcasts.
+type UserPushBroadcastContent struct {
+	Title    string
+	Body     string
+	DeepLink string
+}
+
+// UserPushMessageSender broadcasts a push notification to every device token registered for a user.
+type UserPushMessageSender interface {
+	// SendBroadcastToUser sends the same payload to each registered token for the user.
+	SendBroadcastToUser(ctx context.Context, userID domain.ID, content UserPushBroadcastContent) error
 }
 
 type DeviceAdopter interface {

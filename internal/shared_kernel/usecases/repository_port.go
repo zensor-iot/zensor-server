@@ -48,5 +48,7 @@ type TenantConfigurationRepository interface {
 type PushTokenRepository interface {
 	Upsert(ctx context.Context, pushToken domain.PushToken) error
 	GetByUserID(ctx context.Context, userID domain.ID) (domain.PushToken, error)
+	// ListByUserID returns all push tokens for the user, or an empty slice if none exist.
+	ListByUserID(ctx context.Context, userID domain.ID) ([]domain.PushToken, error)
 	DeleteByToken(ctx context.Context, token string) error
 }

@@ -304,6 +304,21 @@ func (mr *MockPushTokenRepositoryMockRecorder) GetByUserID(ctx, userID any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUserID", reflect.TypeOf((*MockPushTokenRepository)(nil).GetByUserID), ctx, userID)
 }
 
+// ListByUserID mocks base method.
+func (m *MockPushTokenRepository) ListByUserID(ctx context.Context, userID domain.ID) ([]domain.PushToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByUserID", ctx, userID)
+	ret0, _ := ret[0].([]domain.PushToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByUserID indicates an expected call of ListByUserID.
+func (mr *MockPushTokenRepositoryMockRecorder) ListByUserID(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByUserID", reflect.TypeOf((*MockPushTokenRepository)(nil).ListByUserID), ctx, userID)
+}
+
 // Upsert mocks base method.
 func (m *MockPushTokenRepository) Upsert(ctx context.Context, pushToken domain.PushToken) error {
 	m.ctrl.T.Helper()

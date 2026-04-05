@@ -364,6 +364,21 @@ func (mr *MockPushTokenServiceMockRecorder) GetTokenByUserID(ctx, userID any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenByUserID", reflect.TypeOf((*MockPushTokenService)(nil).GetTokenByUserID), ctx, userID)
 }
 
+// ListTokensByUserID mocks base method.
+func (m *MockPushTokenService) ListTokensByUserID(ctx context.Context, userID domain.ID) ([]domain.PushToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListTokensByUserID", ctx, userID)
+	ret0, _ := ret[0].([]domain.PushToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListTokensByUserID indicates an expected call of ListTokensByUserID.
+func (mr *MockPushTokenServiceMockRecorder) ListTokensByUserID(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTokensByUserID", reflect.TypeOf((*MockPushTokenService)(nil).ListTokensByUserID), ctx, userID)
+}
+
 // RegisterToken mocks base method.
 func (m *MockPushTokenService) RegisterToken(ctx context.Context, userID domain.ID, token, platform string) error {
 	m.ctrl.T.Helper()
@@ -390,6 +405,44 @@ func (m *MockPushTokenService) UnregisterToken(ctx context.Context, token string
 func (mr *MockPushTokenServiceMockRecorder) UnregisterToken(ctx, token any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterToken", reflect.TypeOf((*MockPushTokenService)(nil).UnregisterToken), ctx, token)
+}
+
+// MockUserPushMessageSender is a mock of UserPushMessageSender interface.
+type MockUserPushMessageSender struct {
+	ctrl     *gomock.Controller
+	recorder *MockUserPushMessageSenderMockRecorder
+	isgomock struct{}
+}
+
+// MockUserPushMessageSenderMockRecorder is the mock recorder for MockUserPushMessageSender.
+type MockUserPushMessageSenderMockRecorder struct {
+	mock *MockUserPushMessageSender
+}
+
+// NewMockUserPushMessageSender creates a new mock instance.
+func NewMockUserPushMessageSender(ctrl *gomock.Controller) *MockUserPushMessageSender {
+	mock := &MockUserPushMessageSender{ctrl: ctrl}
+	mock.recorder = &MockUserPushMessageSenderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserPushMessageSender) EXPECT() *MockUserPushMessageSenderMockRecorder {
+	return m.recorder
+}
+
+// SendBroadcastToUser mocks base method.
+func (m *MockUserPushMessageSender) SendBroadcastToUser(ctx context.Context, userID domain.ID, content usecases.UserPushBroadcastContent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendBroadcastToUser", ctx, userID, content)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendBroadcastToUser indicates an expected call of SendBroadcastToUser.
+func (mr *MockUserPushMessageSenderMockRecorder) SendBroadcastToUser(ctx, userID, content any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendBroadcastToUser", reflect.TypeOf((*MockUserPushMessageSender)(nil).SendBroadcastToUser), ctx, userID, content)
 }
 
 // MockDeviceAdopter is a mock of DeviceAdopter interface.

@@ -119,7 +119,12 @@ func InitializePushTokenController() (*httpapi.PushTokenController, error) {
 		return nil, err
 	}
 	simplePushTokenService := usecases.NewPushTokenService(simplePushTokenRepository)
-	pushTokenController := httpapi.NewPushTokenController(simplePushTokenService)
+	notificationClient, err := provideCompositeNotificationClient(appConfig)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserPushMessageSender := usecases.NewUserPushMessageSender(simplePushTokenService, notificationClient)
+	pushTokenController := httpapi.NewPushTokenController(simplePushTokenService, simpleUserPushMessageSender)
 	return pushTokenController, nil
 }
 

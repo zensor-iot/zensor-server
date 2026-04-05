@@ -22,13 +22,13 @@ const (
 )
 
 type PushNotificationWorker struct {
-	config              config.PushNotificationWorkerConfig
-	broker              async.InternalBroker
-	subscription        async.Subscription
-	notificationClient  notification.NotificationClient
-	pushTokenService    sharedUsecases.PushTokenService
-	userService         sharedUsecases.UserService
-	metricCounters      map[string]metric.Float64Counter
+	config             config.PushNotificationWorkerConfig
+	broker             async.InternalBroker
+	subscription       async.Subscription
+	notificationClient notification.NotificationClient
+	pushTokenService   sharedUsecases.PushTokenService
+	userService        sharedUsecases.UserService
+	metricCounters     map[string]metric.Float64Counter
 }
 
 func NewPushNotificationWorker(
@@ -139,7 +139,7 @@ func (w *PushNotificationWorker) handleNotification(ctx context.Context, msg asy
 }
 
 func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.ID, msg async.BrokerMessage) {
-	pushToken, err := w.pushTokenService.GetTokenByUserID(ctx, userID)
+	tokens, err := w.pushTokenService.ListTokensByUserID(ctx, userID)
 	if err != nil {
 		if err == sharedUsecases.ErrPushTokenNotFound {
 			slog.Debug("user has no push token registered",
@@ -147,7 +147,7 @@ func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.I
 				slog.String("notification", w.config.Name))
 			return
 		}
-		slog.Warn("failed to get push token for user",
+		slog.Warn("failed to list push tokens for user",
 			slog.String("user_id", userID.String()),
 			slog.Any("error", err))
 		return
@@ -157,27 +157,33 @@ func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.I
 	body := w.buildBody(msg)
 	deepLink := w.buildDeepLink(msg)
 
-	request := notification.PushNotificationRequest{
-		Token:    pushToken.Token,
-		Title:    title,
-		Body:     body,
-		DeepLink: deepLink,
+	anySuccess := false
+	for _, pushToken := range tokens {
+		request := notification.PushNotificationRequest{
+			Token:    pushToken.Token,
+			Title:    title,
+			Body:     body,
+			DeepLink: deepLink,
+		}
+
+		err = w.notificationClient.SendPushNotification(ctx, request)
+		if err != nil {
+			slog.Error("failed to send push notification",
+				slog.String("user_id", userID.String()),
+				slog.String("notification", w.config.Name),
+				slog.Any("error", err))
+			w.recordNotificationMetrics(ctx, "error")
+			continue
+		}
+		w.recordNotificationMetrics(ctx, "success")
+		anySuccess = true
 	}
 
-	err = w.notificationClient.SendPushNotification(ctx, request)
-	if err != nil {
-		slog.Error("failed to send push notification",
+	if anySuccess {
+		slog.Info("push notification sent",
 			slog.String("user_id", userID.String()),
-			slog.String("notification", w.config.Name),
-			slog.Any("error", err))
-		w.recordNotificationMetrics(ctx, "error")
-		return
+			slog.String("notification", w.config.Name))
 	}
-
-	w.recordNotificationMetrics(ctx, "success")
-	slog.Info("push notification sent",
-		slog.String("user_id", userID.String()),
-		slog.String("notification", w.config.Name))
 }
 
 func (w *PushNotificationWorker) sendToTenantUsers(ctx context.Context, tenantID domain.ID, msg async.BrokerMessage) {

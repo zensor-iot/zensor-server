@@ -88,10 +88,13 @@ func InitializePushTokenController() (*sharedHTTPAPI.PushTokenController, error)
 	wire.Build(
 		provideAppConfig,
 		provideDatabase,
+		provideCompositeNotificationClient,
 		sharedPersistence.NewPushTokenRepository,
 		wire.Bind(new(sharedUsecases.PushTokenRepository), new(*sharedPersistence.SimplePushTokenRepository)),
 		sharedUsecases.NewPushTokenService,
 		wire.Bind(new(sharedUsecases.PushTokenService), new(*sharedUsecases.SimplePushTokenService)),
+		sharedUsecases.NewUserPushMessageSender,
+		wire.Bind(new(sharedUsecases.UserPushMessageSender), new(*sharedUsecases.SimpleUserPushMessageSender)),
 		sharedHTTPAPI.NewPushTokenController,
 	)
 	return nil, nil

@@ -8,3 +8,9 @@ type PushTokenRegistrationRequest struct {
 type PushTokenUnregistrationRequest struct {
 	Token string `json:"token"`
 }
+
+type UserPushBroadcastRequest struct {
+	Title    string `json:"title"`
+	Body     string `json:"body"`
+	DeepLink string `json:"deep_link"`
+}

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"zensor-server/internal/shared_kernel/persistence/internal"
-	"zensor-server/internal/shared_kernel/usecases"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/domain"
+	"zensor-server/internal/shared_kernel/persistence/internal"
+	"zensor-server/internal/shared_kernel/usecases"
 )
 
 func NewPushTokenRepository(orm sql.ORM) (*SimplePushTokenRepository, error) {
@@ -86,6 +86,22 @@ func (r *SimplePushTokenRepository) GetByUserID(ctx context.Context, userID doma
 	}
 
 	return entity.ToDomain(), nil
+}
+
+func (r *SimplePushTokenRepository) ListByUserID(ctx context.Context, userID domain.ID) ([]domain.PushToken, error) {
+	var entities []internal.PushToken
+	err := r.orm.WithContext(ctx).
+		Where("user_id = ?", userID.String()).
+		Find(&entities).
+		Error()
+	if err != nil {
+		return nil, fmt.Errorf("listing push tokens: %w", err)
+	}
+	out := make([]domain.PushToken, 0, len(entities))
+	for i := range entities {
+		out = append(out, entities[i].ToDomain())
+	}
+	return out, nil
 }
 
 func (r *SimplePushTokenRepository) DeleteByToken(ctx context.Context, token string) error {
