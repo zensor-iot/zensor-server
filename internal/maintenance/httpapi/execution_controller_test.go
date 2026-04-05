@@ -229,6 +229,23 @@ var _ = Describe("MaintenanceExecutionController", func() {
 			})
 		})
 
+		When("execution scheduled date is in the future", func() {
+			It("should return bad request", func() {
+				mockExecutionService.EXPECT().
+					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com").
+					Return(maintenance_usecases.ErrExecutionScheduledInFuture)
+
+				body, _ := json.Marshal(completeRequest)
+				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
+				request.Header.Set("Content-Type", "application/json")
+
+				router.ServeHTTP(recorder, request)
+
+				Expect(recorder.Code).To(Equal(http.StatusConflict))
+				Expect(recorder.Body.String()).To(ContainSubstring("cannot complete maintenance execution before its scheduled date"))
+			})
+		})
+
 		When("invalid JSON body", func() {
 			It("should return bad request", func() {
 				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader([]byte("invalid json")))

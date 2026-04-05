@@ -103,7 +103,12 @@ func (wsc *DeviceSpecificWebSocketController) handleWebSocket() http.HandlerFunc
 			deviceID: deviceID,
 		}
 
-		wsc.register <- subscription
+		select {
+		case wsc.register <- subscription:
+		case <-wsc.ctx.Done():
+			conn.Close()
+			return
+		}
 
 		go wsc.handlePingPong(conn)
 
@@ -321,9 +326,6 @@ func (wsc *DeviceSpecificWebSocketController) Shutdown() {
 		client.Close()
 	}
 	wsc.clientsMux.Unlock()
-
-	close(wsc.register)
-	close(wsc.unregister)
 
 	wsc.wg.Wait()
 }

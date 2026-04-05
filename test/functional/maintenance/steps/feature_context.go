@@ -82,6 +82,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 
 	ctx.Given(`^there are (\d+) maintenance executions for the activity$`, fc.thereAreMaintenanceExecutionsForTheActivity)
 	ctx.Given(`^a maintenance execution exists for the activity$`, fc.aMaintenanceExecutionExistsForTheActivity)
+	ctx.Given(`^a future maintenance execution exists for the activity$`, fc.aFutureMaintenanceExecutionExistsForTheActivity)
 	ctx.Given(`^an overdue maintenance execution exists for the activity$`, fc.anOverdueMaintenanceExecutionExistsForTheActivity)
 	ctx.When(`^I list all maintenance executions for the activity$`, fc.iListAllMaintenanceExecutionsForTheActivity)
 	ctx.Then(`^I should receive (\d+) executions$`, fc.iShouldReceiveExecutions)
