@@ -12,7 +12,6 @@ import (
 
 	"zensor-server/cmd/api/wire"
 	"zensor-server/cmd/config"
-	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
@@ -20,6 +19,7 @@ import (
 	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
+	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -88,22 +88,28 @@ func main() {
 	// Initialize replication service for local environment
 	replicationService := initializeReplicationService()
 
+	env, envOK := os.LookupEnv("ENV")
+	if !envOK {
+		env = "production"
+	}
+
 	var wg sync.WaitGroup
 	ticker := time.NewTicker(30 * time.Second)
-	simpleClientOpts := mqtt.SimpleClientOpts{
-		Broker:   appConfig.MQTTClient.Broker,
-		ClientID: appConfig.MQTTClient.ClientID,
-		Username: appConfig.MQTTClient.Username,
-		Password: appConfig.MQTTClient.Password, //pragma: allowlist secret
+	var mqttClient mqtt.Client
+	if env == "local" {
+		mqttClient = mqtt.NewNoOpClient()
+	} else {
+		simpleClientOpts := mqtt.SimpleClientOpts{
+			Broker:   appConfig.MQTTClient.Broker,
+			ClientID: appConfig.MQTTClient.ClientID,
+			Username: appConfig.MQTTClient.Username,
+			Password: appConfig.MQTTClient.Password, //pragma: allowlist secret
+		}
+		mqttClient = mqtt.NewSimpleClient(simpleClientOpts)
 	}
-	mqttClient := mqtt.NewSimpleClient(simpleClientOpts)
 
 	// Use environment-aware consumer factory
 	var consumerFactory pubsub.ConsumerFactory
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
 	if env == "local" {
 		consumerFactory = pubsub.NewMemoryConsumerFactory("lora-integration")
 	} else {
