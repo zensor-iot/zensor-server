@@ -1,0 +1,25 @@
+name: Write FCM service account
+description: Writes FCM_SERVICE_ACCOUNT_JSON to service_account.json when set; otherwise copies a committed dummy JSON for CI startup.
+
+inputs:
+  json:
+    description: Raw Firebase/GCP service account JSON (pass secrets.FCM_SERVICE_ACCOUNT_JSON)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Write service_account.json
+      shell: bash
+      env:
+        FCM_SERVICE_ACCOUNT_JSON: ${{ inputs.json }}
+      run: |
+        set -euo pipefail
+        DUMMY="${GITHUB_WORKSPACE}/internal/infra/notification/testdata/fcm_service_account_dummy.json"
+        if [ -n "$FCM_SERVICE_ACCOUNT_JSON" ]; then
+          printf '%s' "$FCM_SERVICE_ACCOUNT_JSON" > "${GITHUB_WORKSPACE}/service_account.json"
+        else
+          cp "$DUMMY" "${GITHUB_WORKSPACE}/service_account.json"
+          echo "Using committed FCM dummy credentials (no FCM_SERVICE_ACCOUNT_JSON secret)."
+        fi

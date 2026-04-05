@@ -21,6 +21,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Write FCM service account from secret
+        uses: ./.github/actions/write-fcm-service-account
+        with:
+          json: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -60,6 +65,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Write FCM service account from secret
+        uses: ./.github/actions/write-fcm-service-account
+        with:
+          json: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
 
       - name: Set up Go
         uses: actions/setup-go@v4

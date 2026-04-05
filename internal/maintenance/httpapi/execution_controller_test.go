@@ -241,7 +241,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 
 				router.ServeHTTP(recorder, request)
 
-				Expect(recorder.Code).To(Equal(http.StatusBadRequest))
+				Expect(recorder.Code).To(Equal(http.StatusConflict))
 				Expect(recorder.Body.String()).To(ContainSubstring("cannot complete maintenance execution before its scheduled date"))
 			})
 		})
