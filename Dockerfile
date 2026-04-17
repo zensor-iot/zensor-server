@@ -28,5 +28,3 @@ COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /app/server /server
 USER 1000
 ENTRYPOINT [ "/server" ]
-
-RUN ls -la
