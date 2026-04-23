@@ -1,6 +1,6 @@
 module zensor-server
 
-go 1.24.0
+go 1.25.0
 
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/jackc/pgx/v5 v5.7.2
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/linkedin/goavro/v2 v2.14.0
 	github.com/lovoo/goka v1.0.6
 	github.com/mailersend/mailersend-go v1.6.1
