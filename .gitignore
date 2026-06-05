@@ -21,3 +21,4 @@ coverprofile.out
 *.test
 
 service_account.json
+.DS_Store

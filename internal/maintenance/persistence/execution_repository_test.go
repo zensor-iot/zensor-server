@@ -210,6 +210,54 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 		})
 	})
 
+	ginkgo.Context("FindOverdueExecutions", func() {
+		ginkgo.When("there is an overdue execution for an active activity", func() {
+			var tenantID shareddomain.ID
+			var execution maintenanceDomain.Execution
+
+			ginkgo.BeforeEach(func() {
+				tenantID = shareddomain.ID(utils.GenerateUUID())
+				activityID := utils.GenerateUUID()
+
+				internalActivity := maintenancePersistenceInternal.Activity{
+					ID:       activityID,
+					Version:  1,
+					TenantID: tenantID.String(),
+					TypeName: "water_system",
+					Name:     "Test Activity",
+					Schedule: "0 0 1 * *",
+					IsActive: true,
+				}
+				err := orm.WithContext(ctx).Create(&internalActivity).Error()
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+				execution, _ = maintenanceDomain.NewExecutionBuilder().
+					WithActivityID(shareddomain.ID(activityID)).
+					WithScheduledDate(time.Now().AddDate(0, 0, -5)).
+					Build()
+
+				internalExecution := maintenancePersistenceInternal.FromExecution(execution)
+				err = orm.WithContext(ctx).Create(&internalExecution).Error()
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should return the activity with the correct tenant ID", func() {
+				results, err := repo.FindOverdueExecutions(ctx)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+				var found *maintenanceUsecases.ExecutionWithActivity
+				for i := range results {
+					if results[i].Execution.ID == execution.ID {
+						found = &results[i]
+						break
+					}
+				}
+				gomega.Expect(found).NotTo(gomega.BeNil(), "overdue execution should be returned")
+				gomega.Expect(found.Activity.TenantID).To(gomega.Equal(tenantID))
+			})
+		})
+	})
+
 	ginkgo.Context("FindAllOverdue", func() {
 		ginkgo.When("finding overdue executions", func() {
 			ginkgo.It("should return empty list", func() {

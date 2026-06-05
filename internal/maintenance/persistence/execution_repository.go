@@ -210,12 +210,7 @@ func (r *SimpleExecutionRepository) FindAllDueSoon(ctx context.Context, tenantID
 }
 
 func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ctx context.Context, currentDate time.Time) ([]usecases.ExecutionWithActivity, error) {
-	type ExecutionActivityJoin struct {
-		internal.Execution
-		internal.Activity
-	}
-
-	var joins []ExecutionActivityJoin
+	var executions []internal.Execution
 
 	err := r.orm.
 		WithContext(ctx).
@@ -226,26 +221,40 @@ func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ct
 		Where("maintenance_activities.deleted_at IS NULL").
 		Where("maintenance_activities.is_active = ?", true).
 		Where("maintenance_executions.scheduled_date > ?", currentDate).
-		Find(&joins).
+		Find(&executions).
 		Error()
 
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
 
-	result := make([]usecases.ExecutionWithActivity, 0, len(joins))
-	for _, join := range joins {
-		execution := join.Execution.ToDomain()
-		activity := join.Activity.ToDomain()
+	if len(executions) == 0 {
+		return nil, nil
+	}
+
+	activities, err := r.fetchActivitiesByExecutions(ctx, executions)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]usecases.ExecutionWithActivity, 0, len(executions))
+	for _, exec := range executions {
+		activity, ok := activities[exec.ActivityID]
+		if !ok {
+			continue
+		}
+
+		execution := exec.ToDomain()
+		domainActivity := activity.ToDomain()
 
 		daysUntil := int(execution.ScheduledDate.Time.Sub(currentDate).Hours() / 24)
-		notificationDays := []int(activity.NotificationDaysBefore)
+		notificationDays := []int(domainActivity.NotificationDaysBefore)
 
 		for _, notificationDay := range notificationDays {
 			if daysUntil == notificationDay {
 				result = append(result, usecases.ExecutionWithActivity{
 					Execution: execution,
-					Activity:  activity,
+					Activity:  domainActivity,
 				})
 				break
 			}
@@ -256,14 +265,9 @@ func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ct
 }
 
 func (r *SimpleExecutionRepository) FindOverdueExecutions(ctx context.Context) ([]usecases.ExecutionWithActivity, error) {
-	type ExecutionActivityJoin struct {
-		internal.Execution
-		internal.Activity
-	}
-
-	var joins []ExecutionActivityJoin
 	now := time.Now()
 
+	var executions []internal.Execution
 	err := r.orm.
 		WithContext(ctx).
 		Model(&internal.Execution{}).
@@ -273,22 +277,58 @@ func (r *SimpleExecutionRepository) FindOverdueExecutions(ctx context.Context) (
 		Where("maintenance_activities.deleted_at IS NULL").
 		Where("maintenance_activities.is_active = ?", true).
 		Where("maintenance_executions.scheduled_date < ?", now).
-		Find(&joins).
+		Find(&executions).
 		Error()
 
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
 
-	result := make([]usecases.ExecutionWithActivity, len(joins))
-	for i, join := range joins {
-		result[i] = usecases.ExecutionWithActivity{
-			Execution: join.Execution.ToDomain(),
-			Activity:  join.Activity.ToDomain(),
+	if len(executions) == 0 {
+		return nil, nil
+	}
+
+	activities, err := r.fetchActivitiesByExecutions(ctx, executions)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]usecases.ExecutionWithActivity, 0, len(executions))
+	for _, exec := range executions {
+		if activity, ok := activities[exec.ActivityID]; ok {
+			result = append(result, usecases.ExecutionWithActivity{
+				Execution: exec.ToDomain(),
+				Activity:  activity.ToDomain(),
+			})
 		}
 	}
 
 	return result, nil
+}
+
+func (r *SimpleExecutionRepository) fetchActivitiesByExecutions(ctx context.Context, executions []internal.Execution) (map[string]internal.Activity, error) {
+	activityIDs := make([]string, len(executions))
+	for i, exec := range executions {
+		activityIDs[i] = exec.ActivityID
+	}
+
+	var activities []internal.Activity
+	err := r.orm.
+		WithContext(ctx).
+		Model(&internal.Activity{}).
+		Where("id IN ?", activityIDs).
+		Find(&activities).
+		Error()
+	if err != nil {
+		return nil, fmt.Errorf("fetching activities: %w", err)
+	}
+
+	activityMap := make(map[string]internal.Activity, len(activities))
+	for _, a := range activities {
+		activityMap[a.ID] = a
+	}
+
+	return activityMap, nil
 }
 
 func convertToAvroMaintenanceExecution(execution maintenanceDomain.Execution) *avro.AvroMaintenanceExecution {
