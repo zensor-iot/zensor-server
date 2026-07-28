@@ -7,55 +7,33 @@ import (
 	"time"
 	"zensor-server/internal/shared_kernel/persistence/internal"
 	"zensor-server/internal/shared_kernel/usecases"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-func NewTenantRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleTenantRepository, error) {
-	publisher, err := publisherFactory.New("tenants", &avro.AvroTenant{})
-	if err != nil {
-		return nil, fmt.Errorf("creating publisher: %w", err)
-	}
-
-	err = orm.AutoMigrate(&internal.Tenant{})
+func NewTenantRepository(orm sql.ORM) (*SimpleTenantRepository, error) {
+	err := orm.AutoMigrate(&internal.Tenant{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
 
 	return &SimpleTenantRepository{
-		publisher: publisher,
-		orm:       orm,
+		orm: orm,
 	}, nil
 }
 
 var _ usecases.TenantRepository = (*SimpleTenantRepository)(nil)
 
 type SimpleTenantRepository struct {
-	publisher pubsub.Publisher
-	orm       sql.ORM
+	orm sql.ORM
 }
 
 func (r *SimpleTenantRepository) Create(ctx context.Context, tenant domain.Tenant) error {
-	avroTenant := &avro.AvroTenant{
-		ID:          tenant.ID.String(),
-		Version:     tenant.Version,
-		Name:        tenant.Name,
-		Email:       tenant.Email,
-		Description: tenant.Description,
-		IsActive:    tenant.IsActive,
-		CreatedAt:   tenant.CreatedAt,
-		UpdatedAt:   tenant.UpdatedAt,
-	}
+	entity := internal.FromTenant(tenant)
 
-	if tenant.DeletedAt != nil {
-		avroTenant.DeletedAt = tenant.DeletedAt
-	}
-
-	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), avroTenant)
+	err := r.orm.WithContext(ctx).Create(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
+		return fmt.Errorf("creating tenant in database: %w", err)
 	}
 
 	return nil
@@ -102,24 +80,11 @@ func (r *SimpleTenantRepository) Update(ctx context.Context, tenant domain.Tenan
 	tenant.Version++
 	tenant.UpdatedAt = time.Now()
 
-	avroTenant := &avro.AvroTenant{
-		ID:          tenant.ID.String(),
-		Version:     tenant.Version,
-		Name:        tenant.Name,
-		Email:       tenant.Email,
-		Description: tenant.Description,
-		IsActive:    tenant.IsActive,
-		CreatedAt:   tenant.CreatedAt,
-		UpdatedAt:   tenant.UpdatedAt,
-	}
+	entity := internal.FromTenant(tenant)
 
-	if tenant.DeletedAt != nil {
-		avroTenant.DeletedAt = tenant.DeletedAt
-	}
-
-	err := r.publisher.Publish(ctx, pubsub.Key(tenant.ID), avroTenant)
+	err := r.orm.WithContext(ctx).Save(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
+		return fmt.Errorf("updating tenant in database: %w", err)
 	}
 
 	return nil

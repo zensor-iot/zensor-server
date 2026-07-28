@@ -52,13 +52,12 @@ func InitializeUserHandler() (*handlers.UserHandler, error) {
 
 func InitializeUserController() (*httpapi.UserController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -69,12 +68,12 @@ func InitializeUserController() (*httpapi.UserController, error) {
 
 func InitializeTenantController() (*httpapi.TenantController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -96,12 +95,11 @@ func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationCont
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +208,7 @@ func InitializeScheduledTaskController() (*httpapi2.ScheduledTaskController, err
 		return nil, err
 	}
 	simpleDeviceService := usecases2.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -251,11 +249,11 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases2.Sche
 	if err != nil {
 		return nil, err
 	}
-	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -331,11 +329,11 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases2.Notif
 	if err != nil {
 		return nil, err
 	}
-	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -414,11 +412,11 @@ func InitializeMaintenanceActivityController() (*httpapi3.ActivityController, er
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -446,11 +444,11 @@ func InitializeMaintenanceExecutionController() (*httpapi3.ExecutionController, 
 		return nil, err
 	}
 	simpleExecutionService := usecases3.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -479,11 +477,11 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 		return nil, err
 	}
 	simpleExecutionService := usecases3.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -498,7 +496,7 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 	if err != nil {
 		return nil, err
 	}
-	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -520,12 +518,11 @@ func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usec
 		return nil, err
 	}
 	simplePushTokenService := usecases.NewPushTokenService(simplePushTokenRepository)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
 	if err != nil {
 		return nil, err
 	}

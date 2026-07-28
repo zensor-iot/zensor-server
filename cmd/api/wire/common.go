@@ -38,7 +38,6 @@ func InitializeUserController() (*sharedHTTPAPI.UserController, error) {
 	wire.Build(
 		provideAppConfig,
 		provideDatabase,
-		providePublisherFactoryForEnvironment,
 		sharedPersistence.NewUserRepository,
 		wire.Bind(new(sharedUsecases.UserRepository), new(*sharedPersistence.SimpleUserRepository)),
 		sharedPersistence.NewTenantRepository,
@@ -68,7 +67,6 @@ func InitializeTenantConfigurationController() (*sharedHTTPAPI.TenantConfigurati
 	wire.Build(
 		provideAppConfig,
 		provideDatabase,
-		providePublisherFactoryForEnvironment,
 		sharedPersistence.NewTenantConfigurationRepository,
 		wire.Bind(new(sharedUsecases.TenantConfigurationRepository), new(*sharedPersistence.SimpleTenantConfigurationRepository)),
 		sharedPersistence.NewUserRepository,
