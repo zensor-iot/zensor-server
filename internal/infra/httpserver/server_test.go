@@ -203,5 +203,61 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 				gomega.Expect(rec.Header().Get("Content-Type")).To(gomega.Equal("application/json"))
 			})
 		})
+
+		ginkgo.When("requesting an unmatched path under /v1/", func() {
+			ginkgo.It("should return 404, not the SPA's HTML", func() {
+				srv := NewServer()
+				req := httptest.NewRequest("GET", "/v1/nonexistent-route", nil)
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusNotFound))
+				gomega.Expect(rec.Body.String()).NotTo(gomega.ContainSubstring("<!DOCTYPE html>"))
+			})
+		})
+
+		ginkgo.When("requesting a real route with the wrong HTTP method", func() {
+			ginkgo.It("should not return 200 with the SPA's HTML", func() {
+				srv := NewServer()
+				req := httptest.NewRequest("PUT", "/v1/tenants", nil)
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).NotTo(gomega.Equal(http.StatusOK))
+				gomega.Expect(rec.Body.String()).NotTo(gomega.ContainSubstring("<!DOCTYPE html>"))
+			})
+		})
+
+		ginkgo.When("requesting a legitimate real route", func() {
+			ginkgo.It("should still work correctly", func() {
+				srv := NewServer()
+				req := httptest.NewRequest("GET", "/v1/me", nil)
+				req.Header.Set("X-User-ID", "user123")
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+
+				var body CurrentUserResponse
+				gomega.Expect(json.Unmarshal(rec.Body.Bytes(), &body)).To(gomega.Succeed())
+				gomega.Expect(body.UserID).To(gomega.Equal("user123"))
+			})
+		})
+
+		ginkgo.When("requesting a genuine client-side route outside /v1/ and /ws/", func() {
+			ginkgo.It("should still fall back to the SPA's index.html", func() {
+				srv := NewServer()
+				req := httptest.NewRequest("GET", "/some-client-route", nil)
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+				gomega.Expect(rec.Body.String()).To(gomega.ContainSubstring("<!DOCTYPE html>"))
+			})
+		})
 	})
 })

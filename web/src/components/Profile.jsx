@@ -218,7 +218,7 @@ const Profile = () => {
         )
     }
 
-    const hasUserData = userInfo && (userInfo.name || userInfo.email || userInfo.user)
+    const hasUserData = userInfo && (userInfo.name || userInfo.email || userInfo.user_id)
 
     if (!hasUserData) {
         return (

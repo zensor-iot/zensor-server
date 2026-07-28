@@ -15,6 +15,8 @@ just run                               # Build + hot reload with entr (starts Do
 ENV=local just run                     # Run without Docker dependencies (in-memory SQLite ORM, no-op MQTT client)
 ```
 
+`just build`/`just run`/`just dev`/`just unit`/`just tdd` all first run `just _web-build` (pnpm install + vite build of `./web` into the go:embed'd `internal/infra/httpserver/web/dist`) — pnpm must be installed for these to work.
+
 ## Testing
 
 ```bash
@@ -51,6 +53,8 @@ internal/
   shared_kernel/  → Cross-cutting domain utilities
   persistence/    → Repository implementations (GORM + PostgreSQL)
   maintenance/    → Maintenance module (conditionally enabled)
+web/              → React/Vite frontend (SPA), built by pnpm and embedded into the Go binary
+internal/infra/httpserver/web/ → go:embed package that serves web/'s build output (dist/)
 ```
 
 ### Key Patterns

@@ -1,7 +1,6 @@
-// API Configuration for Express.js proxy
+// API configuration for the embedded SPA, served same-origin by the Go server (no proxy involved).
 const config = {
-    // API base URL - uses /api proxy which forwards to Zensor API with server-side API key injection
-    // In production, this should always be /api (relative URL) to use the Express proxy
+    // API base URL - relative path, same-origin with the Go server that serves this SPA
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/v1',
 
     // Grafana base URL
@@ -10,7 +9,7 @@ const config = {
     // Grafana API Key for authentication (still client-side for Grafana)
     grafanaApiKey: import.meta.env.VITE_GRAFANA_API_KEY || '',
 
-    // WebSocket base URL (proxied through Express server)
+    // WebSocket base URL - same-origin with the Go server
     get wsBaseUrl() {
         if (typeof window !== 'undefined') {
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

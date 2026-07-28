@@ -67,17 +67,17 @@ var _ = ginkgo.Describe("Metrics", func() {
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 
-			ginkgo.It("should handle simple endpoint", func() {
+			ginkgo.It("should collapse an unrecognized endpoint to the SPA bucket", func() {
 				path = "/api"
-				expected = "/api"
+				expected = "spa"
 
 				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))
 			})
 
-			ginkgo.It("should handle nested endpoint", func() {
+			ginkgo.It("should collapse an unrecognized nested endpoint to the SPA bucket", func() {
 				path = "/api/v1/users"
-				expected = "/api/v1/users"
+				expected = "spa"
 
 				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))
@@ -168,6 +168,48 @@ var _ = ginkgo.Describe("Metrics", func() {
 			ginkgo.It("should handle tenant devices endpoint", func() {
 				path = "/v1/tenants/123e4567-e89b-12d3-a456-426614174000/devices"
 				expected = "/v1/tenants/_id/devices"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+		})
+
+		ginkgo.When("normalizing SPA and asset paths", func() {
+			ginkgo.It("should collapse hashed Vite assets to a single bucket", func() {
+				path = "/assets/index-abc123.js"
+				expected = "/assets/*"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should collapse an SPA client route to a single bucket", func() {
+				path = "/admin"
+				expected = "spa"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should collapse a nested SPA client route to a single bucket", func() {
+				path = "/tenants/abc/devices"
+				expected = "spa"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should not collapse the healthz endpoint", func() {
+				path = "/healthz"
+				expected = "/healthz"
+
+				result := normalizeEndpoint(path)
+				gomega.Expect(result).To(gomega.Equal(expected))
+			})
+
+			ginkgo.It("should not collapse the metrics endpoint", func() {
+				path = "/metrics"
+				expected = "/metrics"
 
 				result := normalizeEndpoint(path)
 				gomega.Expect(result).To(gomega.Equal(expected))

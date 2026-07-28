@@ -78,7 +78,7 @@ const UserInfo = () => {
         )
     }
 
-    const hasUserData = userInfo && (userInfo.name || userInfo.email || userInfo.user)
+    const hasUserData = userInfo && (userInfo.name || userInfo.email || userInfo.user_id)
 
     if (!hasUserData) {
         console.log('👻 UserInfo: No authentication - showing Guest')

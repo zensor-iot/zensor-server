@@ -66,7 +66,7 @@ _web-build:
     #!/usr/bin/env bash
     set -euo pipefail
     hash="$(just _compute-web-build-hash)"
-    stamp="internal/infra/httpserver/web/dist/.web-build-hash"
+    stamp="internal/infra/httpserver/web/.web-build-hash"
     if [[ -f "$stamp" && "$(cat "$stamp")" == "$hash" && -f internal/infra/httpserver/web/dist/index.html ]]; then
         echo "web build: up to date ($hash)"
         exit 0
@@ -221,6 +221,7 @@ arch args="":
     arch-go {{args}}
 
 tdd path="internal":
+    just _web-build
     go run github.com/onsi/ginkgo/v2/ginkgo watch --race {{path}}
 
 unit path="internal":
