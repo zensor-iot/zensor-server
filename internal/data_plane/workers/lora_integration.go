@@ -13,9 +13,7 @@ import (
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/device"
 	"zensor-server/internal/shared_kernel/domain"
 
@@ -24,8 +22,7 @@ import (
 )
 
 const (
-	BrokerTopicUplinkMessage  async.BrokerTopicName = "device_messages"
-	PubSubTopicDeviceCommands pubsub.Topic          = "device_commands"
+	BrokerTopicUplinkMessage async.BrokerTopicName = "device_messages"
 
 	_defaultQoS byte = 0 // At most once
 )
@@ -36,35 +33,34 @@ func NewLoraIntegrationWorker(
 	stateCache usecases.DeviceStateCacheService,
 	mqttClient mqtt.Client,
 	broker async.InternalBroker,
-	pubsubConsumerFactory pubsub.ConsumerFactory,
+	commandRepository usecases.CommandRepository,
 ) *LoraIntegrationWorker {
 	return &LoraIntegrationWorker{
-		ticker:         ticker,
-		service:        service,
-		stateCache:     stateCache,
-		mqttClient:     mqttClient,
-		broker:         broker,
-		pubsubConsumer: pubsubConsumerFactory.New(),
+		ticker:            ticker,
+		service:           service,
+		stateCache:        stateCache,
+		mqttClient:        mqttClient,
+		broker:            broker,
+		commandRepository: commandRepository,
 	}
 }
 
 var _ async.Worker = &LoraIntegrationWorker{}
 
 type LoraIntegrationWorker struct {
-	ticker         *time.Ticker
-	service        usecases.DeviceService
-	stateCache     usecases.DeviceStateCacheService
-	mqttClient     mqtt.Client
-	broker         async.InternalBroker
-	pubsubConsumer pubsub.Consumer
-	devices        sync.Map
+	ticker            *time.Ticker
+	service           usecases.DeviceService
+	stateCache        usecases.DeviceStateCacheService
+	mqttClient        mqtt.Client
+	broker            async.InternalBroker
+	commandRepository usecases.CommandRepository
+	devices           sync.Map
 }
 
 func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 	slog.Debug("run with context initialized")
 	defer done()
 	var wg sync.WaitGroup
-	commandsChannel := w.consumeCommandsToChannel()
 
 	for {
 		select {
@@ -77,38 +73,32 @@ func (w *LoraIntegrationWorker) Run(ctx context.Context, done func()) {
 			tickCtx := context.Background()
 			tickCtx, _ = otel.Tracer("zensor_server").Start(tickCtx, "device_command_handler")
 			go w.reconciliation(tickCtx, wg.Done)
-		case msg := <-commandsChannel:
+
 			wg.Add(1)
-			span := trace.SpanFromContext(msg.Ctx)
-			procCtx := context.Background()
-			if span.SpanContext().HasSpanID() {
-				procCtx = trace.ContextWithSpan(procCtx, span)
-			} else {
-				procCtx, _ = otel.Tracer("zensor_server").Start(procCtx, "device_command_handler")
-			}
-			go w.deviceCommandHandler(procCtx, msg, wg.Done)
+			dispatchCtx := context.Background()
+			dispatchCtx, _ = otel.Tracer("zensor_server").Start(dispatchCtx, "dispatch_ready_commands")
+			go w.dispatchReadyCommands(dispatchCtx, wg.Done)
 		}
 	}
 }
 
-func (w *LoraIntegrationWorker) consumeCommandsToChannel() <-chan pubsub.ConsumedMessage {
-	out := make(chan pubsub.ConsumedMessage, 1)
-	handler := func(ctx context.Context, key pubsub.Key, msg pubsub.Prototype) error {
-		out <- pubsub.ConsumedMessage{
-			Ctx:   ctx,
-			Key:   key,
-			Value: msg,
-		}
-		return nil
+func (w *LoraIntegrationWorker) dispatchReadyCommands(ctx context.Context, done func()) {
+	defer done()
+	span := trace.SpanFromContext(ctx)
+
+	commands, err := w.commandRepository.FindAllReadyToDispatch(ctx)
+	if err != nil {
+		slog.Error("finding commands ready to dispatch",
+			slog.String("trace_id", span.SpanContext().TraceID().String()),
+			slog.String("span_id", span.SpanContext().SpanID().String()),
+			slog.Any("error", err),
+		)
+		return
 	}
 
-	go func() {
-		err := w.pubsubConsumer.Consume(PubSubTopicDeviceCommands, handler, &avro.AvroCommand{})
-		if err != nil {
-			slog.Error("failed to consume commands", slog.String("error", err.Error()))
-		}
-	}()
-	return out
+	for _, cmd := range commands {
+		w.dispatchCommand(ctx, cmd)
+	}
 }
 
 func (w *LoraIntegrationWorker) reconciliation(ctx context.Context, done func()) {
@@ -310,19 +300,10 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	w.handleSensorData(ctx, envelop)
 }
 
-func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pubsub.ConsumedMessage, done func()) {
-	defer done()
+func (w *LoraIntegrationWorker) dispatchCommand(ctx context.Context, cmd domain.Command) {
 	span := trace.SpanFromContext(ctx)
 
-	command, err := w.convertToSharedCommand(ctx, msg.Value)
-	if err != nil {
-		slog.Error("converting message to command",
-			slog.String("trace_id", span.SpanContext().TraceID().String()),
-			slog.String("span_id", span.SpanContext().SpanID().String()),
-			slog.String("error", err.Error()),
-		)
-		return
-	}
+	command := domainCommandToDeviceCommand(cmd)
 
 	if !command.Ready {
 		slog.Warn("command won't be send because is not ready",
@@ -392,47 +373,25 @@ func (w *LoraIntegrationWorker) deviceCommandHandler(ctx context.Context, msg pu
 	}
 }
 
-func (w *LoraIntegrationWorker) convertToSharedCommand(ctx context.Context, msg pubsub.Prototype) (*device.Command, error) {
-	span := trace.SpanFromContext(ctx)
-	slog.Info("converting to shared command",
-		slog.String("trace_id", span.SpanContext().TraceID().String()),
-		slog.String("span_id", span.SpanContext().SpanID().String()),
-		slog.String("type", fmt.Sprintf("%T", msg)),
-	)
-
-	if avroCmd, ok := msg.(*avro.AvroCommand); ok {
-		return &device.Command{
-			ID:         avroCmd.ID,
-			Version:    avroCmd.Version,
-			DeviceID:   avroCmd.DeviceID,
-			DeviceName: avroCmd.DeviceName,
-			TaskID:     avroCmd.TaskID,
-			Payload: device.CommandPayload{
-				Index: uint8(avroCmd.PayloadIndex),
-				Value: uint8(avroCmd.PayloadValue),
-			},
-			DispatchAfter: utils.Time{Time: avroCmd.DispatchAfter},
-			Port:          uint8(avroCmd.Port),
-			Priority:      avroCmd.Priority,
-			CreatedAt:     utils.Time{Time: avroCmd.CreatedAt},
-			Ready:         avroCmd.Ready,
-			Sent:          avroCmd.Sent,
-			SentAt:        utils.Time{Time: avroCmd.SentAt},
-		}, nil
+func domainCommandToDeviceCommand(cmd domain.Command) *device.Command {
+	return &device.Command{
+		ID:         cmd.ID.String(),
+		Version:    int(cmd.Version),
+		DeviceID:   cmd.Device.ID.String(),
+		DeviceName: cmd.Device.Name,
+		TaskID:     cmd.Task.ID.String(),
+		Payload: device.CommandPayload{
+			Index: uint8(cmd.Payload.Index),
+			Value: uint8(cmd.Payload.Value),
+		},
+		DispatchAfter: cmd.DispatchAfter,
+		Port:          uint8(cmd.Port),
+		Priority:      string(cmd.Priority),
+		CreatedAt:     cmd.CreatedAt,
+		Ready:         cmd.Ready,
+		Sent:          cmd.Sent,
+		SentAt:        cmd.SentAt,
 	}
-
-	jsonData, err := json.Marshal(msg)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling message to JSON: %w", err)
-	}
-
-	var command device.Command
-	err = json.Unmarshal(jsonData, &command)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshaling to device.Command: %w", err)
-	}
-
-	return &command, nil
 }
 
 func (w *LoraIntegrationWorker) updateCommandStatus(ctx context.Context, envelop dto.Envelop, status domain.CommandStatus, errorMessage *string) {

@@ -143,7 +143,7 @@ func InitializeDeviceService() (usecases.DeviceService, error) {
 	return nil, nil
 }
 
-func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker, consumerFactory pubsub.ConsumerFactory) (*workers.LoraIntegrationWorker, error) {
+func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker) (*workers.LoraIntegrationWorker, error) {
 	wire.Build(
 		provideAppConfig,
 		DeviceServiceSet,

@@ -214,6 +214,21 @@ func (mr *MockCommandRepositoryMockRecorder) FindAllPending(arg0 any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllPending", reflect.TypeOf((*MockCommandRepository)(nil).FindAllPending), arg0)
 }
 
+// FindAllReadyToDispatch mocks base method.
+func (m *MockCommandRepository) FindAllReadyToDispatch(arg0 context.Context) ([]domain.Command, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindAllReadyToDispatch", arg0)
+	ret0, _ := ret[0].([]domain.Command)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindAllReadyToDispatch indicates an expected call of FindAllReadyToDispatch.
+func (mr *MockCommandRepositoryMockRecorder) FindAllReadyToDispatch(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllReadyToDispatch", reflect.TypeOf((*MockCommandRepository)(nil).FindAllReadyToDispatch), arg0)
+}
+
 // FindByTaskID mocks base method.
 func (m *MockCommandRepository) FindByTaskID(arg0 context.Context, arg1 domain.ID) ([]domain.Command, error) {
 	m.ctrl.T.Helper()

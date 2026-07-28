@@ -271,7 +271,7 @@ func InitializeDeviceService() (usecases2.DeviceService, error) {
 	return simpleDeviceService, nil
 }
 
-func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker, consumerFactory pubsub.ConsumerFactory) (*workers.LoraIntegrationWorker, error) {
+func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker) (*workers.LoraIntegrationWorker, error) {
 	appConfig := provideAppConfig()
 	orm := provideDatabase(appConfig)
 	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
@@ -284,7 +284,7 @@ func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client
 	}
 	simpleDeviceService := usecases2.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
 	usecasesDeviceStateCacheService := provideDeviceStateCacheService()
-	loraIntegrationWorker := workers.NewLoraIntegrationWorker(ticker, simpleDeviceService, usecasesDeviceStateCacheService, mqttClient, broker, consumerFactory)
+	loraIntegrationWorker := workers.NewLoraIntegrationWorker(ticker, simpleDeviceService, usecasesDeviceStateCacheService, mqttClient, broker, simpleCommandRepository)
 	return loraIntegrationWorker, nil
 }
 

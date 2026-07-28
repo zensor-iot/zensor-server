@@ -16,7 +16,6 @@ import (
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/node"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/replication"
 	"zensor-server/internal/infra/replication/handlers"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
@@ -108,18 +107,10 @@ func main() {
 		mqttClient = mqtt.NewSimpleClient(simpleClientOpts)
 	}
 
-	// Use environment-aware consumer factory
-	var consumerFactory pubsub.ConsumerFactory
-	if env == "local" {
-		consumerFactory = pubsub.NewMemoryConsumerFactory("lora-integration")
-	} else {
-		consumerFactory = pubsub.NewKafkaConsumerFactory(appConfig.Kafka.Brokers, appConfig.Kafka.Group, appConfig.Kafka.SchemaRegistry)
-	}
-
 	// TODO: capture workers into a variable to shutdown them later
 	if appConfig.Modules.Permaculture.Enabled {
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker, consumerFactory)).(async.Worker).Run(appCtx, wg.Done)
+		go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 		wg.Add(1)
 		go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 		wg.Add(1)

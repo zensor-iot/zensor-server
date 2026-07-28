@@ -85,6 +85,21 @@ func (r *SimpleCommandRepository) FindAllPending(ctx context.Context) ([]domain.
 	return entities.ToDomain(), nil
 }
 
+func (r *SimpleCommandRepository) FindAllReadyToDispatch(ctx context.Context) ([]domain.Command, error) {
+	var entities internal.CommandSet
+	err := r.orm.
+		WithContext(ctx).
+		Where("ready = ? AND sent = ?", true, false).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	return entities.ToDomain(), nil
+}
+
 func (r *SimpleCommandRepository) FindPendingByDevice(ctx context.Context, deviceID domain.ID) ([]domain.Command, error) {
 	var entities internal.CommandSet
 	err := r.orm.

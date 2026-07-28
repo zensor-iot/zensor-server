@@ -35,6 +35,7 @@ type CommandRepository interface {
 	FindAllPending(context.Context) ([]domain.Command, error)
 	FindPendingByDevice(context.Context, domain.ID) ([]domain.Command, error)
 	FindByTaskID(context.Context, domain.ID) ([]domain.Command, error)
+	FindAllReadyToDispatch(context.Context) ([]domain.Command, error)
 }
 
 type EvaluationRuleRepository interface {
