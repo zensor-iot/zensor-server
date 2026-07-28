@@ -8,7 +8,7 @@ otelcol.log
 otelcol
 
 
-api
+/api
 api.log
 server.log
 
