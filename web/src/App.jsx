@@ -14,14 +14,12 @@ import AdminTaskExecutions from './components/admin/AdminTaskExecutions'
 import AdminCommands from './components/admin/AdminCommands'
 import AdminHealth from './components/admin/AdminHealth'
 import { NotificationProvider } from './components/NotificationSystem'
-import { useAdmin } from './hooks/useAdmin'
 import './App.css'
 
 function App() {
   const location = useLocation()
   const isPortalPage = location.pathname.startsWith('/portal/')
   const isAdminPage = location.pathname.startsWith('/admin/')
-  const { isAdmin, isLoading } = useAdmin()
 
   return (
     <NotificationProvider>
@@ -43,12 +41,10 @@ function App() {
                     <Radio size={20} />
                     Live Messages
                   </Link>
-                  {!isLoading && isAdmin && (
-                    <Link to="/admin" className="nav-link admin-link">
-                      <Shield size={20} />
-                      Admin
-                    </Link>
-                  )}
+                  <Link to="/admin" className="nav-link admin-link">
+                    <Shield size={20} />
+                    Admin
+                  </Link>
                 </nav>
               </div>
               <UserInfo />

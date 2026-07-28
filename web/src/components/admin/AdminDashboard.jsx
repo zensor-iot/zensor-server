@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Building, Cpu, Play, Shield, Activity, Users, Database, RefreshCw } from 'lucide-react'
-import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import './AdminDashboard.css'
 
 const AdminDashboard = () => {
-    const { isAdmin, isLoading } = useAdmin()
     const { showError } = useNotification()
     const [stats, setStats] = useState({
         totalTenants: 0,
@@ -16,15 +14,8 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (!isLoading && !isAdmin) {
-            showError('Access denied. Admin privileges required.', 'Unauthorized')
-            return
-        }
-
-        if (isAdmin) {
-            fetchSystemStats()
-        }
-    }, [isAdmin, isLoading])
+        fetchSystemStats()
+    }, [])
 
     const fetchSystemStats = async () => {
         try {
@@ -32,8 +23,8 @@ const AdminDashboard = () => {
 
             // Fetch system-wide statistics
             const [tenantsResponse, devicesResponse] = await Promise.all([
-                fetch('/api/tenants'),
-                fetch('/api/devices')
+                fetch('/v1/tenants'),
+                fetch('/v1/devices')
             ])
 
             if (!tenantsResponse.ok || !devicesResponse.ok) {
@@ -60,26 +51,6 @@ const AdminDashboard = () => {
         } finally {
             setLoading(false)
         }
-    }
-
-    if (isLoading) {
-        return (
-            <div className="admin-dashboard">
-                <div className="loading">Loading admin dashboard...</div>
-            </div>
-        )
-    }
-
-    if (!isAdmin) {
-        return (
-            <div className="admin-dashboard">
-                <div className="access-denied">
-                    <Shield size={48} />
-                    <h2>Access Denied</h2>
-                    <p>You need admin privileges to access this page.</p>
-                </div>
-            </div>
-        )
     }
 
     const quickActions = [

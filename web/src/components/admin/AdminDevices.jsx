@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Cpu, ArrowLeft, Eye, Edit, Trash2, Plus, Building, Clock, Activity, Calendar } from 'lucide-react'
-import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import './AdminDevices.css'
 
 const AdminDevices = () => {
     const { tenantId } = useParams()
-    const { isAdmin, isLoading } = useAdmin()
     const { showSuccess, showError, showApiNotification } = useNotification()
     const [devices, setDevices] = useState([])
     const [tenant, setTenant] = useState(null)
@@ -28,15 +26,10 @@ const AdminDevices = () => {
     })
 
     useEffect(() => {
-        if (!isLoading && !isAdmin) {
-            showError('Access denied. Admin privileges required.', 'Unauthorized')
-            return
-        }
-
-        if (isAdmin && tenantId) {
+        if (tenantId) {
             fetchTenantAndDevices()
         }
-    }, [isAdmin, isLoading, tenantId])
+    }, [tenantId])
 
     const fetchTenantAndDevices = async () => {
         try {
@@ -44,8 +37,8 @@ const AdminDevices = () => {
 
             // Fetch tenant info and devices in parallel
             const [tenantResponse, devicesResponse] = await Promise.all([
-                fetch(`/api/tenants/${tenantId}`),
-                fetch(`/api/tenants/${tenantId}/devices`)
+                fetch(`/v1/tenants/${tenantId}`),
+                fetch(`/v1/tenants/${tenantId}/devices`)
             ])
 
             if (tenantResponse.ok) {
@@ -81,7 +74,7 @@ const AdminDevices = () => {
         try {
             const taskCountPromises = devicesArray.map(async (device) => {
                 try {
-                    const response = await fetch(`/api/devices/${device.id}/tasks`)
+                    const response = await fetch(`/v1/devices/${device.id}/tasks`)
                     if (response.ok) {
                         const data = await response.json()
                         // Use pagination.total for accurate count across all pages
@@ -112,7 +105,7 @@ const AdminDevices = () => {
         try {
             const scheduledTaskCountPromises = devicesArray.map(async (device) => {
                 try {
-                    const response = await fetch(`/api/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`)
+                    const response = await fetch(`/v1/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`)
                     if (response.ok) {
                         const data = await response.json()
                         // Use pagination.total for accurate count across all pages
@@ -237,7 +230,7 @@ const AdminDevices = () => {
         try {
             switch (action) {
                 case 'view-scheduled-tasks':
-                    const scheduledTasksResponse = await fetch(`/api/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`)
+                    const scheduledTasksResponse = await fetch(`/v1/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`)
                     if (scheduledTasksResponse.ok) {
                         const data = await scheduledTasksResponse.json()
                         setRightPanelData({
@@ -249,7 +242,7 @@ const AdminDevices = () => {
                     break
 
                 case 'view-tasks':
-                    const tasksResponse = await fetch(`/api/devices/${device.id}/tasks`)
+                    const tasksResponse = await fetch(`/v1/devices/${device.id}/tasks`)
                     if (tasksResponse.ok) {
                         const data = await tasksResponse.json()
                         setRightPanelData({
@@ -287,7 +280,7 @@ const AdminDevices = () => {
         e.preventDefault()
 
         const result = await showApiNotification(
-            fetch(`/api/tenants/${tenantId}/devices`, {
+            fetch(`/v1/tenants/${tenantId}/devices`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -315,7 +308,7 @@ const AdminDevices = () => {
         e.preventDefault()
 
         const result = await showApiNotification(
-            fetch(`/api/devices/${editingDevice.id}`, {
+            fetch(`/v1/devices/${editingDevice.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -345,7 +338,7 @@ const AdminDevices = () => {
         }
 
         const result = await showApiNotification(
-            fetch(`/api/devices/${deviceId}`, {
+            fetch(`/v1/devices/${deviceId}`, {
                 method: 'DELETE'
             }).then(res => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -381,26 +374,6 @@ const AdminDevices = () => {
     const cancelEdit = () => {
         setEditingDevice(null)
         setFormData({ name: '', description: '', device_type: 'sensor', location: '', status: 'active' })
-    }
-
-    if (isLoading) {
-        return (
-            <div className="admin-devices">
-                <div className="loading">Loading admin panel...</div>
-            </div>
-        )
-    }
-
-    if (!isAdmin) {
-        return (
-            <div className="admin-devices">
-                <div className="access-denied">
-                    <Cpu size={48} />
-                    <h2>Access Denied</h2>
-                    <p>You need admin privileges to access this page.</p>
-                </div>
-            </div>
-        )
     }
 
     return (

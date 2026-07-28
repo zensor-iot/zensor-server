@@ -13,7 +13,7 @@ const UserInfo = () => {
         const fetchUserInfo = async () => {
             try {
                 console.log('🔍 Fetching user info...')
-                const response = await fetch('/api/user')
+                const response = await fetch('/v1/me')
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`)
                 }

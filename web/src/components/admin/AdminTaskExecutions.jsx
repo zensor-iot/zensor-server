@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Play, ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, Building, Cpu } from 'lucide-react'
-import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import { scheduledTasksApi } from '../../config/api'
 import './AdminTaskExecutions.css'
 
 const AdminTaskExecutions = () => {
     const { tenantId, deviceId, taskId } = useParams()
-    const { isAdmin, isLoading } = useAdmin()
     const { showError } = useNotification()
     const [executions, setExecutions] = useState([])
     const [scheduledTask, setScheduledTask] = useState(null)
@@ -17,15 +15,10 @@ const AdminTaskExecutions = () => {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (!isLoading && !isAdmin) {
-            showError('Access denied. Admin privileges required.', 'Unauthorized')
-            return
-        }
-
-        if (isAdmin && tenantId && deviceId && taskId) {
+        if (tenantId && deviceId && taskId) {
             fetchData()
         }
-    }, [isAdmin, isLoading, tenantId, deviceId, taskId])
+    }, [tenantId, deviceId, taskId])
 
     const fetchData = async () => {
         try {
@@ -33,8 +26,8 @@ const AdminTaskExecutions = () => {
 
             // Fetch tenant, device, scheduled task, and executions in parallel
             const [tenantResponse, deviceResponse, taskResponse, executionsResponse] = await Promise.all([
-                fetch(`/api/tenants/${tenantId}`),
-                fetch(`/api/devices/${deviceId}`),
+                fetch(`/v1/tenants/${tenantId}`),
+                fetch(`/v1/devices/${deviceId}`),
                 scheduledTasksApi.getScheduledTask(tenantId, deviceId, taskId),
                 scheduledTasksApi.getTaskExecutions(tenantId, deviceId, taskId, 50)
             ])
@@ -96,26 +89,6 @@ const AdminTaskExecutions = () => {
         const end = new Date(endTime)
         const duration = end - start
         return `${Math.round(duration / 1000)}s`
-    }
-
-    if (isLoading) {
-        return (
-            <div className="admin-task-executions">
-                <div className="loading">Loading admin panel...</div>
-            </div>
-        )
-    }
-
-    if (!isAdmin) {
-        return (
-            <div className="admin-task-executions">
-                <div className="access-denied">
-                    <Play size={48} />
-                    <h2>Access Denied</h2>
-                    <p>You need admin privileges to access this page.</p>
-                </div>
-            </div>
-        )
     }
 
     return (

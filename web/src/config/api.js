@@ -2,7 +2,7 @@
 const config = {
     // API base URL - uses /api proxy which forwards to Zensor API with server-side API key injection
     // In production, this should always be /api (relative URL) to use the Express proxy
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/v1',
 
     // Grafana base URL
     grafanaBaseUrl: import.meta.env.VITE_GRAFANA_BASE_URL || 'https://cardamomo.zensor-iot.net',

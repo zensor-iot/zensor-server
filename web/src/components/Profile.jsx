@@ -21,7 +21,7 @@ const Profile = () => {
         const fetchData = async () => {
             try {
                 console.log('🔍 Fetching user info for profile...')
-                const response = await fetch('/api/user')
+                const response = await fetch('/v1/me')
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`)
                 }
@@ -71,7 +71,7 @@ const Profile = () => {
     const fetchUserDetails = async (email) => {
         try {
             console.log(`🔍 Fetching user details for email: ${email}`)
-            const response = await fetch(`/api/users/${email}`)
+            const response = await fetch(`/v1/users/${email}`)
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`)
             }
@@ -88,7 +88,7 @@ const Profile = () => {
     const fetchTenantDetails = async (tenantId) => {
         try {
             console.log(`🔍 Fetching tenant details for tenant: ${tenantId}`)
-            const response = await fetch(`/api/tenants/${tenantId}`)
+            const response = await fetch(`/v1/tenants/${tenantId}`)
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`)
             }
@@ -104,7 +104,7 @@ const Profile = () => {
 
     const fetchTenantConfig = async (tenantId) => {
         try {
-            const response = await fetch(`/api/tenants/${tenantId}/configuration`)
+            const response = await fetch(`/v1/tenants/${tenantId}/configuration`)
             if (!response.ok && response.status !== 404) {
                 throw new Error(`HTTP ${response.status}`)
             }
@@ -154,7 +154,7 @@ const Profile = () => {
         }
 
         const result = await showApiNotification(
-            fetch(`/api/tenants/${selectedTenantId}/configuration`, {
+            fetch(`/v1/tenants/${selectedTenantId}/configuration`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -238,8 +238,6 @@ const Profile = () => {
         )
     }
 
-    const role = userInfo.isAdmin ? 'Admin' : 'User'
-
     return (
         <div className="profile-container">
             <div className="page-header">
@@ -257,7 +255,6 @@ const Profile = () => {
                     </div>
                     <div className="profile-title">
                         <h3>{userInfo.name || 'Unknown Name'}</h3>
-                        <p className="profile-subtitle">{role}</p>
                     </div>
                 </div>
 
@@ -282,17 +279,6 @@ const Profile = () => {
                         </div>
                     </div>
 
-                    <div className="profile-field">
-                        <div className="field-label">
-                            <Shield size={16} />
-                            Role
-                        </div>
-                        <div className="field-value">
-                            <span className={`role-badge ${userInfo.isAdmin ? 'admin' : 'user'}`}>
-                                {role}
-                            </span>
-                        </div>
-                    </div>
                 </div>
             </div>
 

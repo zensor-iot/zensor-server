@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Clock, ArrowLeft, Eye, Edit, Trash2, Plus, Cpu, Building, Play, Pause } from 'lucide-react'
-import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import { scheduledTasksApi } from '../../config/api'
 import './AdminScheduledTasks.css'
 
 const AdminScheduledTasks = () => {
     const { tenantId, deviceId } = useParams()
-    const { isAdmin, isLoading } = useAdmin()
     const { showSuccess, showError, showApiNotification } = useNotification()
     const [tasks, setTasks] = useState([])
     const [device, setDevice] = useState(null)
@@ -24,15 +22,10 @@ const AdminScheduledTasks = () => {
     })
 
     useEffect(() => {
-        if (!isLoading && !isAdmin) {
-            showError('Access denied. Admin privileges required.', 'Unauthorized')
-            return
-        }
-
-        if (isAdmin && tenantId && deviceId) {
+        if (tenantId && deviceId) {
             fetchData()
         }
-    }, [isAdmin, isLoading, tenantId, deviceId])
+    }, [tenantId, deviceId])
 
     const fetchData = async () => {
         try {
@@ -40,8 +33,8 @@ const AdminScheduledTasks = () => {
 
             // Fetch tenant, device, and scheduled tasks in parallel
             const [tenantResponse, deviceResponse, tasksResponse] = await Promise.all([
-                fetch(`/api/tenants/${tenantId}`),
-                fetch(`/api/devices/${deviceId}`),
+                fetch(`/v1/tenants/${tenantId}`),
+                fetch(`/v1/devices/${deviceId}`),
                 scheduledTasksApi.getScheduledTasks(tenantId, deviceId)
             ])
 
@@ -205,26 +198,6 @@ const AdminScheduledTasks = () => {
             }
         }
         return cron
-    }
-
-    if (isLoading) {
-        return (
-            <div className="admin-scheduled-tasks">
-                <div className="loading">Loading admin panel...</div>
-            </div>
-        )
-    }
-
-    if (!isAdmin) {
-        return (
-            <div className="admin-scheduled-tasks">
-                <div className="access-denied">
-                    <Clock size={48} />
-                    <h2>Access Denied</h2>
-                    <p>You need admin privileges to access this page.</p>
-                </div>
-            </div>
-        )
     }
 
     return (

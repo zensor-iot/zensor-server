@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Activity, Database, Server, Wifi, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react'
-import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import './AdminHealth.css'
 
 const AdminHealth = () => {
-    const { isAdmin, isLoading } = useAdmin()
     const { showError } = useNotification()
     const [healthData, setHealthData] = useState({
         api: { status: 'checking', responseTime: 0, lastCheck: null },
@@ -17,15 +15,8 @@ const AdminHealth = () => {
     const [lastRefresh, setLastRefresh] = useState(null)
 
     useEffect(() => {
-        if (!isLoading && !isAdmin) {
-            showError('Access denied. Admin privileges required.', 'Unauthorized')
-            return
-        }
-
-        if (isAdmin) {
-            checkSystemHealth()
-        }
-    }, [isAdmin, isLoading])
+        checkSystemHealth()
+    }, [])
 
     const checkSystemHealth = async () => {
         try {
@@ -76,7 +67,7 @@ const AdminHealth = () => {
             // Check database health (via API)
             const dbStartTime = Date.now()
             try {
-                const dbResponse = await fetch('/api/tenants', { timeout: 5000 })
+                const dbResponse = await fetch('/v1/tenants', { timeout: 5000 })
                 const dbResponseTime = Date.now() - dbStartTime
 
                 if (dbResponse.ok) {
@@ -194,26 +185,6 @@ const AdminHealth = () => {
             default:
                 return 'Unknown'
         }
-    }
-
-    if (isLoading) {
-        return (
-            <div className="admin-health">
-                <div className="loading">Loading admin panel...</div>
-            </div>
-        )
-    }
-
-    if (!isAdmin) {
-        return (
-            <div className="admin-health">
-                <div className="access-denied">
-                    <Activity size={48} />
-                    <h2>Access Denied</h2>
-                    <p>You need admin privileges to access this page.</p>
-                </div>
-            </div>
-        )
     }
 
     const overallStatus = Object.values(healthData).every(service => service.status === 'healthy')

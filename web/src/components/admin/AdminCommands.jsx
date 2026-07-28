@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Play, ArrowLeft, Send, Clock, CheckCircle, XCircle, AlertCircle, Building, Cpu } from 'lucide-react'
-import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import { deviceCommandsApi } from '../../config/api'
 import './AdminCommands.css'
 
 const AdminCommands = () => {
-    const { isAdmin, isLoading } = useAdmin()
     const { showSuccess, showError, showApiNotification } = useNotification()
     const [devices, setDevices] = useState([])
     const [recentCommands, setRecentCommands] = useState([])
@@ -23,22 +21,15 @@ const AdminCommands = () => {
     })
 
     useEffect(() => {
-        if (!isLoading && !isAdmin) {
-            showError('Access denied. Admin privileges required.', 'Unauthorized')
-            return
-        }
-
-        if (isAdmin) {
-            fetchData()
-        }
-    }, [isAdmin, isLoading])
+        fetchData()
+    }, [])
 
     const fetchData = async () => {
         try {
             setLoading(true)
 
             // Fetch all devices
-            const devicesResponse = await fetch('/api/devices')
+            const devicesResponse = await fetch('/v1/devices')
             if (devicesResponse.ok) {
                 const devicesData = await devicesResponse.json()
                 setDevices(devicesData)
@@ -117,26 +108,6 @@ const AdminCommands = () => {
             default:
                 return '#6b7280'
         }
-    }
-
-    if (isLoading) {
-        return (
-            <div className="admin-commands">
-                <div className="loading">Loading admin panel...</div>
-            </div>
-        )
-    }
-
-    if (!isAdmin) {
-        return (
-            <div className="admin-commands">
-                <div className="access-denied">
-                    <Play size={48} />
-                    <h2>Access Denied</h2>
-                    <p>You need admin privileges to access this page.</p>
-                </div>
-            </div>
-        )
     }
 
     return (

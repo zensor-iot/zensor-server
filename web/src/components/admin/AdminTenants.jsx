@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Building, Plus, Edit, Trash2, Eye, ArrowLeft, Smartphone } from 'lucide-react'
-import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import './AdminTenants.css'
 
 const AdminTenants = () => {
-    const { isAdmin, isLoading } = useAdmin()
     const { showSuccess, showError, showApiNotification } = useNotification()
     const [tenants, setTenants] = useState([])
     const [deviceCounts, setDeviceCounts] = useState({})
@@ -21,20 +19,13 @@ const AdminTenants = () => {
     })
 
     useEffect(() => {
-        if (!isLoading && !isAdmin) {
-            showError('Access denied. Admin privileges required.', 'Unauthorized')
-            return
-        }
-
-        if (isAdmin) {
-            fetchTenants()
-        }
-    }, [isAdmin, isLoading])
+        fetchTenants()
+    }, [])
 
     const fetchTenants = async () => {
         try {
             setLoading(true)
-            const response = await fetch('/api/tenants')
+            const response = await fetch('/v1/tenants')
 
             if (response.ok) {
                 const data = await response.json()
@@ -63,7 +54,7 @@ const AdminTenants = () => {
         try {
             const deviceCountPromises = tenantsArray.map(async (tenant) => {
                 try {
-                    const response = await fetch(`/api/tenants/${tenant.id}/devices`)
+                    const response = await fetch(`/v1/tenants/${tenant.id}/devices`)
                     if (response.ok) {
                         const data = await response.json()
                         const devices = Array.isArray(data) ? data : (data.data || [])
@@ -93,7 +84,7 @@ const AdminTenants = () => {
         e.preventDefault()
 
         const result = await showApiNotification(
-            fetch('/api/tenants', {
+            fetch('/v1/tenants', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -120,7 +111,7 @@ const AdminTenants = () => {
         e.preventDefault()
 
         const result = await showApiNotification(
-            fetch(`/api/tenants/${editingTenant.id}`, {
+            fetch(`/v1/tenants/${editingTenant.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -149,7 +140,7 @@ const AdminTenants = () => {
         }
 
         const result = await showApiNotification(
-            fetch(`/api/tenants/${tenantId}`, {
+            fetch(`/v1/tenants/${tenantId}`, {
                 method: 'DELETE'
             }).then(res => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -179,26 +170,6 @@ const AdminTenants = () => {
     const cancelEdit = () => {
         setEditingTenant(null)
         setFormData({ name: '', description: '', contact_email: '', status: 'active' })
-    }
-
-    if (isLoading) {
-        return (
-            <div className="admin-tenants">
-                <div className="loading">Loading admin panel...</div>
-            </div>
-        )
-    }
-
-    if (!isAdmin) {
-        return (
-            <div className="admin-tenants">
-                <div className="access-denied">
-                    <Building size={48} />
-                    <h2>Access Denied</h2>
-                    <p>You need admin privileges to access this page.</p>
-                </div>
-            </div>
-        )
     }
 
     return (
