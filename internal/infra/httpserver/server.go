@@ -94,6 +94,7 @@ func NewServer(controllers ...Controller) *StandardServer {
 
 	router.Handle("GET /healthz", getHealthz())
 	router.Handle("GET /metrics", promhttp.Handler())
+	router.Handle("GET /v1/me", getCurrentUser())
 
 	for _, controller := range controllers {
 		controller.AddRoutes(router)
@@ -207,4 +208,21 @@ type HealthzResponse struct {
 	Status     string `json:"status"`
 	Version    string `json:"version"`
 	CommitHash string `json:"commit_hash"`
+}
+
+func getCurrentUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		output := CurrentUserResponse{
+			UserID: r.Header.Get("X-User-ID"),
+			Name:   r.Header.Get("X-User-Name"),
+			Email:  r.Header.Get("X-User-Email"),
+		}
+		ReplyJSONResponse(w, http.StatusOK, output)
+	}
+}
+
+type CurrentUserResponse struct {
+	UserID string `json:"user_id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
 }

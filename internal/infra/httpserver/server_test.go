@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 
@@ -133,6 +134,45 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 
 				// Check response
 				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+			})
+		})
+	})
+
+	ginkgo.Context("CurrentUser", func() {
+		ginkgo.When("the request carries user headers", func() {
+			ginkgo.It("should return them as JSON", func() {
+				req := httptest.NewRequest("GET", "/v1/me", nil)
+				req.Header.Set("X-User-ID", "user123")
+				req.Header.Set("X-User-Name", "John Doe")
+				req.Header.Set("X-User-Email", "john.doe@example.com")
+				rec := httptest.NewRecorder()
+
+				getCurrentUser().ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+
+				var body CurrentUserResponse
+				gomega.Expect(json.Unmarshal(rec.Body.Bytes(), &body)).To(gomega.Succeed())
+				gomega.Expect(body).To(gomega.Equal(CurrentUserResponse{
+					UserID: "user123",
+					Name:   "John Doe",
+					Email:  "john.doe@example.com",
+				}))
+			})
+		})
+
+		ginkgo.When("the request has no user headers", func() {
+			ginkgo.It("should return empty fields, not an error", func() {
+				req := httptest.NewRequest("GET", "/v1/me", nil)
+				rec := httptest.NewRecorder()
+
+				getCurrentUser().ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+
+				var body CurrentUserResponse
+				gomega.Expect(json.Unmarshal(rec.Body.Bytes(), &body)).To(gomega.Succeed())
+				gomega.Expect(body).To(gomega.Equal(CurrentUserResponse{}))
 			})
 		})
 	})
