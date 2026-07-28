@@ -455,11 +455,30 @@ to an unconditional one:
 
 Nothing else changes — the `/admin/*` routes were already unconditionally registered in the `<Routes>` block below (the nav link was only ever a cosmetic gate, never an access control mechanism; direct navigation to `/admin` already worked before this change).
 
-- [ ] **Step 5: Delete the now-unused admin hook**
+- [ ] **Step 5: Remove `useAdmin` gating from the seven admin page components, then delete the hook**
+
+Discovered during implementation: it's not just `App.jsx` that uses `useAdmin()` — all seven files in `web/src/components/admin/` (`AdminDashboard.jsx`, `AdminTenants.jsx`, `AdminDevices.jsx`, `AdminCommands.jsx`, `AdminScheduledTasks.jsx`, `AdminTaskExecutions.jsx`, `AdminHealth.jsx`) import it too, each with the same four-part pattern:
+
+1. `import { useAdmin } from '../../hooks/useAdmin'`
+2. `const { isAdmin, isLoading } = useAdmin()`
+3. Inside a `useEffect`: an early-return block `if (!isLoading && !isAdmin) { showError(...); return }`, followed by the real fetch guarded by `if (isAdmin [&& other conditions like tenantId/deviceId]) { fetchX() }`, with `isAdmin`/`isLoading` in the dependency array
+4. Two render-time guards further down: `if (isLoading) { return <...loading UI...> }` then `if (!isAdmin) { return <...Access Denied UI...> }`
+
+Leaving these as-is would make every Admin page permanently broken (not neutral) once `useAdmin` no longer receives a real `isAdmin` value — every page would show "Access denied" forever and never fetch data. This isn't consistent with the approved design decision ("useAdmin.js drops the isAdmin concept" — removed everywhere, not faked anywhere), so it must be removed from all seven files, not just `App.jsx`.
+
+For each of the seven files, apply the same four-part removal:
+1. Delete the `useAdmin` import line.
+2. Delete the `const { isAdmin, isLoading } = useAdmin()` line.
+3. In the `useEffect`: delete the `if (!isLoading && !isAdmin) { ...; return }` block entirely. Change the `if (isAdmin && <other conditions>) { fetchX() }` line to keep only the `<other conditions>` (e.g. `if (tenantId) { fetchX() }`, or call `fetchX()` unconditionally if there were no other conditions). Remove `isAdmin`/`isLoading` from that `useEffect`'s dependency array (keep any other dependencies, e.g. `tenantId`, `deviceId`, `taskId`).
+4. Delete both render-time guard blocks: the `if (isLoading) { ... }` block and the `if (!isAdmin) { ... }` block, in that order, so the component falls straight through to its normal render.
+
+Then delete the now-fully-unused hook:
 
 ```bash
 rm /Users/sdiaz/repos/zensor/zensor-server/web/src/hooks/useAdmin.js
 ```
+
+Verify nothing still imports it: `grep -rn useAdmin web/src` must print nothing.
 
 - [ ] **Step 6: Bulk-rename remaining hardcoded `/api/` calls in the admin components**
 
