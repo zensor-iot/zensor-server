@@ -4,37 +4,27 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-func NewDeviceRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleDeviceRepository, error) {
-	publisher, err := publisherFactory.New("devices", &avro.AvroDevice{})
-	if err != nil {
-		return nil, fmt.Errorf("creating publisher: %w", err)
-	}
-
-	err = orm.AutoMigrate(&internal.Device{})
+func NewDeviceRepository(orm sql.ORM) (*SimpleDeviceRepository, error) {
+	err := orm.AutoMigrate(&internal.Device{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
 
 	return &SimpleDeviceRepository{
-		publisher: publisher,
-		orm:       orm,
+		orm: orm,
 	}, nil
 }
 
 var _ usecases.DeviceRepository = (*SimpleDeviceRepository)(nil)
 
 type SimpleDeviceRepository struct {
-	publisher pubsub.Publisher
-	orm       sql.ORM
+	orm sql.ORM
 }
 
 func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain.Device) error {
@@ -47,32 +37,10 @@ func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain
 		return usecases.ErrDeviceDuplicated
 	}
 
-	// Convert domain device to Avro device
-	avroDevice := &avro.AvroDevice{
-		ID:          device.ID.String(),
-		Version:     1, // Default version for new devices
-		Name:        device.Name,
-		DisplayName: device.DisplayName,
-		AppEUI:      device.AppEUI,
-		DevEUI:      device.DevEUI,
-		AppKey:      device.AppKey,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if device.TenantID != nil {
-		tenantIDStr := device.TenantID.String()
-		avroDevice.TenantID = &tenantIDStr
-	}
-
-	if !device.LastMessageReceivedAt.IsZero() {
-		lastMessageStr := device.LastMessageReceivedAt.Time
-		avroDevice.LastMessageReceivedAt = &lastMessageStr
-	}
-
-	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), avroDevice)
+	entity := internal.FromDevice(device)
+	err = s.orm.WithContext(ctx).Create(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
+		return fmt.Errorf("creating device in database: %w", err)
 	}
 
 	return nil
@@ -88,54 +56,16 @@ func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain
 		return usecases.ErrDeviceNotFound
 	}
 
-	// Convert domain device to Avro device
-	avroDevice := &avro.AvroDevice{
-		ID:          device.ID.String(),
-		Version:     1, // Default version for updates
-		Name:        device.Name,
-		DisplayName: device.DisplayName,
-		AppEUI:      device.AppEUI,
-		DevEUI:      device.DevEUI,
-		AppKey:      device.AppKey,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if device.TenantID != nil {
-		tenantIDStr := device.TenantID.String()
-		avroDevice.TenantID = &tenantIDStr
-	}
-
-	if !device.LastMessageReceivedAt.IsZero() {
-		lastMessageStr := device.LastMessageReceivedAt.Time
-		avroDevice.LastMessageReceivedAt = &lastMessageStr
-	}
-
-	err = s.publisher.Publish(ctx, pubsub.Key(device.ID), avroDevice)
+	entity := internal.FromDevice(device)
+	err = s.orm.WithContext(ctx).Save(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
+		return fmt.Errorf("updating device in database: %w", err)
 	}
 
 	return nil
 }
 
 func (s *SimpleDeviceRepository) AddEvaluationRule(ctx context.Context, device domain.Device, rule domain.EvaluationRule) error {
-	// deviceData := internal.FromDevice(device)
-	// evaluationRuleData := internal.FromEvaluationRule(rule)
-	// currentDevice, err := s.GetByName(ctx, device.Name)
-	// if err != nil && err != usecases.ErrDeviceNotFound {
-	// 	return fmt.Errorf("getting device: %w", err)
-	// }
-
-	// if currentDevice.ID != "" {
-	// 	return usecases.ErrDeviceDuplicated
-	// }
-
-	// err = s.publisher.Publish(ctx, pubsub.Key(device.ID), data)
-	// if err != nil {
-	// 	return fmt.Errorf("publishing to kafka: %w", err)
-	// }
-
 	return nil
 }
 

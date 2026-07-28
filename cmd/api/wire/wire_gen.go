@@ -73,11 +73,11 @@ func InitializeTenantController() (*httpapi.TenantController, error) {
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -130,17 +130,17 @@ func InitializePushTokenController() (*httpapi.PushTokenController, error) {
 
 func InitializeEvaluationRuleController() (*httpapi2.EvaluationRuleController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	evaluationRuleRepository, err := persistence2.NewEvaluationRuleRepository(publisherFactory, orm)
+	evaluationRuleRepository, err := persistence2.NewEvaluationRuleRepository(orm)
 	if err != nil {
 		return nil, err
 	}
 	simpleEvaluationRuleService := usecases2.NewEvaluationRuleService(evaluationRuleRepository)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -152,12 +152,12 @@ func InitializeEvaluationRuleController() (*httpapi2.EvaluationRuleController, e
 
 func InitializeDeviceController() (*httpapi2.DeviceController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func InitializeTaskController() (*httpapi2.TaskController, error) {
 	if err != nil {
 		return nil, err
 	}
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func InitializeScheduledTaskController() (*httpapi2.ScheduledTaskController, err
 		return nil, err
 	}
 	simpleScheduledTaskService := usecases2.NewScheduledTaskService(simpleScheduledTaskRepository)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases2.Sche
 	if err != nil {
 		return nil, err
 	}
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -265,12 +265,12 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases2.Sche
 
 func InitializeDeviceService() (usecases2.DeviceService, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -281,12 +281,12 @@ func InitializeDeviceService() (usecases2.DeviceService, error) {
 
 func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client, broker async.InternalBroker, consumerFactory pubsub.ConsumerFactory) (*workers.LoraIntegrationWorker, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -314,12 +314,12 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases2.Notif
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
 	notificationClient := provideNotificationClient(appConfig)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -416,11 +416,11 @@ func InitializeMaintenanceActivityController() (*httpapi3.ActivityController, er
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -448,11 +448,11 @@ func InitializeMaintenanceExecutionController() (*httpapi3.ExecutionController, 
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
@@ -481,11 +481,11 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleDeviceRepository, err := persistence2.NewDeviceRepository(publisherFactory, orm)
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
 	if err != nil {
 		return nil, err
