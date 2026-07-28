@@ -4,63 +4,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 	"zensor-server/internal/shared_kernel/persistence/internal"
 	"zensor-server/internal/shared_kernel/usecases"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-func NewTenantConfigurationRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleTenantConfigurationRepository, error) {
-	publisher, err := publisherFactory.New("tenant_configurations", &avro.AvroTenantConfiguration{})
-	if err != nil {
-		return nil, fmt.Errorf("creating publisher: %w", err)
-	}
-
-	err = orm.AutoMigrate(&internal.TenantConfiguration{})
+func NewTenantConfigurationRepository(orm sql.ORM) (*SimpleTenantConfigurationRepository, error) {
+	err := orm.AutoMigrate(&internal.TenantConfiguration{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
 
 	return &SimpleTenantConfigurationRepository{
-		publisher: publisher,
-		orm:       orm,
+		orm: orm,
 	}, nil
 }
 
 var _ usecases.TenantConfigurationRepository = (*SimpleTenantConfigurationRepository)(nil)
 
 type SimpleTenantConfigurationRepository struct {
-	publisher pubsub.Publisher
-	orm       sql.ORM
+	orm sql.ORM
 }
 
 func (r *SimpleTenantConfigurationRepository) Create(ctx context.Context, config domain.TenantConfiguration) error {
-	// Convert domain config to Avro config
-	avroConfig := &avro.AvroTenantConfiguration{
-		ID:                config.ID.String(),
-		TenantID:          config.TenantID.String(),
-		Timezone:          config.Timezone,
-		NotificationEmail: utils.StringPtr(config.NotificationEmail),
-		Version:           config.Version,
-		CreatedAt:         config.CreatedAt,
-		UpdatedAt:         config.UpdatedAt,
-	}
-
-	// For testing, also write directly to database to ensure immediate availability
 	internalConfig := internal.FromTenantConfiguration(config)
 	err := r.orm.WithContext(ctx).Create(&internalConfig).Error()
 	if err != nil {
 		return fmt.Errorf("creating tenant configuration in database: %w", err)
-	}
-
-	err = r.publisher.Publish(ctx, pubsub.Key(config.ID), avroConfig)
-	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
 	}
 
 	return nil
@@ -89,38 +61,10 @@ func (r *SimpleTenantConfigurationRepository) Update(ctx context.Context, config
 	config.Version++
 	config.UpdatedAt = time.Now()
 
-	// Convert domain config to Avro config
-	notificationEmailPtr := utils.StringPtr(config.NotificationEmail)
-	if notificationEmailPtr == nil {
-		slog.Warn("notification email is empty when publishing to kafka",
-			slog.String("config_id", config.ID.String()),
-			slog.String("notification_email", config.NotificationEmail))
-	} else {
-		slog.Info("publishing notification email to kafka",
-			slog.String("config_id", config.ID.String()),
-			slog.String("notification_email", *notificationEmailPtr))
-	}
-
-	avroConfig := &avro.AvroTenantConfiguration{
-		ID:                config.ID.String(),
-		TenantID:          config.TenantID.String(),
-		Timezone:          config.Timezone,
-		NotificationEmail: notificationEmailPtr,
-		Version:           config.Version,
-		CreatedAt:         config.CreatedAt,
-		UpdatedAt:         config.UpdatedAt,
-	}
-
-	// For testing, also write directly to database to ensure immediate availability
 	internalConfig := internal.FromTenantConfiguration(config)
 	err := r.orm.WithContext(ctx).Save(&internalConfig).Error()
 	if err != nil {
 		return fmt.Errorf("updating tenant configuration in database: %w", err)
-	}
-
-	err = r.publisher.Publish(ctx, pubsub.Key(config.ID), avroConfig)
-	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
 	}
 
 	return nil

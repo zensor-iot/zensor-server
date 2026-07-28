@@ -3,7 +3,6 @@ package persistence_test
 import (
 	"context"
 	"time"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
@@ -18,10 +17,9 @@ import (
 
 var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 	var (
-		orm         sql.ORM
-		mockFactory pubsub.PublisherFactory
-		repo        maintenanceUsecases.ExecutionRepository
-		ctx         context.Context
+		orm  sql.ORM
+		repo maintenanceUsecases.ExecutionRepository
+		ctx  context.Context
 	)
 
 	ginkgo.BeforeEach(func() {
@@ -33,9 +31,7 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 		err = orm.AutoMigrate(&maintenancePersistenceInternal.Activity{})
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		mockFactory = pubsub.NewMemoryPublisherFactory()
-
-		repo, err = maintenancePersistence.NewExecutionRepository(mockFactory, orm)
+		repo, err = maintenancePersistence.NewExecutionRepository(orm)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(repo).NotTo(gomega.BeNil())
 
@@ -57,7 +53,7 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 		})
 
 		ginkgo.When("creating a valid execution", func() {
-			ginkgo.It("should successfully publish to kafka", func() {
+			ginkgo.It("should successfully create the execution", func() {
 				err := repo.Create(ctx, execution)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			})
@@ -164,7 +160,7 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 		})
 
 		ginkgo.When("updating an execution", func() {
-			ginkgo.It("should successfully publish update to kafka", func() {
+			ginkgo.It("should successfully update the execution", func() {
 				err := repo.Update(ctx, execution)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			})
@@ -192,12 +188,9 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			})
 
-			ginkgo.It("should successfully publish completion to kafka", func() {
+			ginkgo.It("should successfully mark the execution completed", func() {
 				err := repo.MarkCompleted(ctx, execution.ID, completedBy)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-				// Note: In production, Kafka Connect would sync this to the database
-				// For now, we just verify the publish succeeded
 			})
 		})
 

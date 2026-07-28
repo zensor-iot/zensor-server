@@ -2,46 +2,32 @@ package persistence
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	"zensor-server/internal/maintenance/persistence/internal"
 	"zensor-server/internal/maintenance/usecases"
-	"zensor-server/internal/shared_kernel/avro"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
-func NewExecutionRepository(
-	publisherFactory pubsub.PublisherFactory,
-	orm sql.ORM,
-) (*SimpleExecutionRepository, error) {
-	publisher, err := publisherFactory.New(_maintenanceExecutionsTopic, &avro.AvroMaintenanceExecution{})
-	if err != nil {
-		return nil, fmt.Errorf("creating publisher: %w", err)
-	}
-
-	err = orm.AutoMigrate(&internal.Execution{})
+func NewExecutionRepository(orm sql.ORM) (*SimpleExecutionRepository, error) {
+	err := orm.AutoMigrate(&internal.Execution{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
 
 	return &SimpleExecutionRepository{
-		publisher: publisher,
-		orm:       orm,
+		orm: orm,
 	}, nil
 }
 
 var _ usecases.ExecutionRepository = (*SimpleExecutionRepository)(nil)
 
 type SimpleExecutionRepository struct {
-	publisher pubsub.Publisher
-	orm       sql.ORM
+	orm sql.ORM
 }
 
 func (r *SimpleExecutionRepository) Create(ctx context.Context, execution maintenanceDomain.Execution) error {
@@ -51,15 +37,6 @@ func (r *SimpleExecutionRepository) Create(ctx context.Context, execution mainte
 	if err != nil {
 		return fmt.Errorf("creating maintenance execution in database: %w", err)
 	}
-
-	avroExecution := convertToAvroMaintenanceExecution(execution)
-
-	slog.Debug("publishing maintenance execution to pubsub", slog.String("execution_id", execution.ID.String()))
-	err = r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
-	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
-	}
-	slog.Debug("published maintenance execution to pubsub", slog.String("execution_id", execution.ID.String()))
 
 	return nil
 }
@@ -140,13 +117,6 @@ func (r *SimpleExecutionRepository) Update(ctx context.Context, execution mainte
 	err := r.orm.WithContext(ctx).Save(&entity).Error()
 	if err != nil {
 		return fmt.Errorf("updating maintenance execution in database: %w", err)
-	}
-
-	avroExecution := convertToAvroMaintenanceExecution(execution)
-
-	err = r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
-	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
 	}
 
 	return nil
@@ -329,39 +299,4 @@ func (r *SimpleExecutionRepository) fetchActivitiesByExecutions(ctx context.Cont
 	}
 
 	return activityMap, nil
-}
-
-func convertToAvroMaintenanceExecution(execution maintenanceDomain.Execution) *avro.AvroMaintenanceExecution {
-	fieldValues := make(map[string]string)
-	for k, v := range execution.FieldValues {
-		if str, err := json.Marshal(v); err == nil {
-			fieldValues[k] = string(str)
-		}
-	}
-
-	result := &avro.AvroMaintenanceExecution{
-		ID:            execution.ID.String(),
-		Version:       int(execution.Version),
-		ActivityID:    execution.ActivityID.String(),
-		ScheduledDate: execution.ScheduledDate.Time,
-		OverdueDays:   int(execution.OverdueDays),
-		FieldValues:   fieldValues,
-		CreatedAt:     execution.CreatedAt.Time,
-		UpdatedAt:     execution.UpdatedAt.Time,
-	}
-
-	if execution.CompletedAt != nil {
-		result.CompletedAt = &execution.CompletedAt.Time
-	}
-
-	if execution.CompletedBy != nil {
-		completedBy := string(*execution.CompletedBy)
-		result.CompletedBy = &completedBy
-	}
-
-	if execution.DeletedAt != nil {
-		result.DeletedAt = &execution.DeletedAt.Time
-	}
-
-	return result
 }

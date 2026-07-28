@@ -91,12 +91,12 @@ func InitializeTenantController() (*httpapi.TenantController, error) {
 
 func InitializeTenantConfigurationController() (*httpapi.TenantConfigurationController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(publisherFactory, orm)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleUserRepository, err := persistence.NewUserRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -247,7 +247,7 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases2.Sche
 	}
 	simpleTaskService := usecases2.NewTaskService(simpleTaskRepository, simpleCommandRepository, simpleDeviceRepository)
 	simpleDeviceService := usecases2.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
-	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(publisherFactory, orm)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases2.Notif
 		return nil, err
 	}
 	simpleDeviceService := usecases2.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
-	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(publisherFactory, orm)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -409,12 +409,12 @@ func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
 
 func InitializeMaintenanceActivityController() (*httpapi3.ActivityController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleActivityRepository, err := persistence3.NewActivityRepository(publisherFactory, orm)
+	simpleActivityRepository, err := persistence3.NewActivityRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -436,17 +436,17 @@ func InitializeMaintenanceActivityController() (*httpapi3.ActivityController, er
 
 func InitializeMaintenanceExecutionController() (*httpapi3.ExecutionController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleExecutionRepository, err := persistence3.NewExecutionRepository(publisherFactory, orm)
+	simpleExecutionRepository, err := persistence3.NewExecutionRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleActivityRepository, err := persistence3.NewActivityRepository(publisherFactory, orm)
+	simpleActivityRepository, err := persistence3.NewActivityRepository(orm)
 	if err != nil {
 		return nil, err
 	}
 	simpleExecutionService := usecases3.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -469,17 +469,17 @@ func InitializeMaintenanceExecutionController() (*httpapi3.ExecutionController, 
 func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.ExecutionWorker, error) {
 	appConfig := provideAppConfig()
 	ticker := provideExecutionWorkerTicker(appConfig)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleActivityRepository, err := persistence3.NewActivityRepository(publisherFactory, orm)
+	simpleActivityRepository, err := persistence3.NewActivityRepository(orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleExecutionRepository, err := persistence3.NewExecutionRepository(publisherFactory, orm)
+	simpleExecutionRepository, err := persistence3.NewExecutionRepository(orm)
 	if err != nil {
 		return nil, err
 	}
 	simpleExecutionService := usecases3.NewExecutionService(simpleExecutionRepository, simpleActivityRepository)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleTenantRepository, err := persistence.NewTenantRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -494,7 +494,7 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 	}
 	simpleDeviceService := usecases2.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
 	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
-	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(publisherFactory, orm)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(orm)
 	if err != nil {
 		return nil, err
 	}
