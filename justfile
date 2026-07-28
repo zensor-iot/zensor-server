@@ -51,7 +51,37 @@ install-otelcol:
     mv tmp/otelcol .
     rm -rf tmp
 
+# Fingerprint of web/ sources (used to skip redundant pnpm builds).
+_compute-web-build-hash:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {
+        while IFS= read -r f; do
+            shasum -a 256 "$f"
+        done < <(git ls-files -co --exclude-standard -- web/ | sort)
+    } | shasum -a 256 | awk '{print $1}'
+
+# Vite output for //go:embed (required before any go build or ./internal/... tests).
+_web-build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    hash="$(just _compute-web-build-hash)"
+    stamp="internal/infra/httpserver/web/dist/.web-build-hash"
+    if [[ -f "$stamp" && "$(cat "$stamp")" == "$hash" && -f internal/infra/httpserver/web/dist/index.html ]]; then
+        echo "web build: up to date ($hash)"
+        exit 0
+    fi
+    pnpm -C web install --frozen-lockfile
+    out=$(pnpm -C web run build 2>&1)
+    code=$?
+    if [[ $code -ne 0 ]]; then echo "$out"; exit $code; fi
+    mkdir -p internal/infra/httpserver/web/dist
+    echo "$hash" > "$stamp"
+    duration=$(echo "$out" | grep -oE "built in [0-9ms.]+" | tail -1)
+    echo "web build: done ($duration)"
+
 build:
+    just _web-build
     go build -o server cmd/api/main.go
 
 run: build
@@ -193,6 +223,7 @@ tdd path="internal":
     go run github.com/onsi/ginkgo/v2/ginkgo watch --race {{path}}
 
 unit path="internal":
+    just _web-build
     go run github.com/onsi/ginkgo/v2/ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
 
 functional module tags="~@pending": build
