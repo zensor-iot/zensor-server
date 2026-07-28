@@ -176,4 +176,32 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 			})
 		})
 	})
+
+	ginkgo.Context("StaticWebUI", func() {
+		ginkgo.When("requesting the root path", func() {
+			ginkgo.It("should serve the embedded SPA", func() {
+				srv := NewServer()
+				req := httptest.NewRequest("GET", "/", nil)
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+				gomega.Expect(rec.Body.String()).To(gomega.ContainSubstring("<!DOCTYPE html>"))
+			})
+		})
+
+		ginkgo.When("requesting a real API route with the SPA also registered", func() {
+			ginkgo.It("should still route to healthz, not the SPA fallback", func() {
+				srv := NewServer()
+				req := httptest.NewRequest("GET", "/healthz", nil)
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+				gomega.Expect(rec.Header().Get("Content-Type")).To(gomega.Equal("application/json"))
+			})
+		})
+	})
 })

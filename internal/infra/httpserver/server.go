@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"zensor-server/internal/infra/httpserver/web"
 	"zensor-server/internal/infra/node"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -95,6 +96,7 @@ func NewServer(controllers ...Controller) *StandardServer {
 	router.Handle("GET /healthz", getHealthz())
 	router.Handle("GET /metrics", promhttp.Handler())
 	router.Handle("GET /v1/me", getCurrentUser())
+	router.Handle("/", web.SPAHandler())
 
 	for _, controller := range controllers {
 		controller.AddRoutes(router)
