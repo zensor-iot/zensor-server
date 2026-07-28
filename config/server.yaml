@@ -5,11 +5,6 @@ mqtt:
 database:
   dsn: "host=localhost user=postgres dbname=postgres port=5432 sslmode=disable"
   query_timeout: "5s"
-kafka:
-  brokers:
-    - "localhost:19092"
-  group: "zensor-server"
-  schema_registry: "http://localhost:8081"
 redis:
   addr: "localhost:6379"
   password: ""

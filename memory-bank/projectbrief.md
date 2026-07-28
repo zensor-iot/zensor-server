@@ -12,13 +12,13 @@ Zensor Server is the core backend of the Zensor Ecosystem, responsible for orche
 ## Scope
 Included:
 - Device registration and management
-- Event ingestion from MQTT and Kafka
+- Event ingestion from MQTT
 - Command sequencing and dispatch to devices
 - Evaluation rules for device behavior
 - Task scheduling and execution
 - Multi-tenant support
 - HTTP API for device, event, and task management
-- Integration with Materialize (query persistence layer)
+- PostgreSQL as the single persistence layer (direct reads and writes)
 - Observability (metrics, health checks)
 
 Excluded:

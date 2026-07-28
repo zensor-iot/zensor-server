@@ -89,7 +89,7 @@ func (s *SimpleTenantConfigurationService) UpsertTenantConfiguration(ctx context
 	}
 
 	err = s.repository.Update(ctx, existingConfig)
-	slog.Info("publishing tenant configuration to kafka",
+	slog.Info("updating tenant configuration in database",
 		slog.String("notification_email", existingConfig.NotificationEmail))
 	if err != nil {
 		slog.Error("updating tenant configuration", slog.String("error", err.Error()))

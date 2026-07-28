@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Zensor Server is a Go 1.23+ IoT backend service for managing tenants, devices, tasks, commands, and scheduled tasks. It follows clean architecture with event-driven processing via Kafka, PostgreSQL persistence, Redis caching, and MQTT device communication.
+Zensor Server is a Go 1.23+ IoT backend service for managing tenants, devices, tasks, commands, and scheduled tasks. It follows clean architecture with PostgreSQL persistence (direct reads and writes), Redis caching, and MQTT device communication.
 
 ## Build & Run Commands
 
@@ -12,7 +12,7 @@ Zensor Server is a Go 1.23+ IoT backend service for managing tenants, devices, t
 just init                              # Install all Go tools (golangci-lint, wire, arch-go, mockgen)
 just build                             # Compile: go build -o server cmd/api/main.go
 just run                               # Build + hot reload with entr (starts Docker deps unless ENV=local)
-ENV=local just run                     # Run without Docker dependencies (uses in-memory PubSub)
+ENV=local just run                     # Run without Docker dependencies (in-memory SQLite ORM, no-op MQTT client)
 ```
 
 ## Testing
@@ -47,7 +47,7 @@ cmd/api/          → Entry point, Wire DI setup
 internal/
   control_plane/  → HTTP controllers (httpapi/) + business logic (usecases/)
   data_plane/     → Event processing workers, DTOs
-  infra/          → Infrastructure: HTTP server, Kafka, SQL, cache, PubSub
+  infra/          → Infrastructure: HTTP server, MQTT, SQL, cache, async (in-process broker)
   shared_kernel/  → Cross-cutting domain utilities
   persistence/    → Repository implementations (GORM + PostgreSQL)
   maintenance/    → Maintenance module (conditionally enabled)
@@ -57,8 +57,7 @@ internal/
 
 - **Dependency Injection**: Google Wire (compile-time). All wiring in `cmd/api/wire/`. Run `just wire` after changing providers.
 - **Repository Pattern**: Interfaces defined in `control_plane/usecases/`, implementations in `persistence/`. Standard methods: `Create`, `GetByID`, `FindAll`, `Update`.
-- **Workers**: All implement `async.Worker` interface (`Run(ctx, done)` + `Shutdown()`). Workers: CommandWorker, ScheduledTaskWorker, NotificationWorker, MetricWorker, PushNotificationWorker, ExecutionWorker.
-- **Event-Driven**: Kafka topics with Avro schemas (in `schemas/`). In-memory PubSub for local dev (`ENV=local`).
+- **Workers**: All implement `async.Worker` interface (`Run(ctx, done)` + `Shutdown()`). Workers: CommandWorker, ScheduledTaskWorker, NotificationWorker, MetricWorker, PushNotificationWorker, ExecutionWorker, LoraIntegrationWorker. They coordinate via an in-process `async.InternalBroker` and periodic ticker polling of Postgres — there is no external message broker.
 - **HTTP Controllers**: Implement `Controller` interface with `AddRoutes(*http.ServeMux)`. User context extracted from headers: `X-User-ID`, `X-User-Name`, `X-User-Email`.
 - **Multi-tenant**: All data scoped by Tenant. Entity hierarchy: Tenant → Devices → Tasks → Commands. ScheduledTasks are templates that generate Task instances.
 - **Modules**: `permaculture` and `maintenance` modules are conditionally loaded via `config/server.yaml` (`modules.*.enabled`).
@@ -67,11 +66,11 @@ internal/
 
 - YAML config: `config/server.yaml`
 - Environment variable overrides: prefix `ZENSOR_SERVER_`, dots become underscores (e.g., `ZENSOR_SERVER_DATABASE_DSN`)
-- `ENV=local` activates in-memory PubSub and replication service (no external deps needed)
+- `ENV=local` switches to an in-memory SQLite ORM and a no-op MQTT client (no external deps needed)
 
 ### Infrastructure (Docker Compose)
 
-`docker compose up -d --wait` starts: Kafka (19092), Schema Registry (8081), PostgreSQL (5432), Redis (6379), Prometheus, Grafana (3001), OpenTelemetry Collector (4317/4318).
+`docker compose up -d --wait` starts: PostgreSQL (5432), Redis (6379), Prometheus, Grafana (3001), OpenTelemetry Collector (4317/4318).
 
 ## Code Style Rules
 

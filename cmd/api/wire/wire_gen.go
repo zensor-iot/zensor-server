@@ -22,9 +22,6 @@ import (
 	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/notification"
-	"zensor-server/internal/infra/pubsub"
-	"zensor-server/internal/infra/replication"
-	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
 	httpapi3 "zensor-server/internal/maintenance/httpapi"
 	persistence3 "zensor-server/internal/maintenance/persistence"
@@ -35,20 +32,6 @@ import (
 )
 
 // Injectors from common.go:
-
-func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	tenantConfigurationHandler := handlers.NewTenantConfigurationHandler(orm)
-	return tenantConfigurationHandler, nil
-}
-
-func InitializeUserHandler() (*handlers.UserHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	userHandler := handlers.NewUserHandler(orm)
-	return userHandler, nil
-}
 
 func InitializeUserController() (*httpapi.UserController, error) {
 	appConfig := provideAppConfig()
@@ -349,49 +332,6 @@ func InitializeDeviceSpecificWebSocketController(broker async.InternalBroker) (*
 	return deviceSpecificWebSocketController, nil
 }
 
-func InitializeReplicationService() (*replication.Service, error) {
-	consumerFactory := provideMemoryConsumerFactory()
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	service := replication.NewService(consumerFactory, orm)
-	return service, nil
-}
-
-func InitializeDeviceHandler() (*handlers.DeviceHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	deviceHandler := handlers.NewDeviceHandler(orm)
-	return deviceHandler, nil
-}
-
-func InitializeTenantHandler() (*handlers.TenantHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	tenantHandler := handlers.NewTenantHandler(orm)
-	return tenantHandler, nil
-}
-
-func InitializeTaskHandler() (*handlers.TaskHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	taskHandler := handlers.NewTaskHandler(orm)
-	return taskHandler, nil
-}
-
-func InitializeCommandHandler() (*handlers.CommandHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	commandHandler := handlers.NewCommandHandler(orm)
-	return commandHandler, nil
-}
-
-func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
-	appConfig := provideAppConfig()
-	orm := provideDatabase(appConfig)
-	scheduledTaskHandler := handlers.NewScheduledTaskHandler(orm)
-	return scheduledTaskHandler, nil
-}
-
 // Injectors from maintenance.go:
 
 func InitializeMaintenanceActivityController() (*httpapi3.ActivityController, error) {
@@ -545,31 +485,6 @@ var DeviceServiceSet = wire.NewSet(
 	provideDatabase, persistence2.NewDeviceRepository, wire.Bind(new(usecases2.DeviceRepository), new(*persistence2.SimpleDeviceRepository)), persistence2.NewCommandRepository, wire.Bind(new(usecases2.CommandRepository), new(*persistence2.SimpleCommandRepository)), usecases2.NewDeviceService,
 )
 
-func providePubSubFactory(config2 config.AppConfig) *pubsub.Factory {
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
-
-	return pubsub.NewFactory(pubsub.FactoryOptions{
-		Environment:       env,
-		KafkaBrokers:      config2.Kafka.Brokers,
-		ConsumerGroup:     "zensor-server",
-		SchemaRegistryURL: config2.Kafka.SchemaRegistry,
-	})
-}
-
-func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {
-	return factory.GetPublisherFactory()
-}
-
-func provideKafkaPublisherFactoryOptions(config2 config.AppConfig) pubsub.KafkaPublisherFactoryOptions {
-	return pubsub.KafkaPublisherFactoryOptions{
-		Brokers:           config2.Kafka.Brokers,
-		SchemaRegistryURL: config2.Kafka.SchemaRegistry,
-	}
-}
-
 func provideAppConfig() config.AppConfig {
 	return config.LoadConfig()
 }
@@ -610,33 +525,6 @@ func provideNotificationClient(config2 config.AppConfig) notification.Notificati
 	}
 
 	return notification.NewMailerSendClient(mailerSendConfig)
-}
-
-func provideMemoryConsumerFactory() pubsub.ConsumerFactory {
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
-
-	if env == "local" {
-		return pubsub.NewMemoryConsumerFactory("replicator")
-	}
-
-	return nil
-}
-
-func providePublisherFactoryForEnvironment(config2 config.AppConfig) pubsub.PublisherFactory {
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
-
-	if env == "local" {
-		return pubsub.NewMemoryPublisherFactory()
-	}
-
-	kafkaOptions := provideKafkaPublisherFactoryOptions(config2)
-	return pubsub.NewKafkaPublisherFactory(kafkaOptions)
 }
 
 var (

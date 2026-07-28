@@ -8,31 +8,12 @@ import (
 	"zensor-server/cmd/config"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/notification"
-	"zensor-server/internal/infra/replication/handlers"
 	sharedHTTPAPI "zensor-server/internal/shared_kernel/httpapi"
 	sharedPersistence "zensor-server/internal/shared_kernel/persistence"
 	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 
 	"github.com/google/wire"
 )
-
-func InitializeTenantConfigurationHandler() (*handlers.TenantConfigurationHandler, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		handlers.NewTenantConfigurationHandler,
-	)
-	return nil, nil
-}
-
-func InitializeUserHandler() (*handlers.UserHandler, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		handlers.NewUserHandler,
-	)
-	return nil, nil
-}
 
 func InitializeUserController() (*sharedHTTPAPI.UserController, error) {
 	wire.Build(

@@ -37,11 +37,6 @@ func loadTestConfig(configName string) config.AppConfig {
 		Postgresql: config.PostgresqlConfig{
 			DSN: viper.GetString("database.dsn"),
 		},
-		Kafka: config.KafkaConfig{
-			Brokers:        viper.GetStringSlice("kafka.brokers"),
-			Group:          viper.GetString("kafka.group"),
-			SchemaRegistry: viper.GetString("kafka.schema_registry"),
-		},
 		Redis: config.RedisConfig{
 			Addr:     viper.GetString("redis.addr"),
 			Password: viper.GetString("redis.password"),
@@ -65,11 +60,6 @@ mqtt:
   broker: "localhost:1883"
 database:
   dsn: "host=localhost user=postgres dbname=postgres port=5432 sslmode=disable"
-kafka:
-  brokers:
-    - "localhost:19092"
-  group: "zensor-server"
-  schema_registry: "http://localhost:8081"
 redis:
   addr: "localhost:6379"
   password: ""

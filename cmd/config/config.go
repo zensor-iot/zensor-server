@@ -42,11 +42,6 @@ func LoadConfig() AppConfig {
 				DSN:          viper.GetString("database.dsn"),
 				QueryTimeout: viper.GetDuration("database.query_timeout"),
 			},
-			Kafka: KafkaConfig{
-				Brokers:        viper.GetStringSlice("kafka.brokers"),
-				Group:          viper.GetString("kafka.group"),
-				SchemaRegistry: viper.GetString("kafka.schema_registry"),
-			},
 			Redis: RedisConfig{
 				Addr:     viper.GetString("redis.addr"),
 				Password: viper.GetString("redis.password"),
@@ -144,7 +139,6 @@ type AppConfig struct {
 	General          GeneralConfig
 	mqtt             MqttConfig
 	MQTTClient       MQTTClientConfig
-	Kafka            KafkaConfig
 	Postgresql       PostgresqlConfig
 	Redis            RedisConfig
 	MailerSend       MailerSendConfig
@@ -168,12 +162,6 @@ type MQTTClientConfig struct {
 	ClientID string
 	Username string
 	Password string
-}
-
-type KafkaConfig struct {
-	Brokers        []string
-	Group          string
-	SchemaRegistry string
 }
 
 type PostgresqlConfig struct {

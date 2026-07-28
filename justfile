@@ -67,21 +67,21 @@ run: build
 health:
     #!/bin/bash
     echo "🔍 checking service health..."
-    
-    # Check Redpanda
-    if nc -z localhost 19092; then
-        echo "✅ redpanda: healthy (port 19092)"
+
+    # Check Postgres
+    if nc -z localhost 5432; then
+        echo "✅ postgresql: healthy (port 5432)"
     else
-        echo "❌ redpanda: not responding on port 19092"
+        echo "❌ postgresql: not responding on port 5432"
     fi
-    
-    # Check Materialize
-    if psql -h localhost -p 6875 -U materialize -d materialize -c "SELECT 1;" >/dev/null 2>&1; then
-        echo "✅ materialize: healthy (port 6875)"
+
+    # Check Redis
+    if nc -z localhost 6379; then
+        echo "✅ redis: healthy (port 6379)"
     else
-        echo "❌ materialize: not responding on port 6875"
+        echo "❌ redis: not responding on port 6379"
     fi
-    
+
     # Check Prometheus
     if nc -z localhost 9090; then
         echo "✅ prometheus: healthy (port 9090)"

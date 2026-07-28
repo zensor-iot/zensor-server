@@ -2,27 +2,21 @@
 
 ## What Works
 - Device registration and management via HTTP API
-- Event ingestion from MQTT and Kafka
+- Event ingestion from MQTT
 - Command sequencing and dispatch to devices
 - Evaluation rules for device behavior
 - Task scheduling and execution
 - Multi-tenant support
 - HTTP API for device, event, and task management
-- Integration with Materialize (query persistence layer)
+- PostgreSQL as the single persistence layer (direct reads and writes, no CDC indirection)
 - Observability (metrics, health checks)
 - Scheduled tasks with cron-based scheduling
-- **Replication module for local development**
 - **Command flow between control plane and data plane**
 
+> **2026-07-28: Removed Kafka, Kafka Connect, Schema Registry, and Avro.** Every repository now writes directly to Postgres; `LoraIntegrationWorker` polls Postgres for ready commands instead of consuming a Kafka topic. The former "replication module for local development" is gone since there's nothing left to replicate. See `systemPatterns.md` and `techContext.md` for the current architecture.
+
 ## What's Left to Build
-- Complete ORM wiring for replication handlers
-- Additional topic handlers (evaluation rules, tasks, scheduled tasks)
-- Replication conflict resolution and data consistency
-- Advanced monitoring and alerting for replication
-- Performance optimization for high-throughput scenarios
-- Integration testing for replication module
-- Documentation for replication module usage
-- **Refactor Avro mapping to use typed structures instead of reflection**
+- (nothing tracked here related to the former replication/Avro work — see note above)
 
 ## Technical Debt & Improvements
 - **Avro Mapping Refactoring**: Replace reflection-based conversion with typed methods for better performance and type safety
@@ -31,14 +25,10 @@
 - **MVP**: Complete ✅
 - **Core Features**: Complete ✅
 - **Scheduled Tasks**: Complete ✅
-- **Replication Module**: Core implementation complete, wiring pending ⚠️
+- **Replication Module**: Removed — repositories write directly to Postgres, nothing left to replicate ✅
 - **Command Flow**: Fixed and working ✅
 
 ## Known Issues
-- ORM dependency wiring for replication handlers needs completion
-- Replication module testing and validation pending
-- Need to add more comprehensive error handling for replication failures
-- Monitoring and metrics for replication operations not yet implemented
 - ~~Command type mismatch between control plane and data plane~~ ✅ **RESOLVED**
 
 ## Recent Achievements

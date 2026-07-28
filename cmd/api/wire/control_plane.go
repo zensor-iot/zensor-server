@@ -17,9 +17,6 @@ import (
 	"zensor-server/internal/infra/cache"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/notification"
-	"zensor-server/internal/infra/pubsub"
-	"zensor-server/internal/infra/replication"
-	"zensor-server/internal/infra/replication/handlers"
 	"zensor-server/internal/infra/sql"
 	sharedPersistence "zensor-server/internal/shared_kernel/persistence"
 	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
@@ -163,31 +160,6 @@ var DeviceServiceSet = wire.NewSet(
 	usecases.NewDeviceService,
 )
 
-func providePubSubFactory(config config.AppConfig) *pubsub.Factory {
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
-
-	return pubsub.NewFactory(pubsub.FactoryOptions{
-		Environment:       env,
-		KafkaBrokers:      config.Kafka.Brokers,
-		ConsumerGroup:     "zensor-server",
-		SchemaRegistryURL: config.Kafka.SchemaRegistry,
-	})
-}
-
-func providePublisherFactory(factory *pubsub.Factory) pubsub.PublisherFactory {
-	return factory.GetPublisherFactory()
-}
-
-func provideKafkaPublisherFactoryOptions(config config.AppConfig) pubsub.KafkaPublisherFactoryOptions {
-	return pubsub.KafkaPublisherFactoryOptions{
-		Brokers:           config.Kafka.Brokers,
-		SchemaRegistryURL: config.Kafka.SchemaRegistry,
-	}
-}
-
 func provideAppConfig() config.AppConfig {
 	return config.LoadConfig()
 }
@@ -282,88 +254,6 @@ func InitializeDeviceSpecificWebSocketController(broker async.InternalBroker) (*
 		httpapi.NewDeviceSpecificWebSocketController,
 	)
 	return nil, nil
-}
-
-func InitializeReplicationService() (*replication.Service, error) {
-	wire.Build(
-		provideAppConfig,
-		provideMemoryConsumerFactory,
-		provideDatabase,
-		replication.NewService,
-	)
-	return nil, nil
-}
-
-func provideMemoryConsumerFactory() pubsub.ConsumerFactory {
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
-
-	if env == "local" {
-		return pubsub.NewMemoryConsumerFactory("replicator")
-	}
-
-	return nil
-}
-
-func InitializeDeviceHandler() (*handlers.DeviceHandler, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		handlers.NewDeviceHandler,
-	)
-	return nil, nil
-}
-
-func InitializeTenantHandler() (*handlers.TenantHandler, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		handlers.NewTenantHandler,
-	)
-	return nil, nil
-}
-
-func InitializeTaskHandler() (*handlers.TaskHandler, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		handlers.NewTaskHandler,
-	)
-	return nil, nil
-}
-
-func InitializeCommandHandler() (*handlers.CommandHandler, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		handlers.NewCommandHandler,
-	)
-	return nil, nil
-}
-
-func InitializeScheduledTaskHandler() (*handlers.ScheduledTaskHandler, error) {
-	wire.Build(
-		provideAppConfig,
-		provideDatabase,
-		handlers.NewScheduledTaskHandler,
-	)
-	return nil, nil
-}
-
-func providePublisherFactoryForEnvironment(config config.AppConfig) pubsub.PublisherFactory {
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
-
-	if env == "local" {
-		return pubsub.NewMemoryPublisherFactory()
-	}
-
-	kafkaOptions := provideKafkaPublisherFactoryOptions(config)
-	return pubsub.NewKafkaPublisherFactory(kafkaOptions)
 }
 
 var (

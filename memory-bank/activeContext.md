@@ -1,6 +1,7 @@
 # Active Context
 
 ## Current Focus
+- ✅ **Removed Kafka, Kafka Connect, Schema Registry, and Avro (2026-07-28)**: repositories now write directly to Postgres; `LoraIntegrationWorker` polls Postgres instead of consuming Kafka. See `systemPatterns.md`/`techContext.md` for current architecture. This obsoletes the "Replication Module" and "Avro Mapping" work tracked further below in this file.
 - ✅ **Timezone-Aware Task Creation Implementation Completed**
 - ✅ **Tenant Configuration Entity Implementation Completed**
 - ✅ **Wire Configuration Integration Completed**
