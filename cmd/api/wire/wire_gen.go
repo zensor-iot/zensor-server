@@ -166,10 +166,8 @@ func InitializeDeviceController() (*httpapi2.DeviceController, error) {
 
 func InitializeTaskController() (*httpapi2.TaskController, error) {
 	appConfig := provideAppConfig()
-	factory := providePubSubFactory(appConfig)
-	publisherFactory := providePublisherFactory(factory)
 	orm := provideDatabase(appConfig)
-	simpleTaskRepository, err := persistence2.NewTaskRepository(publisherFactory, orm)
+	simpleTaskRepository, err := persistence2.NewTaskRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -209,8 +207,7 @@ func InitializeScheduledTaskController() (*httpapi2.ScheduledTaskController, err
 		return nil, err
 	}
 	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleTaskRepository, err := persistence2.NewTaskRepository(publisherFactory, orm)
+	simpleTaskRepository, err := persistence2.NewTaskRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -227,8 +224,7 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases2.Sche
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleTaskRepository, err := persistence2.NewTaskRepository(publisherFactory, orm)
+	simpleTaskRepository, err := persistence2.NewTaskRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -332,8 +328,7 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases2.Notif
 	}
 	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
 	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleTaskRepository, err := persistence2.NewTaskRepository(publisherFactory, orm)
+	simpleTaskRepository, err := persistence2.NewTaskRepository(orm)
 	if err != nil {
 		return nil, err
 	}

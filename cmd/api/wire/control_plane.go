@@ -55,8 +55,6 @@ func InitializeDeviceController() (*httpapi.DeviceController, error) {
 func InitializeTaskController() (*httpapi.TaskController, error) {
 	wire.Build(
 		provideAppConfig,
-		providePubSubFactory,
-		providePublisherFactory,
 		persistence.NewTaskRepository,
 		wire.Bind(new(usecases.TaskRepository), new(*persistence.SimpleTaskRepository)),
 		provideDatabase,
@@ -77,7 +75,6 @@ func InitializeTaskController() (*httpapi.TaskController, error) {
 func InitializeScheduledTaskController() (*httpapi.ScheduledTaskController, error) {
 	wire.Build(
 		provideAppConfig,
-		providePublisherFactoryForEnvironment,
 		provideDatabase,
 		persistence.NewScheduledTaskRepository,
 		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
@@ -109,7 +106,6 @@ func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases.Sched
 		provideAppConfig,
 		provideTicker,
 		provideDatabase,
-		providePublisherFactoryForEnvironment,
 		persistence.NewScheduledTaskRepository,
 		wire.Bind(new(usecases.ScheduledTaskRepository), new(*persistence.SimpleScheduledTaskRepository)),
 		persistence.NewTaskRepository,
@@ -236,7 +232,6 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases.Notifi
 		provideAppConfig,
 		provideTicker,
 		provideNotificationClient,
-		providePublisherFactoryForEnvironment,
 		DeviceServiceSet,
 		wire.Bind(new(usecases.DeviceService), new(*usecases.SimpleDeviceService)),
 		persistence.NewTaskRepository,
