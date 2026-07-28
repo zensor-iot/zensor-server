@@ -22,3 +22,9 @@ coverprofile.out
 
 service_account.json
 .DS_Store
+
+# Frontend (web/)
+web/node_modules/
+
+# Vite build output for //go:embed — run `just _web-build` (or `just build`) before go build/test.
+internal/infra/httpserver/web/dist/
