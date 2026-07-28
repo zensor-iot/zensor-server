@@ -64,6 +64,61 @@ run: build
     echo "🚀 starting zensor server with hot reload..."
     find . -type f -name '*.go' | entr ./server
 
+dev: build
+    #!/bin/bash
+    if [ "${ENV}" = "local" ]; then
+        echo "🌱 Local mode: skipping Docker dependencies"
+    else
+        docker compose up -d --wait
+    fi
+
+    LOG_FILE=$(mktemp -t zensor-dev-XXXX.log)
+    echo "🚀 starting zensor server (log: ${LOG_FILE})..."
+    ./server > "$LOG_FILE" 2>&1 &
+    SERVER_PID=$!
+    TAIL_PID=""
+
+    teardown() {
+        echo ""
+        echo "🔪 stopping server (PID: $SERVER_PID)..."
+        [ -n "$TAIL_PID" ] && kill "$TAIL_PID" 2>/dev/null
+        kill "$SERVER_PID" 2>/dev/null
+        for _ in 1 2 3 4 5; do
+            kill -0 "$SERVER_PID" 2>/dev/null || break
+            sleep 1
+        done
+        kill -9 "$SERVER_PID" 2>/dev/null
+        wait "$SERVER_PID" 2>/dev/null
+    }
+    trap teardown EXIT INT TERM
+
+    echo "⏳ waiting for server to be ready..."
+    max_attempts=30
+    attempt=0
+    while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
+        if [ $attempt -ge $max_attempts ]; then
+            echo "❌ server failed to start after 30 seconds."
+            cat "$LOG_FILE"
+            exit 1
+        fi
+        sleep 1
+        attempt=$((attempt+1))
+    done
+    echo "✅ server is ready"
+
+    ./scripts/seed.sh
+
+    echo ""
+    echo "📜 zensor server is running — tailing logs, press Ctrl+C to stop"
+    tail -f "$LOG_FILE" &
+    TAIL_PID=$!
+    wait "$SERVER_PID"
+
+seed:
+    #!/bin/bash
+    echo "🌱 seeding against an already-running server..."
+    ./scripts/seed.sh
+
 health:
     #!/bin/bash
     echo "🔍 checking service health..."
