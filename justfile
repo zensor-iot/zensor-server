@@ -72,12 +72,13 @@ _web-build:
         exit 0
     fi
     pnpm -C web install --frozen-lockfile
-    out=$(pnpm -C web run build 2>&1)
-    code=$?
-    if [[ $code -ne 0 ]]; then echo "$out"; exit $code; fi
+    if ! out=$(pnpm -C web run build 2>&1); then
+        echo "$out"
+        exit 1
+    fi
     mkdir -p internal/infra/httpserver/web/dist
     echo "$hash" > "$stamp"
-    duration=$(echo "$out" | grep -oE "built in [0-9ms.]+" | tail -1)
+    duration=$(echo "$out" | grep -oE "built in [0-9ms.]+" | tail -1 || true)
     echo "web build: done ($duration)"
 
 build:
