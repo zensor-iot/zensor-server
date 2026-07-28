@@ -7,47 +7,34 @@ import (
 	"time"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-const (
-	_scheduledTasksTopic = "scheduled_tasks"
-)
-
-func NewScheduledTaskRepository(publisherFactory pubsub.PublisherFactory, orm sql.ORM) (*SimpleScheduledTaskRepository, error) {
-	publisher, err := publisherFactory.New(_scheduledTasksTopic, &avro.AvroScheduledTask{})
-	if err != nil {
-		return nil, fmt.Errorf("creating scheduled task publisher: %w", err)
-	}
-
-	err = orm.AutoMigrate(&internal.ScheduledTask{})
+func NewScheduledTaskRepository(orm sql.ORM) (*SimpleScheduledTaskRepository, error) {
+	err := orm.AutoMigrate(&internal.ScheduledTask{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
 
 	return &SimpleScheduledTaskRepository{
-		publisher: publisher,
-		orm:       orm,
+		orm: orm,
 	}, nil
 }
 
 var _ usecases.ScheduledTaskRepository = (*SimpleScheduledTaskRepository)(nil)
 
 type SimpleScheduledTaskRepository struct {
-	publisher pubsub.Publisher
-	orm       sql.ORM
+	orm sql.ORM
 }
 
 func (r *SimpleScheduledTaskRepository) Create(ctx context.Context, scheduledTask domain.ScheduledTask) error {
-	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
+	entity := internal.FromScheduledTask(scheduledTask)
 
-	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
+	err := r.orm.WithContext(ctx).Create(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing scheduled task to kafka: %w", err)
+		return fmt.Errorf("creating scheduled task in database: %w", err)
 	}
 
 	return nil
@@ -134,11 +121,11 @@ func (r *SimpleScheduledTaskRepository) Update(ctx context.Context, scheduledTas
 	scheduledTask.Version++
 	scheduledTask.UpdatedAt = utils.Time{Time: time.Now()}
 
-	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
+	entity := internal.FromScheduledTask(scheduledTask)
 
-	err := r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
+	err := r.orm.WithContext(ctx).Save(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing scheduled task update to kafka: %w", err)
+		return fmt.Errorf("updating scheduled task in database: %w", err)
 	}
 
 	return nil
@@ -154,11 +141,11 @@ func (r *SimpleScheduledTaskRepository) Delete(ctx context.Context, id domain.ID
 	scheduledTask.Version++
 	scheduledTask.UpdatedAt = utils.Time{Time: time.Now()}
 
-	avroScheduledTask := avro.ToAvroScheduledTask(scheduledTask)
+	entity := internal.FromScheduledTask(scheduledTask)
 
-	err = r.publisher.Publish(ctx, pubsub.Key(scheduledTask.ID), avroScheduledTask)
+	err = r.orm.WithContext(ctx).Save(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing scheduled task deletion to kafka: %w", err)
+		return fmt.Errorf("deleting scheduled task in database: %w", err)
 	}
 
 	return nil

@@ -77,8 +77,7 @@ func InitializeTenantController() (*httpapi.TenantController, error) {
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +139,7 @@ func InitializeEvaluationRuleController() (*httpapi2.EvaluationRuleController, e
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -157,8 +155,7 @@ func InitializeDeviceController() (*httpapi2.DeviceController, error) {
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +173,7 @@ func InitializeTaskController() (*httpapi2.TaskController, error) {
 	if err != nil {
 		return nil, err
 	}
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -192,9 +189,8 @@ func InitializeTaskController() (*httpapi2.TaskController, error) {
 
 func InitializeScheduledTaskController() (*httpapi2.ScheduledTaskController, error) {
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleScheduledTaskRepository, err := persistence2.NewScheduledTaskRepository(publisherFactory, orm)
+	simpleScheduledTaskRepository, err := persistence2.NewScheduledTaskRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +199,7 @@ func InitializeScheduledTaskController() (*httpapi2.ScheduledTaskController, err
 	if err != nil {
 		return nil, err
 	}
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -213,6 +209,7 @@ func InitializeScheduledTaskController() (*httpapi2.ScheduledTaskController, err
 		return nil, err
 	}
 	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleTaskRepository, err := persistence2.NewTaskRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -225,17 +222,17 @@ func InitializeScheduledTaskController() (*httpapi2.ScheduledTaskController, err
 func InitializeScheduledTaskWorker(broker async.InternalBroker) (*usecases2.ScheduledTaskWorker, error) {
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	orm := provideDatabase(appConfig)
-	simpleScheduledTaskRepository, err := persistence2.NewScheduledTaskRepository(publisherFactory, orm)
+	simpleScheduledTaskRepository, err := persistence2.NewScheduledTaskRepository(orm)
 	if err != nil {
 		return nil, err
 	}
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleTaskRepository, err := persistence2.NewTaskRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
 	}
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -270,8 +267,7 @@ func InitializeDeviceService() (usecases2.DeviceService, error) {
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -286,8 +282,7 @@ func InitializeLoraIntegrationWorker(ticker *time.Ticker, mqttClient mqtt.Client
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -301,8 +296,7 @@ func InitializeCommandWorker(broker async.InternalBroker) (*usecases2.CommandWor
 	ticker := provideTicker()
 	appConfig := provideAppConfig()
 	orm := provideDatabase(appConfig)
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -319,8 +313,7 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases2.Notif
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -339,6 +332,7 @@ func InitializeNotificationWorker(broker async.InternalBroker) (*usecases2.Notif
 	}
 	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
 	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
+	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
 	simpleTaskRepository, err := persistence2.NewTaskRepository(publisherFactory, orm)
 	if err != nil {
 		return nil, err
@@ -420,8 +414,7 @@ func InitializeMaintenanceActivityController() (*httpapi3.ActivityController, er
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -452,8 +445,7 @@ func InitializeMaintenanceExecutionController() (*httpapi3.ExecutionController, 
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -485,8 +477,7 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 	if err != nil {
 		return nil, err
 	}
-	publisherFactory := providePublisherFactoryForEnvironment(appConfig)
-	simpleCommandRepository, err := persistence2.NewCommandRepository(orm, publisherFactory)
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +547,7 @@ func provideCompositeNotificationClient(cfg config.AppConfig) (notification.Noti
 // control_plane.go:
 
 var DeviceServiceSet = wire.NewSet(
-	provideDatabase, persistence2.NewDeviceRepository, wire.Bind(new(usecases2.DeviceRepository), new(*persistence2.SimpleDeviceRepository)), providePublisherFactoryForEnvironment, persistence2.NewCommandRepository, wire.Bind(new(usecases2.CommandRepository), new(*persistence2.SimpleCommandRepository)), usecases2.NewDeviceService,
+	provideDatabase, persistence2.NewDeviceRepository, wire.Bind(new(usecases2.DeviceRepository), new(*persistence2.SimpleDeviceRepository)), persistence2.NewCommandRepository, wire.Bind(new(usecases2.CommandRepository), new(*persistence2.SimpleCommandRepository)), usecases2.NewDeviceService,
 )
 
 func providePubSubFactory(config2 config.AppConfig) *pubsub.Factory {
