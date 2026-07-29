@@ -59,6 +59,7 @@ func LoadConfig() AppConfig {
 			Metrics:        loadMetricsConfig(),
 			PushNotifications: loadPushNotificationsConfig(),
 			Modules:        loadModulesConfig(),
+			Victron: loadVictronConfig(),
 			ExecutionWorker: ExecutionWorkerConfig{
 				TickerInterval: viper.GetDuration("execution_worker.ticker_interval"),
 			},
@@ -66,6 +67,21 @@ func LoadConfig() AppConfig {
 	})
 
 	return configInstance
+}
+
+func loadVictronConfig() VictronConfig {
+	mqtt := VictronMQTTConfig{
+		Broker:   viper.GetString("victron.mqtt.broker"),
+		ClientID: viper.GetString("victron.mqtt.client_id"),
+		Username: viper.GetString("victron.mqtt.username"),
+		Password: viper.GetString("victron.mqtt.password"),
+	}
+	return VictronConfig{
+		Enabled:   viper.GetBool("modules.victron.enabled"),
+		PortalID:  viper.GetString("victron.portal_id"),
+		MQTT:      mqtt,
+		CacheTTL:  viper.GetDuration("victron.cache_ttl"),
+	}
 }
 
 func loadMetricsConfig() []MetricWorkerConfig {
@@ -132,6 +148,9 @@ func loadModulesConfig() ModulesConfig {
 		Maintenance: ModuleConfig{
 			Enabled: viper.GetBool("modules.maintenance.enabled"),
 		},
+		Victron: ModuleConfig{
+			Enabled: viper.GetBool("modules.victron.enabled"),
+		},
 	}
 }
 
@@ -139,6 +158,7 @@ type AppConfig struct {
 	General          GeneralConfig
 	mqtt             MqttConfig
 	MQTTClient       MQTTClientConfig
+	Victron          VictronConfig
 	Postgresql       PostgresqlConfig
 	Redis            RedisConfig
 	MailerSend       MailerSendConfig
@@ -216,6 +236,21 @@ type MetricWorkerConfig struct {
 type ModulesConfig struct {
 	Permaculture ModuleConfig
 	Maintenance  ModuleConfig
+	Victron      ModuleConfig
+}
+
+type VictronConfig struct {
+	Enabled  bool
+	PortalID string
+	MQTT     VictronMQTTConfig
+	CacheTTL time.Duration
+}
+
+type VictronMQTTConfig struct {
+	Broker   string
+	ClientID string
+	Username string
+	Password string
 }
 
 type ModuleConfig struct {

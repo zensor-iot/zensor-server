@@ -68,11 +68,21 @@ metrics:
       device_name: "device_id"
       app_id: "AppID"
       index: "Index"
+victron:
+  portal_id: ""
+  mqtt:
+    broker: ""
+    client_id: zensor_victron
+    username: ""
+    password: ""
+  cache_ttl: "5m"
 modules:
   permaculture:
     enabled: true
   maintenance:
     enabled: true
+  victron:
+    enabled: false
 execution_worker:
   ticker_interval: "5m"
 

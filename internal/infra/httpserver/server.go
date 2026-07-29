@@ -96,7 +96,7 @@ func NewServer(controllers ...Controller) *StandardServer {
 	router.Handle("GET /healthz", getHealthz())
 	router.Handle("GET /metrics", promhttp.Handler())
 	router.Handle("GET /v1/me", getCurrentUser())
-	router.Handle("/", web.SPAHandler())
+	router.Handle("/ui/", http.StripPrefix("/ui", web.SPAHandler()))
 	router.Handle("/v1/", http.NotFoundHandler())
 	router.Handle("/ws/", http.NotFoundHandler())
 

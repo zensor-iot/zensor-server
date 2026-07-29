@@ -1,5 +1,6 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Activity, Building, Cpu, Radio, Shield } from 'lucide-react'
+import { Activity, Building, Cpu, Radio, Shield, Sun } from 'lucide-react'
+import VictronDashboard from './components/VictronDashboard'
 import TenantList from './components/TenantList'
 import TenantDevices from './components/TenantDevices'
 import TenantPortal from './components/TenantPortal'
@@ -41,6 +42,10 @@ function App() {
                     <Radio size={20} />
                     Live Messages
                   </Link>
+                  <Link to="/energy" className="nav-link">
+                    <Sun size={20} />
+                    Energy
+                  </Link>
                   <Link to="/admin" className="nav-link admin-link">
                     <Shield size={20} />
                     Admin
@@ -58,6 +63,7 @@ function App() {
             <Route path="/tenants/:tenantId/devices" element={<TenantDevices />} />
             <Route path="/portal/:tenantId" element={<TenantPortal />} />
             <Route path="/live-messages" element={<DeviceMessagesLive />} />
+            <Route path="/energy" element={<VictronDashboard />} />
             <Route path="/profile" element={<Profile />} />
 
             {/* Admin Routes */}

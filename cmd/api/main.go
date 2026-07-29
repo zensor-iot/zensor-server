@@ -17,6 +17,8 @@ import (
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/node"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
+	victronHTTPAPI "zensor-server/internal/victron/httpapi"
+	victronUsecases "zensor-server/internal/victron/usecases"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -75,6 +77,11 @@ func main() {
 
 	if appConfig.Modules.Permaculture.Enabled {
 		slog.Info("module enabled and will be wired", slog.String("module", "permaculture"))
+	}
+
+	if appConfig.Modules.Victron.Enabled {
+		slog.Info("module enabled and will be wired", slog.String("module", "victron"))
+		controllers = append(controllers, victronHTTPAPI.NewVictronWebSocketController(internalBroker))
 	}
 
 	httpServer := httpserver.NewServer(controllers...)
@@ -145,6 +152,28 @@ func main() {
 	for _, worker := range metricWorkers {
 		wg.Add(1)
 		go worker.Run(appCtx, wg.Done)
+	}
+
+	if appConfig.Modules.Victron.Enabled {
+		slog.Info("module enabled and will be wired", slog.String("module", "victron"))
+		var victronMQTTClient mqtt.Client
+		if env == "local" {
+			victronMQTTClient = mqtt.NewNoOpClient()
+		} else {
+			victronMQTTClient = mqtt.NewSimpleClient(mqtt.SimpleClientOpts{
+				Broker:   appConfig.Victron.MQTT.Broker,
+				ClientID: appConfig.Victron.MQTT.ClientID,
+				Username: appConfig.Victron.MQTT.Username,
+				Password: appConfig.Victron.MQTT.Password,
+			})
+		}
+		wg.Add(1)
+		victronWorker := victronUsecases.NewVictronWorker(
+			appConfig.Victron.PortalID,
+			victronMQTTClient,
+			internalBroker,
+		)
+		go victronWorker.Run(appCtx, wg.Done)
 	}
 
 	signalChannel := make(chan os.Signal, 2)
