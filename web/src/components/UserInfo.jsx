@@ -1,35 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { User, LogOut, UserCircle } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 const UserInfo = () => {
-    const [userInfo, setUserInfo] = useState(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
+    const { user, logout } = useAuth()
     const [showMenu, setShowMenu] = useState(false)
     const menuRef = useRef(null)
-
-    useEffect(() => {
-        const fetchUserInfo = async () => {
-            try {
-                console.log('🔍 Fetching user info...')
-                const response = await fetch('/v1/me')
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`)
-                }
-                const data = await response.json()
-                console.log('👤 User info received:', data)
-                setUserInfo(data)
-            } catch (err) {
-                console.error('❌ Failed to fetch user info:', err)
-                setError(err.message)
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        fetchUserInfo()
-    }, [])
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -52,36 +29,12 @@ const UserInfo = () => {
         setShowMenu(!showMenu)
     }
 
-    const handleLogout = () => {
-        // TODO: Implement logout functionality
-        console.log('Logout clicked')
+    const handleLogout = async () => {
         setShowMenu(false)
+        await logout()
     }
 
-    if (loading) {
-        console.log('⏳ UserInfo: Loading...')
-        return (
-            <div className="user-info">
-                <User size={20} />
-                <span>Loading...</span>
-            </div>
-        )
-    }
-
-    if (error) {
-        console.log('❌ UserInfo: Error state -', error)
-        return (
-            <div className="user-info">
-                <User size={20} />
-                <span>Error</span>
-            </div>
-        )
-    }
-
-    const hasUserData = userInfo && (userInfo.name || userInfo.email || userInfo.user_id)
-
-    if (!hasUserData) {
-        console.log('👻 UserInfo: No authentication - showing Guest')
+    if (!user) {
         return (
             <div className="user-info">
                 <User size={20} />
@@ -90,15 +43,14 @@ const UserInfo = () => {
         )
     }
 
-    const displayEmail = userInfo.email || 'No email'
-    console.log('✅ UserInfo: Authenticated user -', displayEmail)
+    const displayEmail = user.email || 'No email'
 
     return (
         <div className="user-info-container" ref={menuRef}>
             <div
                 className="user-info clickable"
                 onClick={handleUserClick}
-                title={`${userInfo.name || 'Unknown'} (${userInfo.email || 'No email'})`}
+                title={`${user.name || 'Unknown'} (${user.email || 'No email'})`}
             >
                 <User size={20} />
                 <span className="user-email">{displayEmail}</span>
@@ -127,4 +79,4 @@ const UserInfo = () => {
     )
 }
 
-export default UserInfo 
+export default UserInfo

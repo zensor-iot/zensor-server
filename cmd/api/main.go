@@ -84,7 +84,16 @@ func main() {
 		controllers = append(controllers, victronHTTPAPI.NewVictronWebSocketController(internalBroker))
 	}
 
-	httpServer := httpserver.NewServer(controllers...)
+	var httpServer httpserver.Server
+	if appConfig.Auth.Enabled {
+		slog.Info("authentication enabled: session middleware will protect /v1 and /ws routes")
+		authComponents := handleWireInjector(wire.InitializeAuthComponents()).(*wire.AuthComponents)
+		controllers = append(controllers, authComponents.Controller)
+		httpServer = httpserver.NewServerWithAuth(authComponents.Service, controllers...)
+	} else {
+		slog.Warn("authentication disabled: trusting X-User headers")
+		httpServer = httpserver.NewServer(controllers...)
+	}
 
 	appCtx, cancelFn := context.WithCancel(context.Background())
 	go httpServer.Run()

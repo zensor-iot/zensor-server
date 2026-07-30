@@ -1,5 +1,13 @@
 general:
   log_level: info
+auth:
+  enabled: true
+  google:
+    client_id: ""
+    client_secret: "" # set via ZENSOR_SERVER_AUTH_GOOGLE_CLIENT_SECRET
+    redirect_url: "https://portal.zensor-iot.net/auth/callback"
+  session_ttl: "168h"
+  bootstrap_admin_email: "seadiaz@gmail.com"
 mqtt:
   broker: "localhost:1883"
 database:

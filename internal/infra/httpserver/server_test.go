@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"time"
+	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -173,6 +175,59 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 				var body CurrentUserResponse
 				gomega.Expect(json.Unmarshal(rec.Body.Bytes(), &body)).To(gomega.Succeed())
 				gomega.Expect(body).To(gomega.Equal(CurrentUserResponse{}))
+			})
+		})
+	})
+
+	ginkgo.Context("NewServerWithAuth", func() {
+		var (
+			srv      *StandardServer
+			resolver *fakeSessionResolver
+		)
+
+		ginkgo.BeforeEach(func() {
+			resolver = &fakeSessionResolver{sessions: map[string]domain.Session{
+				"valid-session": {
+					ID:        "valid-session",
+					UserID:    "user-1",
+					Email:     "user@example.com",
+					ExpiresAt: time.Now().Add(time.Hour),
+				},
+			}}
+			srv = NewServerWithAuth(resolver)
+		})
+
+		ginkgo.When("requesting a protected route without a session", func() {
+			ginkgo.It("should return 401", func() {
+				req := httptest.NewRequest("GET", "/v1/tenants", nil)
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+		})
+
+		ginkgo.When("requesting a protected route with a valid session", func() {
+			ginkgo.It("should reach the router", func() {
+				req := httptest.NewRequest("GET", "/v1/unknown", nil)
+				req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: "valid-session"})
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusNotFound))
+			})
+		})
+
+		ginkgo.When("requesting the SPA without a session", func() {
+			ginkgo.It("should serve it publicly", func() {
+				req := httptest.NewRequest("GET", "/ui/", nil)
+				rec := httptest.NewRecorder()
+
+				srv.server.Handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
 			})
 		})
 	})
