@@ -89,16 +89,20 @@ func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenan
 		targetTenantID = fc.tenantID
 	}
 
-	if fc.userID == "" {
-		fc.userID = "test-user-" + targetTenantID
+	callerID := fc.apiDriver.CurrentUserEmail()
+	if callerID == "" {
+		callerID = fc.userID
+	}
+	if callerID == "" {
+		callerID = "test-user-" + targetTenantID
 	}
 
-	_, err := fc.apiDriver.AssociateUserWithTenants(fc.userID, []string{targetTenantID})
+	_, err := fc.apiDriver.AssociateUserWithTenants(callerID, []string{targetTenantID})
 	if err != nil {
 		return fmt.Errorf("failed to associate user with tenant: %w", err)
 	}
 
-	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, fc.userID)
+	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, callerID)
 	if err != nil {
 		return fmt.Errorf("failed to create tenant configuration: %w", err)
 	}
@@ -135,16 +139,20 @@ func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(ten
 		targetTenantID = fc.tenantID
 	}
 
-	if fc.userID == "" {
-		fc.userID = "test-user-" + targetTenantID
+	callerID := fc.apiDriver.CurrentUserEmail()
+	if callerID == "" {
+		callerID = fc.userID
+	}
+	if callerID == "" {
+		callerID = "test-user-" + targetTenantID
 	}
 
-	_, err := fc.apiDriver.AssociateUserWithTenants(fc.userID, []string{targetTenantID})
+	_, err := fc.apiDriver.AssociateUserWithTenants(callerID, []string{targetTenantID})
 	if err != nil {
 		return fmt.Errorf("failed to associate user with tenant: %w", err)
 	}
 
-	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, fc.userID)
+	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, callerID)
 	if err != nil {
 		return fmt.Errorf("failed to update tenant configuration: %w", err)
 	}
