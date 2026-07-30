@@ -5,44 +5,32 @@ import (
 	"fmt"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
-	"zensor-server/internal/shared_kernel/avro"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-func NewCommandRepository(
-	orm sql.ORM,
-	publisherFactory pubsub.PublisherFactory,
-) (*SimpleCommandRepository, error) {
+func NewCommandRepository(orm sql.ORM) (*SimpleCommandRepository, error) {
 	err := orm.AutoMigrate(&internal.Command{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating command: %w", err)
 	}
 
-	commandPublisher, err := publisherFactory.New("device_commands", &avro.AvroCommand{})
-	if err != nil {
-		return nil, fmt.Errorf("creating command publisher: %w", err)
-	}
-
 	return &SimpleCommandRepository{
-		orm:              orm,
-		commandPublisher: commandPublisher,
+		orm: orm,
 	}, nil
 }
 
 var _ usecases.CommandRepository = (*SimpleCommandRepository)(nil)
 
 type SimpleCommandRepository struct {
-	orm              sql.ORM
-	commandPublisher pubsub.Publisher
+	orm sql.ORM
 }
 
 func (r *SimpleCommandRepository) Create(ctx context.Context, cmd domain.Command) error {
-	avroCmd := avro.ToAvroCommand(cmd)
-	err := r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), avroCmd)
+	entity := internal.FromCommand(cmd)
+	err := r.orm.WithContext(ctx).Create(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing command to kafka: %w", err)
+		return fmt.Errorf("creating command in database: %w", err)
 	}
 
 	return nil
@@ -71,11 +59,12 @@ func (r *SimpleCommandRepository) Update(ctx context.Context, cmd domain.Command
 		cmd.FailedAt = existingCmd.FailedAt
 	}
 
-	avroCmd := avro.ToAvroCommand(cmd)
-	avroCmd.Version++
-	err = r.commandPublisher.Publish(ctx, pubsub.Key(cmd.ID), avroCmd)
+	entity := internal.FromCommand(cmd)
+	entity.Version = existingCmd.Version + 1
+
+	err = r.orm.WithContext(ctx).Save(&entity).Error()
 	if err != nil {
-		return fmt.Errorf("publishing command update to kafka: %w", err)
+		return fmt.Errorf("updating command in database: %w", err)
 	}
 
 	return nil
@@ -86,6 +75,21 @@ func (r *SimpleCommandRepository) FindAllPending(ctx context.Context) ([]domain.
 	err := r.orm.
 		WithContext(ctx).
 		Where("sent = ? AND ready = ?", false, false).
+		Find(&entities).
+		Error()
+
+	if err != nil {
+		return nil, fmt.Errorf("database query: %w", err)
+	}
+
+	return entities.ToDomain(), nil
+}
+
+func (r *SimpleCommandRepository) FindAllReadyToDispatch(ctx context.Context) ([]domain.Command, error) {
+	var entities internal.CommandSet
+	err := r.orm.
+		WithContext(ctx).
+		Where("ready = ? AND sent = ?", true, false).
 		Find(&entities).
 		Error()
 

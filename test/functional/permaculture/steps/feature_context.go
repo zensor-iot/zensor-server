@@ -39,12 +39,13 @@ type FeatureContext struct {
 	evaluationRuleID string
 	updatedSchedule  string
 	userID           string
+	loggedIn         bool
 	require          *require.Assertions
 	t                godog.TestingT
 }
 
 func NewFeatureContext() *FeatureContext {
-	baseURL := "http://127.0.0.1:3000"
+	baseURL := "http://localhost:3000"
 
 	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
 		baseURL = externalURL
@@ -187,6 +188,13 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
 		fc.t = godog.T(ctx)
 		fc.require = require.New(fc.t)
+
+		if !fc.loggedIn {
+			if err := fc.apiDriver.Login(); err != nil {
+				return ctx, fmt.Errorf("authenticating test session: %w", err)
+			}
+			fc.loggedIn = true
+		}
 
 		fc.reset()
 		return ctx, nil

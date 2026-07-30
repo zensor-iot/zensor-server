@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"zensor-server/internal/infra/httpserver/web"
 	"zensor-server/internal/infra/node"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -44,6 +45,16 @@ func (s *StandardServer) Shutdown() {
 }
 
 func NewServer(controllers ...Controller) *StandardServer {
+	return newServer(createUserHeaderMiddleware(), true, controllers)
+}
+
+// NewServerWithAuth builds a server whose /v1/* and /ws/* routes are protected by
+// session authentication. /v1/me is expected to be registered by an auth controller.
+func NewServerWithAuth(resolver SessionResolver, controllers ...Controller) *StandardServer {
+	return newServer(NewAuthMiddleware(resolver), false, controllers)
+}
+
+func newServer(userMiddleware func(http.Handler) http.Handler, includeLegacyMe bool, controllers []Controller) *StandardServer {
 	router := http.NewServeMux()
 
 	c := cors.New(cors.Options{
@@ -71,12 +82,11 @@ func NewServer(controllers ...Controller) *StandardServer {
 		ExposedHeaders: []string{
 			"Link",
 		},
-		AllowCredentials: false,
+		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	})
 
 	tracingMiddleware := createTracingMiddleware()
-	userHeaderMiddleware := createUserHeaderMiddleware()
 	metricsMiddleware := MetricsMiddleware()
 
 	server := &StandardServer{
@@ -85,7 +95,7 @@ func NewServer(controllers ...Controller) *StandardServer {
 			Handler: c.Handler(
 				metricsMiddleware(
 					tracingMiddleware(
-						userHeaderMiddleware(router),
+						userMiddleware(router),
 					),
 				),
 			),
@@ -94,6 +104,12 @@ func NewServer(controllers ...Controller) *StandardServer {
 
 	router.Handle("GET /healthz", getHealthz())
 	router.Handle("GET /metrics", promhttp.Handler())
+	if includeLegacyMe {
+		router.Handle("GET /v1/me", getCurrentUser())
+	}
+	router.Handle("/ui/", http.StripPrefix("/ui", web.SPAHandler()))
+	router.Handle("/v1/", http.NotFoundHandler())
+	router.Handle("/ws/", http.NotFoundHandler())
 
 	for _, controller := range controllers {
 		controller.AddRoutes(router)
@@ -207,4 +223,21 @@ type HealthzResponse struct {
 	Status     string `json:"status"`
 	Version    string `json:"version"`
 	CommitHash string `json:"commit_hash"`
+}
+
+func getCurrentUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		output := CurrentUserResponse{
+			UserID: r.Header.Get("X-User-ID"),
+			Name:   r.Header.Get("X-User-Name"),
+			Email:  r.Header.Get("X-User-Email"),
+		}
+		ReplyJSONResponse(w, http.StatusOK, output)
+	}
+}
+
+type CurrentUserResponse struct {
+	UserID string `json:"user_id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
 }

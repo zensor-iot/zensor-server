@@ -6,7 +6,6 @@ import (
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
@@ -15,60 +14,23 @@ import (
 	"github.com/onsi/gomega"
 )
 
-// TestCommand represents the device_commands_final table for testing
-type TestCommand struct {
-	ID            string `gorm:"primaryKey"`
-	Version       int
-	DeviceName    string
-	DeviceID      string
-	TaskID        string
-	Payload       string `gorm:"type:json"`
-	DispatchAfter string
-	Port          uint8
-	Priority      string
-	CreatedAt     string
-	Ready         bool
-	Sent          bool
-	SentAt        string
-}
-
-func (t TestCommand) TableName() string {
-	return "device_commands"
-}
-
-// setupTestTables creates tables for testing that mimic the Materialized View structure
-func setupTestTables(orm sql.ORM) error {
-	err := orm.AutoMigrate(&TestCommand{})
-	return err
-}
-
 var _ = ginkgo.Describe("CommandRepository", func() {
 	var (
-		orm         sql.ORM
-		mockFactory pubsub.PublisherFactory
-		repo        usecases.CommandRepository
-		ctx         context.Context
+		orm  sql.ORM
+		repo usecases.CommandRepository
+		ctx  context.Context
 	)
 
 	ginkgo.BeforeEach(func() {
 		var err error
-		// Use a unique database name for each test to ensure isolation
 		orm, err = sql.NewMemoryORM("migrations")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		// Clear any existing data to ensure test isolation
-		orm.Unscoped().Where("1=1").Delete(&TestCommand{})
-
-		// Create test tables
-		err = setupTestTables(orm)
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
-		// Create a mock publisher factory for testing
-		mockFactory = pubsub.NewMemoryPublisherFactory()
-
-		repo, err = persistence.NewCommandRepository(orm, mockFactory)
+		repo, err = persistence.NewCommandRepository(orm)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(repo).NotTo(gomega.BeNil())
+
+		orm.Unscoped().Where("1=1").Delete(&internal.Command{})
 
 		ctx = context.Background()
 	})
@@ -76,7 +38,6 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 	ginkgo.Context("NewCommandRepository", func() {
 		ginkgo.When("creating a new command repository", func() {
 			ginkgo.It("should create a valid repository instance", func() {
-				// This is already tested in BeforeEach, but keeping for clarity
 				gomega.Expect(repo).NotTo(gomega.BeNil())
 			})
 		})
@@ -129,8 +90,9 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 		ginkgo.When("creating a new command", func() {
 
 			ginkgo.BeforeEach(func() {
+				id := utils.GenerateUUID()
 				cmd = domain.Command{
-					ID:       domain.ID("test-command-id"),
+					ID:       domain.ID(id),
 					Version:  domain.Version(1),
 					Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
 					Task:     domain.Task{ID: domain.ID("test-task-id-create")},
@@ -147,12 +109,14 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 				}
 			})
 
-			ginkgo.It("should create command successfully", func() {
+			ginkgo.It("should create the command in the database", func() {
 				err := repo.Create(ctx, cmd)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-				// Note: In the event-driven architecture, the database update happens through
-				// the replication layer consuming Kafka events, not directly in the repository
+				result, err := repo.GetByID(ctx, cmd.ID)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(result.Device.ID).To(gomega.Equal(cmd.Device.ID))
+				gomega.Expect(result.Task.ID).To(gomega.Equal(cmd.Task.ID))
 			})
 		})
 	})
@@ -161,8 +125,9 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 		var cmd domain.Command
 		ginkgo.When("updating an existing command", func() {
 			ginkgo.BeforeEach(func() {
+				id := utils.GenerateUUID()
 				cmd = domain.Command{
-					ID:       domain.ID("test-command-id-update"),
+					ID:       domain.ID(id),
 					Version:  domain.Version(1),
 					Device:   domain.Device{ID: domain.ID("test-device-id"), Name: "test-device"},
 					Task:     domain.Task{ID: domain.ID("test-task-id-update")},
@@ -178,14 +143,12 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 					CreatedAt:     utils.Time{Time: time.Now()},
 				}
 
-				// First create the command in the database (simulating replication layer)
 				internalCmd := internal.FromCommand(cmd)
 				err := orm.WithContext(ctx).Create(&internalCmd).Error()
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			})
 
-			ginkgo.It("should update command successfully", func() {
-				// Now update it through the repository (which publishes to Kafka)
+			ginkgo.It("should update the command in the database", func() {
 				cmd.Ready = true
 				cmd.Sent = true
 				cmd.SentAt = utils.Time{Time: time.Now()}
@@ -193,8 +156,10 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 				err := repo.Update(ctx, cmd)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-				// Note: In the event-driven architecture, the database update happens through
-				// the replication layer consuming Kafka events, not directly in the repository
+				result, err := repo.GetByID(ctx, cmd.ID)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(result.Ready).To(gomega.BeTrue())
+				gomega.Expect(result.Sent).To(gomega.BeTrue())
 			})
 		})
 
@@ -219,7 +184,6 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 			})
 
 			ginkgo.It("should return error for non-existent command", func() {
-				// Try to update a non-existent command
 				err := repo.Update(ctx, cmd)
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(err.Error()).To(gomega.ContainSubstring("command not found"))

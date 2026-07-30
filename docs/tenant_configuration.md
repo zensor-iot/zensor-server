@@ -84,13 +84,6 @@ The Tenant Configuration is exposed as a subresource of Tenant:
   - `UpdateTenantConfiguration` - Updates existing configuration with optimistic locking
   - `GetOrCreateTenantConfiguration` - Gets existing or creates default configuration
 
-### Event Streaming
-
-- **Avro Schema**: `schemas/tenant_configuration.avsc`
-- **Topic**: `tenant_configurations`
-- **Kafka Connect**: `kafka-connect/postgres-tenant_configurations-sink.json`
-- **Message Type**: `AvroTenantConfiguration`
-
 ### Error Handling
 
 - `ErrTenantConfigurationNotFound` - When configuration doesn't exist for a tenant
@@ -205,5 +198,4 @@ CREATE INDEX idx_tenant_configurations_tenant_id ON tenant_configurations(tenant
 - **Persistence**: `internal/control_plane/persistence`
 - **Use Cases**: `internal/control_plane/usecases`
 - **HTTP API**: `internal/control_plane/httpapi`
-- **Avro**: `internal/shared_kernel/avro`
-- **Infrastructure**: `internal/infra/pubsub`, `internal/infra/sql` 
+- **Infrastructure**: `internal/infra/sql` 

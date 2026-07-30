@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 	"zensor-server/internal/infra/node"
@@ -143,6 +144,15 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func normalizeEndpoint(path string) string {
 	if path == "" || path == "/" {
 		return "root"
+	}
+
+	if strings.HasPrefix(path, "/assets/") {
+		return "/assets/*"
+	}
+
+	if !strings.HasPrefix(path, "/v1/") && !strings.HasPrefix(path, "/ws/") &&
+		path != "/healthz" && path != "/metrics" {
+		return "spa"
 	}
 
 	normalizedPath := uuidRegex.ReplaceAllStringFunc(path, func(uuid string) string {

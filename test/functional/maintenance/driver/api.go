@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"time"
 )
 
@@ -14,10 +15,34 @@ type APIDriver struct {
 }
 
 func NewAPIDriver(baseURL string) *APIDriver {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		panic(err)
+	}
 	return &APIDriver{
 		baseURL: baseURL,
-		client:  &http.Client{},
+		client:  &http.Client{Jar: jar},
 	}
+}
+
+func (d *APIDriver) Login() error {
+	resp, err := d.client.Get(fmt.Sprintf("%s/auth/login", d.baseURL))
+	if err != nil {
+		return fmt.Errorf("performing login flow: %w", err)
+	}
+	resp.Body.Close()
+
+	meResp, err := d.client.Get(fmt.Sprintf("%s/v1/me", d.baseURL))
+	if err != nil {
+		return fmt.Errorf("fetching current user: %w", err)
+	}
+	defer meResp.Body.Close()
+
+	if meResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("login did not establish a session: /v1/me returned %d", meResp.StatusCode)
+	}
+
+	return nil
 }
 
 func (d *APIDriver) CreateTenant(name, email, description string) (*http.Response, error) {

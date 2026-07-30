@@ -1,15 +1,18 @@
 general:
   log_level: info
+auth:
+  enabled: true
+  google:
+    client_id: 829153781429-o9vbh05h9jdie1p6fal5ehvn87e1olen.apps.googleusercontent.com
+    client_secret: "" # set via ZENSOR_SERVER_AUTH_GOOGLE_CLIENT_SECRET
+    redirect_url: "https://portal.zensor-iot.net/auth/callback"
+  session_ttl: "168h"
+  bootstrap_admin_email: "seadiaz@gmail.com"
 mqtt:
   broker: "localhost:1883"
 database:
   dsn: "host=localhost user=postgres dbname=postgres port=5432 sslmode=disable"
   query_timeout: "5s"
-kafka:
-  brokers:
-    - "localhost:19092"
-  group: "zensor-server"
-  schema_registry: "http://localhost:8081"
 redis:
   addr: "localhost:6379"
   password: ""
@@ -73,10 +76,20 @@ metrics:
       device_name: "device_id"
       app_id: "AppID"
       index: "Index"
+victron:
+  portal_id: "d41243b4e8e4"
+  mqtt:
+    broker: "tcp://192.168.5.181:1883"
+    client_id: zensor_victron
+    username: ""
+    password: ""
+  cache_ttl: "5m"
 modules:
   permaculture:
     enabled: true
   maintenance:
+    enabled: true
+  victron:
     enabled: true
 execution_worker:
   ticker_interval: "5m"

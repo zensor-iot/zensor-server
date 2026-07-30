@@ -11,19 +11,17 @@ import (
 	"zensor-server/internal/infra/mqtt"
 	mockusecases "zensor-server/test/unit/doubles/control_plane/usecases"
 	mockasync "zensor-server/test/unit/doubles/infra/async"
-	mockpubsub "zensor-server/test/unit/doubles/infra/pubsub"
 )
 
 var _ = ginkgo.Describe("LoRaIntegrationCorrelation", func() {
 	var (
-		ctrl                      *gomock.Controller
-		mockDeviceService         *mockusecases.MockDeviceService
-		mockDeviceStateCache      *mockusecases.MockDeviceStateCacheService
-		mockMQTTClient            *MockMQTTClient
-		mockInternalBroker        *mockasync.MockInternalBroker
-		mockPubSubConsumerFactory *mockpubsub.MockConsumerFactory
-		mockPubSubConsumer        *mockpubsub.MockConsumer
-		worker                    *LoraIntegrationWorker
+		ctrl                  *gomock.Controller
+		mockDeviceService     *mockusecases.MockDeviceService
+		mockDeviceStateCache  *mockusecases.MockDeviceStateCacheService
+		mockMQTTClient        *MockMQTTClient
+		mockInternalBroker    *mockasync.MockInternalBroker
+		mockCommandRepository *mockusecases.MockCommandRepository
+		worker                *LoraIntegrationWorker
 	)
 
 	ginkgo.BeforeEach(func() {
@@ -32,11 +30,7 @@ var _ = ginkgo.Describe("LoRaIntegrationCorrelation", func() {
 		mockDeviceStateCache = mockusecases.NewMockDeviceStateCacheService(ctrl)
 		mockMQTTClient = NewMockMQTTClient(ctrl)
 		mockInternalBroker = mockasync.NewMockInternalBroker(ctrl)
-		mockPubSubConsumerFactory = mockpubsub.NewMockConsumerFactory(ctrl)
-		mockPubSubConsumer = mockpubsub.NewMockConsumer(ctrl)
-
-		// Set up mock expectations for constructor
-		mockPubSubConsumerFactory.EXPECT().New().Return(mockPubSubConsumer)
+		mockCommandRepository = mockusecases.NewMockCommandRepository(ctrl)
 
 		// Create a ticker for testing
 		ticker := time.NewTicker(1 * time.Second)
@@ -48,7 +42,7 @@ var _ = ginkgo.Describe("LoRaIntegrationCorrelation", func() {
 			mockDeviceStateCache,
 			mockMQTTClient,
 			mockInternalBroker,
-			mockPubSubConsumerFactory,
+			mockCommandRepository,
 		)
 	})
 

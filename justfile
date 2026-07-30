@@ -51,7 +51,38 @@ install-otelcol:
     mv tmp/otelcol .
     rm -rf tmp
 
+# Fingerprint of web/ sources (used to skip redundant pnpm builds).
+_compute-web-build-hash:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {
+        while IFS= read -r f; do
+            shasum -a 256 "$f"
+        done < <(git ls-files -co --exclude-standard -- web/ | sort)
+    } | shasum -a 256 | awk '{print $1}'
+
+# Vite output for //go:embed (required before any go build or ./internal/... tests).
+_web-build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    hash="$(just _compute-web-build-hash)"
+    stamp="internal/infra/httpserver/web/.web-build-hash"
+    if [[ -f "$stamp" && "$(cat "$stamp")" == "$hash" && -f internal/infra/httpserver/web/dist/index.html ]]; then
+        echo "web build: up to date ($hash)"
+        exit 0
+    fi
+    pnpm -C web install --frozen-lockfile
+    if ! out=$(pnpm -C web run build 2>&1); then
+        echo "$out"
+        exit 1
+    fi
+    mkdir -p internal/infra/httpserver/web/dist
+    echo "$hash" > "$stamp"
+    duration=$(echo "$out" | grep -oE "built in [0-9ms.]+" | tail -1 || true)
+    echo "web build: done ($duration)"
+
 build:
+    just _web-build
     go build -o server cmd/api/main.go
 
 run: build
@@ -64,24 +95,79 @@ run: build
     echo "🚀 starting zensor server with hot reload..."
     find . -type f -name '*.go' | entr ./server
 
+dev: build
+    #!/bin/bash
+    if [ "${ENV}" = "local" ]; then
+        echo "🌱 Local mode: skipping Docker dependencies"
+    else
+        docker compose up -d --wait
+    fi
+
+    LOG_FILE=$(mktemp -t zensor-dev-XXXX.log)
+    echo "🚀 starting zensor server (log: ${LOG_FILE})..."
+    ./server > "$LOG_FILE" 2>&1 &
+    SERVER_PID=$!
+    TAIL_PID=""
+
+    teardown() {
+        echo ""
+        echo "🔪 stopping server (PID: $SERVER_PID)..."
+        [ -n "$TAIL_PID" ] && kill "$TAIL_PID" 2>/dev/null
+        kill "$SERVER_PID" 2>/dev/null
+        for _ in 1 2 3 4 5; do
+            kill -0 "$SERVER_PID" 2>/dev/null || break
+            sleep 1
+        done
+        kill -9 "$SERVER_PID" 2>/dev/null
+        wait "$SERVER_PID" 2>/dev/null
+    }
+    trap teardown EXIT INT TERM
+
+    echo "⏳ waiting for server to be ready..."
+    max_attempts=30
+    attempt=0
+    while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
+        if [ $attempt -ge $max_attempts ]; then
+            echo "❌ server failed to start after 30 seconds."
+            cat "$LOG_FILE"
+            exit 1
+        fi
+        sleep 1
+        attempt=$((attempt+1))
+    done
+    echo "✅ server is ready"
+
+    ./scripts/seed.sh
+
+    echo ""
+    echo "📜 zensor server is running — tailing logs, press Ctrl+C to stop"
+    tail -f "$LOG_FILE" &
+    TAIL_PID=$!
+    wait "$SERVER_PID"
+
+seed:
+    #!/bin/bash
+    echo "🌱 seeding against an already-running server..."
+    ./scripts/seed.sh
+
 health:
     #!/bin/bash
     echo "🔍 checking service health..."
-    
-    # Check Redpanda
-    if nc -z localhost 19092; then
-        echo "✅ redpanda: healthy (port 19092)"
+
+    # Check Postgres
+    if nc -z localhost 5432; then
+        echo "✅ postgresql: healthy (port 5432)"
     else
-        echo "❌ redpanda: not responding on port 19092"
+        echo "❌ postgresql: not responding on port 5432"
     fi
-    
-    # Check Materialize
-    if psql -h localhost -p 6875 -U materialize -d materialize -c "SELECT 1;" >/dev/null 2>&1; then
-        echo "✅ materialize: healthy (port 6875)"
+
+    # Check Redis
+    if nc -z localhost 6379; then
+        echo "✅ redis: healthy (port 6379)"
     else
-        echo "❌ materialize: not responding on port 6875"
+        echo "❌ redis: not responding on port 6379"
     fi
-    
+
     # Check Prometheus
     if nc -z localhost 9090; then
         echo "✅ prometheus: healthy (port 9090)"
@@ -135,9 +221,11 @@ arch args="":
     arch-go {{args}}
 
 tdd path="internal":
+    just _web-build
     go run github.com/onsi/ginkgo/v2/ginkgo watch --race {{path}}
 
 unit path="internal":
+    just _web-build
     go run github.com/onsi/ginkgo/v2/ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
 
 functional module tags="~@pending": build

@@ -8,7 +8,7 @@ otelcol.log
 otelcol
 
 
-api
+/api
 api.log
 server.log
 
@@ -21,3 +21,11 @@ coverprofile.out
 *.test
 
 service_account.json
+.DS_Store
+
+# Frontend (web/)
+web/node_modules/
+
+# Vite build output for //go:embed — run `just _web-build` (or `just build`) before go build/test.
+internal/infra/httpserver/web/dist/
+internal/infra/httpserver/web/.web-build-hash

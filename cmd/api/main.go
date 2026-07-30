@@ -16,10 +16,9 @@ import (
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/node"
-	"zensor-server/internal/infra/pubsub"
-	"zensor-server/internal/infra/replication"
-	"zensor-server/internal/infra/replication/handlers"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
+	victronHTTPAPI "zensor-server/internal/victron/httpapi"
+	victronUsecases "zensor-server/internal/victron/usecases"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -80,13 +79,24 @@ func main() {
 		slog.Info("module enabled and will be wired", slog.String("module", "permaculture"))
 	}
 
-	httpServer := httpserver.NewServer(controllers...)
+	if appConfig.Modules.Victron.Enabled {
+		slog.Info("module enabled and will be wired", slog.String("module", "victron"))
+		controllers = append(controllers, victronHTTPAPI.NewVictronWebSocketController(internalBroker))
+	}
+
+	var httpServer httpserver.Server
+	if appConfig.Auth.Enabled {
+		slog.Info("authentication enabled: session middleware will protect /v1 and /ws routes")
+		authComponents := handleWireInjector(wire.InitializeAuthComponents()).(*wire.AuthComponents)
+		controllers = append(controllers, authComponents.Controller)
+		httpServer = httpserver.NewServerWithAuth(authComponents.Service, controllers...)
+	} else {
+		slog.Warn("authentication disabled: trusting X-User headers")
+		httpServer = httpserver.NewServer(controllers...)
+	}
 
 	appCtx, cancelFn := context.WithCancel(context.Background())
 	go httpServer.Run()
-
-	// Initialize replication service for local environment
-	replicationService := initializeReplicationService()
 
 	env, envOK := os.LookupEnv("ENV")
 	if !envOK {
@@ -108,18 +118,10 @@ func main() {
 		mqttClient = mqtt.NewSimpleClient(simpleClientOpts)
 	}
 
-	// Use environment-aware consumer factory
-	var consumerFactory pubsub.ConsumerFactory
-	if env == "local" {
-		consumerFactory = pubsub.NewMemoryConsumerFactory("lora-integration")
-	} else {
-		consumerFactory = pubsub.NewKafkaConsumerFactory(appConfig.Kafka.Brokers, appConfig.Kafka.Group, appConfig.Kafka.SchemaRegistry)
-	}
-
 	// TODO: capture workers into a variable to shutdown them later
 	if appConfig.Modules.Permaculture.Enabled {
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker, consumerFactory)).(async.Worker).Run(appCtx, wg.Done)
+		go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 		wg.Add(1)
 		go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
 		wg.Add(1)
@@ -161,91 +163,38 @@ func main() {
 		go worker.Run(appCtx, wg.Done)
 	}
 
+	if appConfig.Modules.Victron.Enabled {
+		slog.Info("module enabled and will be wired", slog.String("module", "victron"))
+		var victronMQTTClient mqtt.Client
+		if env == "local" {
+			victronMQTTClient = mqtt.NewNoOpClient()
+		} else {
+			victronMQTTClient = mqtt.NewSimpleClient(mqtt.SimpleClientOpts{
+				Broker:   appConfig.Victron.MQTT.Broker,
+				ClientID: appConfig.Victron.MQTT.ClientID,
+				Username: appConfig.Victron.MQTT.Username,
+				Password: appConfig.Victron.MQTT.Password,
+			})
+		}
+		wg.Add(1)
+		victronWorker := victronUsecases.NewVictronWorker(
+			appConfig.Victron.PortalID,
+			victronMQTTClient,
+			internalBroker,
+		)
+		go victronWorker.Run(appCtx, wg.Done)
+	}
+
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	<-signalChannel
 	shutdownOtel()
 
-	// Stop replication service if running
-	if replicationService != nil {
-		replicationService.Stop()
-	}
-
 	cancelFn()
 	wg.Wait()
 	slog.Info("good bye!!!")
 	os.Exit(0)
-}
-
-// initializeReplicationService initializes and starts the replication service for local environment
-func initializeReplicationService() *replication.Service {
-	env, ok := os.LookupEnv("ENV")
-	if !ok {
-		env = "production"
-	}
-
-	if env != "local" {
-		return nil
-	}
-
-	slog.Info("initializing replication service for local environment")
-
-	// Initialize replication service
-	replicationService := handleWireInjector(wire.InitializeReplicationService()).(*replication.Service)
-
-	// Register handlers
-	deviceHandler := handleWireInjector(wire.InitializeDeviceHandler()).(*handlers.DeviceHandler)
-	tenantHandler := handleWireInjector(wire.InitializeTenantHandler()).(*handlers.TenantHandler)
-	taskHandler := handleWireInjector(wire.InitializeTaskHandler()).(*handlers.TaskHandler)
-	commandHandler := handleWireInjector(wire.InitializeCommandHandler()).(*handlers.CommandHandler)
-	scheduledTaskHandler := handleWireInjector(wire.InitializeScheduledTaskHandler()).(*handlers.ScheduledTaskHandler)
-	tenantConfigurationHandler := handleWireInjector(wire.InitializeTenantConfigurationHandler()).(*handlers.TenantConfigurationHandler)
-	userHandler := handleWireInjector(wire.InitializeUserHandler()).(*handlers.UserHandler)
-
-	if err := replicationService.RegisterHandler(deviceHandler); err != nil {
-		slog.Error("failed to register device handler", slog.Any("error", err))
-		panic(err)
-	}
-
-	if err := replicationService.RegisterHandler(tenantHandler); err != nil {
-		slog.Error("failed to register tenant handler", slog.Any("error", err))
-		panic(err)
-	}
-
-	if err := replicationService.RegisterHandler(taskHandler); err != nil {
-		slog.Error("failed to register task handler", slog.Any("error", err))
-		panic(err)
-	}
-
-	if err := replicationService.RegisterHandler(commandHandler); err != nil {
-		slog.Error("failed to register command handler", slog.Any("error", err))
-		panic(err)
-	}
-
-	if err := replicationService.RegisterHandler(scheduledTaskHandler); err != nil {
-		slog.Error("failed to register scheduled task handler", slog.Any("error", err))
-		panic(err)
-	}
-
-	if err := replicationService.RegisterHandler(tenantConfigurationHandler); err != nil {
-		slog.Error("failed to register tenant configuration handler", slog.Any("error", err))
-		panic(err)
-	}
-
-	if err := replicationService.RegisterHandler(userHandler); err != nil {
-		slog.Error("failed to register user handler", slog.Any("error", err))
-		panic(err)
-	}
-
-	// Start the replication service
-	if err := replicationService.Start(); err != nil {
-		slog.Error("failed to start replication service", slog.Any("error", err))
-		panic(err)
-	}
-
-	slog.Info("replication service started successfully")
-	return replicationService
 }
 
 func slogReplaceAttr(groups []string, a slog.Attr) slog.Attr {

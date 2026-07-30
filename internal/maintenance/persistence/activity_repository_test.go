@@ -2,7 +2,6 @@ package persistence_test
 
 import (
 	"context"
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
@@ -17,10 +16,9 @@ import (
 
 var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 	var (
-		orm         sql.ORM
-		mockFactory pubsub.PublisherFactory
-		repo        maintenanceUsecases.ActivityRepository
-		ctx         context.Context
+		orm  sql.ORM
+		repo maintenanceUsecases.ActivityRepository
+		ctx  context.Context
 	)
 
 	ginkgo.BeforeEach(func() {
@@ -28,9 +26,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 		orm, err = sql.NewMemoryORM("migrations")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		mockFactory = pubsub.NewMemoryPublisherFactory()
-
-		repo, err = maintenancePersistence.NewActivityRepository(mockFactory, orm)
+		repo, err = maintenancePersistence.NewActivityRepository(orm)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(repo).NotTo(gomega.BeNil())
 
@@ -63,7 +59,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 		})
 
 		ginkgo.When("creating a valid activity", func() {
-			ginkgo.It("should successfully publish to kafka", func() {
+			ginkgo.It("should successfully create the activity", func() {
 				err := repo.Create(ctx, activity)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			})
@@ -200,7 +196,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 		})
 
 		ginkgo.When("updating an activity", func() {
-			ginkgo.It("should successfully publish update to kafka", func() {
+			ginkgo.It("should successfully update the activity", func() {
 				activity.Description = shareddomain.Description("Updated Description")
 				err := repo.Update(ctx, activity)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -235,7 +231,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			})
 
-			ginkgo.It("should successfully publish soft delete to kafka", func() {
+			ginkgo.It("should successfully soft-delete the activity", func() {
 				err := repo.Delete(ctx, activity.ID)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 

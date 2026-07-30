@@ -2,15 +2,16 @@
 
 ## Technologies Used
 - Go (1.23.6)
-- Kafka/Redpanda (event streaming)
-- Materialize/PostgreSQL (database, query layer)
-- MQTT (device event ingestion)
+- PostgreSQL (database, read and write)
+- Redis (device state cache)
+- MQTT (device event ingestion/dispatch)
 - Google Wire (dependency injection)
-- Goka (stream processing)
 - OpenTelemetry (metrics, tracing)
 - GORM (ORM)
 - Viper (configuration)
 - Prometheus (metrics)
+
+Kafka, Kafka Connect, Schema Registry, and Avro were removed — all inserts/updates/deletes go directly to PostgreSQL through the repositories.
 
 ## Development Setup
 - Clone the repository

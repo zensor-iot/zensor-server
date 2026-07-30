@@ -2,46 +2,32 @@ package persistence
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
-	"zensor-server/internal/infra/pubsub"
 	"zensor-server/internal/infra/sql"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	"zensor-server/internal/maintenance/persistence/internal"
 	"zensor-server/internal/maintenance/usecases"
-	"zensor-server/internal/shared_kernel/avro"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
-func NewExecutionRepository(
-	publisherFactory pubsub.PublisherFactory,
-	orm sql.ORM,
-) (*SimpleExecutionRepository, error) {
-	publisher, err := publisherFactory.New(_maintenanceExecutionsTopic, &avro.AvroMaintenanceExecution{})
-	if err != nil {
-		return nil, fmt.Errorf("creating publisher: %w", err)
-	}
-
-	err = orm.AutoMigrate(&internal.Execution{})
+func NewExecutionRepository(orm sql.ORM) (*SimpleExecutionRepository, error) {
+	err := orm.AutoMigrate(&internal.Execution{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
 
 	return &SimpleExecutionRepository{
-		publisher: publisher,
-		orm:       orm,
+		orm: orm,
 	}, nil
 }
 
 var _ usecases.ExecutionRepository = (*SimpleExecutionRepository)(nil)
 
 type SimpleExecutionRepository struct {
-	publisher pubsub.Publisher
-	orm       sql.ORM
+	orm sql.ORM
 }
 
 func (r *SimpleExecutionRepository) Create(ctx context.Context, execution maintenanceDomain.Execution) error {
@@ -51,15 +37,6 @@ func (r *SimpleExecutionRepository) Create(ctx context.Context, execution mainte
 	if err != nil {
 		return fmt.Errorf("creating maintenance execution in database: %w", err)
 	}
-
-	avroExecution := convertToAvroMaintenanceExecution(execution)
-
-	slog.Debug("publishing maintenance execution to pubsub", slog.String("execution_id", execution.ID.String()))
-	err = r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
-	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
-	}
-	slog.Debug("published maintenance execution to pubsub", slog.String("execution_id", execution.ID.String()))
 
 	return nil
 }
@@ -142,13 +119,6 @@ func (r *SimpleExecutionRepository) Update(ctx context.Context, execution mainte
 		return fmt.Errorf("updating maintenance execution in database: %w", err)
 	}
 
-	avroExecution := convertToAvroMaintenanceExecution(execution)
-
-	err = r.publisher.Publish(ctx, pubsub.Key(execution.ID), avroExecution)
-	if err != nil {
-		return fmt.Errorf("publishing to kafka: %w", err)
-	}
-
 	return nil
 }
 
@@ -210,12 +180,7 @@ func (r *SimpleExecutionRepository) FindAllDueSoon(ctx context.Context, tenantID
 }
 
 func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ctx context.Context, currentDate time.Time) ([]usecases.ExecutionWithActivity, error) {
-	type ExecutionActivityJoin struct {
-		internal.Execution
-		internal.Activity
-	}
-
-	var joins []ExecutionActivityJoin
+	var executions []internal.Execution
 
 	err := r.orm.
 		WithContext(ctx).
@@ -226,26 +191,40 @@ func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ct
 		Where("maintenance_activities.deleted_at IS NULL").
 		Where("maintenance_activities.is_active = ?", true).
 		Where("maintenance_executions.scheduled_date > ?", currentDate).
-		Find(&joins).
+		Find(&executions).
 		Error()
 
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
 
-	result := make([]usecases.ExecutionWithActivity, 0, len(joins))
-	for _, join := range joins {
-		execution := join.Execution.ToDomain()
-		activity := join.Activity.ToDomain()
+	if len(executions) == 0 {
+		return nil, nil
+	}
+
+	activities, err := r.fetchActivitiesByExecutions(ctx, executions)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]usecases.ExecutionWithActivity, 0, len(executions))
+	for _, exec := range executions {
+		activity, ok := activities[exec.ActivityID]
+		if !ok {
+			continue
+		}
+
+		execution := exec.ToDomain()
+		domainActivity := activity.ToDomain()
 
 		daysUntil := int(execution.ScheduledDate.Time.Sub(currentDate).Hours() / 24)
-		notificationDays := []int(activity.NotificationDaysBefore)
+		notificationDays := []int(domainActivity.NotificationDaysBefore)
 
 		for _, notificationDay := range notificationDays {
 			if daysUntil == notificationDay {
 				result = append(result, usecases.ExecutionWithActivity{
 					Execution: execution,
-					Activity:  activity,
+					Activity:  domainActivity,
 				})
 				break
 			}
@@ -256,14 +235,9 @@ func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ct
 }
 
 func (r *SimpleExecutionRepository) FindOverdueExecutions(ctx context.Context) ([]usecases.ExecutionWithActivity, error) {
-	type ExecutionActivityJoin struct {
-		internal.Execution
-		internal.Activity
-	}
-
-	var joins []ExecutionActivityJoin
 	now := time.Now()
 
+	var executions []internal.Execution
 	err := r.orm.
 		WithContext(ctx).
 		Model(&internal.Execution{}).
@@ -273,55 +247,56 @@ func (r *SimpleExecutionRepository) FindOverdueExecutions(ctx context.Context) (
 		Where("maintenance_activities.deleted_at IS NULL").
 		Where("maintenance_activities.is_active = ?", true).
 		Where("maintenance_executions.scheduled_date < ?", now).
-		Find(&joins).
+		Find(&executions).
 		Error()
 
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
 
-	result := make([]usecases.ExecutionWithActivity, len(joins))
-	for i, join := range joins {
-		result[i] = usecases.ExecutionWithActivity{
-			Execution: join.Execution.ToDomain(),
-			Activity:  join.Activity.ToDomain(),
+	if len(executions) == 0 {
+		return nil, nil
+	}
+
+	activities, err := r.fetchActivitiesByExecutions(ctx, executions)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]usecases.ExecutionWithActivity, 0, len(executions))
+	for _, exec := range executions {
+		if activity, ok := activities[exec.ActivityID]; ok {
+			result = append(result, usecases.ExecutionWithActivity{
+				Execution: exec.ToDomain(),
+				Activity:  activity.ToDomain(),
+			})
 		}
 	}
 
 	return result, nil
 }
 
-func convertToAvroMaintenanceExecution(execution maintenanceDomain.Execution) *avro.AvroMaintenanceExecution {
-	fieldValues := make(map[string]string)
-	for k, v := range execution.FieldValues {
-		if str, err := json.Marshal(v); err == nil {
-			fieldValues[k] = string(str)
-		}
+func (r *SimpleExecutionRepository) fetchActivitiesByExecutions(ctx context.Context, executions []internal.Execution) (map[string]internal.Activity, error) {
+	activityIDs := make([]string, len(executions))
+	for i, exec := range executions {
+		activityIDs[i] = exec.ActivityID
 	}
 
-	result := &avro.AvroMaintenanceExecution{
-		ID:            execution.ID.String(),
-		Version:       int(execution.Version),
-		ActivityID:    execution.ActivityID.String(),
-		ScheduledDate: execution.ScheduledDate.Time,
-		OverdueDays:   int(execution.OverdueDays),
-		FieldValues:   fieldValues,
-		CreatedAt:     execution.CreatedAt.Time,
-		UpdatedAt:     execution.UpdatedAt.Time,
+	var activities []internal.Activity
+	err := r.orm.
+		WithContext(ctx).
+		Model(&internal.Activity{}).
+		Where("id IN ?", activityIDs).
+		Find(&activities).
+		Error()
+	if err != nil {
+		return nil, fmt.Errorf("fetching activities: %w", err)
 	}
 
-	if execution.CompletedAt != nil {
-		result.CompletedAt = &execution.CompletedAt.Time
+	activityMap := make(map[string]internal.Activity, len(activities))
+	for _, a := range activities {
+		activityMap[a.ID] = a
 	}
 
-	if execution.CompletedBy != nil {
-		completedBy := string(*execution.CompletedBy)
-		result.CompletedBy = &completedBy
-	}
-
-	if execution.DeletedAt != nil {
-		result.DeletedAt = &execution.DeletedAt.Time
-	}
-
-	return result
+	return activityMap, nil
 }

@@ -1,3 +1,9 @@
+FROM node:22-alpine AS web
+RUN corepack enable
+WORKDIR /src/web
+COPY web/ .
+RUN pnpm install --frozen-lockfile && pnpm run build
+
 FROM --platform=$BUILDPLATFORM golang:alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
@@ -8,6 +14,7 @@ RUN apk --no-cache add tzdata ca-certificates && update-ca-certificates
 #RUN apk --no-cache add tzdata
 WORKDIR /app
 COPY . .
+COPY --from=web /src/internal/infra/httpserver/web/dist internal/infra/httpserver/web/dist
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \

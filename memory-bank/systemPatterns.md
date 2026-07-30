@@ -23,10 +23,13 @@ Zensor Server follows a clean architecture pattern with clear separation of conc
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Event Bus     │    │   Workers       │    │   Database      │
-│   (Kafka/MQTT)  │    │   (Async)       │    │   (Materialize) │
+│   MQTT (device  │    │   Workers       │    │   PostgreSQL    │
+│   comms) + Redis│    │   (in-process,  │    │   (direct read  │
+│   (state cache) │    │   ticker/broker)│    │   + write)      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
+
+Repositories write directly to PostgreSQL (no Kafka/Kafka Connect indirection). Workers coordinate via an in-process `async.InternalBroker` and periodic polling, not a message broker.
 
 ## Domain Model Patterns
 
@@ -61,22 +64,16 @@ When executed → Creates Task (Execution)
 ## Data Flow Patterns
 
 ### Command Processing Flow
-1. **Task Creation** → Commands published to Kafka
-2. **Command Worker** → Consumes commands, sends to devices
-3. **Device Response** → Events published back to Kafka
-4. **Event Processing** → Updates command status, triggers evaluation rules
+1. **Task Creation** → Task and its Commands written directly to Postgres in one transaction
+2. **Command Worker** → Polls Postgres for pending commands, marks them ready
+3. **LoraIntegrationWorker** → Polls Postgres for ready-to-dispatch commands, sends to devices over MQTT
+4. **Device Response** → Status updates published to the in-process broker, written back to Postgres
 
 ### Scheduled Task Execution Flow
 1. **ScheduledTask Worker** → Evaluates cron schedules
 2. **Task Creation** → Creates new Task from ScheduledTask commands
 3. **Command Processing** → Normal command flow begins
 4. **Tracking** → Task linked back to ScheduledTask via ScheduledTaskID
-
-### Replication Pattern (Local Development)
-1. **Event Publishing** → Domain events published to Kafka topics
-2. **Replication Service** → Consumes events and persists to database
-3. **Materialize Views** → Provides real-time queryable data
-4. **API Queries** → Read from Materialize views
 
 ## Repository Pattern
 
@@ -122,7 +119,7 @@ type Worker interface {
 - Maintains execution history via ScheduledTaskID
 
 ### Command Worker
-- Consumes commands from Kafka
+- Polls Postgres for pending/ready commands on a ticker
 - Handles device communication
 - Updates command status
 
@@ -146,17 +143,9 @@ type Pagination struct {
 - Consistent error message format
 - Proper HTTP status codes
 
-## Event-Driven Patterns
+## In-Process Event Patterns
 
-### Event Publishing
-- Domain events published to Kafka topics
-- Event schema versioning
-- Dead letter queue for failed events
-
-### Event Consumption
-- Idempotent event processing
-- Event ordering preservation
-- Retry mechanisms with exponential backoff
+Internal event fan-out (device uplinks, command status updates, scheduled-task/execution notifications) runs on an in-process `async.InternalBroker` — a channel-based pub/sub with no external broker or persistence. It coordinates workers within a single process; it is not used for cross-service communication or durability.
 
 ## Configuration Patterns
 

@@ -32,8 +32,13 @@ func (p Parameters) Value() (driver.Value, error) {
 }
 
 func (p *Parameters) Scan(src any) error {
-	data, ok := src.(string)
-	if !ok {
+	var data string
+	switch v := src.(type) {
+	case string:
+		data = v
+	case []byte:
+		data = string(v)
+	default:
 		return errors.New("invalid type")
 	}
 	return json.Unmarshal([]byte(data), p)
