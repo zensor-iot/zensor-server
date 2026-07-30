@@ -69,9 +69,9 @@ metrics:
       app_id: "AppID"
       index: "Index"
 victron:
-  portal_id: ""
+  portal_id: "d41243b4e8e4"
   mqtt:
-    broker: ""
+    broker: "tcp://192.168.5.181:1883"
     client_id: zensor_victron
     username: ""
     password: ""
@@ -82,7 +82,7 @@ modules:
   maintenance:
     enabled: true
   victron:
-    enabled: false
+    enabled: true
 execution_worker:
   ticker_interval: "5m"
 

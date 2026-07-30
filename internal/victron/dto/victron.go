@@ -7,8 +7,27 @@ import (
 )
 
 type VictronValue struct {
-	Value float64 `json:"value"`
-	Text  string  `json:"text"`
+	Value float64
+	Text  string
+}
+
+func (v *VictronValue) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Value any    `json:"value"`
+		Text  string `json:"text"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	v.Text = raw.Text
+	switch value := raw.Value.(type) {
+	case float64:
+		v.Value = value
+	case string:
+		v.Text = value
+	}
+	return nil
 }
 
 type VictronTelemetry struct {
@@ -23,33 +42,33 @@ type VictronTelemetry struct {
 type VictronServiceType string
 
 const (
-	ServiceBattery      VictronServiceType = "Battery"
-	ServiceSolarCharger VictronServiceType = "SolarCharger"
-	ServicePvInverter   VictronServiceType = "PvInverter"
-	ServiceAcLoad       VictronServiceType = "AcLoad"
-	ServiceDcLoad       VictronServiceType = "DcLoad"
-	ServiceVebus        VictronServiceType = "Vebus"
-	ServiceGenerator    VictronServiceType = "Generator"
-	ServiceAlternator   VictronServiceType = "Alternator"
-	ServiceTemperature  VictronServiceType = "Temperature"
-	ServiceTank         VictronServiceType = "Tank"
-	ServiceFuelLevel    VictronServiceType = "FuelLevel"
-	ServiceGps          VictronServiceType = "Gps"
+	ServiceBattery      VictronServiceType = "battery"
+	ServiceSolarCharger VictronServiceType = "solarcharger"
+	ServicePvInverter   VictronServiceType = "pvinverter"
+	ServiceAcLoad       VictronServiceType = "acload"
+	ServiceDcLoad       VictronServiceType = "dcload"
+	ServiceVebus        VictronServiceType = "vebus"
+	ServiceGenerator    VictronServiceType = "generator"
+	ServiceAlternator   VictronServiceType = "alternator"
+	ServiceTemperature  VictronServiceType = "temperature"
+	ServiceTank         VictronServiceType = "tank"
+	ServiceFuelLevel    VictronServiceType = "fuellevel"
+	ServiceGps          VictronServiceType = "gps"
 )
 
 type VictronSystemSnapshot struct {
-	PortalID      string                       `json:"portal_id"`
-	Batteries     []BatteryData                `json:"batteries,omitempty"`
-	SolarChargers []SolarChargerData           `json:"solar_chargers,omitempty"`
-	PvInverters   []PvInverterData             `json:"pv_inverters,omitempty"`
-	AcLoads       []LoadData                   `json:"ac_loads,omitempty"`
-	DcLoads       []LoadData                   `json:"dc_loads,omitempty"`
-	Vebus         []VebusData                  `json:"vebus,omitempty"`
-	Generators    []GeneratorData              `json:"generators,omitempty"`
-	Alternators   []AlternatorData             `json:"alternators,omitempty"`
-	Temperatures  []TemperatureData            `json:"temperatures,omitempty"`
-	Tanks         []TankData                   `json:"tanks,omitempty"`
-	Raw           map[string]VictronValue      `json:"raw,omitempty"`
+	PortalID      string                  `json:"portal_id"`
+	Batteries     []BatteryData           `json:"batteries,omitempty"`
+	SolarChargers []SolarChargerData      `json:"solar_chargers,omitempty"`
+	PvInverters   []PvInverterData        `json:"pv_inverters,omitempty"`
+	AcLoads       []LoadData              `json:"ac_loads,omitempty"`
+	DcLoads       []LoadData              `json:"dc_loads,omitempty"`
+	Vebus         []VebusData             `json:"vebus,omitempty"`
+	Generators    []GeneratorData         `json:"generators,omitempty"`
+	Alternators   []AlternatorData        `json:"alternators,omitempty"`
+	Temperatures  []TemperatureData       `json:"temperatures,omitempty"`
+	Tanks         []TankData              `json:"tanks,omitempty"`
+	Raw           map[string]VictronValue `json:"raw,omitempty"`
 }
 
 type BatteryData struct {
@@ -69,11 +88,11 @@ type SolarChargerData struct {
 }
 
 type PvInverterData struct {
-	Instance   int     `json:"instance"`
-	Power      float64 `json:"power,omitempty"`
-	Energy     float64 `json:"energy,omitempty"`
-	Voltage    float64 `json:"voltage,omitempty"`
-	Current    float64 `json:"current,omitempty"`
+	Instance int     `json:"instance"`
+	Power    float64 `json:"power,omitempty"`
+	Energy   float64 `json:"energy,omitempty"`
+	Voltage  float64 `json:"voltage,omitempty"`
+	Current  float64 `json:"current,omitempty"`
 }
 
 type LoadData struct {
@@ -84,12 +103,12 @@ type LoadData struct {
 }
 
 type VebusData struct {
-	Instance    int     `json:"instance"`
-	State       float64 `json:"state,omitempty"`
-	Power       float64 `json:"power,omitempty"`
-	Voltage     float64 `json:"voltage,omitempty"`
-	Current     float64 `json:"current,omitempty"`
-	Soc         float64 `json:"soc,omitempty"`
+	Instance int     `json:"instance"`
+	State    float64 `json:"state,omitempty"`
+	Power    float64 `json:"power,omitempty"`
+	Voltage  float64 `json:"voltage,omitempty"`
+	Current  float64 `json:"current,omitempty"`
+	Soc      float64 `json:"soc,omitempty"`
 }
 
 type GeneratorData struct {
@@ -118,19 +137,19 @@ type TankData struct {
 
 func ParseVictronTopic(topic string) (serviceType string, instance int, path string, ok bool) {
 	parts := strings.Split(topic, "/")
-	if len(parts) < 6 {
+	if len(parts) < 4 {
 		return "", 0, "", false
 	}
 	if parts[0] != "N" {
 		return "", 0, "", false
 	}
-	serviceType = parts[4]
-	_, err := fmt.Sscanf(parts[5], "%d", &instance)
+	serviceType = parts[2]
+	_, err := fmt.Sscanf(parts[3], "%d", &instance)
 	if err != nil {
 		return "", 0, "", false
 	}
-	if len(parts) > 6 {
-		path = strings.Join(parts[6:], "/")
+	if len(parts) > 4 {
+		path = strings.Join(parts[4:], "/")
 	}
 	return serviceType, instance, path, true
 }
