@@ -142,9 +142,9 @@ const AdminTenants = () => {
         const result = await showApiNotification(
             fetch(`/v1/tenants/${tenantId}`, {
                 method: 'DELETE'
-            }).then(res => {
+            }).then(async (res) => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                return res.json()
+                return true
             }),
             'Tenant deleted successfully',
             'Failed to delete tenant',
