@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
@@ -16,6 +17,7 @@ import (
 
 const (
 	BrokerTopicVictronData async.BrokerTopicName = "victron_data"
+	keepAliveInterval                            = 30 * time.Second
 )
 
 func NewVictronWorker(
@@ -81,8 +83,33 @@ func (w *VictronWorker) Run(ctx context.Context, done func()) {
 		return
 	}
 
-	<-ctx.Done()
-	slog.Info("victron worker cancelled")
+	// Venus OS only keeps streaming values on N/<portalID>/# while it
+	// receives a periodic keep-alive; otherwise it goes quiet after
+	// the initial retained burst. See victronenergy/dbus-mqtt.
+	w.sendKeepAlive(ctx)
+
+	ticker := time.NewTicker(keepAliveInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("victron worker cancelled")
+			return
+		case <-ticker.C:
+			w.sendKeepAlive(ctx)
+		}
+	}
+}
+
+func (w *VictronWorker) sendKeepAlive(ctx context.Context) {
+	topic := fmt.Sprintf("R/%s/keepalive", w.portalID)
+	if err := w.mqttClient.Publish(ctx, topic, ""); err != nil {
+		slog.Error("publishing victron keepalive",
+			slog.String("topic", topic),
+			slog.Any("error", err),
+		)
+	}
 }
 
 func (w *VictronWorker) handleMessage(_ mqtt.Client, msg mqtt.Message) {

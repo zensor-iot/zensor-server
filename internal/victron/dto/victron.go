@@ -54,6 +54,7 @@ const (
 	ServiceTank         VictronServiceType = "tank"
 	ServiceFuelLevel    VictronServiceType = "fuellevel"
 	ServiceGps          VictronServiceType = "gps"
+	ServiceSystem       VictronServiceType = "system"
 )
 
 type VictronSystemSnapshot struct {
@@ -68,7 +69,24 @@ type VictronSystemSnapshot struct {
 	Alternators   []AlternatorData        `json:"alternators,omitempty"`
 	Temperatures  []TemperatureData       `json:"temperatures,omitempty"`
 	Tanks         []TankData              `json:"tanks,omitempty"`
+	System        SystemData              `json:"system"`
 	Raw           map[string]VictronValue `json:"raw,omitempty"`
+}
+
+// SystemData holds the GX device's own pre-aggregated totals, published
+// under the "system" service (e.g. N/<portalID>/system/0/Ac/Grid/L1/Power).
+// These combine all connected devices and are what the Venus OS dashboard
+// itself shows for grid, consumption, and overall battery/PV figures.
+type SystemData struct {
+	GridL1Power        float64 `json:"grid_l1_power,omitempty"`
+	GridL2Power        float64 `json:"grid_l2_power,omitempty"`
+	GridL3Power        float64 `json:"grid_l3_power,omitempty"`
+	ConsumptionL1Power float64 `json:"consumption_l1_power,omitempty"`
+	ConsumptionL2Power float64 `json:"consumption_l2_power,omitempty"`
+	ConsumptionL3Power float64 `json:"consumption_l3_power,omitempty"`
+	BatterySoc         float64 `json:"battery_soc,omitempty"`
+	BatteryPower       float64 `json:"battery_power,omitempty"`
+	PvPower            float64 `json:"pv_power,omitempty"`
 }
 
 type BatteryData struct {
