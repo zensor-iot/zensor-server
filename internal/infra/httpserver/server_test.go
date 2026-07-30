@@ -178,10 +178,10 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 	})
 
 	ginkgo.Context("StaticWebUI", func() {
-		ginkgo.When("requesting the root path", func() {
+		ginkgo.When("requesting the SPA's mount path", func() {
 			ginkgo.It("should serve the embedded SPA", func() {
 				srv := NewServer()
-				req := httptest.NewRequest("GET", "/", nil)
+				req := httptest.NewRequest("GET", "/ui/", nil)
 				rec := httptest.NewRecorder()
 
 				srv.server.Handler.ServeHTTP(rec, req)
@@ -247,10 +247,10 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 			})
 		})
 
-		ginkgo.When("requesting a genuine client-side route outside /v1/ and /ws/", func() {
+		ginkgo.When("requesting a genuine client-side route under /ui/", func() {
 			ginkgo.It("should still fall back to the SPA's index.html", func() {
 				srv := NewServer()
-				req := httptest.NewRequest("GET", "/some-client-route", nil)
+				req := httptest.NewRequest("GET", "/ui/some-client-route", nil)
 				rec := httptest.NewRecorder()
 
 				srv.server.Handler.ServeHTTP(rec, req)
