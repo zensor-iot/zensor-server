@@ -1,0 +1,91 @@
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1rem;
+}
+
+.login-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    padding: 3rem 2.5rem;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+}
+
+.login-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: #667eea;
+    margin-bottom: 1rem;
+}
+
+.login-logo h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    color: #1a202c;
+}
+
+.login-subtitle {
+    color: #718096;
+    margin-bottom: 2rem;
+}
+
+.login-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.login-button:hover {
+    background: #5a67d8;
+}
+
+.access-denied-icon {
+    color: #e53e3e;
+    margin-bottom: 0.5rem;
+}
+
+.access-denied-email {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.login-secondary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    color: #667eea;
+    border: 1px solid #667eea;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.login-secondary-button:hover {
+    background: #eef0fd;
+}

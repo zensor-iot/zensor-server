@@ -74,6 +74,13 @@ const AdminDashboard = () => {
             icon: Activity,
             link: '/admin/health',
             color: 'orange'
+        },
+        {
+            title: 'User Access',
+            description: 'Manage which accounts can sign in',
+            icon: Users,
+            link: '/admin/users',
+            color: 'purple'
         }
     ]
 

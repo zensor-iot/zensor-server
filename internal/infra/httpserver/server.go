@@ -45,6 +45,16 @@ func (s *StandardServer) Shutdown() {
 }
 
 func NewServer(controllers ...Controller) *StandardServer {
+	return newServer(createUserHeaderMiddleware(), true, controllers)
+}
+
+// NewServerWithAuth builds a server whose /v1/* and /ws/* routes are protected by
+// session authentication. /v1/me is expected to be registered by an auth controller.
+func NewServerWithAuth(resolver SessionResolver, controllers ...Controller) *StandardServer {
+	return newServer(NewAuthMiddleware(resolver), false, controllers)
+}
+
+func newServer(userMiddleware func(http.Handler) http.Handler, includeLegacyMe bool, controllers []Controller) *StandardServer {
 	router := http.NewServeMux()
 
 	c := cors.New(cors.Options{
@@ -72,12 +82,11 @@ func NewServer(controllers ...Controller) *StandardServer {
 		ExposedHeaders: []string{
 			"Link",
 		},
-		AllowCredentials: false,
+		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	})
 
 	tracingMiddleware := createTracingMiddleware()
-	userHeaderMiddleware := createUserHeaderMiddleware()
 	metricsMiddleware := MetricsMiddleware()
 
 	server := &StandardServer{
@@ -86,7 +95,7 @@ func NewServer(controllers ...Controller) *StandardServer {
 			Handler: c.Handler(
 				metricsMiddleware(
 					tracingMiddleware(
-						userHeaderMiddleware(router),
+						userMiddleware(router),
 					),
 				),
 			),
@@ -95,7 +104,9 @@ func NewServer(controllers ...Controller) *StandardServer {
 
 	router.Handle("GET /healthz", getHealthz())
 	router.Handle("GET /metrics", promhttp.Handler())
-	router.Handle("GET /v1/me", getCurrentUser())
+	if includeLegacyMe {
+		router.Handle("GET /v1/me", getCurrentUser())
+	}
 	router.Handle("/ui/", http.StripPrefix("/ui", web.SPAHandler()))
 	router.Handle("/v1/", http.NotFoundHandler())
 	router.Handle("/ws/", http.NotFoundHandler())

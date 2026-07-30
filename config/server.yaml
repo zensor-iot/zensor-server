@@ -1,5 +1,13 @@
 general:
   log_level: info
+auth:
+  enabled: true
+  google:
+    client_id: 829153781429-o9vbh05h9jdie1p6fal5ehvn87e1olen.apps.googleusercontent.com
+    client_secret: "" # set via ZENSOR_SERVER_AUTH_GOOGLE_CLIENT_SECRET
+    redirect_url: "https://portal.zensor-iot.net/auth/callback"
+  session_ttl: "168h"
+  bootstrap_admin_email: "seadiaz@gmail.com"
 mqtt:
   broker: "localhost:1883"
 database:
@@ -69,9 +77,9 @@ metrics:
       app_id: "AppID"
       index: "Index"
 victron:
-  portal_id: ""
+  portal_id: "d41243b4e8e4"
   mqtt:
-    broker: ""
+    broker: "tcp://192.168.5.181:1883"
     client_id: zensor_victron
     username: ""
     password: ""
@@ -82,7 +90,7 @@ modules:
   maintenance:
     enabled: true
   victron:
-    enabled: false
+    enabled: true
 execution_worker:
   ticker_interval: "5m"
 

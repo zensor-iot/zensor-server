@@ -1,5 +1,9 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { Activity, Building, Cpu, Radio, Shield, Sun } from 'lucide-react'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import LoginPage from './components/LoginPage'
+import AccessDenied from './components/AccessDenied'
+import AdminUsers from './components/admin/AdminUsers'
 import VictronDashboard from './components/VictronDashboard'
 import TenantList from './components/TenantList'
 import TenantDevices from './components/TenantDevices'
@@ -17,8 +21,38 @@ import AdminHealth from './components/admin/AdminHealth'
 import { NotificationProvider } from './components/NotificationSystem'
 import './App.css'
 
-function App() {
+function AuthGate({ children }) {
+  const { user, loading } = useAuth()
   const location = useLocation()
+
+  if (location.pathname === '/access-denied') {
+    return <AccessDenied />
+  }
+
+  if (loading) {
+    return <div className="auth-loading">Loading...</div>
+  }
+
+  if (!user) {
+    return <LoginPage />
+  }
+
+  return children
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuthGate>
+        <AppContent />
+      </AuthGate>
+    </AuthProvider>
+  )
+}
+
+function AppContent() {
+  const location = useLocation()
+  const { user } = useAuth()
   const isPortalPage = location.pathname.startsWith('/portal/')
   const isAdminPage = location.pathname.startsWith('/admin/')
 
@@ -46,10 +80,12 @@ function App() {
                     <Sun size={20} />
                     Energy
                   </Link>
-                  <Link to="/admin" className="nav-link admin-link">
-                    <Shield size={20} />
-                    Admin
-                  </Link>
+                  {user?.is_admin && (
+                    <Link to="/admin" className="nav-link admin-link">
+                      <Shield size={20} />
+                      Admin
+                    </Link>
+                  )}
                 </nav>
               </div>
               <UserInfo />
@@ -74,6 +110,7 @@ function App() {
             <Route path="/admin/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:taskId/executions" element={<AdminTaskExecutions />} />
             <Route path="/admin/commands" element={<AdminCommands />} />
             <Route path="/admin/health" element={<AdminHealth />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
           </Routes>
         </main>
       </div>

@@ -5,19 +5,57 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"strings"
 )
 
 type APIDriver struct {
-	baseURL string
-	client  *http.Client
+	baseURL   string
+	client    *http.Client
+	userEmail string
 }
 
 func NewAPIDriver(baseURL string) *APIDriver {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		panic(err)
+	}
 	return &APIDriver{
 		baseURL: baseURL,
-		client:  &http.Client{},
+		client:  &http.Client{Jar: jar},
 	}
+}
+
+func (d *APIDriver) Login() error {
+	resp, err := d.client.Get(fmt.Sprintf("%s/auth/login", d.baseURL))
+	if err != nil {
+		return fmt.Errorf("performing login flow: %w", err)
+	}
+	resp.Body.Close()
+
+	meResp, err := d.client.Get(fmt.Sprintf("%s/v1/me", d.baseURL))
+	if err != nil {
+		return fmt.Errorf("fetching current user: %w", err)
+	}
+	defer meResp.Body.Close()
+
+	if meResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("login did not establish a session: /v1/me returned %d", meResp.StatusCode)
+	}
+
+	var me struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(meResp.Body).Decode(&me); err != nil {
+		return fmt.Errorf("decoding current user: %w", err)
+	}
+
+	d.userEmail = me.Email
+	return nil
+}
+
+func (d *APIDriver) CurrentUserEmail() string {
+	return d.userEmail
 }
 
 func (d *APIDriver) CreateTenant(name, email, description string) (*http.Response, error) {

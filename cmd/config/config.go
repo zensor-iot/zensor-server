@@ -53,13 +53,14 @@ func LoadConfig() AppConfig {
 				FromName:  viper.GetString("mailersend.from_name"),
 			},
 			FCM: FCMConfig{
-				ProjectID:         viper.GetString("fcm.project_id"),
+				ProjectID:          viper.GetString("fcm.project_id"),
 				ServiceAccountPath: viper.GetString("fcm.service_account_path"),
 			},
-			Metrics:        loadMetricsConfig(),
+			Auth:              loadAuthConfig(),
+			Metrics:           loadMetricsConfig(),
 			PushNotifications: loadPushNotificationsConfig(),
-			Modules:        loadModulesConfig(),
-			Victron: loadVictronConfig(),
+			Modules:           loadModulesConfig(),
+			Victron:           loadVictronConfig(),
 			ExecutionWorker: ExecutionWorkerConfig{
 				TickerInterval: viper.GetDuration("execution_worker.ticker_interval"),
 			},
@@ -67,6 +68,24 @@ func LoadConfig() AppConfig {
 	})
 
 	return configInstance
+}
+
+func loadAuthConfig() AuthConfig {
+	sessionTTL := viper.GetDuration("auth.session_ttl")
+	if sessionTTL == 0 {
+		sessionTTL = 168 * time.Hour
+	}
+
+	return AuthConfig{
+		Enabled:             viper.GetBool("auth.enabled"),
+		SessionTTL:          sessionTTL,
+		BootstrapAdminEmail: viper.GetString("auth.bootstrap_admin_email"),
+		Google: GoogleOAuthConfig{
+			ClientID:     viper.GetString("auth.google.client_id"),
+			ClientSecret: viper.GetString("auth.google.client_secret"),
+			RedirectURL:  viper.GetString("auth.google.redirect_url"),
+		},
+	}
 }
 
 func loadVictronConfig() VictronConfig {
@@ -77,10 +96,10 @@ func loadVictronConfig() VictronConfig {
 		Password: viper.GetString("victron.mqtt.password"),
 	}
 	return VictronConfig{
-		Enabled:   viper.GetBool("modules.victron.enabled"),
-		PortalID:  viper.GetString("victron.portal_id"),
-		MQTT:      mqtt,
-		CacheTTL:  viper.GetDuration("victron.cache_ttl"),
+		Enabled:  viper.GetBool("modules.victron.enabled"),
+		PortalID: viper.GetString("victron.portal_id"),
+		MQTT:     mqtt,
+		CacheTTL: viper.GetDuration("victron.cache_ttl"),
 	}
 }
 
@@ -120,16 +139,16 @@ func loadPushNotificationsConfig() []PushNotificationWorkerConfig {
 		for _, item := range notificationsSlice {
 			if notificationMap, ok := item.(map[string]interface{}); ok {
 				notification := PushNotificationWorkerConfig{
-					Name:            utils.ExtractStringValue(notificationMap, "name"),
-					Topic:           utils.ExtractStringValue(notificationMap, "topic"),
-					EventType:       utils.ExtractStringValue(notificationMap, "event_type"),
-					TenantIDPath:    utils.ExtractStringValue(notificationMap, "tenant_id_path"),
-					UserIDPath:      utils.ExtractStringValue(notificationMap, "user_id_path"),
-					Title:           utils.ExtractStringValue(notificationMap, "title"),
-					TitleTemplate:   utils.ExtractStringValue(notificationMap, "title_template"),
-					Body:            utils.ExtractStringValue(notificationMap, "body"),
-					BodyTemplate:    utils.ExtractStringValue(notificationMap, "body_template"),
-					DeepLink:        utils.ExtractStringValue(notificationMap, "deeplink"),
+					Name:             utils.ExtractStringValue(notificationMap, "name"),
+					Topic:            utils.ExtractStringValue(notificationMap, "topic"),
+					EventType:        utils.ExtractStringValue(notificationMap, "event_type"),
+					TenantIDPath:     utils.ExtractStringValue(notificationMap, "tenant_id_path"),
+					UserIDPath:       utils.ExtractStringValue(notificationMap, "user_id_path"),
+					Title:            utils.ExtractStringValue(notificationMap, "title"),
+					TitleTemplate:    utils.ExtractStringValue(notificationMap, "title_template"),
+					Body:             utils.ExtractStringValue(notificationMap, "body"),
+					BodyTemplate:     utils.ExtractStringValue(notificationMap, "body_template"),
+					DeepLink:         utils.ExtractStringValue(notificationMap, "deeplink"),
 					DeepLinkTemplate: utils.ExtractStringValue(notificationMap, "deeplink_template"),
 				}
 				notifications = append(notifications, notification)
@@ -155,22 +174,36 @@ func loadModulesConfig() ModulesConfig {
 }
 
 type AppConfig struct {
-	General          GeneralConfig
-	mqtt             MqttConfig
-	MQTTClient       MQTTClientConfig
-	Victron          VictronConfig
-	Postgresql       PostgresqlConfig
-	Redis            RedisConfig
-	MailerSend       MailerSendConfig
-	FCM              FCMConfig
-	Metrics          MetricsConfig
+	General           GeneralConfig
+	Auth              AuthConfig
+	mqtt              MqttConfig
+	MQTTClient        MQTTClientConfig
+	Victron           VictronConfig
+	Postgresql        PostgresqlConfig
+	Redis             RedisConfig
+	MailerSend        MailerSendConfig
+	FCM               FCMConfig
+	Metrics           MetricsConfig
 	PushNotifications PushNotificationsConfig
-	Modules          ModulesConfig
-	ExecutionWorker  ExecutionWorkerConfig
+	Modules           ModulesConfig
+	ExecutionWorker   ExecutionWorkerConfig
 }
 
 type GeneralConfig struct {
 	LogLevel string
+}
+
+type AuthConfig struct {
+	Enabled             bool
+	Google              GoogleOAuthConfig
+	SessionTTL          time.Duration
+	BootstrapAdminEmail string
+}
+
+type GoogleOAuthConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
 }
 
 type MqttConfig struct {
@@ -202,7 +235,7 @@ type MailerSendConfig struct {
 }
 
 type FCMConfig struct {
-	ProjectID         string
+	ProjectID          string
 	ServiceAccountPath string
 }
 
@@ -211,16 +244,16 @@ type MetricsConfig []MetricWorkerConfig
 type PushNotificationsConfig []PushNotificationWorkerConfig
 
 type PushNotificationWorkerConfig struct {
-	Name            string
-	Topic           string
-	EventType       string
-	TenantIDPath    string
-	UserIDPath      string
-	Title           string
-	TitleTemplate   string
-	Body            string
-	BodyTemplate    string
-	DeepLink        string
+	Name             string
+	Topic            string
+	EventType        string
+	TenantIDPath     string
+	UserIDPath       string
+	Title            string
+	TitleTemplate    string
+	Body             string
+	BodyTemplate     string
+	DeepLink         string
 	DeepLinkTemplate string
 }
 

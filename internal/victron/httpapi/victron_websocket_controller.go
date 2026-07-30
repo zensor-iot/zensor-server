@@ -23,20 +23,20 @@ var upgrader = websocket.Upgrader{
 }
 
 type VictronSystemStatusMessage struct {
-	Type    string                        `json:"type"`
-	Data    victrondto.VictronSystemSnapshot `json:"data"`
-	System  VictronSystemSummary           `json:"system"`
+	Type   string                           `json:"type"`
+	Data   victrondto.VictronSystemSnapshot `json:"data"`
+	System VictronSystemSummary             `json:"system"`
 }
 
 type VictronSystemSummary struct {
-	BatterySOC        float64 `json:"battery_soc"`
-	BatteryVoltage    float64 `json:"battery_voltage"`
-	BatteryPower      float64 `json:"battery_power"`
-	SolarPower        float64 `json:"solar_power"`
-	AcLoadPower       float64 `json:"ac_load_power"`
-	GridPower         float64 `json:"grid_power"`
-	IsCharging        bool    `json:"is_charging"`
-	IsInverting       bool    `json:"is_inverting"`
+	BatterySOC     float64 `json:"battery_soc"`
+	BatteryVoltage float64 `json:"battery_voltage"`
+	BatteryPower   float64 `json:"battery_power"`
+	SolarPower     float64 `json:"solar_power"`
+	AcLoadPower    float64 `json:"ac_load_power"`
+	GridPower      float64 `json:"grid_power"`
+	IsCharging     bool    `json:"is_charging"`
+	IsInverting    bool    `json:"is_inverting"`
 }
 
 type VictronWebSocketController struct {
@@ -87,7 +87,12 @@ func (wsc *VictronWebSocketController) handleWebSocket() http.HandlerFunc {
 
 		slog.Info("new victron websocket connection established", slog.String("remote_addr", r.RemoteAddr))
 
-		wsc.register <- conn
+		select {
+		case wsc.register <- conn:
+		case <-wsc.ctx.Done():
+			conn.Close()
+			return
+		}
 
 		go wsc.handlePingPong(conn)
 		go wsc.handleClient(conn)
@@ -96,7 +101,10 @@ func (wsc *VictronWebSocketController) handleWebSocket() http.HandlerFunc {
 
 func (wsc *VictronWebSocketController) handleClient(conn *websocket.Conn) {
 	defer func() {
-		wsc.unregister <- conn
+		select {
+		case wsc.unregister <- conn:
+		case <-wsc.ctx.Done():
+		}
 		conn.Close()
 	}()
 
@@ -156,7 +164,10 @@ func (wsc *VictronWebSocketController) run() {
 			wsc.clientsMux.Unlock()
 			slog.Info("victron websocket client registered", slog.Int("total_clients", len(wsc.clients)))
 
-			go wsc.sendCurrentSnapshot(client)
+			// Sent synchronously: this is the only goroutine that writes to
+			// client conns (gorilla/websocket forbids concurrent writers),
+			// so this must not run concurrently with the broadcast case below.
+			wsc.sendCurrentSnapshot(client)
 
 		case client := <-wsc.unregister:
 			wsc.clientsMux.Lock()
@@ -259,6 +270,31 @@ func (wsc *VictronWebSocketController) updateStructuredSnapshot(telemetry victro
 		wsc.updateTemperatureData(telemetry)
 	case victrondto.ServiceTank:
 		wsc.updateTankData(telemetry)
+	case victrondto.ServiceSystem:
+		wsc.updateSystemData(telemetry)
+	}
+}
+
+func (wsc *VictronWebSocketController) updateSystemData(telemetry victrondto.VictronTelemetry) {
+	switch telemetry.Path {
+	case "Ac/Grid/L1/Power":
+		wsc.snapshot.System.GridL1Power = telemetry.Value.Value
+	case "Ac/Grid/L2/Power":
+		wsc.snapshot.System.GridL2Power = telemetry.Value.Value
+	case "Ac/Grid/L3/Power":
+		wsc.snapshot.System.GridL3Power = telemetry.Value.Value
+	case "Ac/Consumption/L1/Power":
+		wsc.snapshot.System.ConsumptionL1Power = telemetry.Value.Value
+	case "Ac/Consumption/L2/Power":
+		wsc.snapshot.System.ConsumptionL2Power = telemetry.Value.Value
+	case "Ac/Consumption/L3/Power":
+		wsc.snapshot.System.ConsumptionL3Power = telemetry.Value.Value
+	case "Battery/Soc":
+		wsc.snapshot.System.BatterySoc = telemetry.Value.Value
+	case "Dc/Battery/Power":
+		wsc.snapshot.System.BatteryPower = telemetry.Value.Value
+	case "Dc/Pv/Power":
+		wsc.snapshot.System.PvPower = telemetry.Value.Value
 	}
 }
 
@@ -416,9 +452,6 @@ func buildSummary(snapshot victrondto.VictronSystemSnapshot) VictronSystemSummar
 		summary.BatterySOC = b.Soc
 		summary.BatteryVoltage = b.Voltage
 		summary.BatteryPower += b.Power
-		if b.Power > 0 {
-			summary.IsCharging = true
-		}
 	}
 
 	for _, s := range snapshot.SolarChargers {
@@ -437,6 +470,30 @@ func buildSummary(snapshot victrondto.VictronSystemSnapshot) VictronSystemSummar
 	if gridPower > 0 {
 		summary.GridPower = gridPower
 	}
+
+	// The GX device's own "system" service publishes pre-aggregated totals
+	// across all connected devices; prefer these over the per-device sums
+	// above (which only cover devices that expose their own MQTT service).
+	sys := snapshot.System
+	if consumption := sys.ConsumptionL1Power + sys.ConsumptionL2Power + sys.ConsumptionL3Power; consumption != 0 {
+		summary.AcLoadPower = consumption
+	}
+	if grid := sys.GridL1Power + sys.GridL2Power + sys.GridL3Power; grid != 0 {
+		summary.GridPower = grid
+	}
+	if sys.BatterySoc != 0 {
+		summary.BatterySOC = sys.BatterySoc
+	}
+	if sys.BatteryPower != 0 {
+		summary.BatteryPower = sys.BatteryPower
+	}
+	if sys.PvPower != 0 {
+		summary.SolarPower = sys.PvPower
+	}
+
+	if summary.BatteryPower > 0 {
+		summary.IsCharging = true
+	}
 	if summary.BatteryPower < 0 {
 		summary.IsInverting = true
 	}
@@ -453,8 +510,4 @@ func (wsc *VictronWebSocketController) Shutdown() {
 		client.Close()
 	}
 	wsc.clientsMux.Unlock()
-
-	close(wsc.broadcast)
-	close(wsc.register)
-	close(wsc.unregister)
 }
