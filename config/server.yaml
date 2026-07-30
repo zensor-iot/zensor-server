@@ -3,7 +3,7 @@ general:
 auth:
   enabled: true
   google:
-    client_id: ""
+    client_id: 829153781429-o9vbh05h9jdie1p6fal5ehvn87e1olen.apps.googleusercontent.com
     client_secret: "" # set via ZENSOR_SERVER_AUTH_GOOGLE_CLIENT_SECRET
     redirect_url: "https://portal.zensor-iot.net/auth/callback"
   session_ttl: "168h"
