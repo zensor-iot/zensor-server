@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"zensor-server/cmd/config"
@@ -164,6 +165,7 @@ func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.I
 			Title:    title,
 			Body:     body,
 			DeepLink: deepLink,
+			Platform: pushToken.Platform,
 		}
 
 		err = w.notificationClient.SendPushNotification(ctx, request)
@@ -173,6 +175,13 @@ func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.I
 				slog.String("notification", w.config.Name),
 				slog.Any("error", err))
 			w.recordNotificationMetrics(ctx, "error")
+			if errors.Is(err, notification.ErrSubscriptionExpired) {
+				if unregisterErr := w.pushTokenService.UnregisterToken(ctx, pushToken.Token); unregisterErr != nil {
+					slog.Warn("unregistering expired push subscription",
+						slog.String("user_id", userID.String()),
+						slog.Any("error", unregisterErr))
+				}
+			}
 			continue
 		}
 		w.recordNotificationMetrics(ctx, "success")

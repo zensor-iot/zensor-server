@@ -91,10 +91,30 @@ func provideCompositeNotificationClient(cfg config.AppConfig) (notification.Noti
 		ProjectID:          cfg.FCM.ProjectID,
 		ServiceAccountPath: cfg.FCM.ServiceAccountPath,
 	}
-	pushClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
+	fcmClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	webPushClient := notification.NewWebPushClient(notification.WebPushConfig{
+		VAPIDPublicKey:  cfg.WebPush.VAPIDPublicKey,
+		VAPIDPrivateKey: cfg.WebPush.VAPIDPrivateKey,
+		Subscriber:      cfg.WebPush.Subscriber,
+	})
+
+	pushClient := notification.NewPlatformRoutingPushClient(fcmClient, webPushClient)
+
 	return notification.NewCompositeNotificationClient(emailClient, pushClient), nil
+}
+
+func provideWebPushController(cfg config.AppConfig) *sharedHTTPAPI.WebPushController {
+	return sharedHTTPAPI.NewWebPushController(cfg.WebPush.VAPIDPublicKey)
+}
+
+func InitializeWebPushController() (*sharedHTTPAPI.WebPushController, error) {
+	wire.Build(
+		provideAppConfig,
+		provideWebPushController,
+	)
+	return nil, nil
 }

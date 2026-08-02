@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"maps"
 	"time"
 	"zensor-server/internal/infra/utils"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
@@ -30,13 +31,21 @@ func (me *Execution) SoftDelete() {
 	me.UpdatedAt = now
 }
 
-func (me *Execution) MarkCompleted(completedBy string) {
+func (me *Execution) MarkCompleted(completedBy string, fieldValues map[string]any) {
 	now := utils.Time{Time: time.Now()}
 	me.CompletedAt = &now
 	completedByVO := CompletedBy(completedBy)
 	me.CompletedBy = &completedByVO
 	me.OverdueDays = 0
 	me.UpdatedAt = now
+
+	if len(fieldValues) == 0 {
+		return
+	}
+	if me.FieldValues == nil {
+		me.FieldValues = make(map[string]any, len(fieldValues))
+	}
+	maps.Copy(me.FieldValues, fieldValues)
 }
 
 func (me *Execution) IsCompleted() bool {

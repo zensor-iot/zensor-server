@@ -27,6 +27,11 @@ mailersend:
 fcm:
   project_id: "my-first-action-8b831"
   service_account_path: "./service_account.json"
+notification:
+  webpush:
+    vapid_public_key: "" # set via ZENSOR_SERVER_NOTIFICATION_WEBPUSH_VAPID_PUBLIC_KEY
+    vapid_private_key: "" # set via ZENSOR_SERVER_NOTIFICATION_WEBPUSH_VAPID_PRIVATE_KEY
+    subscriber: "mailto:admin@zensor-iot.net"
 metrics:
   - name: "commands_total"
     type: "counter"
@@ -97,13 +102,13 @@ execution_worker:
 push_notifications:
   - name: "execution_reminder"
     topic: "maintenance_executions"
-    event_type: "execution_reminder"
+    event_type: "execution_ready_for_notification"
     tenant_id_path: "tenant_id"
     user_id_path: ""
     title: "Execution Reminder"
     body: "Scheduled execution is due soon"
-    deeplink: "app://execution"
-    deeplink_template: "app://execution/%s"
+    deeplink: "/maintenance/executions"
+    deeplink_template: "/maintenance/executions/%s"
   - name: "execution_overdue"
     topic: "maintenance_executions"
     event_type: "execution_overdue"
@@ -111,5 +116,5 @@ push_notifications:
     user_id_path: ""
     title: "Execution Overdue"
     body: "Scheduled execution is overdue"
-    deeplink: "app://execution"
-    deeplink_template: "app://execution/%s"
+    deeplink: "/maintenance/executions"
+    deeplink_template: "/maintenance/executions/%s"

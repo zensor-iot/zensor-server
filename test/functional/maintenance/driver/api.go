@@ -165,13 +165,25 @@ func (d *APIDriver) GetMaintenanceExecution(id string) (*http.Response, error) {
 }
 
 func (d *APIDriver) MarkMaintenanceExecutionCompleted(id, completedBy string) (*http.Response, error) {
-	reqBody, err := json.Marshal(map[string]any{
+	return d.MarkMaintenanceExecutionCompletedWithFieldValues(id, completedBy, nil)
+}
+
+func (d *APIDriver) MarkMaintenanceExecutionCompletedWithFieldValues(id, completedBy string, fieldValues map[string]any) (*http.Response, error) {
+	body := map[string]any{
 		"completed_by": completedBy,
-	})
+	}
+	if fieldValues != nil {
+		body["field_values"] = fieldValues
+	}
+	reqBody, err := json.Marshal(body)
 	if err != nil {
 		panic(err)
 	}
 	return d.client.Post(fmt.Sprintf("%s/v1/maintenance/executions/%s/complete", d.baseURL, id), "application/json", bytes.NewBuffer(reqBody))
+}
+
+func (d *APIDriver) GetVAPIDPublicKey() (*http.Response, error) {
+	return d.client.Get(fmt.Sprintf("%s/v1/push/vapid-public-key", d.baseURL))
 }
 
 func (d *APIDriver) CreateMaintenanceExecution(activityID string, scheduledDate time.Time, fieldValues map[string]any) (*http.Response, error) {

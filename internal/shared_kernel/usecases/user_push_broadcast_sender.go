@@ -52,6 +52,7 @@ func (s *SimpleUserPushMessageSender) SendBroadcastToUser(ctx context.Context, u
 			Title:    title,
 			Body:     body,
 			DeepLink: deepLink,
+			Platform: pt.Platform,
 		}
 		sendErr := s.notifier.SendPushNotification(ctx, req)
 		if sendErr != nil {
@@ -61,6 +62,13 @@ func (s *SimpleUserPushMessageSender) SendBroadcastToUser(ctx context.Context, u
 				slog.String("token_id", pt.ID.String()),
 				slog.String("platform", pt.Platform),
 				slog.String("error", sendErr.Error()))
+			if errors.Is(sendErr, notification.ErrSubscriptionExpired) {
+				if unregisterErr := s.pushTokens.UnregisterToken(ctx, pt.Token); unregisterErr != nil {
+					slog.Warn("unregistering expired push subscription",
+						slog.String("token_id", pt.ID.String()),
+						slog.String("error", unregisterErr.Error()))
+				}
+			}
 			continue
 		}
 		successCount++

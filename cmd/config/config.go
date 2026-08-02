@@ -56,6 +56,11 @@ func LoadConfig() AppConfig {
 				ProjectID:          viper.GetString("fcm.project_id"),
 				ServiceAccountPath: viper.GetString("fcm.service_account_path"),
 			},
+			WebPush: WebPushConfig{
+				VAPIDPublicKey:  viper.GetString("notification.webpush.vapid_public_key"),
+				VAPIDPrivateKey: viper.GetString("notification.webpush.vapid_private_key"),
+				Subscriber:      viper.GetString("notification.webpush.subscriber"),
+			},
 			Auth:              loadAuthConfig(),
 			Metrics:           loadMetricsConfig(),
 			PushNotifications: loadPushNotificationsConfig(),
@@ -183,6 +188,7 @@ type AppConfig struct {
 	Redis             RedisConfig
 	MailerSend        MailerSendConfig
 	FCM               FCMConfig
+	WebPush           WebPushConfig
 	Metrics           MetricsConfig
 	PushNotifications PushNotificationsConfig
 	Modules           ModulesConfig
@@ -237,6 +243,12 @@ type MailerSendConfig struct {
 type FCMConfig struct {
 	ProjectID          string
 	ServiceAccountPath string
+}
+
+type WebPushConfig struct {
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	Subscriber      string
 }
 
 type MetricsConfig []MetricWorkerConfig

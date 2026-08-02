@@ -1567,6 +1567,26 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /v1/push/vapid-public-key:
+    get:
+      summary: Get the VAPID public key
+      description: Returns the VAPID public key browsers use to subscribe to Web Push notifications
+      tags:
+        - Push Notifications
+      responses:
+        "200":
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  public_key:
+                    type: string
+                    description: Base64url-encoded VAPID public key
+        "404":
+          description: Web push is not configured
+
 components:
   schemas:
     # Common schemas
@@ -2589,6 +2609,13 @@ components:
           type: string
           description: User ID or identifier who completed the execution
           example: "user-123"
+        field_values:
+          type: object
+          additionalProperties: true
+          description: Custom field values captured when completing the execution, merged over any prefilled defaults
+          example:
+            notes: "Replaced filter"
+            hours: 2.5
 
     ExecutionResponse:
       type: object

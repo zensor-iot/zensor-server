@@ -27,6 +27,7 @@ type PushNotificationRequest struct {
 	Title    string
 	Body     string
 	DeepLink string
+	Platform string
 }
 
 // NotificationError represents an error that occurred during notification sending

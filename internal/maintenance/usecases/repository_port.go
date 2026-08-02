@@ -41,7 +41,7 @@ type ExecutionRepository interface {
 	FindAllByActivity(ctx context.Context, activityID shareddomain.ID, pagination Pagination) ([]maintenanceDomain.Execution, int, error)
 	FindByActivityAndScheduledDate(ctx context.Context, activityID shareddomain.ID, scheduledDate time.Time) (maintenanceDomain.Execution, error)
 	Update(ctx context.Context, execution maintenanceDomain.Execution) error
-	MarkCompleted(ctx context.Context, id shareddomain.ID, completedBy string) error
+	MarkCompleted(ctx context.Context, id shareddomain.ID, completedBy string, fieldValues map[string]any) error
 	FindAllOverdue(ctx context.Context, tenantID shareddomain.ID) ([]maintenanceDomain.Execution, error)
 	FindAllDueSoon(ctx context.Context, tenantID shareddomain.ID, days int) ([]maintenanceDomain.Execution, error)
 	FindPendingExecutionsReadyForNotification(ctx context.Context, currentDate time.Time) ([]ExecutionWithActivity, error)

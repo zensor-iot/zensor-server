@@ -277,17 +277,17 @@ func (mr *MockExecutionRepositoryMockRecorder) GetByID(ctx, id any) *gomock.Call
 }
 
 // MarkCompleted mocks base method.
-func (m *MockExecutionRepository) MarkCompleted(ctx context.Context, id domain0.ID, completedBy string) error {
+func (m *MockExecutionRepository) MarkCompleted(ctx context.Context, id domain0.ID, completedBy string, fieldValues map[string]any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MarkCompleted", ctx, id, completedBy)
+	ret := m.ctrl.Call(m, "MarkCompleted", ctx, id, completedBy, fieldValues)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // MarkCompleted indicates an expected call of MarkCompleted.
-func (mr *MockExecutionRepositoryMockRecorder) MarkCompleted(ctx, id, completedBy any) *gomock.Call {
+func (mr *MockExecutionRepositoryMockRecorder) MarkCompleted(ctx, id, completedBy, fieldValues any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkCompleted", reflect.TypeOf((*MockExecutionRepository)(nil).MarkCompleted), ctx, id, completedBy)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkCompleted", reflect.TypeOf((*MockExecutionRepository)(nil).MarkCompleted), ctx, id, completedBy, fieldValues)
 }
 
 // Update mocks base method.

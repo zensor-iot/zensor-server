@@ -16,7 +16,7 @@ type ExecutionService interface {
 	CreateExecution(ctx context.Context, execution maintenanceDomain.Execution) error
 	GetExecution(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Execution, error)
 	ListExecutionsByActivity(ctx context.Context, activityID shareddomain.ID, pagination Pagination) ([]maintenanceDomain.Execution, int, error)
-	MarkExecutionCompleted(ctx context.Context, id shareddomain.ID, completedBy string) error
+	MarkExecutionCompleted(ctx context.Context, id shareddomain.ID, completedBy string, fieldValues map[string]any) error
 }
 
 func NewExecutionService(
@@ -85,7 +85,7 @@ func (s *SimpleExecutionService) ListExecutionsByActivity(
 	return executions, total, nil
 }
 
-func (s *SimpleExecutionService) MarkExecutionCompleted(ctx context.Context, id shareddomain.ID, completedBy string) error {
+func (s *SimpleExecutionService) MarkExecutionCompleted(ctx context.Context, id shareddomain.ID, completedBy string, fieldValues map[string]any) error {
 	execution, err := s.repository.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, ErrExecutionNotFound) {
@@ -106,7 +106,7 @@ func (s *SimpleExecutionService) MarkExecutionCompleted(ctx context.Context, id 
 		return ErrExecutionScheduledInFuture
 	}
 
-	err = s.repository.MarkCompleted(ctx, id, completedBy)
+	err = s.repository.MarkCompleted(ctx, id, completedBy, fieldValues)
 	if err != nil {
 		slog.Error("marking maintenance execution as completed", slog.String("error", err.Error()))
 		return fmt.Errorf("marking maintenance execution as completed: %w", err)

@@ -189,15 +189,27 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 			})
 
 			ginkgo.It("should successfully mark the execution completed", func() {
-				err := repo.MarkCompleted(ctx, execution.ID, completedBy)
+				err := repo.MarkCompleted(ctx, execution.ID, completedBy, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+
+			ginkgo.It("should persist captured field values merged with existing ones", func() {
+				fieldValues := map[string]any{"notes": "replaced filter"}
+				err := repo.MarkCompleted(ctx, execution.ID, completedBy, fieldValues)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+				persisted, err := repo.GetByID(ctx, execution.ID)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(persisted.IsCompleted()).To(gomega.BeTrue())
+				gomega.Expect(persisted.FieldValues).To(gomega.HaveKeyWithValue("notes", "replaced filter"))
+				gomega.Expect(persisted.FieldValues).To(gomega.HaveKeyWithValue("maintenance_type", "Filter Replacement"))
 			})
 		})
 
 		ginkgo.When("execution does not exist", func() {
 			ginkgo.It("should return ErrMaintenanceExecutionNotFound", func() {
 				nonExistentID := shareddomain.ID(utils.GenerateUUID())
-				err := repo.MarkCompleted(ctx, nonExistentID, "user@example.com")
+				err := repo.MarkCompleted(ctx, nonExistentID, "user@example.com", nil)
 				gomega.Expect(err).To(gomega.MatchError(maintenanceUsecases.ErrExecutionNotFound))
 			})
 		})

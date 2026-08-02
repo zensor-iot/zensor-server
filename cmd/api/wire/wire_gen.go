@@ -108,6 +108,12 @@ func InitializePushTokenController() (*httpapi.PushTokenController, error) {
 	return pushTokenController, nil
 }
 
+func InitializeWebPushController() (*httpapi.WebPushController, error) {
+	appConfig := provideAppConfig()
+	webPushController := provideWebPushController(appConfig)
+	return webPushController, nil
+}
+
 // Injectors from control_plane.go:
 
 func InitializeEvaluationRuleController() (*httpapi2.EvaluationRuleController, error) {
@@ -471,12 +477,24 @@ func provideCompositeNotificationClient(cfg config.AppConfig) (notification.Noti
 		ProjectID:          cfg.FCM.ProjectID,
 		ServiceAccountPath: cfg.FCM.ServiceAccountPath,
 	}
-	pushClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
+	fcmClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	webPushClient := notification.NewWebPushClient(notification.WebPushConfig{
+		VAPIDPublicKey:  cfg.WebPush.VAPIDPublicKey,
+		VAPIDPrivateKey: cfg.WebPush.VAPIDPrivateKey,
+		Subscriber:      cfg.WebPush.Subscriber,
+	})
+
+	pushClient := notification.NewPlatformRoutingPushClient(fcmClient, webPushClient)
+
 	return notification.NewCompositeNotificationClient(emailClient, pushClient), nil
+}
+
+func provideWebPushController(cfg config.AppConfig) *httpapi.WebPushController {
+	return httpapi.NewWebPushController(cfg.WebPush.VAPIDPublicKey)
 }
 
 // control_plane.go:

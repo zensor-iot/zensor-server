@@ -30,7 +30,8 @@ type ExecutionCreateRequest struct {
 }
 
 type ExecutionCompleteRequest struct {
-	CompletedBy string `json:"completed_by"`
+	CompletedBy string         `json:"completed_by"`
+	FieldValues map[string]any `json:"field_values,omitempty"`
 }
 
 func ToExecutionResponse(execution maintenanceDomain.Execution) ExecutionResponse {

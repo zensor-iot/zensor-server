@@ -66,7 +66,7 @@ var _ = Describe("SimpleUserPushMessageSender", func() {
 		})
 
 		When("one token and send succeeds", func() {
-			It("should send one notification with expected fields", func() {
+			It("should send one notification with expected fields including platform", func() {
 				tokens := []domain.PushToken{
 					{ID: "tok-1", UserID: uid, Token: "fcm-1", Platform: "android"},
 				}
@@ -80,11 +80,34 @@ var _ = Describe("SimpleUserPushMessageSender", func() {
 						Title:    "Hello",
 						Body:     "World",
 						DeepLink: "zensor://x",
+						Platform: "android",
 					}).
 					Return(nil)
 
 				err := sender.SendBroadcastToUser(context.Background(), uid, content)
 				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+
+		When("a web subscription is expired", func() {
+			It("should unregister the dead token and report failure", func() {
+				tokens := []domain.PushToken{
+					{ID: "tok-web", UserID: uid, Token: `{"endpoint":"https://push.example"}`, Platform: "web"},
+				}
+				tokenService.EXPECT().
+					ListTokensByUserID(gomock.Any(), uid).
+					Return(tokens, nil)
+
+				notifier.EXPECT().
+					SendPushNotification(gomock.Any(), gomock.Any()).
+					Return(notification.ErrSubscriptionExpired)
+
+				tokenService.EXPECT().
+					UnregisterToken(gomock.Any(), `{"endpoint":"https://push.example"}`).
+					Return(nil)
+
+				err := sender.SendBroadcastToUser(context.Background(), uid, content)
+				Expect(err).To(HaveOccurred())
 			})
 		})
 

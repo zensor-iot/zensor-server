@@ -233,10 +233,25 @@ var _ = Describe("MaintenanceExecutionService", func() {
 					GetByID(gomock.Any(), execution.ID).
 					Return(execution, nil)
 				mockRepository.EXPECT().
-					MarkCompleted(gomock.Any(), execution.ID, completedBy).
+					MarkCompleted(gomock.Any(), execution.ID, completedBy, nil).
 					Return(nil)
 
-				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
+				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy, nil)
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+
+		When("marking completion with captured field values", func() {
+			It("should pass the field values to the repository", func() {
+				fieldValues := map[string]any{"notes": "replaced filter", "hours": 2.5}
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), execution.ID).
+					Return(execution, nil)
+				mockRepository.EXPECT().
+					MarkCompleted(gomock.Any(), execution.ID, completedBy, fieldValues).
+					Return(nil)
+
+				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy, fieldValues)
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -247,19 +262,19 @@ var _ = Describe("MaintenanceExecutionService", func() {
 					GetByID(gomock.Any(), execution.ID).
 					Return(maintenanceDomain.Execution{}, maintenanceUsecases.ErrExecutionNotFound)
 
-				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
+				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy, nil)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrExecutionNotFound))
 			})
 		})
 
 		When("execution is already completed", func() {
 			It("should return an error", func() {
-				execution.MarkCompleted(completedBy)
+				execution.MarkCompleted(completedBy, nil)
 				mockRepository.EXPECT().
 					GetByID(gomock.Any(), execution.ID).
 					Return(execution, nil)
 
-				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
+				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy, nil)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("already completed"))
 			})
@@ -272,7 +287,7 @@ var _ = Describe("MaintenanceExecutionService", func() {
 					GetByID(gomock.Any(), execution.ID).
 					Return(execution, nil)
 
-				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
+				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy, nil)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("deleted"))
 			})
@@ -291,7 +306,7 @@ var _ = Describe("MaintenanceExecutionService", func() {
 					GetByID(gomock.Any(), execution.ID).
 					Return(futureExecution, nil)
 
-				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy)
+				err := service.MarkExecutionCompleted(context.Background(), execution.ID, completedBy, nil)
 				Expect(err).To(MatchError(maintenanceUsecases.ErrExecutionScheduledInFuture))
 			})
 		})
