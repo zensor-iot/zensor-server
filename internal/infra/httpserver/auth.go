@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"zensor-server/internal/shared_kernel/domain"
@@ -22,6 +23,12 @@ type SessionResolver interface {
 	GetSession(ctx context.Context, sessionID string) (domain.Session, error)
 }
 
+// APIKeyResolver validates a plaintext bearer API key; implementations must
+// return an error for unknown or revoked keys.
+type APIKeyResolver interface {
+	Validate(ctx context.Context, rawKey string) (domain.APIKey, error)
+}
+
 var publicPathPrefixes = []string{"/auth/", "/ui/"}
 
 var publicExactPaths = map[string]struct{}{
@@ -31,27 +38,45 @@ var publicExactPaths = map[string]struct{}{
 
 const adminPathPrefix = "/v1/admin/"
 
-// NewAuthMiddleware enforces session authentication on /v1/* and /ws/* routes.
-// It always strips client-provided X-User-* headers and re-populates them from
-// the session so downstream controllers keep working unchanged.
-func NewAuthMiddleware(resolver SessionResolver) func(http.Handler) http.Handler {
+// NewAuthMiddleware enforces authentication on /v1/* and /ws/* routes, first
+// via session cookie and otherwise via bearer API key. It always strips
+// client-provided X-User-* headers and re-populates them from the resolved
+// identity so downstream controllers keep working unchanged.
+func NewAuthMiddleware(sessions SessionResolver, apiKeys APIKeyResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.Header.Del("X-User-ID")
 			r.Header.Del("X-User-Name")
 			r.Header.Del("X-User-Email")
 
-			session, authenticated := resolveSession(resolver, r)
-			if authenticated {
+			session, sessionAuthenticated := resolveSession(sessions, r)
+			var apiKey domain.APIKey
+			apiKeyAuthenticated := false
+			if !sessionAuthenticated {
+				apiKey, apiKeyAuthenticated = resolveAPIKey(apiKeys, r)
+			}
+
+			span := GetSpanFromContext(r)
+			switch {
+			case sessionAuthenticated:
 				r.Header.Set("X-User-ID", session.UserID.String())
 				r.Header.Set("X-User-Name", session.Name)
 				r.Header.Set("X-User-Email", session.Email)
 
-				span := GetSpanFromContext(r)
 				span.SetAttributes(
 					attribute.String("user.id", session.UserID.String()),
 					attribute.String("user.name", session.Name),
 					attribute.String("user.email", session.Email),
+				)
+			case apiKeyAuthenticated:
+				r.Header.Set("X-User-ID", apiKey.ID.String())
+				r.Header.Set("X-User-Name", apiKey.Name)
+				r.Header.Set("X-User-Email", "")
+
+				span.SetAttributes(
+					attribute.String("user.id", apiKey.ID.String()),
+					attribute.String("user.name", apiKey.Name),
+					attribute.String("user.email", ""),
 				)
 			}
 
@@ -60,19 +85,47 @@ func NewAuthMiddleware(resolver SessionResolver) func(http.Handler) http.Handler
 				return
 			}
 
-			if !authenticated {
+			if !sessionAuthenticated && !apiKeyAuthenticated {
 				ReplyWithError(w, http.StatusUnauthorized, "authentication required")
 				return
 			}
 
-			if strings.HasPrefix(r.URL.Path, adminPathPrefix) && !session.IsAdmin {
-				ReplyWithError(w, http.StatusForbidden, "admin access required")
-				return
+			if strings.HasPrefix(r.URL.Path, adminPathPrefix) {
+				if apiKeyAuthenticated {
+					ReplyWithError(w, http.StatusForbidden, "admin access required")
+					return
+				}
+				if !session.IsAdmin {
+					ReplyWithError(w, http.StatusForbidden, "admin access required")
+					return
+				}
 			}
 
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func resolveAPIKey(resolver APIKeyResolver, r *http.Request) (domain.APIKey, bool) {
+	const bearerPrefix = "Bearer "
+
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(header, bearerPrefix) {
+		return domain.APIKey{}, false
+	}
+
+	rawKey := strings.TrimSpace(strings.TrimPrefix(header, bearerPrefix))
+	if rawKey == "" {
+		return domain.APIKey{}, false
+	}
+
+	key, err := resolver.Validate(r.Context(), rawKey)
+	if err != nil {
+		slog.Warn("api key validation failed", slog.String("error", err.Error()))
+		return domain.APIKey{}, false
+	}
+
+	return key, true
 }
 
 func resolveSession(resolver SessionResolver, r *http.Request) (domain.Session, bool) {

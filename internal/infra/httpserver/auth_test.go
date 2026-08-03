@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -23,13 +24,30 @@ func (f *fakeSessionResolver) GetSession(_ context.Context, sessionID string) (d
 	return session, nil
 }
 
+type fakeAPIKeyResolver struct {
+	keys map[string]domain.APIKey
+	err  error
+}
+
+func (f *fakeAPIKeyResolver) Validate(_ context.Context, rawKey string) (domain.APIKey, error) {
+	if f.err != nil {
+		return domain.APIKey{}, f.err
+	}
+	key, found := f.keys[rawKey]
+	if !found {
+		return domain.APIKey{}, errors.New("api key not found")
+	}
+	return key, nil
+}
+
 var _ = ginkgo.Describe("AuthMiddleware", func() {
 	var (
-		resolver *fakeSessionResolver
-		handler  http.Handler
-		seenID   string
-		seenName string
-		seenMail string
+		resolver    *fakeSessionResolver
+		keyResolver *fakeAPIKeyResolver
+		handler     http.Handler
+		seenID      string
+		seenName    string
+		seenMail    string
 	)
 
 	ginkgo.BeforeEach(func() {
@@ -52,6 +70,14 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 			},
 		}}
 
+		keyResolver = &fakeAPIKeyResolver{keys: map[string]domain.APIKey{
+			"zsk_valid": {
+				ID:        "key-1",
+				Name:      "grafana-sync",
+				KeyPrefix: "zsk_valid",
+			},
+		}}
+
 		seenID, seenName, seenMail = "", "", ""
 		inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			seenID = r.Header.Get("X-User-ID")
@@ -59,7 +85,7 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 			seenMail = r.Header.Get("X-User-Email")
 			w.WriteHeader(http.StatusOK)
 		})
-		handler = NewAuthMiddleware(resolver)(inner)
+		handler = NewAuthMiddleware(resolver, keyResolver)(inner)
 	})
 
 	request := func(path, sessionID string, spoofHeaders bool) *httptest.ResponseRecorder {
@@ -71,6 +97,16 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 			req.Header.Set("X-User-ID", "spoofed-id")
 			req.Header.Set("X-User-Name", "Spoofed")
 			req.Header.Set("X-User-Email", "spoofed@example.com")
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	bearerRequest := func(path, authorization string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", path, nil)
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
 		}
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -183,6 +219,73 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 				rec := request("/v1/admin/allowed-users", "", false)
 
 				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+		})
+	})
+
+	ginkgo.Context("api key authentication", func() {
+		ginkgo.When("a valid bearer key requests a protected route", func() {
+			ginkgo.It("should pass through with the key's synthetic identity", func() {
+				rec := bearerRequest("/v1/tenants", "Bearer zsk_valid")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+				gomega.Expect(seenID).To(gomega.Equal("key-1"))
+				gomega.Expect(seenName).To(gomega.Equal("grafana-sync"))
+				gomega.Expect(seenMail).To(gomega.BeEmpty())
+			})
+		})
+
+		ginkgo.When("a valid bearer key requests an admin route", func() {
+			ginkgo.It("should return 403 unconditionally", func() {
+				rec := bearerRequest("/v1/admin/allowed-users", "Bearer zsk_valid")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusForbidden))
+			})
+		})
+
+		ginkgo.When("the bearer key is unknown", func() {
+			ginkgo.It("should return 401", func() {
+				rec := bearerRequest("/v1/tenants", "Bearer zsk_unknown")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+		})
+
+		ginkgo.When("the authorization header is malformed", func() {
+			ginkgo.It("should return 401 for a non-bearer scheme", func() {
+				rec := bearerRequest("/v1/tenants", "Basic zsk_valid")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+
+			ginkgo.It("should return 401 for an empty bearer token", func() {
+				rec := bearerRequest("/v1/tenants", "Bearer ")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+		})
+
+		ginkgo.When("the key resolver fails", func() {
+			ginkgo.It("should fail closed with 401", func() {
+				keyResolver.err = errors.New("database down")
+
+				rec := bearerRequest("/v1/tenants", "Bearer zsk_valid")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+		})
+
+		ginkgo.When("a request carries both a session cookie and a bearer key", func() {
+			ginkgo.It("should prefer the session identity", func() {
+				req := httptest.NewRequest("GET", "/v1/tenants", nil)
+				req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: "valid-session"})
+				req.Header.Set("Authorization", "Bearer zsk_valid")
+				rec := httptest.NewRecorder()
+				handler.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+				gomega.Expect(seenID).To(gomega.Equal("user-1"))
+				gomega.Expect(seenMail).To(gomega.Equal("user@example.com"))
 			})
 		})
 	})

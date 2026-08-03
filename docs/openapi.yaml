@@ -51,6 +51,255 @@ paths:
               schema:
                 type: string
 
+  # Authentication
+  /auth/login:
+    get:
+      summary: Start OAuth login
+      description: Sets a short-lived CSRF state cookie and redirects the browser to the OAuth provider's consent page
+      tags:
+        - Authentication
+      responses:
+        "302":
+          description: Redirect to the OAuth provider authorization URL
+          headers:
+            Location:
+              schema:
+                type: string
+            Set-Cookie:
+              description: CSRF state cookie (zensor_oauth_state)
+              schema:
+                type: string
+        "500":
+          description: Failed to start login
+
+  /auth/callback:
+    get:
+      summary: OAuth callback
+      description: Handles the OAuth provider redirect, validates the CSRF state, exchanges the authorization code, creates a session, and redirects to the web UI. Users not on the allowlist are redirected to the access-denied page.
+      tags:
+        - Authentication
+      parameters:
+        - name: state
+          in: query
+          required: true
+          description: CSRF state value (must match the state cookie)
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          description: OAuth authorization code
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the web UI on success, or to the access-denied page if the email is not allowed or not verified
+          headers:
+            Location:
+              schema:
+                type: string
+            Set-Cookie:
+              description: Session cookie on successful login
+              schema:
+                type: string
+        "400":
+          description: Invalid OAuth state or missing authorization code
+        "500":
+          description: Login failed
+
+  /auth/logout:
+    post:
+      summary: Logout
+      description: Invalidates the current session and clears the session cookie
+      tags:
+        - Authentication
+      responses:
+        "204":
+          description: Logged out successfully
+
+  /v1/me:
+    get:
+      summary: Get current user
+      description: Returns the authenticated user derived from the session cookie
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/admin/allowed-users:
+    get:
+      summary: List allowed users
+      description: Retrieve all allowlist entries
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: List of allowed users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AllowedUserResponse"
+        "500":
+          description: Failed to list allowed users
+
+    post:
+      summary: Add allowed user
+      description: Add an email address to the login allowlist
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AllowedUserCreateRequest"
+      responses:
+        "201":
+          description: Allowed user created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllowedUserResponse"
+        "400":
+          description: Invalid allowed user
+        "409":
+          description: Email already allowed
+
+  /v1/admin/allowed-users/{id}:
+    put:
+      summary: Update allowed user
+      description: Update an allowlist entry (admin flag)
+      tags:
+        - Authentication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Allowed user ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AllowedUserUpdateRequest"
+      responses:
+        "200":
+          description: Allowed user updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllowedUserResponse"
+        "400":
+          description: Invalid request body
+        "404":
+          description: Allowed user not found
+        "500":
+          description: Failed to update allowed user
+
+    delete:
+      summary: Remove allowed user
+      description: Remove an entry from the login allowlist
+      tags:
+        - Authentication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Allowed user ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Allowed user removed successfully
+        "400":
+          description: ID is required
+        "500":
+          description: Failed to remove allowed user
+
+  /v1/admin/api-keys:
+    get:
+      summary: List API keys
+      description: Retrieve all API keys; key material is never returned
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/APIKeyResponse"
+        "500":
+          description: Failed to list API keys
+
+    post:
+      summary: Create API key
+      description: >-
+        Create a machine credential for non-human clients. The plaintext key is
+        returned only in this response and cannot be retrieved again. Clients
+        present it as `Authorization: Bearer <key>`; API keys are denied access
+        to `/v1/admin/*` routes.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/APIKeyCreateRequest"
+      responses:
+        "201":
+          description: API key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIKeyCreatedResponse"
+        "400":
+          description: Name is required
+        "409":
+          description: API key name already exists
+
+  /v1/admin/api-keys/{id}:
+    delete:
+      summary: Revoke API key
+      description: Permanently revoke an API key; revocation takes effect immediately
+      tags:
+        - Authentication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: API key ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: API key revoked successfully
+        "404":
+          description: API key not found
+        "500":
+          description: Failed to revoke API key
+
   # WebSocket
   /ws/device-messages:
     get:
@@ -108,6 +357,25 @@ paths:
                   error:
                     type: string
                     example: "device_id is required"
+
+  /ws/victron/status:
+    get:
+      summary: Victron system status WebSocket
+      description: WebSocket endpoint for real-time Victron system status updates. Sends the latest snapshot on connect, then broadcasts status messages.
+      tags:
+        - WebSocket
+      responses:
+        "101":
+          description: WebSocket connection established
+          headers:
+            Upgrade:
+              schema:
+                type: string
+                example: "websocket"
+            Connection:
+              schema:
+                type: string
+                example: "Upgrade"
 
   # Tenants
   /v1/tenants:
@@ -881,6 +1149,118 @@ paths:
                   error:
                     type: string
                     example: "one or more tenants are invalid"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # Push Tokens
+  /v1/users/{id}/push-tokens:
+    post:
+      summary: Register push token
+      description: Register a push notification token for a user
+      tags:
+        - Push Notifications
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenRegistrationRequest"
+      responses:
+        "200":
+          description: Push token registered successfully
+        "400":
+          description: Invalid request body
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      summary: Unregister push token
+      description: Unregister a push notification token
+      tags:
+        - Push Notifications
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenUnregistrationRequest"
+      responses:
+        "200":
+          description: Push token unregistered successfully
+        "400":
+          description: Invalid request body
+        "404":
+          description: Push token not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "push token not found"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/users/{id}/push-message:
+    post:
+      summary: Send push message to user
+      description: Broadcast a push notification to all registered devices of a user
+      tags:
+        - Push Notifications
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPushBroadcastRequest"
+      responses:
+        "200":
+          description: Push notification broadcast successfully
+        "400":
+          description: Invalid push broadcast request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "invalid push broadcast request"
+        "404":
+          description: No push tokens found for the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "push token not found"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -2372,7 +2752,7 @@ components:
             ]
 
     # Maintenance Activity schemas
-    MaintenanceActivityCreateRequest:
+    ActivityCreateRequest:
       type: object
       required:
         - tenant_id
@@ -2575,6 +2955,192 @@ components:
         pagination:
           $ref: "#/components/schemas/PaginationInfo"
 
+    # Authentication schemas
+    CurrentUserResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: Authenticated user ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: User display name
+          example: "Jane Doe"
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: "jane@acme.com"
+        is_admin:
+          type: boolean
+          description: Whether the user is an administrator
+          example: false
+
+    AllowedUserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Allowed user ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          format: email
+          description: Allowed email address
+          example: "jane@acme.com"
+        display_name:
+          type: string
+          description: Display name captured on last login
+          example: "Jane Doe"
+        is_admin:
+          type: boolean
+          description: Whether the user is an administrator
+          example: false
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the user's last login
+          example: "2024-01-01T00:00:00Z"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-01T00:00:00Z"
+
+    AllowedUserCreateRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address to allow
+          example: "jane@acme.com"
+        is_admin:
+          type: boolean
+          description: Whether the user is an administrator
+          default: false
+          example: false
+
+    AllowedUserUpdateRequest:
+      type: object
+      properties:
+        is_admin:
+          type: boolean
+          description: Whether the user is an administrator
+          example: true
+
+    APIKeyCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Unique human-readable label for the key
+          example: "grafana-sync"
+
+    APIKeyCreatedResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: API key ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Unique human-readable label
+          example: "grafana-sync"
+        key:
+          type: string
+          description: Plaintext API key, shown only in this response
+          example: "zsk_ab12cd34ef56..."
+        key_prefix:
+          type: string
+          description: First characters of the key, for identification in listings
+          example: "zsk_ab12cd34"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+
+    APIKeyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: API key ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Unique human-readable label
+          example: "grafana-sync"
+        key_prefix:
+          type: string
+          description: First characters of the key, for identification in listings
+          example: "zsk_ab12cd34"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+
+    # Push Token schemas
+    PushTokenRegistrationRequest:
+      type: object
+      required:
+        - token
+        - platform
+      properties:
+        token:
+          type: string
+          description: Push notification token (FCM token or serialized Web Push subscription)
+          example: "fcm-token-abc123"
+        platform:
+          type: string
+          description: Platform the token belongs to
+          example: "web"
+
+    PushTokenUnregistrationRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: Push notification token to unregister
+          example: "fcm-token-abc123"
+
+    UserPushBroadcastRequest:
+      type: object
+      required:
+        - body
+      properties:
+        title:
+          type: string
+          description: Notification title
+          example: "Maintenance due"
+        body:
+          type: string
+          description: Notification body
+          example: "Monthly equipment inspection is due tomorrow"
+        deep_link:
+          type: string
+          description: Deep link to open when the notification is tapped
+          example: "/ui/maintenance"
+
     # Maintenance Execution schemas
     ExecutionCreateRequest:
       type: object
@@ -2709,11 +3275,22 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
 
+  securitySchemes:
+    apiKeyBearer:
+      type: http
+      scheme: bearer
+      description: >-
+        API key issued via POST /v1/admin/api-keys, presented as
+        `Authorization: Bearer zsk_...`. Grants access to the full API except
+        `/v1/admin/*` routes.
+
 tags:
   - name: Health
     description: Health and monitoring endpoints
   - name: Monitoring
     description: Metrics and observability endpoints
+  - name: Authentication
+    description: OAuth login, sessions, and allowed-user administration
   - name: WebSocket
     description: Real-time communication endpoints
   - name: Tenants
@@ -2732,3 +3309,5 @@ tags:
     description: Maintenance activity management and scheduling
   - name: Maintenance Executions
     description: Maintenance execution tracking and completion
+  - name: Push Notifications
+    description: Push token registration and notification delivery

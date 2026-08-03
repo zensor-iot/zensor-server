@@ -95,8 +95,9 @@ func main() {
 	if appConfig.Auth.Enabled {
 		slog.Info("authentication enabled: session middleware will protect /v1 and /ws routes")
 		authComponents := handleWireInjector(wire.InitializeAuthComponents()).(*wire.AuthComponents)
-		controllers = append(controllers, authComponents.Controller)
-		httpServer = httpserver.NewServerWithAuth(authComponents.Service, controllers...)
+		apiKeyComponents := handleWireInjector(wire.InitializeAPIKeyComponents()).(*wire.APIKeyComponents)
+		controllers = append(controllers, authComponents.Controller, apiKeyComponents.Controller)
+		httpServer = httpserver.NewServerWithAuth(authComponents.Service, apiKeyComponents.Service, controllers...)
 	} else {
 		slog.Warn("authentication disabled: trusting X-User headers")
 		httpServer = httpserver.NewServer(controllers...)

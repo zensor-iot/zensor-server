@@ -194,7 +194,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 					ExpiresAt: time.Now().Add(time.Hour),
 				},
 			}}
-			srv = NewServerWithAuth(resolver)
+			srv = NewServerWithAuth(resolver, &fakeAPIKeyResolver{})
 		})
 
 		ginkgo.When("requesting a protected route without a session", func() {
