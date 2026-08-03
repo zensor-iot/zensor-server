@@ -16,14 +16,19 @@ import (
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/node"
+	"zensor-server/internal/infra/o11y"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	victronHTTPAPI "zensor-server/internal/victron/httpapi"
 	victronUsecases "zensor-server/internal/victron/usecases"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -44,8 +49,9 @@ func main() {
 
 	level := logLevelMapping[appConfig.General.LogLevel]
 	baseHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: level, ReplaceAttr: slogReplaceAttr})
-	handler := baseHandler.WithAttrs([]slog.Attr{slog.String("version", node.Version)})
-	slog.SetDefault(slog.New(handler))
+	stdoutHandler := baseHandler.WithAttrs([]slog.Attr{slog.String("version", node.Version)})
+	otelHandler := otelslog.NewHandler("zensor-server")
+	slog.SetDefault(slog.New(o11y.NewTeeHandler(level, stdoutHandler, otelHandler)))
 	slog.Info("🚀 zensor is initializing")
 	slog.Debug("config loaded", "data", appConfig)
 
@@ -241,6 +247,11 @@ func otelStart(ctx context.Context) (ShutdownFunc, error) {
 		return nil, err
 	}
 
+	logsShutdownFunc, err := startLogsProvider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return func() error {
 		if err := metricsShutdownFunc(); err != nil {
 			return err
@@ -248,8 +259,49 @@ func otelStart(ctx context.Context) (ShutdownFunc, error) {
 		if err := traceShutdownFunc(); err != nil {
 			return err
 		}
+		if err := logsShutdownFunc(); err != nil {
+			return err
+		}
 		return nil
 	}, nil
+}
+
+func newOTelResource() *resource.Resource {
+	return resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String("zensor-server"),
+		semconv.ServiceVersionKey.String(node.Version),
+	)
+}
+
+func startLogsProvider(ctx context.Context) (ShutdownFunc, error) {
+	exp, err := newLogExporter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	lp := sdklog.NewLoggerProvider(
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(exp)),
+		sdklog.WithResource(newOTelResource()),
+	)
+	global.SetLoggerProvider(lp)
+
+	return func() error {
+		return lp.Shutdown(ctx)
+	}, nil
+}
+
+func newLogExporter(ctx context.Context) (sdklog.Exporter, error) {
+	endpoint := _defautlEndpoint
+	if value, ok := os.LookupEnv("ZENSOR_SERVER_OTELCOL_ENDPOINT"); ok {
+		endpoint = value
+	}
+
+	return otlploggrpc.New(
+		ctx,
+		otlploggrpc.WithEndpoint(endpoint),
+		otlploggrpc.WithInsecure(),
+	)
 }
 
 func startTraceProvider(ctx context.Context) (ShutdownFunc, error) {
@@ -260,10 +312,7 @@ func startTraceProvider(ctx context.Context) (ShutdownFunc, error) {
 
 	tp := trace.NewTracerProvider(
 		trace.WithBatcher(exp),
-		trace.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String("zensor-server"),
-		)),
+		trace.WithResource(newOTelResource()),
 	)
 	otel.SetTracerProvider(tp)
 
@@ -319,6 +368,7 @@ func newMetricExporter(ctx context.Context) (metric.Exporter, error) {
 
 func newMeterProvider(metricExporter metric.Exporter) *metric.MeterProvider {
 	return metric.NewMeterProvider(
+		metric.WithResource(newOTelResource()),
 		metric.WithReader(
 			metric.NewPeriodicReader(
 				metricExporter,
