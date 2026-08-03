@@ -136,7 +136,7 @@ func (c *ExecutionController) markCompleted() http.HandlerFunc {
 			return
 		}
 
-		err = c.service.MarkExecutionCompleted(r.Context(), shareddomain.ID(id), body.CompletedBy)
+		err = c.service.MarkExecutionCompleted(r.Context(), shareddomain.ID(id), body.CompletedBy, body.FieldValues)
 		if err != nil {
 			if errors.Is(err, usecases.ErrExecutionNotFound) {
 				http.Error(w, executionNotFoundErrMessage, http.StatusNotFound)

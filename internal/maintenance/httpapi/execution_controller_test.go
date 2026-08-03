@@ -200,7 +200,24 @@ var _ = Describe("MaintenanceExecutionController", func() {
 		When("execution exists", func() {
 			It("should mark execution as completed", func() {
 				mockExecutionService.EXPECT().
-					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com").
+					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com", nil).
+					Return(nil)
+
+				body, _ := json.Marshal(completeRequest)
+				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
+				request.Header.Set("Content-Type", "application/json")
+
+				router.ServeHTTP(recorder, request)
+
+				Expect(recorder.Code).To(Equal(http.StatusOK))
+			})
+		})
+
+		When("field values are provided", func() {
+			It("should pass the captured field values to the service", func() {
+				completeRequest.FieldValues = map[string]any{"notes": "replaced filter", "hours": 2.5}
+				mockExecutionService.EXPECT().
+					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com", map[string]any{"notes": "replaced filter", "hours": 2.5}).
 					Return(nil)
 
 				body, _ := json.Marshal(completeRequest)
@@ -216,7 +233,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 		When("execution not found", func() {
 			It("should return not found", func() {
 				mockExecutionService.EXPECT().
-					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com").
+					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com", nil).
 					Return(maintenance_usecases.ErrExecutionNotFound)
 
 				body, _ := json.Marshal(completeRequest)
@@ -232,7 +249,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 		When("execution scheduled date is in the future", func() {
 			It("should return bad request", func() {
 				mockExecutionService.EXPECT().
-					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com").
+					MarkExecutionCompleted(gomock.Any(), shareddomain.ID(executionID), "user@example.com", nil).
 					Return(maintenance_usecases.ErrExecutionScheduledInFuture)
 
 				body, _ := json.Marshal(completeRequest)

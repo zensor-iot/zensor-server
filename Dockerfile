@@ -1,4 +1,4 @@
-FROM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 RUN corepack enable
 WORKDIR /src/web
 COPY web/ .

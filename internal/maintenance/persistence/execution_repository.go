@@ -122,13 +122,13 @@ func (r *SimpleExecutionRepository) Update(ctx context.Context, execution mainte
 	return nil
 }
 
-func (r *SimpleExecutionRepository) MarkCompleted(ctx context.Context, id shareddomain.ID, completedBy string) error {
+func (r *SimpleExecutionRepository) MarkCompleted(ctx context.Context, id shareddomain.ID, completedBy string, fieldValues map[string]any) error {
 	execution, err := r.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	execution.MarkCompleted(completedBy)
+	execution.MarkCompleted(completedBy, fieldValues)
 	return r.Update(ctx, execution)
 }
 

@@ -363,6 +363,49 @@ func (fc *FeatureContext) iMarkTheMaintenanceExecutionAsCompletedBy(completedBy 
 	return nil
 }
 
+func (fc *FeatureContext) iMarkTheMaintenanceExecutionAsCompletedByWithFieldValue(completedBy, fieldName, fieldValue string) error {
+	fieldValues := map[string]any{fieldName: fieldValue}
+	resp, err := fc.apiDriver.MarkMaintenanceExecutionCompletedWithFieldValues(fc.maintenanceExecutionID, completedBy, fieldValues)
+	fc.require.NoError(err)
+	fc.response = resp
+	fc.responseData = nil
+	return nil
+}
+
+func (fc *FeatureContext) theResponseShouldContainFieldValueSetTo(fieldName, fieldValue string) error {
+	var data map[string]any
+	if fc.responseData != nil {
+		data = fc.responseData
+	} else {
+		err := fc.decodeBody(fc.response.Body, &data)
+		fc.require.NoError(err)
+		fc.responseData = data
+	}
+	fieldValues, ok := data["field_values"].(map[string]any)
+	fc.require.True(ok, "response should contain field_values")
+	fc.require.Equal(fieldValue, fieldValues[fieldName])
+	return nil
+}
+
+func (fc *FeatureContext) iRequestTheVAPIDPublicKey() error {
+	resp, err := fc.apiDriver.GetVAPIDPublicKey()
+	fc.require.NoError(err)
+	fc.response = resp
+	fc.responseData = nil
+	return nil
+}
+
+func (fc *FeatureContext) theResponseShouldContainAVAPIDPublicKey() error {
+	var data map[string]any
+	err := fc.decodeBody(fc.response.Body, &data)
+	fc.require.NoError(err)
+	fc.responseData = data
+	publicKey, ok := data["public_key"].(string)
+	fc.require.True(ok, "response should contain public_key")
+	fc.require.NotEmpty(publicKey)
+	return nil
+}
+
 func (fc *FeatureContext) theResponseShouldContainACompletedMaintenanceExecution() error {
 	var data map[string]any
 	if fc.responseData != nil {

@@ -29,6 +29,16 @@ Feature: Maintenance Execution Management
     And the response should contain a completed maintenance execution
     And the response should contain completed_by "user@test.com"
 
+  Scenario: Complete a maintenance execution capturing field values
+    Given a maintenance execution exists for the activity
+    When I mark the maintenance execution as completed by "user@test.com" with field value "notes" set to "Replaced filter"
+    And wait for 50ms
+    And I get the maintenance execution by its ID
+    Then the response status code should be 200
+    And the response should contain a completed maintenance execution
+    And the response should contain field value "notes" set to "Replaced filter"
+    And the response should contain field value "service_type" set to "Regular Service"
+
   Scenario: Cannot mark a future maintenance execution as completed
     Given a future maintenance execution exists for the activity
     When I mark the maintenance execution as completed by "user@test.com"

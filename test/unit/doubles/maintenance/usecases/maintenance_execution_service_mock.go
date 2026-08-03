@@ -89,15 +89,15 @@ func (mr *MockExecutionServiceMockRecorder) ListExecutionsByActivity(ctx, activi
 }
 
 // MarkExecutionCompleted mocks base method.
-func (m *MockExecutionService) MarkExecutionCompleted(ctx context.Context, id domain0.ID, completedBy string) error {
+func (m *MockExecutionService) MarkExecutionCompleted(ctx context.Context, id domain0.ID, completedBy string, fieldValues map[string]any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MarkExecutionCompleted", ctx, id, completedBy)
+	ret := m.ctrl.Call(m, "MarkExecutionCompleted", ctx, id, completedBy, fieldValues)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // MarkExecutionCompleted indicates an expected call of MarkExecutionCompleted.
-func (mr *MockExecutionServiceMockRecorder) MarkExecutionCompleted(ctx, id, completedBy any) *gomock.Call {
+func (mr *MockExecutionServiceMockRecorder) MarkExecutionCompleted(ctx, id, completedBy, fieldValues any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkExecutionCompleted", reflect.TypeOf((*MockExecutionService)(nil).MarkExecutionCompleted), ctx, id, completedBy)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkExecutionCompleted", reflect.TypeOf((*MockExecutionService)(nil).MarkExecutionCompleted), ctx, id, completedBy, fieldValues)
 }

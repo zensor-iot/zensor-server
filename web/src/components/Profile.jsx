@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
-import { User, Mail, Shield, UserCircle, Clock, Settings } from 'lucide-react'
+import { User, Mail, Shield, UserCircle, Clock, Settings, Bell } from 'lucide-react'
 import { useNotification } from '../hooks/useNotification'
 import TimezoneDropdown from './TimezoneDropdown'
+import {
+    isWebPushSupported,
+    getExistingSubscription,
+    enableBrowserNotifications,
+    disableBrowserNotifications,
+    PermissionDeniedError
+} from '../utils/webPush'
 
 const Profile = () => {
     const { showSuccess, showError, showApiNotification } = useNotification()
@@ -16,6 +23,49 @@ const Profile = () => {
         timezone: '',
         notification_email: ''
     })
+    const [pushSupported] = useState(isWebPushSupported())
+    const [pushEnabled, setPushEnabled] = useState(false)
+    const [pushBusy, setPushBusy] = useState(false)
+    const [pushPermissionDenied, setPushPermissionDenied] = useState(
+        typeof Notification !== 'undefined' && Notification.permission === 'denied'
+    )
+
+    useEffect(() => {
+        if (!pushSupported) {
+            return
+        }
+        getExistingSubscription()
+            .then(subscription => setPushEnabled(Boolean(subscription)))
+            .catch(() => setPushEnabled(false))
+    }, [pushSupported])
+
+    const handlePushToggle = async () => {
+        const userId = userInfo?.user_id
+        if (!userId || pushBusy) {
+            return
+        }
+        setPushBusy(true)
+        try {
+            if (pushEnabled) {
+                await disableBrowserNotifications(userId)
+                setPushEnabled(false)
+                showSuccess('Browser notifications disabled')
+            } else {
+                await enableBrowserNotifications(userId)
+                setPushEnabled(true)
+                setPushPermissionDenied(false)
+                showSuccess('Browser notifications enabled')
+            }
+        } catch (err) {
+            if (err instanceof PermissionDeniedError) {
+                setPushPermissionDenied(true)
+            } else {
+                showError(`Failed to update browser notifications: ${err.message}`, 'Error')
+            }
+        } finally {
+            setPushBusy(false)
+        }
+    }
 
     useEffect(() => {
         const fetchData = async () => {
@@ -279,6 +329,46 @@ const Profile = () => {
                         </div>
                     </div>
 
+                </div>
+            </div>
+
+            {/* Browser Notifications Section */}
+            <div className="profile-card">
+                <div className="profile-section-header">
+                    <Bell size={20} />
+                    <h3>Browser Notifications</h3>
+                </div>
+
+                <div className="profile-details">
+                    {!pushSupported ? (
+                        <p className="field-value">
+                            Your browser does not support push notifications.
+                        </p>
+                    ) : (
+                        <div className="profile-field">
+                            <div className="field-label">
+                                <Bell size={16} />
+                                Maintenance reminders and alerts
+                            </div>
+                            <div className="field-value">
+                                <label className="push-toggle">
+                                    <input
+                                        type="checkbox"
+                                        checked={pushEnabled}
+                                        disabled={pushBusy || !userInfo?.user_id}
+                                        onChange={handlePushToggle}
+                                    />
+                                    <span>{pushEnabled ? 'Enabled on this browser' : 'Disabled'}</span>
+                                </label>
+                                {pushPermissionDenied && (
+                                    <p className="push-permission-hint">
+                                        Notifications are blocked for this site. Allow notifications in your
+                                        browser&apos;s site settings, then try again.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

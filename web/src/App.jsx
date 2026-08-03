@@ -9,6 +9,11 @@ import TenantList from './components/TenantList'
 import TenantDevices from './components/TenantDevices'
 import TenantPortal from './components/TenantPortal'
 import DeviceMessagesLive from './components/DeviceMessagesLive'
+import MaintenanceActivities from './components/maintenance/MaintenanceActivities'
+import MaintenanceActivityCreate from './components/maintenance/MaintenanceActivityCreate'
+import MaintenanceActivityDetail from './components/maintenance/MaintenanceActivityDetail'
+import MaintenanceUpNext from './components/maintenance/MaintenanceUpNext'
+import ExecutionDeeplink from './components/maintenance/ExecutionDeeplink'
 import UserInfo from './components/UserInfo'
 import Profile from './components/Profile'
 import AdminDashboard from './components/admin/AdminDashboard'
@@ -98,6 +103,11 @@ function AppContent() {
             <Route path="/" element={<TenantList />} />
             <Route path="/tenants/:tenantId/devices" element={<TenantDevices />} />
             <Route path="/portal/:tenantId" element={<TenantPortal />} />
+            <Route path="/portal/:tenantId/maintenance" element={<MaintenanceActivities />} />
+            <Route path="/portal/:tenantId/maintenance/new" element={<MaintenanceActivityCreate />} />
+            <Route path="/portal/:tenantId/maintenance/activities/:activityId" element={<MaintenanceActivityDetail />} />
+            <Route path="/portal/:tenantId/maintenance/up-next" element={<MaintenanceUpNext />} />
+            <Route path="/maintenance/executions/:executionId" element={<ExecutionDeeplink />} />
             <Route path="/live-messages" element={<DeviceMessagesLive />} />
             <Route path="/energy" element={<VictronDashboard />} />
             <Route path="/profile" element={<Profile />} />

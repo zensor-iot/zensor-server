@@ -142,6 +142,124 @@ export const scheduledTasksApi = {
     }
 }
 
+// Maintenance API functions
+export const maintenanceApi = {
+    async listActivities(tenantId, page = 1, limit = 10) {
+        const response = await fetch(getApiUrl(`/maintenance/activities?tenant_id=${tenantId}&page=${page}&limit=${limit}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch maintenance activities: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    // Pages through every activity for the tenant (used by Up Next).
+    async listAllActivities(tenantId) {
+        const limit = 50
+        let page = 1
+        const activities = []
+        for (;;) {
+            const data = await this.listActivities(tenantId, page, limit)
+            const items = data.data || []
+            activities.push(...items)
+            const total = data.pagination?.total ?? activities.length
+            if (activities.length >= total || items.length === 0) {
+                return activities
+            }
+            page++
+        }
+    },
+
+    async getActivity(activityId) {
+        const response = await fetch(getApiUrl(`/maintenance/activities/${activityId}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch maintenance activity: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async createActivity(activityData) {
+        const response = await fetch(getApiUrl('/maintenance/activities'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(activityData)
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to create maintenance activity: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async updateActivity(activityId, updates) {
+        const response = await fetch(getApiUrl(`/maintenance/activities/${activityId}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to update maintenance activity: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async deleteActivity(activityId) {
+        const response = await fetch(getApiUrl(`/maintenance/activities/${activityId}`), {
+            method: 'DELETE'
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to delete maintenance activity: ${response.status}`)
+        }
+    },
+
+    async activateActivity(activityId) {
+        const response = await fetch(getApiUrl(`/maintenance/activities/${activityId}/activate`), {
+            method: 'POST'
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to activate maintenance activity: ${response.status}`)
+        }
+    },
+
+    async deactivateActivity(activityId) {
+        const response = await fetch(getApiUrl(`/maintenance/activities/${activityId}/deactivate`), {
+            method: 'POST'
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to deactivate maintenance activity: ${response.status}`)
+        }
+    },
+
+    async listExecutions(activityId, page = 1, limit = 50) {
+        const response = await fetch(getApiUrl(`/maintenance/executions?activity_id=${activityId}&page=${page}&limit=${limit}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch maintenance executions: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async getExecution(executionId) {
+        const response = await fetch(getApiUrl(`/maintenance/executions/${executionId}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch maintenance execution: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async completeExecution(executionId, completedBy, fieldValues = null) {
+        const body = { completed_by: completedBy }
+        if (fieldValues && Object.keys(fieldValues).length > 0) {
+            body.field_values = fieldValues
+        }
+        const response = await fetch(getApiUrl(`/maintenance/executions/${executionId}/complete`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to complete maintenance execution: ${response.status}`)
+        }
+    }
+}
+
 // Device Commands API functions
 export const deviceCommandsApi = {
     // Send a command to a device
