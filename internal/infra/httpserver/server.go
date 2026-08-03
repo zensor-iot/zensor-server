@@ -49,9 +49,10 @@ func NewServer(controllers ...Controller) *StandardServer {
 }
 
 // NewServerWithAuth builds a server whose /v1/* and /ws/* routes are protected by
-// session authentication. /v1/me is expected to be registered by an auth controller.
-func NewServerWithAuth(resolver SessionResolver, controllers ...Controller) *StandardServer {
-	return newServer(NewAuthMiddleware(resolver), false, controllers)
+// session or API key authentication. /v1/me is expected to be registered by an
+// auth controller.
+func NewServerWithAuth(sessions SessionResolver, apiKeys APIKeyResolver, controllers ...Controller) *StandardServer {
+	return newServer(NewAuthMiddleware(sessions, apiKeys), false, controllers)
 }
 
 func newServer(userMiddleware func(http.Handler) http.Handler, includeLegacyMe bool, controllers []Controller) *StandardServer {
