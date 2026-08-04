@@ -1,6 +1,9 @@
 // Native Web Push enrollment helpers. The PushSubscription JSON is stored
 // verbatim as the token on the server (platform "web").
 
+// The SPA (including sw.js) is served under Vite's base path, not the site root.
+const serviceWorkerUrl = `${import.meta.env.BASE_URL}sw.js`
+
 export const isWebPushSupported = () =>
     typeof navigator !== 'undefined' &&
     'serviceWorker' in navigator &&
@@ -39,7 +42,7 @@ export async function getExistingSubscription() {
     if (!isWebPushSupported()) {
         return null
     }
-    const registration = await navigator.serviceWorker.getRegistration('/sw.js')
+    const registration = await navigator.serviceWorker.getRegistration(serviceWorkerUrl)
     if (!registration) {
         return null
     }
@@ -48,7 +51,7 @@ export async function getExistingSubscription() {
 
 export async function enableBrowserNotifications(userId) {
     const publicKey = await fetchVapidPublicKey()
-    const registration = await navigator.serviceWorker.register('/sw.js')
+    const registration = await navigator.serviceWorker.register(serviceWorkerUrl)
 
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {

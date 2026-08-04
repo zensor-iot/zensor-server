@@ -1,12 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const base = '/ui/'
+
 export default defineConfig({
   plugins: [react()],
-  base: '/ui/',
+  base,
   build: {
     outDir: '../internal/infra/httpserver/web/dist',
     emptyOutDir: true,
+  },
+  test: {
+    env: {
+      BASE_URL: base,
+    },
   },
   server: {
     proxy: {

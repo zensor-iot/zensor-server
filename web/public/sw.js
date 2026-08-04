@@ -1,5 +1,9 @@
 /* Service worker for native Web Push notifications. */
 
+/* The worker is served under the SPA base path (e.g. /ui/sw.js), so static
+   assets and fallback links must resolve relative to it, not the site root. */
+const workerBasePath = new URL('./', self.location.href).pathname
+
 self.addEventListener('push', (event) => {
     let payload = {}
     try {
@@ -11,8 +15,8 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'Zensor'
     const options = {
         body: payload.body || '',
-        icon: '/vite.svg',
-        data: { deeplink: payload.deeplink || '/' }
+        icon: `${workerBasePath}vite.svg`,
+        data: { deeplink: payload.deeplink || workerBasePath }
     }
 
     event.waitUntil(self.registration.showNotification(title, options))
