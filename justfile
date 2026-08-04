@@ -224,8 +224,13 @@ tdd path="internal":
     just _web-build
     go run github.com/onsi/ginkgo/v2/ginkgo watch --race {{path}}
 
+_web-test:
+    pnpm -C web install --frozen-lockfile
+    pnpm -C web run test
+
 unit path="internal":
     just _web-build
+    just _web-test
     go run github.com/onsi/ginkgo/v2/ginkgo run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --cover --coverprofile=coverprofile.out --race --trace --timeout=4m {{path}}
 
 functional module tags="~@pending": build
