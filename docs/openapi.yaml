@@ -25,6 +25,7 @@ paths:
       description: Returns the health status of the server
       tags:
         - Health
+      security: []
       responses:
         "200":
           description: Server is healthy
@@ -43,6 +44,7 @@ paths:
       description: Returns Prometheus-formatted metrics
       tags:
         - Monitoring
+      security: []
       responses:
         "200":
           description: Metrics in Prometheus format
@@ -58,6 +60,7 @@ paths:
       description: Sets a short-lived CSRF state cookie and redirects the browser to the OAuth provider's consent page
       tags:
         - Authentication
+      security: []
       responses:
         "302":
           description: Redirect to the OAuth provider authorization URL
@@ -78,6 +81,7 @@ paths:
       description: Handles the OAuth provider redirect, validates the CSRF state, exchanges the authorization code, creates a session, and redirects to the web UI. Users not on the allowlist are redirected to the access-denied page.
       tags:
         - Authentication
+      security: []
       parameters:
         - name: state
           in: query
@@ -113,6 +117,7 @@ paths:
       description: Invalidates the current session and clears the session cookie
       tags:
         - Authentication
+      security: []
       responses:
         "204":
           description: Logged out successfully
@@ -143,6 +148,8 @@ paths:
       description: Retrieve all allowlist entries
       tags:
         - Authentication
+      security:
+        - sessionCookie: []
       responses:
         "200":
           description: List of allowed users
@@ -152,6 +159,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AllowedUserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminForbidden"
         "500":
           description: Failed to list allowed users
 
@@ -160,6 +171,8 @@ paths:
       description: Add an email address to the login allowlist
       tags:
         - Authentication
+      security:
+        - sessionCookie: []
       requestBody:
         required: true
         content:
@@ -175,6 +188,10 @@ paths:
                 $ref: "#/components/schemas/AllowedUserResponse"
         "400":
           description: Invalid allowed user
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminForbidden"
         "409":
           description: Email already allowed
 
@@ -184,6 +201,8 @@ paths:
       description: Update an allowlist entry (admin flag)
       tags:
         - Authentication
+      security:
+        - sessionCookie: []
       parameters:
         - name: id
           in: path
@@ -207,6 +226,10 @@ paths:
                 $ref: "#/components/schemas/AllowedUserResponse"
         "400":
           description: Invalid request body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminForbidden"
         "404":
           description: Allowed user not found
         "500":
@@ -217,6 +240,8 @@ paths:
       description: Remove an entry from the login allowlist
       tags:
         - Authentication
+      security:
+        - sessionCookie: []
       parameters:
         - name: id
           in: path
@@ -230,6 +255,10 @@ paths:
           description: Allowed user removed successfully
         "400":
           description: ID is required
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminForbidden"
         "500":
           description: Failed to remove allowed user
 
@@ -239,6 +268,8 @@ paths:
       description: Retrieve all API keys; key material is never returned
       tags:
         - Authentication
+      security:
+        - sessionCookie: []
       responses:
         "200":
           description: List of API keys
@@ -248,6 +279,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/APIKeyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminForbidden"
         "500":
           description: Failed to list API keys
 
@@ -260,6 +295,8 @@ paths:
         to `/v1/admin/*` routes.
       tags:
         - Authentication
+      security:
+        - sessionCookie: []
       requestBody:
         required: true
         content:
@@ -275,6 +312,10 @@ paths:
                 $ref: "#/components/schemas/APIKeyCreatedResponse"
         "400":
           description: Name is required
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminForbidden"
         "409":
           description: API key name already exists
 
@@ -284,6 +325,8 @@ paths:
       description: Permanently revoke an API key; revocation takes effect immediately
       tags:
         - Authentication
+      security:
+        - sessionCookie: []
       parameters:
         - name: id
           in: path
@@ -295,6 +338,10 @@ paths:
       responses:
         "204":
           description: API key revoked successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminForbidden"
         "404":
           description: API key not found
         "500":
@@ -3634,6 +3681,26 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
 
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "authentication required"
+
+    AdminForbidden:
+      description: >-
+        Admin access required. Returned when the caller authenticated with an
+        API key, or with a session that is not flagged as admin.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "admin access required"
+
   securitySchemes:
     apiKeyBearer:
       type: http
@@ -3642,6 +3709,18 @@ components:
         API key issued via POST /v1/admin/api-keys, presented as
         `Authorization: Bearer zsk_...`. Grants access to the full API except
         `/v1/admin/*` routes.
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zensor_session
+      description: >-
+        HttpOnly session cookie issued by the OAuth callback. Required for
+        `/v1/admin/*` routes, which additionally require the session to be
+        flagged as admin.
+
+security:
+  - sessionCookie: []
+  - apiKeyBearer: []
 
 tags:
   - name: Health
