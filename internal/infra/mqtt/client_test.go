@@ -32,6 +32,35 @@ var _ = ginkgo.Describe("MQTT Client", func() {
 		})
 	})
 
+	ginkgo.Context("NewSimpleClient", func() {
+		var opts mqtt.SimpleClientOpts
+
+		ginkgo.When("the broker is unreachable", func() {
+			ginkgo.BeforeEach(func() {
+				opts = mqtt.SimpleClientOpts{
+					Broker:   "tcp://127.0.0.1:1",
+					ClientID: "test-client",
+					Username: "test-user",
+					Password: "test-pass",
+				}
+			})
+
+			ginkgo.It("should not panic", func() {
+				gomega.Expect(func() { mqtt.NewSimpleClient(opts) }).NotTo(gomega.Panic())
+			})
+
+			ginkgo.It("should return a usable client", func() {
+				gomega.Expect(mqtt.NewSimpleClient(opts)).NotTo(gomega.BeNil())
+			})
+
+			ginkgo.It("should defer subscriptions instead of failing", func() {
+				client := mqtt.NewSimpleClient(opts)
+				err := client.Subscribe("any/topic", 0, func(mqtt.Client, mqtt.Message) {})
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			})
+		})
+	})
+
 	ginkgo.Context("MessageTypeAlias", func() {
 		ginkgo.When("checking message type alias", func() {
 			ginkgo.It("should properly alias Message to paho.Message", func() {

@@ -16,10 +16,13 @@ import (
 )
 
 const (
-	_defaultQoS           = 0 // At most once
-	_defaultRetained      = false
-	_publishTimeout       = 5 * time.Second
-	_maxReconnectInterval = 1 * time.Minute
+	_defaultQoS            = 0 // At most once
+	_defaultRetained       = false
+	_publishTimeout        = 5 * time.Second
+	_maxReconnectInterval  = 1 * time.Minute
+	_connectRetryInterval  = 10 * time.Second
+	_subscribeWaitTimeout  = 5 * time.Second
+	_disconnectQuiesceMsec = 5000
 )
 
 type Client interface {
@@ -73,18 +76,28 @@ func NewSimpleClient(opts SimpleClientOpts) *SimpleClient {
 		SetConnectTimeout(5 * time.Second).
 		SetCleanSession(true).                          // Always start with a clean session
 		SetMaxReconnectInterval(_maxReconnectInterval). // Limit reconnection attempts
+		SetConnectRetry(true).                          // Keep retrying the initial connection instead of failing hard
+		SetConnectRetryInterval(_connectRetryInterval).
 		SetDefaultPublishHandler(func(client paho.Client, msg paho.Message) {
 			slog.Debug("received message on default handler", "topic", msg.Topic())
 		})
 
 	client := paho.NewClient(pahoOpts)
-	token := client.Connect()
-	token.WaitTimeout(5 * time.Second)
-	if token.Error() != nil {
-		panic(token.Error())
+	simpleClient.client = client
+
+	slog.Info("connecting to MQTT broker",
+		"broker", opts.Broker,
+		"client_id", uniqueClientID,
+	)
+	if token := client.Connect(); token.Error() != nil {
+		slog.Error("connecting to MQTT broker, retrying in background",
+			"broker", opts.Broker,
+			"client_id", uniqueClientID,
+			"error", token.Error(),
+			"retry_interval", _connectRetryInterval,
+		)
 	}
 
-	simpleClient.client = client
 	return simpleClient
 }
 
@@ -110,46 +123,16 @@ func (c *SimpleClient) resubscribeAll(client paho.Client) {
 	slog.Info("restoring MQTT subscriptions after reconnection", "count", len(c.subscriptions))
 
 	for topic, sub := range c.subscriptions {
-		pahoCallback := func(_ paho.Client, msg paho.Message) {
-			// Check for duplicate messages
-			msgKey := fmt.Sprintf("%s-%d", msg.Topic(), msg.MessageID())
-			if _, exists := c.processedMsgs.LoadOrStore(msgKey, true); exists {
-				slog.Debug("duplicate message ignored", "topic", msg.Topic(), "message_id", msg.MessageID())
-				msg.Ack() // Still acknowledge to prevent retransmission
-				return
-			}
-
-			sub.callback(c, msg)
-			msg.Ack()
-
-			// Clean up processed message tracking after some time
-			go func(key string) {
-				time.Sleep(30 * time.Second)
-				c.processedMsgs.Delete(key)
-			}(msgKey)
-		}
-
-		token := client.Subscribe(sub.topic, sub.qos, pahoCallback)
-		token.WaitTimeout(5 * time.Second)
-		if token.Error() != nil {
+		if err := c.subscribeOnBroker(client, sub); err != nil {
 			slog.Error("failed to restore subscription after reconnection",
-				"topic", topic, "error", token.Error())
+				"topic", topic, "error", err)
 		} else {
 			slog.Debug("subscription restored", "topic", topic)
 		}
 	}
 }
 
-func (c *SimpleClient) Subscribe(topic string, qos byte, callback MessageHandler) error {
-	// Store subscription for reconnection recovery
-	c.mu.Lock()
-	c.subscriptions[topic] = subscription{
-		topic:    topic,
-		qos:      qos,
-		callback: callback,
-	}
-	c.mu.Unlock()
-
+func (c *SimpleClient) subscribeOnBroker(client paho.Client, sub subscription) error {
 	pahoCallback := func(_ paho.Client, msg paho.Message) {
 		// Check for duplicate messages
 		msgKey := fmt.Sprintf("%s-%d", msg.Topic(), msg.MessageID())
@@ -159,7 +142,7 @@ func (c *SimpleClient) Subscribe(topic string, qos byte, callback MessageHandler
 			return
 		}
 
-		callback(c, msg)
+		sub.callback(c, msg)
 		msg.Ack()
 
 		// Clean up processed message tracking after some time
@@ -168,14 +151,36 @@ func (c *SimpleClient) Subscribe(topic string, qos byte, callback MessageHandler
 			c.processedMsgs.Delete(key)
 		}(msgKey)
 	}
-	token := c.client.Subscribe(topic, qos, pahoCallback)
-	token.WaitTimeout(5 * time.Second)
+
+	token := client.Subscribe(sub.topic, sub.qos, pahoCallback)
+	token.WaitTimeout(_subscribeWaitTimeout)
 	if token.Error() != nil {
-		// Remove from subscriptions if subscribe failed
-		c.mu.Lock()
-		delete(c.subscriptions, topic)
-		c.mu.Unlock()
-		return fmt.Errorf("subscribing to topic %s: %w", topic, token.Error())
+		return fmt.Errorf("subscribing to topic %s: %w", sub.topic, token.Error())
+	}
+
+	return nil
+}
+
+func (c *SimpleClient) Subscribe(topic string, qos byte, callback MessageHandler) error {
+	sub := subscription{
+		topic:    topic,
+		qos:      qos,
+		callback: callback,
+	}
+
+	// Store subscription so the connect handler can (re)establish it
+	c.mu.Lock()
+	c.subscriptions[topic] = sub
+	c.mu.Unlock()
+
+	if !c.client.IsConnectionOpen() {
+		slog.Warn("MQTT broker not connected, subscription deferred until connection is established",
+			"topic", topic, "qos", qos)
+		return nil
+	}
+
+	if err := c.subscribeOnBroker(c.client, sub); err != nil {
+		return err
 	}
 
 	slog.Info("subscribed to MQTT topic", "topic", topic, "qos", qos)
@@ -195,8 +200,7 @@ func (c *SimpleClient) Disconnect() {
 	// Clear processed messages tracking
 	c.processedMsgs = sync.Map{}
 
-	waitForInMilliseconds := 5 * 1000
-	c.client.Disconnect(uint(waitForInMilliseconds))
+	c.client.Disconnect(_disconnectQuiesceMsec)
 }
 
 func (c *SimpleClient) Publish(ctx context.Context, topic string, msg any) error {
