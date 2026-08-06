@@ -127,6 +127,13 @@ type VebusData struct {
 	Voltage  float64 `json:"voltage,omitempty"`
 	Current  float64 `json:"current,omitempty"`
 	Soc      float64 `json:"soc,omitempty"`
+
+	// ActiveIn holds the shore-power/grid input feeding the inverter.
+	// ActiveInConnected is nil until the GX publishes Ac/ActiveIn/Connected,
+	// which distinguishes "reported as disconnected" from "never reported".
+	ActiveInVoltage   float64 `json:"active_in_voltage,omitempty"`
+	ActiveInCurrent   float64 `json:"active_in_current,omitempty"`
+	ActiveInConnected *bool   `json:"active_in_connected,omitempty"`
 }
 
 type GeneratorData struct {

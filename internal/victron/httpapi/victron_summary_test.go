@@ -56,6 +56,102 @@ var _ = ginkgo.Describe("VictronWebSocketController summary endpoint", func() {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	}
 
+	publishVebusTelemetry := func(path string, value float64) {
+		telemetry := dto.VictronTelemetry{
+			PortalID:    "d41243b4e8e4",
+			ServiceType: "vebus",
+			Instance:    0,
+			Path:        path,
+			Value:       dto.VictronValue{Value: value},
+			Topic:       "N/d41243b4e8e4/vebus/0/" + path,
+		}
+
+		err := broker.Publish(context.Background(), async.BrokerTopicName("victron_data"), async.BrokerMessage{
+			Event: "vebus_" + path,
+			Value: telemetry,
+		})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	}
+
+	getSummary := func() httpapi.VictronSystemSummary {
+		response, err := http.Get(server.URL + "/v1/victron/summary")
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		defer response.Body.Close()
+
+		gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusOK))
+
+		var body httpapi.VictronSystemSummary
+		gomega.Expect(json.NewDecoder(response.Body).Decode(&body)).To(gomega.Succeed())
+		return body
+	}
+
+	ginkgo.Context("AC input state", func() {
+		ginkgo.When("the AC input reports a live voltage", func() {
+			ginkgo.BeforeEach(func() {
+				publishVebusTelemetry("Ac/ActiveIn/L1/V", 121.4)
+				time.Sleep(100 * time.Millisecond)
+			})
+
+			ginkgo.It("should report the input voltage", func() {
+				gomega.Expect(getSummary().AcInputVoltage).To(gomega.Equal(121.4))
+			})
+
+			ginkgo.It("should report the input as connected", func() {
+				gomega.Expect(getSummary().AcInputConnected).To(gomega.BeTrue())
+			})
+		})
+
+		ginkgo.When("the AC input voltage drops below the connected threshold", func() {
+			ginkgo.BeforeEach(func() {
+				publishVebusTelemetry("Ac/ActiveIn/L1/V", 45)
+				time.Sleep(100 * time.Millisecond)
+			})
+
+			ginkgo.It("should report the input as disconnected", func() {
+				summary := getSummary()
+				gomega.Expect(summary.AcInputVoltage).To(gomega.Equal(45.0))
+				gomega.Expect(summary.AcInputConnected).To(gomega.BeFalse())
+			})
+		})
+
+		ginkgo.When("the GX publishes an explicit disconnected flag despite a live voltage", func() {
+			ginkgo.BeforeEach(func() {
+				publishVebusTelemetry("Ac/ActiveIn/L1/V", 121.4)
+				publishVebusTelemetry("Ac/ActiveIn/Connected", 0)
+				time.Sleep(100 * time.Millisecond)
+			})
+
+			ginkgo.It("should prefer the explicit flag over the voltage threshold", func() {
+				gomega.Expect(getSummary().AcInputConnected).To(gomega.BeFalse())
+			})
+		})
+
+		ginkgo.When("the GX publishes an explicit connected flag with a low voltage", func() {
+			ginkgo.BeforeEach(func() {
+				publishVebusTelemetry("Ac/ActiveIn/L1/V", 45)
+				publishVebusTelemetry("Ac/ActiveIn/Connected", 1)
+				time.Sleep(100 * time.Millisecond)
+			})
+
+			ginkgo.It("should prefer the explicit flag over the voltage threshold", func() {
+				gomega.Expect(getSummary().AcInputConnected).To(gomega.BeTrue())
+			})
+		})
+
+		ginkgo.When("no AC input telemetry has arrived but other telemetry has", func() {
+			ginkgo.BeforeEach(func() {
+				publishSystemTelemetry("Battery/Soc", 87)
+				time.Sleep(100 * time.Millisecond)
+			})
+
+			ginkgo.It("should report the input as disconnected", func() {
+				summary := getSummary()
+				gomega.Expect(summary.AcInputVoltage).To(gomega.Equal(0.0))
+				gomega.Expect(summary.AcInputConnected).To(gomega.BeFalse())
+			})
+		})
+	})
+
 	ginkgo.Context("GET /v1/victron/summary", func() {
 		ginkgo.When("telemetry has already been received", func() {
 			ginkgo.BeforeEach(func() {

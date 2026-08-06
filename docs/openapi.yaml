@@ -3385,6 +3385,22 @@ components:
           type: boolean
           description: True when battery power is negative
           example: false
+        ac_input_voltage:
+          type: number
+          format: double
+          description: >-
+            Voltage on the inverter's active AC input (shore power / grid), from
+            `vebus/<instance>/Ac/ActiveIn/L1/V`. Zero when no vebus device has
+            reported it.
+          example: 121.4
+        ac_input_connected:
+          type: boolean
+          description: >-
+            Whether the AC input is live. Taken from
+            `vebus/<instance>/Ac/ActiveIn/Connected` when the GX publishes it;
+            otherwise derived from `ac_input_voltage`, which is treated as
+            connected at 100 V or above.
+          example: true
 
     VictronSystemSnapshot:
       type: object
@@ -3569,6 +3585,19 @@ components:
         soc:
           type: number
           format: double
+        active_in_voltage:
+          type: number
+          format: double
+          description: Voltage on the active AC input (Ac/ActiveIn/L1/V)
+        active_in_current:
+          type: number
+          format: double
+          description: Current on the active AC input (Ac/ActiveIn/L1/I)
+        active_in_connected:
+          type: boolean
+          description: >-
+            Present only once the GX has published Ac/ActiveIn/Connected;
+            absent means the device has never reported the flag.
 
     VictronGeneratorData:
       type: object

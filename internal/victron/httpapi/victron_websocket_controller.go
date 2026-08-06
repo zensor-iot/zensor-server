@@ -17,6 +17,12 @@ import (
 const (
 	victronStatusMessageType = "victron_status"
 	noVictronDataErrMessage  = "no victron data received yet"
+
+	// acInputConnectedVoltage is the threshold below which the AC input is
+	// treated as disconnected, used only when the GX does not publish
+	// Ac/ActiveIn/Connected. A live input sits near nominal line voltage;
+	// a disconnected one collapses well below this.
+	acInputConnectedVoltage = 100
 )
 
 var upgrader = websocket.Upgrader{
@@ -42,6 +48,9 @@ type VictronSystemSummary struct {
 	GridPower      float64 `json:"grid_power"`
 	IsCharging     bool    `json:"is_charging"`
 	IsInverting    bool    `json:"is_inverting"`
+
+	AcInputVoltage   float64 `json:"ac_input_voltage"`
+	AcInputConnected bool    `json:"ac_input_connected"`
 }
 
 type VictronWebSocketController struct {
@@ -436,6 +445,13 @@ func (wsc *VictronWebSocketController) updateVebusData(telemetry victrondto.Vict
 				wsc.snapshot.Vebus[i].State = telemetry.Value.Value
 			case "Ac/Out/P":
 				wsc.snapshot.Vebus[i].Power = telemetry.Value.Value
+			case "Ac/ActiveIn/L1/V":
+				wsc.snapshot.Vebus[i].ActiveInVoltage = telemetry.Value.Value
+			case "Ac/ActiveIn/L1/I":
+				wsc.snapshot.Vebus[i].ActiveInCurrent = telemetry.Value.Value
+			case "Ac/ActiveIn/Connected":
+				connected := telemetry.Value.Value > 0
+				wsc.snapshot.Vebus[i].ActiveInConnected = &connected
 			}
 			return
 		}
@@ -508,6 +524,20 @@ func buildSummary(snapshot victrondto.VictronSystemSnapshot) VictronSystemSummar
 
 	for _, l := range snapshot.AcLoads {
 		summary.AcLoadPower += l.Power
+	}
+
+	reportedConnected := false
+	for _, v := range snapshot.Vebus {
+		if v.ActiveInVoltage != 0 {
+			summary.AcInputVoltage = v.ActiveInVoltage
+		}
+		if v.ActiveInConnected != nil {
+			summary.AcInputConnected = *v.ActiveInConnected
+			reportedConnected = true
+		}
+	}
+	if !reportedConnected {
+		summary.AcInputConnected = summary.AcInputVoltage >= acInputConnectedVoltage
 	}
 
 	gridPower := summary.AcLoadPower - summary.SolarPower - summary.BatteryPower
