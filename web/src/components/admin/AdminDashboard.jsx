@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Building, Cpu, Play, Shield, Activity, Users, Database, RefreshCw } from 'lucide-react'
+import { Building, Cpu, Play, Shield, Activity, Users, Database, RefreshCw, KeyRound } from 'lucide-react'
 import { useNotification } from '../../hooks/useNotification'
 import './AdminDashboard.css'
 
@@ -81,6 +81,13 @@ const AdminDashboard = () => {
             icon: Users,
             link: '/admin/users',
             color: 'purple'
+        },
+        {
+            title: 'API Keys',
+            description: 'Issue and revoke keys for non-human clients',
+            icon: KeyRound,
+            link: '/admin/api-keys',
+            color: 'teal'
         }
     ]
 

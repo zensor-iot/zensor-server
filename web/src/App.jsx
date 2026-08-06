@@ -23,6 +23,7 @@ import AdminScheduledTasks from './components/admin/AdminScheduledTasks'
 import AdminTaskExecutions from './components/admin/AdminTaskExecutions'
 import AdminCommands from './components/admin/AdminCommands'
 import AdminHealth from './components/admin/AdminHealth'
+import AdminApiKeys from './components/admin/AdminApiKeys'
 import { NotificationProvider } from './components/NotificationSystem'
 import './App.css'
 
@@ -121,6 +122,7 @@ function AppContent() {
             <Route path="/admin/commands" element={<AdminCommands />} />
             <Route path="/admin/health" element={<AdminHealth />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/api-keys" element={<AdminApiKeys />} />
           </Routes>
         </main>
       </div>

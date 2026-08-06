@@ -1,0 +1,316 @@
+.admin-api-keys {
+    padding: 2rem;
+    max-width: 100%;
+    margin: 0 auto;
+    background: var(--background);
+    min-height: 100vh;
+}
+
+.admin-api-keys .admin-header {
+    margin-bottom: 2rem;
+}
+
+.admin-api-keys .header-top {
+    margin-bottom: 1rem;
+}
+
+.admin-api-keys .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+}
+
+.admin-api-keys .back-link:hover {
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.admin-api-keys .admin-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.admin-api-keys .admin-title h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.admin-api-keys .admin-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.admin-api-keys .loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+}
+
+.admin-api-keys .admin-actions {
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.admin-api-keys .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.admin-api-keys .btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.admin-api-keys .btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.admin-api-keys .btn-secondary {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.admin-api-keys .btn-secondary:hover {
+    background: var(--border);
+}
+
+.admin-api-keys .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.admin-api-keys .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.admin-api-keys .btn-icon:hover {
+    background: var(--border);
+    color: var(--text-primary);
+}
+
+.admin-api-keys .btn-icon.danger:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.admin-api-keys .form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.admin-api-keys .form-card {
+    background: var(--background);
+    border-radius: 12px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.admin-api-keys .form-card h2 {
+    margin: 0 0 1.5rem 0;
+    color: var(--text-primary);
+}
+
+.admin-api-keys .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.admin-api-keys .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.admin-api-keys .form-group input[type="text"] {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.admin-api-keys .form-hint {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.admin-api-keys .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.admin-api-keys .reveal-card {
+    max-width: 560px;
+}
+
+.admin-api-keys .reveal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #b45309;
+    margin-bottom: 1rem;
+}
+
+.admin-api-keys .reveal-title h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    color: var(--text-primary);
+}
+
+.admin-api-keys .reveal-warning {
+    margin: 0 0 1.25rem 0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.admin-api-keys .reveal-key {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.admin-api-keys .reveal-key input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85rem;
+}
+
+.admin-api-keys .reveal-key .btn {
+    white-space: nowrap;
+}
+
+.admin-api-keys .reveal-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+    margin: 1.25rem 0 0 0;
+    font-size: 0.9rem;
+}
+
+.admin-api-keys .reveal-meta dt {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.admin-api-keys .reveal-meta dd {
+    margin: 0;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.admin-api-keys .reveal-meta code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85rem;
+}
+
+.api-keys-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--background);
+}
+
+.api-keys-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.api-keys-table th,
+.api-keys-table td {
+    text-align: left;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.api-keys-table th {
+    background: var(--background-secondary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.api-keys-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.api-keys-table .key-prefix {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.api-key-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.api-keys-table .empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2rem;
+}
