@@ -1995,6 +1995,32 @@ paths:
               example:
                 message: "no victron data received yet"
 
+  /v1/victron/summary:
+    get:
+      summary: Get Victron system summary
+      description: >-
+        Returns only the headline figures for the installation — grid, battery,
+        solar and AC consumption — without the per-device snapshot or raw MQTT
+        topics returned by `/v1/victron/latest`. Available only when the victron
+        module is enabled.
+      tags:
+        - Victron
+      responses:
+        "200":
+          description: Victron system summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VictronSystemSummary"
+        "503":
+          description: No Victron telemetry has been received yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "no victron data received yet"
+
 components:
   schemas:
     # Common schemas

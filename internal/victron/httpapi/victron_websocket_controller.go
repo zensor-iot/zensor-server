@@ -82,26 +82,42 @@ var _ httpserver.Controller = (*VictronWebSocketController)(nil)
 func (wsc *VictronWebSocketController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /ws/victron/status", wsc.handleWebSocket())
 	router.Handle("GET /v1/victron/latest", wsc.getLatest())
+	router.Handle("GET /v1/victron/summary", wsc.getSummary())
 }
 
 func (wsc *VictronWebSocketController) getLatest() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		wsc.snapMux.RLock()
-		hasData := wsc.hasData
-		snapshotCopy := *wsc.snapshot
-		wsc.snapMux.RUnlock()
-
-		if !hasData {
+		snapshot, ok := wsc.currentSnapshot()
+		if !ok {
 			httpserver.ReplyWithError(w, http.StatusServiceUnavailable, noVictronDataErrMessage)
 			return
 		}
 
 		httpserver.ReplyJSONResponse(w, http.StatusOK, VictronSystemStatusMessage{
 			Type:   victronStatusMessageType,
-			Data:   snapshotCopy,
-			System: buildSummary(snapshotCopy),
+			Data:   snapshot,
+			System: buildSummary(snapshot),
 		})
 	}
+}
+
+func (wsc *VictronWebSocketController) getSummary() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		snapshot, ok := wsc.currentSnapshot()
+		if !ok {
+			httpserver.ReplyWithError(w, http.StatusServiceUnavailable, noVictronDataErrMessage)
+			return
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusOK, buildSummary(snapshot))
+	}
+}
+
+func (wsc *VictronWebSocketController) currentSnapshot() (victrondto.VictronSystemSnapshot, bool) {
+	wsc.snapMux.RLock()
+	defer wsc.snapMux.RUnlock()
+
+	return *wsc.snapshot, wsc.hasData
 }
 
 func (wsc *VictronWebSocketController) handleWebSocket() http.HandlerFunc {
