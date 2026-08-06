@@ -356,7 +356,9 @@ paths:
         - WebSocket
       responses:
         "101":
-          description: WebSocket connection established
+          description: >-
+            WebSocket connection established. The schema below describes each
+            message broadcast over the open socket, not an HTTP response body.
           headers:
             Upgrade:
               schema:
@@ -366,6 +368,10 @@ paths:
               schema:
                 type: string
                 example: "Upgrade"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceMessage"
 
   /ws/devices/{device_id}/messages:
     get:
@@ -384,7 +390,9 @@ paths:
             example: "123e4567-e89b-12d3-a456-426614174000"
       responses:
         "101":
-          description: WebSocket connection established
+          description: >-
+            WebSocket connection established. The schema below describes each
+            message broadcast over the open socket, not an HTTP response body.
           headers:
             Upgrade:
               schema:
@@ -394,6 +402,10 @@ paths:
               schema:
                 type: string
                 example: "Upgrade"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceMessage"
         "400":
           description: Bad request - device_id is required
           content:
@@ -413,7 +425,9 @@ paths:
         - WebSocket
       responses:
         "101":
-          description: WebSocket connection established
+          description: >-
+            WebSocket connection established. The schema below describes each
+            message broadcast over the open socket, not an HTTP response body.
           headers:
             Upgrade:
               schema:
@@ -423,6 +437,10 @@ paths:
               schema:
                 type: string
                 example: "Upgrade"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VictronSystemStatusResponse"
 
   # Tenants
   /v1/tenants:
@@ -2237,18 +2255,6 @@ components:
           description: Last update timestamp
           example: "2024-01-01T00:00:00Z"
 
-    TenantListResponse:
-      type: object
-      properties:
-        tenants:
-          type: array
-          items:
-            $ref: "#/components/schemas/TenantResponse"
-        total:
-          type: integer
-          description: Total number of tenants
-          example: 10
-
     # Pagination schemas
     PaginationInfo:
       type: object
@@ -2376,14 +2382,6 @@ components:
           description: Timestamp of last received message
           example: "2024-01-01T00:00:00Z"
 
-    DeviceListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/DeviceResponse"
-
     # Command schemas
     CommandSendRequest:
       type: object
@@ -2429,19 +2427,6 @@ components:
           maximum: 255
           description: Command value
           example: 100
-
-    CommandResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Command ID
-          example: "123e4567-e89b-12d3-a456-426614174000"
-        priority:
-          type: string
-          description: Command priority
-          example: "NORMAL"
 
     # Task schemas
     TaskCreateRequest:
@@ -2523,18 +2508,6 @@ components:
           format: date-time
           description: Task creation timestamp
           example: "2024-01-01T00:00:00Z"
-
-    TaskListResponse:
-      type: object
-      properties:
-        tasks:
-          type: array
-          items:
-            $ref: "#/components/schemas/TaskResponse"
-        total:
-          type: integer
-          description: Total number of tasks
-          example: 10
 
     # Scheduled Task schemas
     ScheduledTaskCreateRequest:
