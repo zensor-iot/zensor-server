@@ -236,6 +236,14 @@
     border-left: 4px solid #f59e0b;
 }
 
+.action-card.purple {
+    border-left: 4px solid #8b5cf6;
+}
+
+.action-card.teal {
+    border-left: 4px solid #14b8a6;
+}
+
 .action-icon {
     width: 48px;
     height: 48px;
@@ -259,6 +267,16 @@
 .action-card.orange .action-icon {
     background: rgba(245, 158, 11, 0.1);
     color: #f59e0b;
+}
+
+.action-card.purple .action-icon {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.action-card.teal .action-icon {
+    background: rgba(20, 184, 166, 0.1);
+    color: #14b8a6;
 }
 
 .action-content h3 {
