@@ -14,6 +14,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	victronStatusMessageType = "victron_status"
+	noVictronDataErrMessage  = "no victron data received yet"
+)
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -49,6 +54,7 @@ type VictronWebSocketController struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	snapshot   *victrondto.VictronSystemSnapshot
+	hasData    bool
 	snapMux    sync.RWMutex
 }
 
@@ -75,6 +81,27 @@ var _ httpserver.Controller = (*VictronWebSocketController)(nil)
 
 func (wsc *VictronWebSocketController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /ws/victron/status", wsc.handleWebSocket())
+	router.Handle("GET /v1/victron/latest", wsc.getLatest())
+}
+
+func (wsc *VictronWebSocketController) getLatest() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		wsc.snapMux.RLock()
+		hasData := wsc.hasData
+		snapshotCopy := *wsc.snapshot
+		wsc.snapMux.RUnlock()
+
+		if !hasData {
+			httpserver.ReplyWithError(w, http.StatusServiceUnavailable, noVictronDataErrMessage)
+			return
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusOK, VictronSystemStatusMessage{
+			Type:   victronStatusMessageType,
+			Data:   snapshotCopy,
+			System: buildSummary(snapshotCopy),
+		})
+	}
 }
 
 func (wsc *VictronWebSocketController) handleWebSocket() http.HandlerFunc {
@@ -238,11 +265,12 @@ func (wsc *VictronWebSocketController) handleTelemetryUpdate(telemetry victrondt
 	wsc.snapshot.Raw[telemetry.Topic] = telemetry.Value
 	wsc.snapshot.PortalID = telemetry.PortalID
 	wsc.updateStructuredSnapshot(telemetry)
+	wsc.hasData = true
 	snapshotCopy := *wsc.snapshot
 	wsc.snapMux.Unlock()
 
 	msg := VictronSystemStatusMessage{
-		Type:   "victron_status",
+		Type:   victronStatusMessageType,
 		Data:   snapshotCopy,
 		System: buildSummary(snapshotCopy),
 	}
@@ -434,7 +462,7 @@ func (wsc *VictronWebSocketController) sendCurrentSnapshot(client *websocket.Con
 	wsc.snapMux.RUnlock()
 
 	msg := VictronSystemStatusMessage{
-		Type:   "victron_status",
+		Type:   victronStatusMessageType,
 		Data:   snapshotCopy,
 		System: buildSummary(snapshotCopy),
 	}

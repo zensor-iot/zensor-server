@@ -1967,6 +1967,34 @@ paths:
         "404":
           description: Web push is not configured
 
+  # Victron
+  /v1/victron/latest:
+    get:
+      summary: Get latest Victron data
+      description: >-
+        Returns the most recent Victron system snapshot held in memory, together
+        with the derived system summary. This is the same payload broadcast over
+        the `/ws/victron/status` WebSocket, exposed as a one-shot HTTP read for
+        clients that cannot hold a socket open. Available only when the victron
+        module is enabled.
+      tags:
+        - Victron
+      responses:
+        "200":
+          description: Latest Victron system status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VictronSystemStatusResponse"
+        "503":
+          description: No Victron telemetry has been received yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "no victron data received yet"
+
 components:
   schemas:
     # Common schemas
@@ -3253,6 +3281,311 @@ components:
         pagination:
           $ref: "#/components/schemas/PaginationInfo"
 
+    # Victron schemas
+    VictronSystemStatusResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Message type discriminator, shared with the WebSocket stream
+          example: "victron_status"
+        data:
+          $ref: "#/components/schemas/VictronSystemSnapshot"
+        system:
+          $ref: "#/components/schemas/VictronSystemSummary"
+
+    VictronSystemSummary:
+      type: object
+      description: >-
+        Derived totals for the whole installation. The GX device's own
+        pre-aggregated `system` service values take precedence over the sums of
+        the individual devices when present.
+      properties:
+        battery_soc:
+          type: number
+          format: double
+          description: Battery state of charge in percent
+          example: 87
+        battery_voltage:
+          type: number
+          format: double
+          description: Battery voltage in volts
+          example: 52.4
+        battery_power:
+          type: number
+          format: double
+          description: Battery power in watts; positive when charging, negative when discharging
+          example: 300
+        solar_power:
+          type: number
+          format: double
+          description: Total PV power in watts
+          example: 1200
+        ac_load_power:
+          type: number
+          format: double
+          description: Total AC consumption in watts
+          example: 800
+        grid_power:
+          type: number
+          format: double
+          description: Total grid power in watts
+          example: 500
+        is_charging:
+          type: boolean
+          description: True when battery power is positive
+          example: true
+        is_inverting:
+          type: boolean
+          description: True when battery power is negative
+          example: false
+
+    VictronSystemSnapshot:
+      type: object
+      description: Latest known value for every device reported over Victron MQTT
+      properties:
+        portal_id:
+          type: string
+          description: Victron VRM portal ID of the GX device
+          example: "d41243b4e8e4"
+        batteries:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronBatteryData"
+        solar_chargers:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronSolarChargerData"
+        pv_inverters:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronPvInverterData"
+        ac_loads:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronLoadData"
+        dc_loads:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronLoadData"
+        vebus:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronVebusData"
+        generators:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronGeneratorData"
+        alternators:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronAlternatorData"
+        temperatures:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronTemperatureData"
+        tanks:
+          type: array
+          items:
+            $ref: "#/components/schemas/VictronTankData"
+        system:
+          $ref: "#/components/schemas/VictronSystemData"
+        raw:
+          type: object
+          description: Every received MQTT topic mapped to its latest raw value
+          additionalProperties:
+            $ref: "#/components/schemas/VictronValue"
+
+    VictronSystemData:
+      type: object
+      description: >-
+        Pre-aggregated totals published by the GX device under its own `system`
+        service (for example `N/<portal_id>/system/0/Ac/Grid/L1/Power`).
+      properties:
+        grid_l1_power:
+          type: number
+          format: double
+        grid_l2_power:
+          type: number
+          format: double
+        grid_l3_power:
+          type: number
+          format: double
+        consumption_l1_power:
+          type: number
+          format: double
+        consumption_l2_power:
+          type: number
+          format: double
+        consumption_l3_power:
+          type: number
+          format: double
+        battery_soc:
+          type: number
+          format: double
+        battery_power:
+          type: number
+          format: double
+        pv_power:
+          type: number
+          format: double
+
+    VictronBatteryData:
+      type: object
+      properties:
+        instance:
+          type: integer
+          description: Victron device instance
+          example: 512
+        voltage:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+        power:
+          type: number
+          format: double
+        soc:
+          type: number
+          format: double
+        temperature:
+          type: number
+          format: double
+
+    VictronSolarChargerData:
+      type: object
+      properties:
+        instance:
+          type: integer
+          example: 279
+        power:
+          type: number
+          format: double
+        voltage:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+
+    VictronPvInverterData:
+      type: object
+      properties:
+        instance:
+          type: integer
+        power:
+          type: number
+          format: double
+        energy:
+          type: number
+          format: double
+        voltage:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+
+    VictronLoadData:
+      type: object
+      properties:
+        instance:
+          type: integer
+        power:
+          type: number
+          format: double
+        voltage:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+
+    VictronVebusData:
+      type: object
+      properties:
+        instance:
+          type: integer
+        state:
+          type: number
+          format: double
+          description: Victron VE.Bus state code
+        power:
+          type: number
+          format: double
+        voltage:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+        soc:
+          type: number
+          format: double
+
+    VictronGeneratorData:
+      type: object
+      properties:
+        instance:
+          type: integer
+        power:
+          type: number
+          format: double
+        voltage:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+
+    VictronAlternatorData:
+      type: object
+      properties:
+        instance:
+          type: integer
+        power:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+
+    VictronTemperatureData:
+      type: object
+      properties:
+        instance:
+          type: integer
+        temperature:
+          type: number
+          format: double
+          description: Temperature in degrees Celsius
+
+    VictronTankData:
+      type: object
+      properties:
+        instance:
+          type: integer
+        level:
+          type: number
+          format: double
+          description: Tank level in percent
+        type:
+          type: string
+          description: Tank fluid type
+
+    VictronValue:
+      type: object
+      description: Raw value as published on an MQTT topic
+      properties:
+        Value:
+          type: number
+          format: double
+          description: Numeric value, zero when the topic carries text only
+        Text:
+          type: string
+          description: Textual representation of the value
+
   responses:
     BadRequest:
       description: Bad request
@@ -3311,3 +3644,5 @@ tags:
     description: Maintenance execution tracking and completion
   - name: Push Notifications
     description: Push token registration and notification delivery
+  - name: Victron
+    description: Victron energy system telemetry
