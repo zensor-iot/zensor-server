@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { KeyRound, Plus, Trash2, ArrowLeft, AlertTriangle, Copy, Check } from 'lucide-react'
+import { KeyRound, Plus, Trash2, AlertTriangle, Copy, Check } from 'lucide-react'
 import { useNotification } from '../../hooks/useNotification'
 import { createAPIKey, listAPIKeys, revokeAPIKey } from '../../utils/apiKeys'
 import './AdminApiKeys.css'
@@ -93,12 +92,6 @@ const AdminApiKeys = () => {
     return (
         <div className="admin-api-keys">
             <div className="admin-header">
-                <div className="header-top">
-                    <Link to="/admin" className="back-link">
-                        <ArrowLeft size={16} />
-                        Back to Dashboard
-                    </Link>
-                </div>
                 <div className="admin-title">
                     <KeyRound size={32} />
                     <h1>API Keys</h1>

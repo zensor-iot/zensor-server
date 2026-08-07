@@ -30,6 +30,12 @@ install-deps: install-otelcol
     else \
         echo "   - mockgen already installed."; \
     fi
+    @if ! command -v air &> /dev/null; then \
+        echo "   - air not found, installing..."; \
+        go install github.com/air-verse/air@latest; \
+    else \
+        echo "   - air already installed."; \
+    fi
     @echo "✅ All dependencies installed."
 
 install-otelcol:
@@ -107,7 +113,7 @@ run: build
         podman compose up -d --wait
     fi
     echo "🚀 starting zensor server with hot reload..."
-    find . -type f -name '*.go' | entr ./server
+    air
 
 dev: build
     #!/bin/bash

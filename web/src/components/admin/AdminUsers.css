@@ -3,30 +3,10 @@
     max-width: 100%;
     margin: 0 auto;
     background: var(--background);
-    min-height: 100vh;
 }
 
 .admin-users .admin-header {
     margin-bottom: 2rem;
-}
-
-.admin-users .header-top {
-    margin-bottom: 1rem;
-}
-
-.admin-users .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.9rem;
-    transition: color 0.2s ease;
-}
-
-.admin-users .back-link:hover {
-    color: var(--text-primary);
-    text-decoration: none;
 }
 
 .admin-users .admin-title {
@@ -62,6 +42,21 @@
     margin-bottom: 2rem;
     display: flex;
     justify-content: flex-end;
+}
+
+.admin-users .static-mode-notice {
+    margin-bottom: 2rem;
+    padding: 1rem 1.25rem;
+    background: var(--background-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+}
+
+.admin-users .static-mode-notice code {
+    background: var(--background);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
 }
 
 .admin-users .btn {

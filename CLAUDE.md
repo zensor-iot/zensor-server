@@ -11,7 +11,7 @@ Zensor Server is a Go 1.23+ IoT backend service for managing tenants, devices, t
 ```bash
 just init                              # Install all Go tools (golangci-lint, wire, arch-go, mockgen)
 just build                             # Compile: go build -o server cmd/api/main.go
-just run                               # Build + hot reload with entr (starts Docker deps unless ENV=local)
+just run                               # Build + hot reload with air (starts Docker deps unless ENV=local)
 ENV=local just run                     # Run without Docker dependencies (in-memory SQLite ORM, no-op MQTT client)
 ```
 

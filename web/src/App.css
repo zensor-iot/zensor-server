@@ -244,7 +244,6 @@ body {
   padding: 0;
   margin: 0;
   width: 100%;
-  min-height: 100vh;
 }
 
 /* ===== Page Header ===== */
@@ -1035,8 +1034,87 @@ body {
 }
 
 /* ===== Tenant Portal ===== */
+/* ===== Portal Shell (left nav) ===== */
+.portal-shell {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.portal-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-white);
+  border-right: 1px solid var(--color-gray-200);
+  position: sticky;
+  top: 4.5rem;
+  align-self: flex-start;
+  max-height: calc(100vh - 4.5rem);
+  overflow-y: auto;
+}
+
+.portal-sidebar-tenant {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-gray-200);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.portal-sidebar-tenant svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.portal-sidebar-tenant span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 0.75rem;
+  flex: 1;
+}
+
+.portal-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  color: var(--color-gray-600);
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.portal-sidebar-link:hover {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-900);
+}
+
+.portal-sidebar-link.active {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-hover);
+}
+
+.portal-shell-content {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
 .tenant-portal {
-  min-height: 100vh;
+  min-height: calc(100vh - 4.5rem);
   width: 100%;
   background-color: var(--color-gray-50);
 }
@@ -1740,6 +1818,32 @@ body {
 
   .device-actions {
     flex-direction: column;
+  }
+
+  /* Portal Shell Mobile */
+  .portal-shell {
+    flex-direction: column;
+  }
+
+  .portal-sidebar {
+    width: 100%;
+    max-height: none;
+    flex-direction: row;
+    align-items: center;
+    position: static;
+  }
+
+  .portal-sidebar-tenant {
+    border-bottom: none;
+    border-right: 1px solid var(--color-gray-200);
+    padding: 0.75rem 1rem;
+    flex-shrink: 0;
+  }
+
+  .portal-sidebar-nav {
+    flex-direction: row;
+    padding: 0.5rem;
+    overflow-x: auto;
   }
 
   /* Tenant Portal Mobile */
@@ -3437,7 +3541,6 @@ body {
 .admin-main {
   padding: 0;
   background: var(--background);
-  min-height: 100vh;
   width: 100%;
   margin: 0;
   box-sizing: border-box;

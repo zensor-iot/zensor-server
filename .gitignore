@@ -2,6 +2,10 @@ server
 .env
 .envrc
 
+# air (hot reload)
+tmp/
+build-errors.log
+
 #OTel Collector
 otelcol_output.json
 otelcol.log

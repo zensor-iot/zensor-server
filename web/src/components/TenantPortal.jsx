@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   Cpu,
   Activity,
@@ -9,8 +9,7 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
-  RefreshCw,
-  Wrench
+  RefreshCw
 } from 'lucide-react'
 import TenantDeviceCard from './TenantDeviceCard'
 import useWebSocket from '../hooks/useWebSocket'
@@ -215,10 +214,6 @@ const TenantPortal = () => {
             </div>
           </div>
           <div className="portal-status">
-            <Link to={`/portal/${tenantId}/maintenance`} className="nav-link" title="Maintenance">
-              <Wrench size={18} />
-              Maintenance
-            </Link>
             <div className="last-updated">
               <Clock size={16} />
               <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>

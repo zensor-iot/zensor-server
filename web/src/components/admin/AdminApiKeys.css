@@ -3,30 +3,10 @@
     max-width: 100%;
     margin: 0 auto;
     background: var(--background);
-    min-height: 100vh;
 }
 
 .admin-api-keys .admin-header {
     margin-bottom: 2rem;
-}
-
-.admin-api-keys .header-top {
-    margin-bottom: 1rem;
-}
-
-.admin-api-keys .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.9rem;
-    transition: color 0.2s ease;
-}
-
-.admin-api-keys .back-link:hover {
-    color: var(--text-primary);
-    text-decoration: none;
 }
 
 .admin-api-keys .admin-title {

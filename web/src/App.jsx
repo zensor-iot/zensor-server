@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import LoginPage from './components/LoginPage'
 import AccessDenied from './components/AccessDenied'
 import AppShell from './components/AppShell'
+import PortalShell from './components/PortalShell'
 import AdminUsers from './components/admin/AdminUsers'
 import VictronDashboard from './components/VictronDashboard'
 import TenantList from './components/TenantList'
@@ -88,13 +89,9 @@ function AppContent() {
 
   return (
     <NotificationProvider>
-      {isPortalPage ? (
-        <div className="app">
-          <main className="main-content portal-main">{routes}</main>
-        </div>
-      ) : (
-        <AppShell>{routes}</AppShell>
-      )}
+      <AppShell>
+        {isPortalPage ? <PortalShell>{routes}</PortalShell> : routes}
+      </AppShell>
     </NotificationProvider>
   )
 }

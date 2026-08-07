@@ -7,6 +7,7 @@ const AppShell = ({ children }) => {
   const location = useLocation()
   const { user } = useAuth()
   const isAdminPage = location.pathname.startsWith('/admin')
+  const isPortalPage = location.pathname.startsWith('/portal/')
 
   return (
     <div className="app">
@@ -42,7 +43,7 @@ const AppShell = ({ children }) => {
         </div>
       </header>
 
-      <main className={`main-content ${isAdminPage ? 'admin-main' : ''}`}>
+      <main className={`main-content ${isAdminPage ? 'admin-main' : ''} ${isPortalPage ? 'portal-main' : ''}`}>
         {children}
       </main>
     </div>

@@ -1,21 +1,24 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Users, Plus, Trash2, ArrowLeft, Shield, ShieldOff } from 'lucide-react'
+import { Users, Plus, Trash2, Shield, ShieldOff } from 'lucide-react'
 import { useNotification } from '../../hooks/useNotification'
 import { useAuth } from '../../contexts/AuthContext'
 import './AdminUsers.css'
 
 const AdminUsers = () => {
     const { showSuccess, showError } = useNotification()
-    const { user: currentUser } = useAuth()
+    const { user: currentUser, mode } = useAuth()
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [formData, setFormData] = useState({ email: '', is_admin: false })
 
     useEffect(() => {
+        if (mode === 'static') {
+            setLoading(false)
+            return
+        }
         fetchUsers()
-    }, [])
+    }, [mode])
 
     const fetchUsers = async () => {
         try {
@@ -106,12 +109,6 @@ const AdminUsers = () => {
     return (
         <div className="admin-users">
             <div className="admin-header">
-                <div className="header-top">
-                    <Link to="/admin" className="back-link">
-                        <ArrowLeft size={16} />
-                        Back to Dashboard
-                    </Link>
-                </div>
                 <div className="admin-title">
                     <Users size={32} />
                     <h1>User Access</h1>
@@ -119,12 +116,21 @@ const AdminUsers = () => {
                 <p className="admin-subtitle">Control which Google accounts can sign in to the portal</p>
             </div>
 
-            <div className="admin-actions">
-                <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
-                    <Plus size={16} />
-                    Add User
-                </button>
-            </div>
+            {mode === 'static' && (
+                <div className="static-mode-notice">
+                    User access management is unavailable in static auth mode. Switch <code>auth.mode</code> to
+                    "google" in the server configuration to manage an allowlist.
+                </div>
+            )}
+
+            {mode !== 'static' && (
+                <div className="admin-actions">
+                    <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
+                        <Plus size={16} />
+                        Add User
+                    </button>
+                </div>
+            )}
 
             {showCreateForm && (
                 <div className="form-overlay">
@@ -165,7 +171,7 @@ const AdminUsers = () => {
                 </div>
             )}
 
-            {loading ? (
+            {mode !== 'static' && (loading ? (
                 <div className="loading">Loading allowed users...</div>
             ) : (
                 <div className="users-table-wrapper">
@@ -220,7 +226,7 @@ const AdminUsers = () => {
                         </tbody>
                     </table>
                 </div>
-            )}
+            ))}
         </div>
     )
 }

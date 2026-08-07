@@ -3,7 +3,7 @@ general:
 http:
   port: 3025
 auth:
-  enabled: false
+  enabled: true
   mode: "static" # "google" or "static" (static: single hardcoded admin user, local dev only)
   static:
     username: "admin"
