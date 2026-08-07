@@ -1,7 +1,7 @@
 general:
   log_level: info
 http:
-  port: 3025
+  port: 3000
 auth:
   enabled: true
   mode: "static" # "google" or "static" (static: single hardcoded admin user, local dev only)
