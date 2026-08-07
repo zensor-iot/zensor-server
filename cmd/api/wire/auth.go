@@ -77,6 +77,47 @@ func InitializeAuthComponents() (*AuthComponents, error) {
 	}, nil
 }
 
+// StaticAuthComponents bundles everything the server needs for static auth mode:
+// a single hardcoded admin user, no OAuth provider or allowlist required.
+type StaticAuthComponents struct {
+	Controller *httpapi.StaticAuthController
+	Service    usecases.StaticAuthService
+}
+
+// InitializeStaticAuthComponents wires static auth mode. Local dev only.
+func InitializeStaticAuthComponents() (*StaticAuthComponents, error) {
+	appConfig := provideAppConfig()
+
+	env, ok := os.LookupEnv("ENV")
+	if !ok {
+		env = "production"
+	}
+
+	var sessionStore usecases.SessionStore
+	if env == "local" {
+		sessionStore = auth.NewMemorySessionStore()
+	} else {
+		client := redis.NewClient(&redis.Options{
+			Addr:     appConfig.Redis.Addr,
+			Password: appConfig.Redis.Password,
+			DB:       appConfig.Redis.DB,
+		})
+		sessionStore = auth.NewRedisSessionStore(client)
+	}
+
+	service := usecases.NewStaticAuthService(
+		sessionStore,
+		appConfig.Auth.SessionTTL,
+		appConfig.Auth.Static.Username,
+		appConfig.Auth.Static.Password,
+	)
+
+	return &StaticAuthComponents{
+		Controller: httpapi.NewStaticAuthController(service),
+		Service:    service,
+	}, nil
+}
+
 func seedLocalDevUser(ctx context.Context, repository usecases.AllowedUserRepository) error {
 	_, err := repository.GetByEmail(ctx, localDevEmail)
 	if err == nil {

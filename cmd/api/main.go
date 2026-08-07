@@ -92,15 +92,22 @@ func main() {
 	}
 
 	var httpServer httpserver.Server
-	if appConfig.Auth.Enabled {
+	switch {
+	case appConfig.Auth.Enabled && appConfig.Auth.Mode == config.AuthModeStatic:
+		slog.Warn("authentication enabled in STATIC mode: single hardcoded admin user, do not use in production")
+		staticAuthComponents := handleWireInjector(wire.InitializeStaticAuthComponents()).(*wire.StaticAuthComponents)
+		apiKeyComponents := handleWireInjector(wire.InitializeAPIKeyComponents()).(*wire.APIKeyComponents)
+		controllers = append(controllers, staticAuthComponents.Controller, apiKeyComponents.Controller)
+		httpServer = httpserver.NewServerWithAuth(appConfig.HTTP.Port, staticAuthComponents.Service, apiKeyComponents.Service, controllers...)
+	case appConfig.Auth.Enabled:
 		slog.Info("authentication enabled: session middleware will protect /v1 and /ws routes")
 		authComponents := handleWireInjector(wire.InitializeAuthComponents()).(*wire.AuthComponents)
 		apiKeyComponents := handleWireInjector(wire.InitializeAPIKeyComponents()).(*wire.APIKeyComponents)
 		controllers = append(controllers, authComponents.Controller, apiKeyComponents.Controller)
-		httpServer = httpserver.NewServerWithAuth(authComponents.Service, apiKeyComponents.Service, controllers...)
-	} else {
+		httpServer = httpserver.NewServerWithAuth(appConfig.HTTP.Port, authComponents.Service, apiKeyComponents.Service, controllers...)
+	default:
 		slog.Warn("authentication disabled: trusting X-User headers")
-		httpServer = httpserver.NewServer(controllers...)
+		httpServer = httpserver.NewServer(appConfig.HTTP.Port, controllers...)
 	}
 
 	appCtx, cancelFn := context.WithCancel(context.Background())

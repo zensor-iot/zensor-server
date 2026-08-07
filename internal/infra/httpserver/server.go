@@ -44,18 +44,23 @@ func (s *StandardServer) Shutdown() {
 	}
 }
 
-func NewServer(controllers ...Controller) *StandardServer {
-	return newServer(createUserHeaderMiddleware(), true, controllers)
+const DefaultPort = 3000
+
+func NewServer(port int, controllers ...Controller) *StandardServer {
+	return newServer(port, createUserHeaderMiddleware(), true, controllers)
 }
 
 // NewServerWithAuth builds a server whose /v1/* and /ws/* routes are protected by
 // session or API key authentication. /v1/me is expected to be registered by an
 // auth controller.
-func NewServerWithAuth(sessions SessionResolver, apiKeys APIKeyResolver, controllers ...Controller) *StandardServer {
-	return newServer(NewAuthMiddleware(sessions, apiKeys), false, controllers)
+func NewServerWithAuth(port int, sessions SessionResolver, apiKeys APIKeyResolver, controllers ...Controller) *StandardServer {
+	return newServer(port, NewAuthMiddleware(sessions, apiKeys), false, controllers)
 }
 
-func newServer(userMiddleware func(http.Handler) http.Handler, includeLegacyMe bool, controllers []Controller) *StandardServer {
+func newServer(port int, userMiddleware func(http.Handler) http.Handler, includeLegacyMe bool, controllers []Controller) *StandardServer {
+	if port == 0 {
+		port = DefaultPort
+	}
 	router := http.NewServeMux()
 
 	c := cors.New(cors.Options{
@@ -92,7 +97,7 @@ func newServer(userMiddleware func(http.Handler) http.Handler, includeLegacyMe b
 
 	server := &StandardServer{
 		&http.Server{
-			Addr: ":3000",
+			Addr: fmt.Sprintf(":%d", port),
 			Handler: c.Handler(
 				metricsMiddleware(
 					tracingMiddleware(

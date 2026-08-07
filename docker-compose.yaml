@@ -54,6 +54,15 @@ services:
     networks:
       - zensor
 
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./build/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "1883:1883"
+    networks:
+      - zensor
+
 volumes:
   pgdata:
     driver: local
@@ -78,7 +87,7 @@ configs:
         password: ""
         db: 0
       mqtt_client:
-        broker: nam1.cloud.thethings.network:1883
+        broker: localhost:1883
         client_id: zensor_server_local
 
   otelcol:

@@ -1,13 +1,20 @@
 general:
   log_level: info
+http:
+  port: 3025
 auth:
-  enabled: true
+  enabled: false
+  mode: "static" # "google" or "static" (static: single hardcoded admin user, local dev only)
+  static:
+    username: "admin"
+    password: "abc123"
   google:
     client_id: 829153781429-o9vbh05h9jdie1p6fal5ehvn87e1olen.apps.googleusercontent.com
     client_secret: "" # set via ZENSOR_SERVER_AUTH_GOOGLE_CLIENT_SECRET
     redirect_url: "https://portal.zensor-iot.net/auth/callback"
   session_ttl: "168h"
   bootstrap_admin_email: "seadiaz@gmail.com"
+
 mqtt:
   broker: "localhost:1883"
 database:
@@ -18,7 +25,7 @@ redis:
   password: ""
   db: 0
 mqtt_client:
-  broker: nam1.cloud.thethings.network:1883
+  broker: localhost:1883
   client_id: zensor_server_local
 mailersend:
   api_key: dummy-api-key

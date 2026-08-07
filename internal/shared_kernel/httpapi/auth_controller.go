@@ -36,6 +36,7 @@ type AuthController struct {
 }
 
 func (c *AuthController) AddRoutes(router *http.ServeMux) {
+	router.Handle("GET /auth/mode", c.mode())
 	router.Handle("GET /auth/login", c.login())
 	router.Handle("GET /auth/callback", c.callback())
 	router.Handle("POST /auth/logout", c.logout())
@@ -44,6 +45,12 @@ func (c *AuthController) AddRoutes(router *http.ServeMux) {
 	router.Handle("POST /v1/admin/allowed-users", c.addAllowedUser())
 	router.Handle("PUT /v1/admin/allowed-users/{id}", c.updateAllowedUser())
 	router.Handle("DELETE /v1/admin/allowed-users/{id}", c.removeAllowedUser())
+}
+
+func (c *AuthController) mode() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		httpserver.ReplyJSONResponse(w, http.StatusOK, internal.AuthModeResponse{Mode: "google"})
+	}
 }
 
 func (c *AuthController) login() http.HandlerFunc {

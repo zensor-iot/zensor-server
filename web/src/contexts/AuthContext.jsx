@@ -5,6 +5,17 @@ const AuthContext = createContext(null)
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [mode, setMode] = useState('google')
+    const [loginError, setLoginError] = useState(null)
+
+    useEffect(() => {
+        fetch('/auth/mode')
+            .then((response) => (response.ok ? response.json() : null))
+            .then((body) => {
+                if (body?.mode) setMode(body.mode)
+            })
+            .catch((err) => console.error('Failed to fetch auth mode:', err))
+    }, [])
 
     const refresh = useCallback(async () => {
         try {
@@ -47,6 +58,27 @@ export const AuthProvider = ({ children }) => {
         window.location.href = '/auth/login'
     }
 
+    const loginWithCredentials = async (username, password) => {
+        setLoginError(null)
+        try {
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            })
+            if (!response.ok) {
+                setLoginError('Invalid username or password')
+                return false
+            }
+            setUser(await response.json())
+            return true
+        } catch (err) {
+            console.error('Login request failed:', err)
+            setLoginError('Login failed')
+            return false
+        }
+    }
+
     const logout = async () => {
         try {
             await fetch('/auth/logout', { method: 'POST' })
@@ -58,7 +90,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+        <AuthContext.Provider value={{ user, loading, mode, login, loginWithCredentials, loginError, logout, refresh }}>
             {children}
         </AuthContext.Provider>
     )

@@ -194,7 +194,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 					ExpiresAt: time.Now().Add(time.Hour),
 				},
 			}}
-			srv = NewServerWithAuth(resolver, &fakeAPIKeyResolver{})
+			srv = NewServerWithAuth(0, resolver, &fakeAPIKeyResolver{})
 		})
 
 		ginkgo.When("requesting a protected route without a session", func() {
@@ -235,7 +235,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 	ginkgo.Context("StaticWebUI", func() {
 		ginkgo.When("requesting the SPA's mount path", func() {
 			ginkgo.It("should serve the embedded SPA", func() {
-				srv := NewServer()
+				srv := NewServer(0)
 				req := httptest.NewRequest("GET", "/ui/", nil)
 				rec := httptest.NewRecorder()
 
@@ -248,7 +248,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 
 		ginkgo.When("requesting a real API route with the SPA also registered", func() {
 			ginkgo.It("should still route to healthz, not the SPA fallback", func() {
-				srv := NewServer()
+				srv := NewServer(0)
 				req := httptest.NewRequest("GET", "/healthz", nil)
 				rec := httptest.NewRecorder()
 
@@ -261,7 +261,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 
 		ginkgo.When("requesting an unmatched path under /v1/", func() {
 			ginkgo.It("should return 404, not the SPA's HTML", func() {
-				srv := NewServer()
+				srv := NewServer(0)
 				req := httptest.NewRequest("GET", "/v1/nonexistent-route", nil)
 				rec := httptest.NewRecorder()
 
@@ -274,7 +274,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 
 		ginkgo.When("requesting a real route with the wrong HTTP method", func() {
 			ginkgo.It("should not return 200 with the SPA's HTML", func() {
-				srv := NewServer()
+				srv := NewServer(0)
 				req := httptest.NewRequest("PUT", "/v1/tenants", nil)
 				rec := httptest.NewRecorder()
 
@@ -287,7 +287,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 
 		ginkgo.When("requesting a legitimate real route", func() {
 			ginkgo.It("should still work correctly", func() {
-				srv := NewServer()
+				srv := NewServer(0)
 				req := httptest.NewRequest("GET", "/v1/me", nil)
 				req.Header.Set("X-User-ID", "user123")
 				rec := httptest.NewRecorder()
@@ -304,7 +304,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 
 		ginkgo.When("requesting a genuine client-side route under /ui/", func() {
 			ginkgo.It("should still fall back to the SPA's index.html", func() {
-				srv := NewServer()
+				srv := NewServer(0)
 				req := httptest.NewRequest("GET", "/ui/some-client-route", nil)
 				rec := httptest.NewRecorder()
 

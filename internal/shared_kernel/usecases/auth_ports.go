@@ -14,6 +14,7 @@ var (
 	ErrEmailNotAllowed       = errors.New("email is not allowed")
 	ErrEmailNotVerified      = errors.New("email is not verified")
 	ErrSessionNotFound       = errors.New("session not found")
+	ErrInvalidCredentials    = errors.New("invalid credentials")
 )
 
 // OAuthIdentity is the identity obtained from the OAuth provider after code exchange.
@@ -56,4 +57,12 @@ type AuthService interface {
 	UpdateAllowedUser(ctx context.Context, id domain.ID, isAdmin bool) (domain.AllowedUser, error)
 	RemoveAllowedUser(ctx context.Context, id domain.ID) error
 	BootstrapAdmin(ctx context.Context, email string) error
+}
+
+// StaticAuthService authenticates a single, config-defined admin user against a
+// fixed username/password pair. Intended for local dev only, never production.
+type StaticAuthService interface {
+	Login(ctx context.Context, username, password string) (domain.Session, error)
+	GetSession(ctx context.Context, sessionID string) (domain.Session, error)
+	Logout(ctx context.Context, sessionID string) error
 }

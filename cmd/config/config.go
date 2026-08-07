@@ -29,6 +29,7 @@ func LoadConfig() AppConfig {
 			General: GeneralConfig{
 				LogLevel: viper.GetString("general.log_level"),
 			},
+			HTTP: loadHTTPConfig(),
 			mqtt: MqttConfig{
 				Broker: viper.GetString("mqtt.broker"),
 			},
@@ -75,20 +76,41 @@ func LoadConfig() AppConfig {
 	return configInstance
 }
 
+func loadHTTPConfig() HTTPConfig {
+	port := viper.GetInt("http.port")
+	if port == 0 {
+		port = 3000
+	}
+
+	return HTTPConfig{
+		Port: port,
+	}
+}
+
 func loadAuthConfig() AuthConfig {
 	sessionTTL := viper.GetDuration("auth.session_ttl")
 	if sessionTTL == 0 {
 		sessionTTL = 168 * time.Hour
 	}
 
+	mode := viper.GetString("auth.mode")
+	if mode == "" {
+		mode = AuthModeGoogle
+	}
+
 	return AuthConfig{
 		Enabled:             viper.GetBool("auth.enabled"),
+		Mode:                mode,
 		SessionTTL:          sessionTTL,
 		BootstrapAdminEmail: viper.GetString("auth.bootstrap_admin_email"),
 		Google: GoogleOAuthConfig{
 			ClientID:     viper.GetString("auth.google.client_id"),
 			ClientSecret: viper.GetString("auth.google.client_secret"),
 			RedirectURL:  viper.GetString("auth.google.redirect_url"),
+		},
+		Static: StaticAuthConfig{
+			Username: viper.GetString("auth.static.username"),
+			Password: viper.GetString("auth.static.password"),
 		},
 	}
 }
@@ -180,6 +202,7 @@ func loadModulesConfig() ModulesConfig {
 
 type AppConfig struct {
 	General           GeneralConfig
+	HTTP              HTTPConfig
 	Auth              AuthConfig
 	mqtt              MqttConfig
 	MQTTClient        MQTTClientConfig
@@ -199,9 +222,22 @@ type GeneralConfig struct {
 	LogLevel string
 }
 
+type HTTPConfig struct {
+	Port int
+}
+
+// AuthModeGoogle authenticates users via Google OAuth against the allowlist.
+// AuthModeStatic authenticates a single hardcoded admin user; local dev only.
+const (
+	AuthModeGoogle = "google"
+	AuthModeStatic = "static"
+)
+
 type AuthConfig struct {
 	Enabled             bool
+	Mode                string
 	Google              GoogleOAuthConfig
+	Static              StaticAuthConfig
 	SessionTTL          time.Duration
 	BootstrapAdminEmail string
 }
@@ -210,6 +246,11 @@ type GoogleOAuthConfig struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURL  string
+}
+
+type StaticAuthConfig struct {
+	Username string
+	Password string
 }
 
 type MqttConfig struct {

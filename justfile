@@ -85,12 +85,26 @@ build:
     just _web-build
     go build -o server cmd/api/main.go
 
+# Resolves the HTTP port the server will bind to: env override, then config/server.yaml, then default 3000.
+_http_port:
+    #!/bin/bash
+    if [ -n "${ZENSOR_SERVER_HTTP_PORT}" ]; then
+        echo "${ZENSOR_SERVER_HTTP_PORT}"
+        exit 0
+    fi
+    port=$(awk '
+        /^http:/ { in_http=1; next }
+        /^[a-zA-Z]/ { in_http=0 }
+        in_http && /port:/ { gsub(/[^0-9]/, "", $0); print; exit }
+    ' config/server.yaml)
+    echo "${port:-3000}"
+
 run: build
     #!/bin/bash
     if [ "${ENV}" = "local" ]; then
-        echo "🌱 Local mode: skipping Docker dependencies"
+        echo "🌱 Local mode: skipping Podman dependencies"
     else
-        docker compose up -d --wait
+        podman compose up -d --wait
     fi
     echo "🚀 starting zensor server with hot reload..."
     find . -type f -name '*.go' | entr ./server
@@ -98,13 +112,14 @@ run: build
 dev: build
     #!/bin/bash
     if [ "${ENV}" = "local" ]; then
-        echo "🌱 Local mode: skipping Docker dependencies"
+        echo "🌱 Local mode: skipping Podman dependencies"
     else
-        docker compose up -d --wait
+        podman compose up -d --wait
     fi
 
+    HTTP_PORT=$(just _http_port)
     LOG_FILE=$(mktemp -t zensor-dev-XXXX.log)
-    echo "🚀 starting zensor server (log: ${LOG_FILE})..."
+    echo "🚀 starting zensor server (log: ${LOG_FILE}, port: ${HTTP_PORT})..."
     ./server > "$LOG_FILE" 2>&1 &
     SERVER_PID=$!
     TAIL_PID=""
@@ -126,7 +141,7 @@ dev: build
     echo "⏳ waiting for server to be ready..."
     max_attempts=30
     attempt=0
-    while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
+    while ! curl -sf "http://127.0.0.1:${HTTP_PORT}/healthz" > /dev/null; do
         if [ $attempt -ge $max_attempts ]; then
             echo "❌ server failed to start after 30 seconds."
             cat "$LOG_FILE"
@@ -137,7 +152,7 @@ dev: build
     done
     echo "✅ server is ready"
 
-    ./scripts/seed.sh
+    SEED_BASE_URL="http://127.0.0.1:${HTTP_PORT}" ./scripts/seed.sh
 
     echo ""
     echo "📜 zensor server is running — tailing logs, press Ctrl+C to stop"
@@ -148,7 +163,7 @@ dev: build
 seed:
     #!/bin/bash
     echo "🌱 seeding against an already-running server..."
-    ./scripts/seed.sh
+    SEED_BASE_URL="http://127.0.0.1:$(just _http_port)" ./scripts/seed.sh
 
 health:
     #!/bin/bash
@@ -182,14 +197,21 @@ health:
         echo "❌ grafana: not responding on port 3001"
     fi
 
+    # Check Mosquitto
+    if nc -z localhost 1883; then
+        echo "✅ mosquitto: healthy (port 1883)"
+    else
+        echo "❌ mosquitto: not responding on port 1883"
+    fi
+
 destroy:
     #!/bin/bash
     echo "🧹 stopping and removing containers..."
-    docker compose down
+    podman compose down
 
 
-docker-build: build
-    docker build -t zensor/server .
+podman-build: build
+    podman build -t zensor/server .
 
 wire:
     cd cmd/api/wire && wire
@@ -254,21 +276,22 @@ functional module tags="~@pending": build
     export ZENSOR_SERVER_NOTIFICATION_WEBPUSH_VAPID_PRIVATE_KEY=8IAdNM5Tx7J6k8sY1yhyJ7oQOagm85lhTrJeis14XPA
     ./server > api.log 2>&1 &
     export SERVER_PID=$!
-    
+    HTTP_PORT=$(just _http_port)
+
     # Teardown function to ensure the server is killed
     teardown() {
         echo "🔪 Tearing down server (PID: $SERVER_PID)..."
         kill $SERVER_PID
         wait $SERVER_PID 2>/dev/null
     }
-    
+
     # Trap exit signals to ensure teardown runs
     trap teardown EXIT
-    
+
     echo "⏳ Waiting for server to be ready..."
     max_attempts=30
     attempt=0
-    while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
+    while ! curl -sf "http://127.0.0.1:${HTTP_PORT}/healthz" > /dev/null; do
         if [ $attempt -ge $max_attempts ]; then
             echo "❌ Server failed to start after 30 seconds."
             echo "📋 Server log (api.log):"
@@ -278,10 +301,10 @@ functional module tags="~@pending": build
         sleep 1
         attempt=$((attempt+1))
     done
-    
+
     echo "⏳ Verifying server stability (2s)..."
     sleep 2
-    if ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; then
+    if ! curl -sf "http://127.0.0.1:${HTTP_PORT}/healthz" > /dev/null; then
         echo "❌ Server crashed during startup."
         echo "📋 Server log (api.log):"
         cat api.log 2>/dev/null || true
@@ -322,21 +345,22 @@ functional-module module tags="~@pending": build
     export ZENSOR_SERVER_NOTIFICATION_WEBPUSH_VAPID_PRIVATE_KEY=8IAdNM5Tx7J6k8sY1yhyJ7oQOagm85lhTrJeis14XPA
     ./server > api.log 2>&1 &
     export SERVER_PID=$!
-    
+    HTTP_PORT=$(just _http_port)
+
     # Teardown function to ensure the server is killed
     teardown() {
         echo "🔪 Tearing down server (PID: $SERVER_PID)..."
         kill $SERVER_PID
         wait $SERVER_PID 2>/dev/null
     }
-    
+
     # Trap exit signals to ensure teardown runs
     trap teardown EXIT
-    
+
     echo "⏳ Waiting for server to be ready..."
     max_attempts=30
     attempt=0
-    while ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; do
+    while ! curl -sf "http://127.0.0.1:${HTTP_PORT}/healthz" > /dev/null; do
         if [ $attempt -ge $max_attempts ]; then
             echo "❌ Server failed to start after 30 seconds."
             echo "📋 Server log (api.log):"
@@ -346,10 +370,10 @@ functional-module module tags="~@pending": build
         sleep 1
         attempt=$((attempt+1))
     done
-    
+
     echo "⏳ Verifying server stability (2s)..."
     sleep 2
-    if ! curl -sf http://127.0.0.1:3000/healthz > /dev/null; then
+    if ! curl -sf "http://127.0.0.1:${HTTP_PORT}/healthz" > /dev/null; then
         echo "❌ Server crashed during startup."
         echo "📋 Server log (api.log):"
         cat api.log 2>/dev/null || true
@@ -369,7 +393,7 @@ functional-module module tags="~@pending": build
     
     exit $TEST_EXIT_CODE
 
-functional-external tags="@beta" api_url="http://localhost:3000":
+functional-external tags="@beta" api_url="http://localhost:`just _http_port`":
     #!/bin/bash
     echo "🌍 Running functional tests against external API..."
     
@@ -394,7 +418,7 @@ functional-external tags="@beta" api_url="http://localhost:3000":
     exit $TEST_EXIT_CODE
 
 c4:
-    docker run -it \
+    podman run -it \
         --rm \
         -p 8080:8080 \
         -v "$(pwd)/docs":/usr/local/structurizr \
