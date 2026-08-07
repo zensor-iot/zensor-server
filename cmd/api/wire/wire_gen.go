@@ -99,10 +99,7 @@ func InitializePushTokenController() (*httpapi.PushTokenController, error) {
 		return nil, err
 	}
 	simplePushTokenService := usecases.NewPushTokenService(simplePushTokenRepository)
-	notificationClient, err := provideCompositeNotificationClient(appConfig)
-	if err != nil {
-		return nil, err
-	}
+	notificationClient := provideCompositeNotificationClient(appConfig)
 	simpleUserPushMessageSender := usecases.NewUserPushMessageSender(simplePushTokenService, notificationClient)
 	pushTokenController := httpapi.NewPushTokenController(simplePushTokenService, simpleUserPushMessageSender)
 	return pushTokenController, nil
@@ -440,10 +437,7 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 
 func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usecases3.PushNotificationWorkerFactory, error) {
 	appConfig := provideAppConfig()
-	notificationClient, err := provideCompositeNotificationClient(appConfig)
-	if err != nil {
-		return nil, err
-	}
+	notificationClient := provideCompositeNotificationClient(appConfig)
 	orm := provideDatabase(appConfig)
 	simplePushTokenRepository, err := persistence.NewPushTokenRepository(orm)
 	if err != nil {
@@ -465,7 +459,7 @@ func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usec
 
 // common.go:
 
-func provideCompositeNotificationClient(cfg config.AppConfig) (notification.NotificationClient, error) {
+func provideCompositeNotificationClient(cfg config.AppConfig) notification.NotificationClient {
 	mailerSendConfig := notification.MailerSendConfig{
 		APIKey:    cfg.MailerSend.APIKey,
 		FromEmail: cfg.MailerSend.FromEmail,
@@ -477,10 +471,7 @@ func provideCompositeNotificationClient(cfg config.AppConfig) (notification.Noti
 		ProjectID:          cfg.FCM.ProjectID,
 		ServiceAccountPath: cfg.FCM.ServiceAccountPath,
 	}
-	fcmClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
-	if err != nil {
-		return nil, err
-	}
+	fcmClient := notification.NewFCMPushClient(context.Background(), fcmConfig)
 
 	webPushClient := notification.NewWebPushClient(notification.WebPushConfig{
 		VAPIDPublicKey:  cfg.WebPush.VAPIDPublicKey,
@@ -490,7 +481,7 @@ func provideCompositeNotificationClient(cfg config.AppConfig) (notification.Noti
 
 	pushClient := notification.NewPlatformRoutingPushClient(fcmClient, webPushClient)
 
-	return notification.NewCompositeNotificationClient(emailClient, pushClient), nil
+	return notification.NewCompositeNotificationClient(emailClient, pushClient)
 }
 
 func provideWebPushController(cfg config.AppConfig) *httpapi.WebPushController {

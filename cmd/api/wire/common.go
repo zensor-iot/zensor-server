@@ -79,7 +79,7 @@ func InitializePushTokenController() (*sharedHTTPAPI.PushTokenController, error)
 	return nil, nil
 }
 
-func provideCompositeNotificationClient(cfg config.AppConfig) (notification.NotificationClient, error) {
+func provideCompositeNotificationClient(cfg config.AppConfig) notification.NotificationClient {
 	mailerSendConfig := notification.MailerSendConfig{
 		APIKey:    cfg.MailerSend.APIKey,
 		FromEmail: cfg.MailerSend.FromEmail,
@@ -91,10 +91,7 @@ func provideCompositeNotificationClient(cfg config.AppConfig) (notification.Noti
 		ProjectID:          cfg.FCM.ProjectID,
 		ServiceAccountPath: cfg.FCM.ServiceAccountPath,
 	}
-	fcmClient, err := notification.NewFCMClient(context.Background(), fcmConfig)
-	if err != nil {
-		return nil, err
-	}
+	fcmClient := notification.NewFCMPushClient(context.Background(), fcmConfig)
 
 	webPushClient := notification.NewWebPushClient(notification.WebPushConfig{
 		VAPIDPublicKey:  cfg.WebPush.VAPIDPublicKey,
@@ -104,7 +101,7 @@ func provideCompositeNotificationClient(cfg config.AppConfig) (notification.Noti
 
 	pushClient := notification.NewPlatformRoutingPushClient(fcmClient, webPushClient)
 
-	return notification.NewCompositeNotificationClient(emailClient, pushClient), nil
+	return notification.NewCompositeNotificationClient(emailClient, pushClient)
 }
 
 func provideWebPushController(cfg config.AppConfig) *sharedHTTPAPI.WebPushController {
