@@ -278,6 +278,7 @@ functional module tags="~@pending": build
     echo "🚀 Starting server in background..."
     export ENV=local
     export ZENSOR_SERVER_GENERAL_LOG_LEVEL=debug
+    export ZENSOR_SERVER_GENERAL_AUTH_ENABLED=false
     export ZENSOR_SERVER_NOTIFICATION_WEBPUSH_VAPID_PUBLIC_KEY=BOtpwfEwQDQCl-1IOXUTVrte1c5beAwmInqSX2nIwWIkNTN-jynAbeORuvUmsJG0IRfagRjN_8AIaZdV7-LLFWY
     export ZENSOR_SERVER_NOTIFICATION_WEBPUSH_VAPID_PRIVATE_KEY=8IAdNM5Tx7J6k8sY1yhyJ7oQOagm85lhTrJeis14XPA
     ./server > api.log 2>&1 &
