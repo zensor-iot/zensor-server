@@ -43,16 +43,26 @@ type FeatureContext struct {
 }
 
 func NewFeatureContext() *FeatureContext {
-	baseURL := "http://localhost:3000"
-
-	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
-		baseURL = externalURL
-	}
-
 	return &FeatureContext{
-		apiDriver:      driver.NewAPIDriver(baseURL),
+		apiDriver:      driver.NewAPIDriver(BaseURL()),
 		tenantNameToID: make(map[string]string),
 	}
+}
+
+// BaseURL resolves the API address under test: the external API when
+// EXTERNAL_API_URL is set, otherwise the local server on the port it was
+// started with (ZENSOR_SERVER_HTTP_PORT, defaulting to 3000).
+func BaseURL() string {
+	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
+		return externalURL
+	}
+
+	port := os.Getenv("ZENSOR_SERVER_HTTP_PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	return fmt.Sprintf("http://127.0.0.1:%s", port)
 }
 
 func IsExternalMode() bool {

@@ -438,3 +438,11 @@ release version:
     #!/bin/bash
     git tag {{version}}
     git push --tags
+
+ci:
+	#!/bin/bash
+	set -euo pipefail
+	just arch
+	just unit
+	just functional permaculture
+	just functional maintenance

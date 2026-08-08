@@ -19,12 +19,10 @@ func init() {
 func TestMain(m *testing.M) {
 	pflag.Parse()
 
-	var apiURL string
-	if externalURL := os.Getenv("EXTERNAL_API_URL"); externalURL != "" {
-		apiURL = externalURL
+	apiURL := steps.BaseURL()
+	if steps.IsExternalMode() {
 		fmt.Printf("🌍 Running tests against external API: %s\n", apiURL)
 	} else {
-		apiURL = "http://127.0.0.1:3000"
 		fmt.Printf("🏠 Running tests against local server: %s\n", apiURL)
 	}
 

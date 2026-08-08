@@ -1,0 +1,46 @@
+version: 1
+
+threshold:
+  compliance: 75
+  coverage: 100
+
+dependenciesRules:
+  # Test code stays in /test: production code must never depend on it.
+  - package: "zensor-server.internal.**"
+    shouldNotDependsOn:
+      internal:
+        - "zensor-server.test.**"
+
+  - package: "zensor-server.cmd.**"
+    shouldNotDependsOn:
+      internal:
+        - "zensor-server.test.**"
+
+  # /internal must never depend on /cmd (entry point + config wiring flows inwards only).
+  - package: "zensor-server.internal.**"
+    shouldNotDependsOn:
+      internal:
+        - "zensor-server.cmd.**"
+
+  # The standard `log` package is forbidden, `log/slog` is the only allowed logger.
+  # The pattern is a plain regexp (anchored) so it does not also match `log/slog`.
+  - package: "zensor-server.**"
+    shouldNotDependsOn:
+      standard:
+        - "^log$"
+
+  # Domain packages depend on standard and external libraries only. The two
+  # allowed internal exceptions are other domain packages (shared_kernel/domain
+  # is a domain too) and infra/utils, which behaves as an external library.
+  - package: "**.domain.**"
+    shouldOnlyDependsOn:
+      internal:
+        - "**.domain.**"
+        - "**.infra.utils.**"
+
+  # Use cases own the repository interfaces; they must never point at their
+  # persistence implementations.
+  - package: "**.usecases.**"
+    shouldNotDependsOn:
+      internal:
+        - "**.persistence.**"
