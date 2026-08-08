@@ -3,8 +3,8 @@ package usecases_test
 import (
 	"context"
 
-	"zensor-server/cmd/config"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/notification"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	"zensor-server/internal/shared_kernel/domain"

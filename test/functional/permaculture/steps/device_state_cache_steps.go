@@ -26,6 +26,10 @@ type SensorData struct {
 // WebSocket connection for testing
 var wsConn *websocket.Conn
 
+// cachedStateReadWindow bounds how long cached device states are collected
+// after connecting; the read deadline ends the collection loop.
+const cachedStateReadWindow = 3 * time.Second
+
 func (fc *FeatureContext) theDeviceHasCachedSensorData() error {
 	// This step simulates that the device has cached sensor data
 	// In a real scenario, this would be done by sending sensor data through the LoRa integration
@@ -54,33 +58,27 @@ func (fc *FeatureContext) iShouldReceiveCachedDeviceStatesImmediately() error {
 		return fmt.Errorf("websocket connection not established")
 	}
 
-	// Set a timeout for receiving messages
-	wsConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err := wsConn.SetReadDeadline(time.Now().Add(cachedStateReadWindow)); err != nil {
+		return fmt.Errorf("setting read deadline: %w", err)
+	}
 
-	// Read messages for a short time to capture cached states
 	var messages []DeviceStateMessage
-	timeout := time.After(3 * time.Second)
 
 	for {
-		select {
-		case <-timeout:
+		_, message, err := wsConn.ReadMessage()
+		if err != nil {
+			// Read window elapsed or connection closed
 			break
-		default:
-			_, message, err := wsConn.ReadMessage()
-			if err != nil {
-				// Connection closed or timeout
-				break
-			}
+		}
 
-			var deviceState DeviceStateMessage
-			if err := json.Unmarshal(message, &deviceState); err != nil {
-				// Skip non-device-state messages
-				continue
-			}
+		var deviceState DeviceStateMessage
+		if err := json.Unmarshal(message, &deviceState); err != nil {
+			// Skip non-device-state messages
+			continue
+		}
 
-			if deviceState.Type == "device_state" {
-				messages = append(messages, deviceState)
-			}
+		if deviceState.Type == "device_state" {
+			messages = append(messages, deviceState)
 		}
 	}
 

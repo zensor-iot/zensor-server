@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"zensor-server/cmd/config"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/node"
 	"zensor-server/internal/infra/utils"
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"zensor-server/cmd/config"
+	"zensor-server/internal/infra/config"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"

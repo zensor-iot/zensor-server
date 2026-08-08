@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"zensor-server/cmd/api/wire"
-	"zensor-server/cmd/config"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/node"
