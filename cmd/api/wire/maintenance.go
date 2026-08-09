@@ -5,9 +5,9 @@ package wire
 
 import (
 	"time"
-	"zensor-server/cmd/config"
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/config"
 	maintenanceHTTPAPI "zensor-server/internal/maintenance/httpapi"
 	maintenancePersistence "zensor-server/internal/maintenance/persistence"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"

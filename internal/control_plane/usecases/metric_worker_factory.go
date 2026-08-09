@@ -3,8 +3,8 @@ package usecases
 import (
 	"log/slog"
 
-	"zensor-server/cmd/config"
 	"zensor-server/internal/infra/async"
+	"zensor-server/internal/infra/config"
 )
 
 // MetricWorkerFactory creates metric workers based on configuration

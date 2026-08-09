@@ -25,11 +25,11 @@ var _ = ginkgo.Describe("TaskRepository", func() {
 		orm, err = sql.NewMemoryORM("migrations")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		orm.Unscoped().Where("1=1").Delete(&internal.Command{})
-
 		repo, err = persistence.NewTaskRepository(orm)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(repo).NotTo(gomega.BeNil())
+
+		orm.Unscoped().Where("1=1").Delete(&internal.Command{})
 
 		ctx = context.Background()
 	})

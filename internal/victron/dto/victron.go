@@ -87,6 +87,10 @@ type SystemData struct {
 	BatterySoc         float64 `json:"battery_soc,omitempty"`
 	BatteryPower       float64 `json:"battery_power,omitempty"`
 	PvPower            float64 `json:"pv_power,omitempty"`
+
+	// AcActiveInSource mirrors Ac/ActiveIn/Source, where 240 means no input is
+	// connected. It is nil until the GX reports it.
+	AcActiveInSource *float64 `json:"ac_active_in_source,omitempty"`
 }
 
 type BatteryData struct {
@@ -129,11 +133,14 @@ type VebusData struct {
 	Soc      float64 `json:"soc,omitempty"`
 
 	// ActiveIn holds the shore-power/grid input feeding the inverter.
-	// ActiveInConnected is nil until the GX publishes Ac/ActiveIn/Connected,
-	// which distinguishes "reported as disconnected" from "never reported".
-	ActiveInVoltage   float64 `json:"active_in_voltage,omitempty"`
-	ActiveInCurrent   float64 `json:"active_in_current,omitempty"`
-	ActiveInConnected *bool   `json:"active_in_connected,omitempty"`
+	// ActiveInConnected and ActiveInput are nil until the GX publishes
+	// Ac/ActiveIn/Connected and Ac/ActiveIn/ActiveInput respectively, which
+	// distinguishes "reported as disconnected" from "never reported".
+	// ActiveInput carries the input index, where 240 means none is active.
+	ActiveInVoltage   float64  `json:"active_in_voltage,omitempty"`
+	ActiveInCurrent   float64  `json:"active_in_current,omitempty"`
+	ActiveInConnected *bool    `json:"active_in_connected,omitempty"`
+	ActiveInput       *float64 `json:"active_in_input,omitempty"`
 }
 
 type GeneratorData struct {

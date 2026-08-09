@@ -23,6 +23,10 @@ const (
 	// Ac/ActiveIn/Connected. A live input sits near nominal line voltage;
 	// a disconnected one collapses well below this.
 	acInputConnectedVoltage = 100
+
+	// acActiveInputNone is the value Victron uses for Ac/ActiveIn/ActiveInput
+	// and Ac/ActiveIn/Source to mean that no AC input is connected.
+	acActiveInputNone = 240
 )
 
 var upgrader = websocket.Upgrader{
@@ -40,14 +44,16 @@ type VictronSystemStatusMessage struct {
 }
 
 type VictronSystemSummary struct {
-	BatterySOC     float64 `json:"battery_soc"`
-	BatteryVoltage float64 `json:"battery_voltage"`
-	BatteryPower   float64 `json:"battery_power"`
-	SolarPower     float64 `json:"solar_power"`
-	AcLoadPower    float64 `json:"ac_load_power"`
-	GridPower      float64 `json:"grid_power"`
-	IsCharging     bool    `json:"is_charging"`
-	IsInverting    bool    `json:"is_inverting"`
+	// BatterySOC is nil until a state of charge is reported, so that an
+	// unknown charge is not indistinguishable from a flat battery.
+	BatterySOC     *float64 `json:"battery_soc"`
+	BatteryVoltage float64  `json:"battery_voltage"`
+	BatteryPower   float64  `json:"battery_power"`
+	SolarPower     float64  `json:"solar_power"`
+	AcLoadPower    float64  `json:"ac_load_power"`
+	GridPower      float64  `json:"grid_power"`
+	IsCharging     bool     `json:"is_charging"`
+	IsInverting    bool     `json:"is_inverting"`
 
 	AcInputVoltage   float64 `json:"ac_input_voltage"`
 	AcInputConnected bool    `json:"ac_input_connected"`
@@ -342,12 +348,15 @@ func (wsc *VictronWebSocketController) updateSystemData(telemetry victrondto.Vic
 		wsc.snapshot.System.ConsumptionL2Power = telemetry.Value.Value
 	case "Ac/Consumption/L3/Power":
 		wsc.snapshot.System.ConsumptionL3Power = telemetry.Value.Value
-	case "Battery/Soc":
+	case "Dc/Battery/Soc":
 		wsc.snapshot.System.BatterySoc = telemetry.Value.Value
 	case "Dc/Battery/Power":
 		wsc.snapshot.System.BatteryPower = telemetry.Value.Value
 	case "Dc/Pv/Power":
 		wsc.snapshot.System.PvPower = telemetry.Value.Value
+	case "Ac/ActiveIn/Source":
+		source := telemetry.Value.Value
+		wsc.snapshot.System.AcActiveInSource = &source
 	}
 }
 
@@ -452,6 +461,9 @@ func (wsc *VictronWebSocketController) updateVebusData(telemetry victrondto.Vict
 			case "Ac/ActiveIn/Connected":
 				connected := telemetry.Value.Value > 0
 				wsc.snapshot.Vebus[i].ActiveInConnected = &connected
+			case "Ac/ActiveIn/ActiveInput":
+				input := telemetry.Value.Value
+				wsc.snapshot.Vebus[i].ActiveInput = &input
 			}
 			return
 		}
@@ -505,12 +517,50 @@ func (wsc *VictronWebSocketController) sendCurrentSnapshot(client *websocket.Con
 	}
 }
 
+// acInputState reports the AC input voltage and whether that input is actually
+// feeding the system. The measured voltage is not evidence on its own: the
+// inverter keeps measuring nominal line voltage while its transfer relay is
+// open, so any explicit indicator from the GX wins over the threshold.
+func acInputState(snapshot victrondto.VictronSystemSnapshot) (float64, bool) {
+	var voltage float64
+	var connected *bool
+	var activeInput *float64
+
+	for _, v := range snapshot.Vebus {
+		if v.ActiveInVoltage != 0 {
+			voltage = v.ActiveInVoltage
+		}
+		if v.ActiveInConnected != nil {
+			connected = v.ActiveInConnected
+		}
+		if v.ActiveInput != nil {
+			activeInput = v.ActiveInput
+		}
+	}
+
+	switch {
+	case connected != nil:
+		return voltage, *connected
+	case activeInput != nil:
+		return voltage, *activeInput != acActiveInputNone
+	case snapshot.System.AcActiveInSource != nil:
+		return voltage, *snapshot.System.AcActiveInSource != acActiveInputNone
+	default:
+		return voltage, voltage >= acInputConnectedVoltage
+	}
+}
+
 func buildSummary(snapshot victrondto.VictronSystemSnapshot) VictronSystemSummary {
 	summary := VictronSystemSummary{}
 
 	for _, b := range snapshot.Batteries {
-		summary.BatterySOC = b.Soc
-		summary.BatteryVoltage = b.Voltage
+		if b.Soc != 0 {
+			soc := b.Soc
+			summary.BatterySOC = &soc
+		}
+		if b.Voltage != 0 {
+			summary.BatteryVoltage = b.Voltage
+		}
 		summary.BatteryPower += b.Power
 	}
 
@@ -526,24 +576,7 @@ func buildSummary(snapshot victrondto.VictronSystemSnapshot) VictronSystemSummar
 		summary.AcLoadPower += l.Power
 	}
 
-	reportedConnected := false
-	for _, v := range snapshot.Vebus {
-		if v.ActiveInVoltage != 0 {
-			summary.AcInputVoltage = v.ActiveInVoltage
-		}
-		if v.ActiveInConnected != nil {
-			summary.AcInputConnected = *v.ActiveInConnected
-			reportedConnected = true
-		}
-	}
-	if !reportedConnected {
-		summary.AcInputConnected = summary.AcInputVoltage >= acInputConnectedVoltage
-	}
-
-	gridPower := summary.AcLoadPower - summary.SolarPower - summary.BatteryPower
-	if gridPower > 0 {
-		summary.GridPower = gridPower
-	}
+	summary.AcInputVoltage, summary.AcInputConnected = acInputState(snapshot)
 
 	// The GX device's own "system" service publishes pre-aggregated totals
 	// across all connected devices; prefer these over the per-device sums
@@ -552,17 +585,27 @@ func buildSummary(snapshot victrondto.VictronSystemSnapshot) VictronSystemSummar
 	if consumption := sys.ConsumptionL1Power + sys.ConsumptionL2Power + sys.ConsumptionL3Power; consumption != 0 {
 		summary.AcLoadPower = consumption
 	}
-	if grid := sys.GridL1Power + sys.GridL2Power + sys.GridL3Power; grid != 0 {
-		summary.GridPower = grid
-	}
 	if sys.BatterySoc != 0 {
-		summary.BatterySOC = sys.BatterySoc
+		soc := sys.BatterySoc
+		summary.BatterySOC = &soc
 	}
 	if sys.BatteryPower != 0 {
 		summary.BatteryPower = sys.BatteryPower
 	}
 	if sys.PvPower != 0 {
 		summary.SolarPower = sys.PvPower
+	}
+
+	// Without a grid meter the GX reports no grid figures at all, so the
+	// balance of load, solar and battery is the only estimate available. It
+	// is only meaningful while the AC input is actually feeding the system;
+	// otherwise it would report the battery discharge as grid import.
+	if grid := sys.GridL1Power + sys.GridL2Power + sys.GridL3Power; grid != 0 {
+		summary.GridPower = grid
+	} else if summary.AcInputConnected {
+		if gridPower := summary.AcLoadPower - summary.SolarPower - summary.BatteryPower; gridPower > 0 {
+			summary.GridPower = gridPower
+		}
 	}
 
 	if summary.BatteryPower > 0 {
