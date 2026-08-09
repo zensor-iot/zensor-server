@@ -74,7 +74,7 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 
 				publishSystemTelemetry(broker, "Ac/Grid/L1/Power", 500)
 				publishSystemTelemetry(broker, "Ac/Consumption/L1/Power", 800)
-				publishSystemTelemetry(broker, "Battery/Soc", 87)
+				publishSystemTelemetry(broker, "Dc/Battery/Soc", 87)
 				publishSystemTelemetry(broker, "Dc/Battery/Power", 300)
 				publishSystemTelemetry(broker, "Dc/Pv/Power", 1200)
 
@@ -86,7 +86,7 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 
 				gomega.Expect(last.System.GridPower).To(gomega.Equal(500.0))
 				gomega.Expect(last.System.AcLoadPower).To(gomega.Equal(800.0))
-				gomega.Expect(last.System.BatterySOC).To(gomega.Equal(87.0))
+				gomega.Expect(last.System.BatterySOC).To(gomega.HaveValue(gomega.Equal(87.0)))
 				gomega.Expect(last.System.BatteryPower).To(gomega.Equal(300.0))
 				gomega.Expect(last.System.SolarPower).To(gomega.Equal(1200.0))
 				gomega.Expect(last.System.IsCharging).To(gomega.BeTrue())

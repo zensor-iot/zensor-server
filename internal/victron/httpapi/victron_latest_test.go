@@ -59,7 +59,7 @@ var _ = ginkgo.Describe("VictronWebSocketController latest data endpoint", func(
 	ginkgo.Context("GET /v1/victron/latest", func() {
 		ginkgo.When("telemetry has already been received", func() {
 			ginkgo.BeforeEach(func() {
-				publishTelemetry("system", "Battery/Soc", 87)
+				publishTelemetry("system", "Dc/Battery/Soc", 87)
 				publishTelemetry("system", "Dc/Pv/Power", 1200)
 				time.Sleep(100 * time.Millisecond)
 			})
@@ -76,7 +76,7 @@ var _ = ginkgo.Describe("VictronWebSocketController latest data endpoint", func(
 
 				gomega.Expect(body.Type).To(gomega.Equal("victron_status"))
 				gomega.Expect(body.Data.PortalID).To(gomega.Equal("d41243b4e8e4"))
-				gomega.Expect(body.System.BatterySOC).To(gomega.Equal(87.0))
+				gomega.Expect(body.System.BatterySOC).To(gomega.HaveValue(gomega.Equal(87.0)))
 				gomega.Expect(body.System.SolarPower).To(gomega.Equal(1200.0))
 			})
 		})
