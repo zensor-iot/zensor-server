@@ -10,7 +10,7 @@ import (
 )
 
 func NewTaskRepository(orm sql.ORM) (*SimpleTaskRepository, error) {
-	err := orm.AutoMigrate(&internal.Task{})
+	err := orm.AutoMigrate(&internal.Task{}, &internal.Command{})
 	if err != nil {
 		return nil, fmt.Errorf("auto migrating: %w", err)
 	}
