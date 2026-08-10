@@ -128,4 +128,63 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 			})
 		})
 	})
+
+	ginkgo.Context("concurrent websocket writes", func() {
+		ginkgo.When("telemetry broadcasts while the keepalive ping fires", func() {
+			ginkgo.It("should not panic from concurrent writes", func() {
+				pingBroker := async.NewLocalBroker()
+				pingController := httpapi.NewVictronWebSocketControllerWithPingInterval(pingBroker, 20*time.Millisecond)
+				pingRouter := http.NewServeMux()
+				pingController.AddRoutes(pingRouter)
+				pingServer := httptest.NewServer(pingRouter)
+				defer func() {
+					pingController.Shutdown()
+					time.Sleep(50 * time.Millisecond)
+					pingServer.Close()
+				}()
+				time.Sleep(50 * time.Millisecond)
+
+				wsURL := strings.Replace(pingServer.URL, "http", "ws", 1) + "/ws/victron/status"
+				conns := make([]*websocket.Conn, 0, 2)
+				for range 2 {
+					conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					conns = append(conns, conn)
+					defer conn.Close()
+				}
+
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					for range 30 {
+						telemetry := dto.VictronTelemetry{
+							PortalID:    "d41243b4e8e4",
+							ServiceType: "system",
+							Instance:    0,
+							Path:        "Dc/Battery/Soc",
+							Value:       dto.VictronValue{Value: 87},
+							Topic:       "N/d41243b4e8e4/system/0/Dc/Battery/Soc",
+						}
+						_ = pingBroker.Publish(context.Background(), async.BrokerTopicName("victron_data"), async.BrokerMessage{
+							Event: "system_battery_soc",
+							Value: telemetry,
+						})
+						time.Sleep(5 * time.Millisecond)
+					}
+				}()
+
+				for _, conn := range conns {
+					go func(c *websocket.Conn) {
+						for {
+							if _, _, err := c.ReadMessage(); err != nil {
+								return
+							}
+						}
+					}(conn)
+				}
+
+				gomega.Eventually(done, 5*time.Second, 10*time.Millisecond).Should(gomega.BeClosed())
+			})
+		})
+	})
 })

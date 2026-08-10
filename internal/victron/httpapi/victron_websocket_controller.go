@@ -27,6 +27,8 @@ const (
 	// acActiveInputNone is the value Victron uses for Ac/ActiveIn/ActiveInput
 	// and Ac/ActiveIn/Source to mean that no AC input is connected.
 	acActiveInputNone = 240
+
+	victronWebSocketPingInterval = 54 * time.Second
 )
 
 var upgrader = websocket.Upgrader{
@@ -60,31 +62,41 @@ type VictronSystemSummary struct {
 }
 
 type VictronWebSocketController struct {
-	broker     async.InternalBroker
-	clients    map[*websocket.Conn]bool
-	clientsMux sync.RWMutex
-	broadcast  chan VictronSystemStatusMessage
-	register   chan *websocket.Conn
-	unregister chan *websocket.Conn
-	ctx        context.Context
-	cancel     context.CancelFunc
-	snapshot   *victrondto.VictronSystemSnapshot
-	hasData    bool
-	snapMux    sync.RWMutex
+	broker       async.InternalBroker
+	clients      map[*websocket.Conn]bool
+	clientsMux   sync.RWMutex
+	broadcast    chan VictronSystemStatusMessage
+	register     chan *websocket.Conn
+	unregister   chan *websocket.Conn
+	ctx          context.Context
+	cancel       context.CancelFunc
+	snapshot     *victrondto.VictronSystemSnapshot
+	hasData      bool
+	snapMux      sync.RWMutex
+	pingInterval time.Duration
 }
 
 func NewVictronWebSocketController(broker async.InternalBroker) *VictronWebSocketController {
+	return newVictronWebSocketController(broker, victronWebSocketPingInterval)
+}
+
+func NewVictronWebSocketControllerWithPingInterval(broker async.InternalBroker, pingInterval time.Duration) *VictronWebSocketController {
+	return newVictronWebSocketController(broker, pingInterval)
+}
+
+func newVictronWebSocketController(broker async.InternalBroker, pingInterval time.Duration) *VictronWebSocketController {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wsc := &VictronWebSocketController{
-		broker:     broker,
-		clients:    make(map[*websocket.Conn]bool),
-		broadcast:  make(chan VictronSystemStatusMessage, 256),
-		register:   make(chan *websocket.Conn),
-		unregister: make(chan *websocket.Conn),
-		ctx:        ctx,
-		cancel:     cancel,
-		snapshot:   &victrondto.VictronSystemSnapshot{},
+		broker:       broker,
+		clients:      make(map[*websocket.Conn]bool),
+		broadcast:    make(chan VictronSystemStatusMessage, 256),
+		register:     make(chan *websocket.Conn),
+		unregister:   make(chan *websocket.Conn),
+		ctx:          ctx,
+		cancel:       cancel,
+		snapshot:     &victrondto.VictronSystemSnapshot{},
+		pingInterval: pingInterval,
 	}
 
 	go wsc.run()
@@ -152,7 +164,6 @@ func (wsc *VictronWebSocketController) handleWebSocket() http.HandlerFunc {
 			return
 		}
 
-		go wsc.handlePingPong(conn)
 		go wsc.handleClient(conn)
 	}
 }
@@ -186,23 +197,6 @@ func (wsc *VictronWebSocketController) handleClient(conn *websocket.Conn) {
 	}
 }
 
-func (wsc *VictronWebSocketController) handlePingPong(conn *websocket.Conn) {
-	ticker := time.NewTicker(54 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-wsc.ctx.Done():
-			return
-		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
-		}
-	}
-}
-
 func (wsc *VictronWebSocketController) run() {
 	subscription, err := wsc.broker.Subscribe(async.BrokerTopicName("victron_data"))
 	if err != nil {
@@ -210,6 +204,9 @@ func (wsc *VictronWebSocketController) run() {
 		return
 	}
 	defer wsc.broker.Unsubscribe(async.BrokerTopicName("victron_data"), subscription)
+
+	pingTicker := time.NewTicker(wsc.pingInterval)
+	defer pingTicker.Stop()
 
 	for {
 		select {
@@ -245,46 +242,57 @@ func (wsc *VictronWebSocketController) run() {
 			slog.Info("victron websocket client unregistered", slog.Int("total_clients", len(wsc.clients)))
 
 		case message := <-wsc.broadcast:
-			wsc.clientsMux.RLock()
-			clientsToRemove := make([]*websocket.Conn, 0)
-			for client := range wsc.clients {
-				select {
-				case <-wsc.ctx.Done():
-					wsc.clientsMux.RUnlock()
-					return
-				default:
-					client.SetWriteDeadline(time.Now().Add(10 * time.Second))
-					if err := client.WriteJSON(message); err != nil {
-						slog.Error("failed to write victron message to websocket client", slog.String("error", err.Error()))
-						clientsToRemove = append(clientsToRemove, client)
-					}
-				}
-			}
-			wsc.clientsMux.RUnlock()
+			wsc.writeToAllClients(func(client *websocket.Conn) error {
+				return client.WriteJSON(message)
+			})
 
-			if len(clientsToRemove) > 0 {
-				wsc.clientsMux.Lock()
-				for _, client := range clientsToRemove {
-					if _, ok := wsc.clients[client]; ok {
-						delete(wsc.clients, client)
-						go func(c *websocket.Conn) {
-							defer func() {
-								if r := recover(); r != nil {
-									slog.Warn("recovered from panic while closing victron websocket", slog.Any("panic", r))
-								}
-							}()
-							c.Close()
-						}(client)
-					}
-				}
-				wsc.clientsMux.Unlock()
-			}
+		case <-pingTicker.C:
+			wsc.writeToAllClients(func(client *websocket.Conn) error {
+				return client.WriteMessage(websocket.PingMessage, nil)
+			})
 
 		case brokerMsg := <-subscription.Receiver:
 			if telemetry, ok := brokerMsg.Value.(victrondto.VictronTelemetry); ok {
 				wsc.handleTelemetryUpdate(telemetry)
 			}
 		}
+	}
+}
+
+func (wsc *VictronWebSocketController) writeToAllClients(write func(*websocket.Conn) error) {
+	wsc.clientsMux.RLock()
+	clientsToRemove := make([]*websocket.Conn, 0)
+	for client := range wsc.clients {
+		select {
+		case <-wsc.ctx.Done():
+			wsc.clientsMux.RUnlock()
+			return
+		default:
+			client.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := write(client); err != nil {
+				slog.Error("failed to write victron message to websocket client", slog.String("error", err.Error()))
+				clientsToRemove = append(clientsToRemove, client)
+			}
+		}
+	}
+	wsc.clientsMux.RUnlock()
+
+	if len(clientsToRemove) > 0 {
+		wsc.clientsMux.Lock()
+		for _, client := range clientsToRemove {
+			if _, ok := wsc.clients[client]; ok {
+				delete(wsc.clients, client)
+				go func(c *websocket.Conn) {
+					defer func() {
+						if r := recover(); r != nil {
+							slog.Warn("recovered from panic while closing victron websocket", slog.Any("panic", r))
+						}
+					}()
+					c.Close()
+				}(client)
+			}
+		}
+		wsc.clientsMux.Unlock()
 	}
 }
 
