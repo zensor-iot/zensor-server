@@ -10,9 +10,9 @@ import (
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
-	mocksharedkernel "zensor-server/test/unit/doubles/shared_kernel/usecases"
 	mockasync "zensor-server/test/unit/doubles/infra/async"
 	mockmaintenance "zensor-server/test/unit/doubles/maintenance/usecases"
+	mocksharedkernel "zensor-server/test/unit/doubles/shared_kernel/usecases"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -470,6 +470,105 @@ var _ = Describe("ExecutionWorker", func() {
 					Times(0)
 
 				worker.ScheduleExecutions(ctx)
+			})
+		})
+	})
+
+	Context("CheckAndNotifyExecutions", func() {
+		var (
+			activity       maintenanceDomain.Activity
+			execution      maintenanceDomain.Execution
+			executionByAct maintenanceUsecases.ExecutionWithActivity
+		)
+
+		BeforeEach(func() {
+			tenantID := shareddomain.ID(utils.GenerateUUID())
+			activityID := shareddomain.ID(utils.GenerateUUID())
+
+			activityType := maintenanceDomain.ActivityType{
+				Name:         shareddomain.Name(maintenanceDomain.ActivityTypeWaterSystem),
+				DisplayName:  shareddomain.DisplayName("Water System"),
+				Description:  shareddomain.Description("Water system maintenance"),
+				IsPredefined: true,
+			}
+			activity, _ = maintenanceDomain.NewActivityBuilder().
+				WithTenantID(tenantID).
+				WithType(activityType).
+				WithName("Test Activity").
+				WithSchedule("0 0 * * *").
+				Build()
+			activity.ID = activityID
+
+			execution, _ = maintenanceDomain.NewExecutionBuilder().
+				WithActivityID(activityID).
+				WithScheduledDate(time.Now().Add(60 * time.Hour)).
+				Build()
+			executionByAct = maintenanceUsecases.ExecutionWithActivity{
+				Execution: execution,
+				Activity:  activity,
+			}
+
+			mockExecutionRepository.EXPECT().
+				FindOverdueExecutions(gomock.Any()).
+				Return([]maintenanceUsecases.ExecutionWithActivity{}, nil).
+				AnyTimes()
+		})
+
+		When("an execution becomes ready for notification", func() {
+			It("should publish the event and mark the notification day as sent", func() {
+				mockExecutionRepository.EXPECT().
+					FindPendingExecutionsReadyForNotification(gomock.Any(), gomock.Any()).
+					Return([]maintenanceUsecases.ExecutionWithActivity{executionByAct}, nil)
+				mockExecutionRepository.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, updated maintenanceDomain.Execution) error {
+						Expect(updated.HasNotificationDaySent(2)).To(BeTrue())
+						return nil
+					})
+				mockBroker.EXPECT().
+					Publish(gomock.Any(), async.BrokerTopicName("maintenance_executions"), gomock.Any()).
+					DoAndReturn(func(_ context.Context, topic async.BrokerTopicName, msg async.BrokerMessage) error {
+						Expect(msg.Event).To(Equal("execution_ready_for_notification"))
+						Expect(msg.Value).To(HaveKeyWithValue("days_before", 2))
+						Expect(msg.Value).To(HaveKeyWithValue("activity_name", "Test Activity"))
+						return nil
+					})
+
+				worker.CheckAndNotifyExecutions(ctx)
+			})
+		})
+
+		When("the notification day was already sent on a previous tick", func() {
+			It("should not republish the event", func() {
+				executionByAct.Execution.MarkNotificationDaySent(2)
+
+				mockExecutionRepository.EXPECT().
+					FindPendingExecutionsReadyForNotification(gomock.Any(), gomock.Any()).
+					Return([]maintenanceUsecases.ExecutionWithActivity{executionByAct}, nil)
+				mockExecutionRepository.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					Times(0)
+				mockBroker.EXPECT().
+					Publish(gomock.Any(), async.BrokerTopicName("maintenance_executions"), gomock.Any()).
+					Times(0)
+
+				worker.CheckAndNotifyExecutions(ctx)
+			})
+		})
+
+		When("persisting the notification day fails", func() {
+			It("should not publish the event", func() {
+				mockExecutionRepository.EXPECT().
+					FindPendingExecutionsReadyForNotification(gomock.Any(), gomock.Any()).
+					Return([]maintenanceUsecases.ExecutionWithActivity{executionByAct}, nil)
+				mockExecutionRepository.EXPECT().
+					Update(gomock.Any(), gomock.Any()).
+					Return(errors.New("database error"))
+				mockBroker.EXPECT().
+					Publish(gomock.Any(), async.BrokerTopicName("maintenance_executions"), gomock.Any()).
+					Times(0)
+
+				worker.CheckAndNotifyExecutions(ctx)
 			})
 		})
 	})

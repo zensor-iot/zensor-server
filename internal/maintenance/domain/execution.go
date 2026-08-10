@@ -2,23 +2,37 @@ package domain
 
 import (
 	"maps"
+	"slices"
 	"time"
 	"zensor-server/internal/infra/utils"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
 type Execution struct {
-	ID            shareddomain.ID
-	Version       shareddomain.Version
-	ActivityID    shareddomain.ID
-	ScheduledDate utils.Time
-	CompletedAt   *utils.Time
-	CompletedBy   *CompletedBy
-	OverdueDays   OverdueDays
-	FieldValues   map[string]any
-	CreatedAt     utils.Time
-	UpdatedAt     utils.Time
-	DeletedAt     *utils.Time
+	ID                   shareddomain.ID
+	Version              shareddomain.Version
+	ActivityID           shareddomain.ID
+	ScheduledDate        utils.Time
+	CompletedAt          *utils.Time
+	CompletedBy          *CompletedBy
+	OverdueDays          OverdueDays
+	FieldValues          map[string]any
+	NotificationDaysSent Days
+	CreatedAt            utils.Time
+	UpdatedAt            utils.Time
+	DeletedAt            *utils.Time
+}
+
+func (me *Execution) HasNotificationDaySent(day int) bool {
+	return slices.Contains(me.NotificationDaysSent, day)
+}
+
+func (me *Execution) MarkNotificationDaySent(day int) {
+	if me.HasNotificationDaySent(day) {
+		return
+	}
+	me.NotificationDaysSent = append(me.NotificationDaysSent, day)
+	me.UpdatedAt = utils.Time{Time: time.Now()}
 }
 
 func (me *Execution) IsDeleted() bool {

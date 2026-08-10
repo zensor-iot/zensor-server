@@ -47,4 +47,51 @@ var _ = Describe("Execution", func() {
 			})
 		})
 	})
+
+	Context("NotificationDaysSent", func() {
+		var execution maintenanceDomain.Execution
+
+		BeforeEach(func() {
+			var err error
+			execution, err = maintenanceDomain.NewExecutionBuilder().
+				WithActivityID(shareddomain.ID(utils.GenerateUUID())).
+				WithScheduledDate(time.Now().AddDate(0, 0, 7)).
+				Build()
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		When("no notification days have been sent", func() {
+			It("should report the day as not sent", func() {
+				Expect(execution.HasNotificationDaySent(7)).To(BeFalse())
+			})
+		})
+
+		When("marking a notification day as sent", func() {
+			It("should record the day as sent", func() {
+				execution.MarkNotificationDaySent(7)
+
+				Expect(execution.HasNotificationDaySent(7)).To(BeTrue())
+			})
+		})
+
+		When("marking the same notification day twice", func() {
+			It("should not duplicate the day", func() {
+				execution.MarkNotificationDaySent(7)
+				execution.MarkNotificationDaySent(7)
+
+				Expect(execution.NotificationDaysSent).To(Equal(maintenanceDomain.Days{7}))
+			})
+		})
+
+		When("marking multiple notification days", func() {
+			It("should keep distinct days", func() {
+				execution.MarkNotificationDaySent(7)
+				execution.MarkNotificationDaySent(1)
+
+				Expect(execution.HasNotificationDaySent(7)).To(BeTrue())
+				Expect(execution.HasNotificationDaySent(1)).To(BeTrue())
+				Expect(execution.HasNotificationDaySent(2)).To(BeFalse())
+			})
+		})
+	})
 })

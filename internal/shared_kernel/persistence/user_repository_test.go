@@ -79,4 +79,40 @@ var _ = ginkgo.Describe("UserRepository", func() {
 			})
 		})
 	})
+
+	ginkgo.Context("FindByTenant", func() {
+		ginkgo.When("users are associated with the tenant", func() {
+			ginkgo.It("should return only those users", func() {
+				tenantA := domain.ID(utils.GenerateUUID())
+				tenantB := domain.ID(utils.GenerateUUID())
+
+				userA := domain.User{ID: domain.ID(utils.GenerateUUID()), Tenants: []domain.ID{tenantA}}
+				userB := domain.User{ID: domain.ID(utils.GenerateUUID()), Tenants: []domain.ID{tenantA, tenantB}}
+				userC := domain.User{ID: domain.ID(utils.GenerateUUID()), Tenants: []domain.ID{tenantB}}
+
+				gomega.Expect(repo.Upsert(ctx, userA)).NotTo(gomega.HaveOccurred())
+				gomega.Expect(repo.Upsert(ctx, userB)).NotTo(gomega.HaveOccurred())
+				gomega.Expect(repo.Upsert(ctx, userC)).NotTo(gomega.HaveOccurred())
+
+				users, err := repo.FindByTenant(ctx, tenantA)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(users).To(gomega.HaveLen(2))
+
+				ids := make([]domain.ID, len(users))
+				for i, u := range users {
+					ids[i] = u.ID
+				}
+				gomega.Expect(ids).To(gomega.ConsistOf(userA.ID, userB.ID))
+			})
+		})
+
+		ginkgo.When("no user is associated with the tenant", func() {
+			ginkgo.It("should return an empty list", func() {
+				tenantID := domain.ID(utils.GenerateUUID())
+				users, err := repo.FindByTenant(ctx, tenantID)
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(users).To(gomega.BeEmpty())
+			})
+		})
+	})
 })

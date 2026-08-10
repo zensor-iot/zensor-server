@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"zensor-server/internal/shared_kernel/persistence/internal"
 	"zensor-server/internal/shared_kernel/usecases"
 	"zensor-server/internal/infra/sql"
@@ -86,7 +87,6 @@ func (r *SimpleUserRepository) FindByTenant(ctx context.Context, tenantID domain
 	var entities []internal.User
 	err := r.orm.
 		WithContext(ctx).
-		Where("? = ANY(tenants)", tenantID.String()).
 		Find(&entities).
 		Error()
 
@@ -94,9 +94,12 @@ func (r *SimpleUserRepository) FindByTenant(ctx context.Context, tenantID domain
 		return nil, fmt.Errorf("database query: %w", err)
 	}
 
-	users := make([]domain.User, len(entities))
-	for i, entity := range entities {
-		users[i] = entity.ToDomain()
+	users := make([]domain.User, 0, len(entities))
+	for _, entity := range entities {
+		user := entity.ToDomain()
+		if slices.Contains(user.Tenants, tenantID) {
+			users = append(users, user)
+		}
 	}
 
 	return users, nil

@@ -136,4 +136,129 @@ var _ = Describe("PushNotificationWorker", func() {
 			})
 		})
 	})
+
+	Context("TitleTemplate", func() {
+		var (
+			ctrl               *gomock.Controller
+			notificationClient *mocknotification.MockNotificationClient
+			pushTokenService   *mocksharedusecases.MockPushTokenService
+			userService        *mocksharedusecases.MockUserService
+			broker             *async.LocalBroker
+			worker             *maintenanceUsecases.PushNotificationWorker
+			cancel             context.CancelFunc
+		)
+
+		BeforeEach(func() {
+			ctrl = gomock.NewController(GinkgoT())
+			notificationClient = mocknotification.NewMockNotificationClient(ctrl)
+			pushTokenService = mocksharedusecases.NewMockPushTokenService(ctrl)
+			userService = mocksharedusecases.NewMockUserService(ctrl)
+			broker = async.NewLocalBroker()
+
+			cfg := config.PushNotificationWorkerConfig{
+				Name:             "test_notification",
+				Topic:            "maintenance_executions",
+				EventType:        "execution_ready_for_notification",
+				TenantIDPath:     "tenant_id",
+				UserIDPath:       "user_id",
+				Title:            "Execution Reminder",
+				TitleTemplate:    "Execution Reminder: {{activity_name}}",
+				Body:             "Scheduled execution is due soon",
+				DeepLink:         "/maintenance/executions",
+				DeepLinkTemplate: "/maintenance/executions/%s",
+			}
+
+			var err error
+			worker, err = maintenanceUsecases.NewPushNotificationWorker(
+				cfg, broker, notificationClient, pushTokenService, userService)
+			Expect(err).NotTo(HaveOccurred())
+
+			var ctx context.Context
+			ctx, cancel = context.WithCancel(context.Background())
+			go worker.Run(ctx, func() {})
+			DeferCleanup(func() {
+				cancel()
+				broker.Stop()
+			})
+		})
+
+		AfterEach(func() {
+			ctrl.Finish()
+		})
+
+		When("a reminder notification is published", func() {
+			It("should include the specific activity name in the title", func() {
+				tokens := []domain.PushToken{
+					{ID: "tok-a", UserID: "user-1", Token: "fcm-token", Platform: "android"},
+				}
+				pushTokenService.EXPECT().
+					ListTokensByUserID(gomock.Any(), domain.ID("user-1")).
+					Return(tokens, nil)
+
+				sent := make(chan notification.PushNotificationRequest, 1)
+				notificationClient.EXPECT().
+					SendPushNotification(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, req notification.PushNotificationRequest) error {
+						sent <- req
+						return nil
+					}).
+					Times(1)
+
+				msg := async.BrokerMessage{
+					Event: "execution_ready_for_notification",
+					Value: map[string]any{
+						"tenant_id":     "tenant-1",
+						"user_id":       "user-1",
+						"execution_id":  "execution-1",
+						"activity_id":   "activity-1",
+						"activity_name": "Filter Replacement",
+					},
+				}
+				Eventually(func() error {
+					return broker.Publish(context.Background(), "maintenance_executions", msg)
+				}).Should(Succeed())
+
+				var req notification.PushNotificationRequest
+				Eventually(sent).Should(Receive(&req))
+				Expect(req.Title).To(Equal("Execution Reminder: Filter Replacement"))
+				Expect(req.DeepLink).To(Equal("/maintenance/executions/execution-1"))
+			})
+		})
+
+		When("the activity name is missing from the message", func() {
+			It("should fall back to the generic title", func() {
+				tokens := []domain.PushToken{
+					{ID: "tok-a", UserID: "user-1", Token: "fcm-token", Platform: "android"},
+				}
+				pushTokenService.EXPECT().
+					ListTokensByUserID(gomock.Any(), domain.ID("user-1")).
+					Return(tokens, nil)
+
+				sent := make(chan notification.PushNotificationRequest, 1)
+				notificationClient.EXPECT().
+					SendPushNotification(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, req notification.PushNotificationRequest) error {
+						sent <- req
+						return nil
+					}).
+					Times(1)
+
+				msg := async.BrokerMessage{
+					Event: "execution_ready_for_notification",
+					Value: map[string]any{
+						"tenant_id":    "tenant-1",
+						"user_id":      "user-1",
+						"execution_id": "execution-1",
+					},
+				}
+				Eventually(func() error {
+					return broker.Publish(context.Background(), "maintenance_executions", msg)
+				}).Should(Succeed())
+
+				var req notification.PushNotificationRequest
+				Eventually(sent).Should(Receive(&req))
+				Expect(req.Title).To(Equal("Execution Reminder"))
+			})
+		})
+	})
 })

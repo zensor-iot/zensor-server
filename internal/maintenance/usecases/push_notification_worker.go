@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/notification"
@@ -211,7 +212,10 @@ func (w *PushNotificationWorker) sendToTenantUsers(ctx context.Context, tenantID
 
 func (w *PushNotificationWorker) buildTitle(msg async.BrokerMessage) string {
 	if w.config.TitleTemplate != "" {
-		return w.interpolateTemplate(w.config.TitleTemplate, msg.Value)
+		interpolated := w.interpolateTemplate(w.config.TitleTemplate, msg.Value)
+		if !strings.Contains(interpolated, "{{") && !strings.Contains(interpolated, "%s") {
+			return interpolated
+		}
 	}
 	return w.config.Title
 }
@@ -232,16 +236,34 @@ func (w *PushNotificationWorker) buildDeepLink(msg async.BrokerMessage) string {
 
 func (w *PushNotificationWorker) interpolateTemplate(template string, data any) string {
 	result := template
+
+	if mapData, ok := data.(map[string]any); ok {
+		for key, value := range mapData {
+			placeholder := "{{" + key + "}}"
+			if strings.Contains(result, placeholder) {
+				result = strings.ReplaceAll(result, placeholder, fmt.Sprintf("%v", value))
+			}
+		}
+	}
+
+	if strings.Contains(result, "{{") {
+		return result
+	}
+
 	executionID := utils.ExtractStringValue(data, "execution_id")
 	activityID := utils.ExtractStringValue(data, "activity_id")
 	activityName := utils.ExtractStringValue(data, "activity_name")
 
-	if executionID != "" {
-		result = fmt.Sprintf(result, executionID)
-	} else if activityID != "" {
-		result = fmt.Sprintf(result, activityID)
-	} else if activityName != "" {
-		result = fmt.Sprintf(result, activityName)
+	if strings.Contains(result, "%s") {
+		if executionID != "" {
+			return fmt.Sprintf(result, executionID)
+		}
+		if activityID != "" {
+			return fmt.Sprintf(result, activityID)
+		}
+		if activityName != "" {
+			return fmt.Sprintf(result, activityName)
+		}
 	}
 
 	return result

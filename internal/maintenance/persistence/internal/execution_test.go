@@ -120,6 +120,12 @@ var _ = ginkgo.Describe("MaintenanceExecution Internal Model", func() {
 				gomega.Expect(domain.FieldValues).To(gomega.BeEmpty())
 			})
 
+			ginkgo.It("should convert NotificationDaysSent correctly", func() {
+				internalExecution.NotificationDaysSent = persistenceInternal.Days{7, 1}
+				domain := internalExecution.ToDomain()
+				gomega.Expect(domain.NotificationDaysSent).To(gomega.Equal(maintenanceDomain.Days{7, 1}))
+			})
+
 			ginkgo.It("should handle CompletedAt", func() {
 				now := utils.Time{Time: time.Now()}
 				internalExecution.CompletedAt = &now
@@ -168,6 +174,12 @@ var _ = ginkgo.Describe("MaintenanceExecution Internal Model", func() {
 				gomega.Expect(internal.OverdueDays).To(gomega.Equal(int(domainExecution.OverdueDays)))
 				gomega.Expect(internal.FieldValues).To(gomega.HaveKey("maintenance_type"))
 				gomega.Expect(internal.FieldValues["maintenance_type"]).To(gomega.Equal("Filter Replacement"))
+			})
+
+			ginkgo.It("should convert NotificationDaysSent correctly", func() {
+				domainExecution.NotificationDaysSent = maintenanceDomain.Days{7, 1}
+				internal := persistenceInternal.FromExecution(domainExecution)
+				gomega.Expect(internal.NotificationDaysSent).To(gomega.Equal(persistenceInternal.Days{7, 1}))
 			})
 
 			ginkgo.It("should handle CompletedAt", func() {

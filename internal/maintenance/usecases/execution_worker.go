@@ -85,6 +85,11 @@ func (w *ExecutionWorker) ScheduleExecutions(ctx context.Context) {
 	w.scheduleExecutions(ctx, done)
 }
 
+func (w *ExecutionWorker) CheckAndNotifyExecutions(ctx context.Context) {
+	done := func() {}
+	w.checkAndNotifyExecutions(ctx, done)
+}
+
 func (w *ExecutionWorker) scheduleExecutions(ctx context.Context, done func()) {
 	slog.Info("scheduling executions", slog.Time("time", time.Now()))
 	defer done()
@@ -278,8 +283,25 @@ func (w *ExecutionWorker) checkReadyForNotification(ctx context.Context, current
 	slog.Debug("found executions ready for notification", slog.Int("count", len(executionsWithActivities)))
 
 	for _, execWithActivity := range executionsWithActivities {
-		daysBefore := int(execWithActivity.Execution.ScheduledDate.Time.Sub(currentDate).Hours() / 24)
-		w.publishReadyForNotificationEvent(ctx, execWithActivity.Execution, execWithActivity.Activity, daysBefore)
+		execution := &execWithActivity.Execution
+		daysBefore := int(execution.ScheduledDate.Time.Sub(currentDate).Hours() / 24)
+
+		if execution.HasNotificationDaySent(daysBefore) {
+			slog.Debug("execution notification already sent for day",
+				slog.String("execution_id", execution.ID.String()),
+				slog.Int("days_before", daysBefore))
+			continue
+		}
+
+		execution.MarkNotificationDaySent(daysBefore)
+		if err := w.executionRepository.Update(ctx, *execution); err != nil {
+			slog.Error("updating execution notification days sent",
+				slog.String("execution_id", execution.ID.String()),
+				slog.Any("error", err))
+			continue
+		}
+
+		w.publishReadyForNotificationEvent(ctx, *execution, execWithActivity.Activity, daysBefore)
 	}
 }
 
@@ -317,6 +339,7 @@ func (w *ExecutionWorker) publishReadyForNotificationEvent(ctx context.Context, 
 		Value: map[string]any{
 			"execution_id":   execution.ID.String(),
 			"activity_id":    activity.ID.String(),
+			"activity_name":  string(activity.Name),
 			"tenant_id":      activity.TenantID.String(),
 			"scheduled_date": execution.ScheduledDate.Time,
 			"days_before":    daysBefore,
@@ -339,6 +362,7 @@ func (w *ExecutionWorker) publishOverdueEvent(ctx context.Context, execution mai
 		Value: map[string]any{
 			"execution_id":   execution.ID.String(),
 			"activity_id":    activity.ID.String(),
+			"activity_name":  string(activity.Name),
 			"tenant_id":      activity.TenantID.String(),
 			"scheduled_date": execution.ScheduledDate.Time,
 			"overdue_days":   overdueDays,
