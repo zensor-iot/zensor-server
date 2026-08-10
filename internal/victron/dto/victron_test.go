@@ -96,6 +96,18 @@ var _ = Describe("Victron DTO", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(telemetry.Value.Value).To(Equal(0.0))
 				Expect(telemetry.Value.Text).To(Equal("d41243b4e8e4"))
+				Expect(telemetry.Value.IsNumeric()).To(BeFalse())
+			})
+		})
+
+		When("payload value is a JSON number", func() {
+			It("should mark the value as numeric", func() {
+				topic := "N/d41243b4e8e4/battery/512/Soc"
+				payload := []byte(`{"value": 87}`)
+				telemetry, err := dto.ParseTelemetry(topic, payload)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(telemetry.Value.Value).To(Equal(87.0))
+				Expect(telemetry.Value.IsNumeric()).To(BeTrue())
 			})
 		})
 
@@ -106,6 +118,7 @@ var _ = Describe("Victron DTO", func() {
 				telemetry, err := dto.ParseTelemetry(topic, payload)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(telemetry.Value.Value).To(Equal(0.0))
+				Expect(telemetry.Value.IsNumeric()).To(BeFalse())
 			})
 		})
 	})

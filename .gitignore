@@ -20,6 +20,9 @@ server.log
 .structurizr
 c4model.json
 
+# graphify
+graphify-out/
+
 coverprofile.out
 
 *.test

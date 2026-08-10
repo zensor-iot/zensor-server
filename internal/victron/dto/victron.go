@@ -9,6 +9,10 @@ import (
 type VictronValue struct {
 	Value float64
 	Text  string
+	// Numeric reports whether the payload carried a JSON number. Victron
+	// publishes text-only values (serial numbers, firmware versions, enum
+	// names) with the string in Text; those must not be exported as metrics.
+	Numeric bool `json:"-"`
 }
 
 func (v *VictronValue) UnmarshalJSON(data []byte) error {
@@ -24,10 +28,16 @@ func (v *VictronValue) UnmarshalJSON(data []byte) error {
 	switch value := raw.Value.(type) {
 	case float64:
 		v.Value = value
+		v.Numeric = true
 	case string:
 		v.Text = value
 	}
 	return nil
+}
+
+// IsNumeric reports whether the value carried a JSON number payload.
+func (v *VictronValue) IsNumeric() bool {
+	return v.Numeric
 }
 
 type VictronTelemetry struct {

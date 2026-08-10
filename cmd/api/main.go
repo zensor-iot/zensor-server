@@ -198,6 +198,10 @@ func main() {
 			internalBroker,
 		)
 		go victronWorker.Run(appCtx, wg.Done)
+
+		wg.Add(1)
+		victronMetricWorker := victronUsecases.NewVictronMetricWorker(internalBroker)
+		go victronMetricWorker.Run(appCtx, wg.Done)
 	}
 
 	signalChannel := make(chan os.Signal, 2)
