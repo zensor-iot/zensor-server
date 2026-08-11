@@ -1,19 +1,59 @@
 import { useState, useEffect } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
-import { getWebSocketUrl } from '../config/api';
+import { getWebSocketUrl, metricsApi } from '../config/api';
 import {
   Sun, Battery, Zap, Gauge, Thermometer, Activity,
-  Wifi, WifiOff, RefreshCw, Power, Droplets
+  Wifi, WifiOff, RefreshCw, Power, Droplets, TrendingUp
 } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine
+} from 'recharts';
+
+const SOC_METRIC_NAME = 'zensor_server_victron_battery_soc';
+
+const SOC_TIME_RANGES = [
+  { value: '1h', label: '1h', ms: 60 * 60 * 1000, step: '30s' },
+  { value: '6h', label: '6h', ms: 6 * 60 * 60 * 1000, step: '60s' },
+  { value: '24h', label: '24h', ms: 24 * 60 * 60 * 1000, step: '300s' },
+  { value: '7d', label: '7d', ms: 7 * 24 * 60 * 60 * 1000, step: '3600s' },
+];
 
 const VictronDashboard = () => {
   const [systemStatus, setSystemStatus] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [timeAgo, setTimeAgo] = useState('');
+  const [socHistory, setSocHistory] = useState([]);
+  const [socLoading, setSocLoading] = useState(false);
+  const [socError, setSocError] = useState(null);
+  const [socRange, setSocRange] = useState('6h');
 
   const wsUrl = getWebSocketUrl('/ws/victron/status');
 
   const { isConnected, lastMessage, connectionError, connectionStatus } = useWebSocket(wsUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    const range = SOC_TIME_RANGES.find((r) => r.value === socRange) ?? SOC_TIME_RANGES[1];
+    const fetchSoc = async () => {
+      setSocLoading(true);
+      setSocError(null);
+      try {
+        const points = await metricsApi.queryRange(SOC_METRIC_NAME, {
+          start: Date.now() - range.ms,
+          step: range.step,
+        });
+        if (!cancelled) setSocHistory(points);
+      } catch (err) {
+        if (!cancelled) setSocError(err.message);
+      } finally {
+        if (!cancelled) setSocLoading(false);
+      }
+    };
+    fetchSoc();
+    const interval = setInterval(fetchSoc, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [socRange]);
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'victron_status') {
@@ -59,13 +99,6 @@ const VictronDashboard = () => {
         </div>
       </div>
 
-      {!systemStatus && (
-        <div className="victron-loading">
-          <Activity size={48} className="loading-spinner" />
-          <p>Connecting to energy system...</p>
-        </div>
-      )}
-
       {connectionError && (
         <div className="victron-error-banner">
           <WifiOff size={20} />
@@ -73,9 +106,16 @@ const VictronDashboard = () => {
         </div>
       )}
 
-      {systemStatus && (
-        <>
-          <div className="victron-summary-cards">
+      <div className="victron-layout">
+        <div className="victron-main">
+          {!systemStatus ? (
+            <div className="victron-loading">
+              <Activity size={48} className="loading-spinner" />
+              <p>Connecting to energy system...</p>
+            </div>
+          ) : (
+            <>
+              <div className="victron-summary-cards">
             <div className="victron-card solar">
               <div className="card-icon"><Sun size={32} /></div>
               <div className="card-content">
@@ -289,7 +329,75 @@ const VictronDashboard = () => {
             </div>
           )}
         </>
-      )}
+          )}
+        </div>
+
+        <aside className="victron-sidebar">
+          <div className="victron-section">
+            <div className="victron-section-header">
+              <h2><TrendingUp size={20} /> Battery SOC History</h2>
+              <div className="time-range-selector">
+                {SOC_TIME_RANGES.map((range) => (
+                  <button
+                    key={range.value}
+                    className={`range-btn ${socRange === range.value ? 'active' : ''}`}
+                    onClick={() => setSocRange(range.value)}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="victron-chart-card">
+              {socLoading && socHistory.length === 0 && (
+                <div className="chart-placeholder">Loading SOC history...</div>
+              )}
+              {!socLoading && socError && (
+                <div className="chart-error">Metrics unavailable: {socError}</div>
+              )}
+              {!socLoading && !socError && socHistory.length === 0 && (
+                <div className="chart-placeholder">No SOC data in this time range.</div>
+              )}
+              {socHistory.length > 0 && (
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={socHistory}>
+                    <defs>
+                      <linearGradient id="socGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="time"
+                      type="number"
+                      scale="time"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={formatChartTime}
+                      tick={{ fontSize: 12 }}
+                      stroke="#9ca3af"
+                    />
+                    <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                    <Tooltip
+                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'SOC']}
+                    />
+                    <ReferenceLine y={20} stroke="#ef4444" strokeDasharray="4 4" />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fill="url(#socGradient)"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </aside>
+      </div>
 
       <div className="victron-footer">
         <span>Last update: {timeAgo || 'waiting...'}</span>
@@ -301,6 +409,10 @@ const VictronDashboard = () => {
     </div>
   );
 };
+
+function formatChartTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 function getVebusState(state) {
   const states = {

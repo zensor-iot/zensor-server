@@ -3766,6 +3766,79 @@ body {
   color: var(--color-gray-400);
 }
 
+.victron-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.victron-section-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  margin: 0;
+}
+
+.time-range-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.range-btn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius);
+  background: var(--color-white);
+  color: var(--color-gray-600);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.range-btn:hover {
+  border-color: var(--color-green-500);
+  color: var(--color-green-600);
+}
+
+.range-btn.active {
+  background: var(--color-green-500);
+  border-color: var(--color-green-500);
+  color: #fff;
+}
+
+.victron-chart-card {
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.chart-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 280px;
+  color: var(--color-gray-400);
+  font-size: 0.875rem;
+}
+
+.chart-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 280px;
+  color: var(--color-red-500);
+  font-size: 0.875rem;
+}
+
 .badge {
   font-size: 0.625rem;
   font-weight: 600;
@@ -3782,6 +3855,33 @@ body {
 .badge.inverting {
   background: var(--color-orange-100);
   color: var(--color-orange-600);
+}
+
+.victron-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.victron-main {
+  min-width: 0;
+}
+
+.victron-sidebar {
+  min-width: 0;
+  position: sticky;
+  top: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .victron-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .victron-sidebar {
+    position: static;
+  }
 }
 
 .victron-section {

@@ -281,4 +281,38 @@ export const deviceCommandsApi = {
     }
 }
 
+// VictoriaMetrics query API (reverse-proxied by the Go server at /v1/metrics/*)
+export const metricsApi = {
+    // Query a range of samples for a metric name using the PromQL query_range
+    // endpoint. Resolves to [{ time, value }, ...] sorted chronologically,
+    // merging every returned time series.
+    async queryRange(metricName, { start, end, step = '60s' } = {}) {
+        const now = Date.now()
+        const from = start ?? now - 6 * 60 * 60 * 1000
+        const to = end ?? now
+        const params = new URLSearchParams({
+            query: metricName,
+            start: String(Math.floor(from / 1000)),
+            end: String(Math.floor(to / 1000)),
+            step,
+        })
+        const response = await fetch(`${getApiUrl('/metrics/query_range')}?${params}`)
+        if (!response.ok) {
+            throw new Error(`Failed to query metrics: ${response.status}`)
+        }
+        const payload = await response.json()
+        const points = []
+        for (const series of payload?.data?.result ?? []) {
+            for (const [timestamp, value] of series.values ?? []) {
+                const parsed = parseFloat(value)
+                if (Number.isFinite(parsed)) {
+                    points.push({ time: parseInt(timestamp, 10) * 1000, value: parsed })
+                }
+            }
+        }
+        points.sort((a, b) => a.time - b.time)
+        return points
+    },
+}
+
 export default config 

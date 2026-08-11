@@ -91,6 +91,11 @@ func main() {
 		controllers = append(controllers, victronHTTPAPI.NewVictronWebSocketController(internalBroker))
 	}
 
+	if appConfig.VictoriaMetrics.BaseURL != "" {
+		slog.Info("exposing victoriametrics query API", slog.String("base_url", appConfig.VictoriaMetrics.BaseURL))
+		controllers = append(controllers, httpserver.NewMetricsProxyController(appConfig.VictoriaMetrics.BaseURL))
+	}
+
 	var httpServer httpserver.Server
 	switch {
 	case appConfig.Auth.Enabled && appConfig.Auth.Mode == config.AuthModeStatic:

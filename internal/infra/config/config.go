@@ -67,6 +67,7 @@ func LoadConfig() AppConfig {
 			PushNotifications: loadPushNotificationsConfig(),
 			Modules:           loadModulesConfig(),
 			Victron:           loadVictronConfig(),
+			VictoriaMetrics:   loadVictoriaMetricsConfig(),
 			ExecutionWorker: ExecutionWorkerConfig{
 				TickerInterval: viper.GetDuration("execution_worker.ticker_interval"),
 			},
@@ -186,6 +187,16 @@ func loadPushNotificationsConfig() []PushNotificationWorkerConfig {
 	return []PushNotificationWorkerConfig{}
 }
 
+func loadVictoriaMetricsConfig() VictoriaMetricsConfig {
+	baseURL := viper.GetString("victoriametrics.base_url")
+	if baseURL == "" {
+		baseURL = "http://localhost:8428"
+	}
+	return VictoriaMetricsConfig{
+		BaseURL: baseURL,
+	}
+}
+
 func loadModulesConfig() ModulesConfig {
 	return ModulesConfig{
 		Permaculture: ModuleConfig{
@@ -207,6 +218,7 @@ type AppConfig struct {
 	mqtt              MqttConfig
 	MQTTClient        MQTTClientConfig
 	Victron           VictronConfig
+	VictoriaMetrics   VictoriaMetricsConfig
 	Postgresql        PostgresqlConfig
 	Redis             RedisConfig
 	MailerSend        MailerSendConfig
@@ -337,6 +349,12 @@ type VictronMQTTConfig struct {
 	ClientID string
 	Username string
 	Password string
+}
+
+// VictoriaMetricsConfig holds the base URL of the VictoriaMetrics instance
+// whose Prometheus-compatible query API is exposed to the SPA.
+type VictoriaMetricsConfig struct {
+	BaseURL string
 }
 
 type ModuleConfig struct {

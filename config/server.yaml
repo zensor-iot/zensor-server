@@ -96,6 +96,10 @@ victron:
     username: ""
     password: ""
   cache_ttl: "5m"
+victoriametrics:
+  # Base URL of the VictoriaMetrics instance exposed to the SPA through the
+  # /v1/metrics/* reverse proxy. Override with ZENSOR_SERVER_VICTORIAMETRICS_BASE_URL.
+  base_url: "http://pi03.zensor-labs.home:8428"
 modules:
   permaculture:
     enabled: true
