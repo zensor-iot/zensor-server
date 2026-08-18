@@ -17,6 +17,8 @@ const (
 	sessionsByUserKeyPrefix = "auth:sessions_by_user:"
 )
 
+var ErrSessionAlreadyExpired = errors.New("session already expired")
+
 func NewRedisSessionStore(client redis.Cmdable) *RedisSessionStore {
 	return &RedisSessionStore{
 		client: client,
@@ -38,7 +40,7 @@ func (s *RedisSessionStore) Create(ctx context.Context, session domain.Session) 
 
 	ttl := time.Until(session.ExpiresAt)
 	if ttl <= 0 {
-		return errors.New("session already expired")
+		return ErrSessionAlreadyExpired
 	}
 
 	if err := s.client.Set(ctx, sessionKeyPrefix+session.ID, payload, ttl).Err(); err != nil {

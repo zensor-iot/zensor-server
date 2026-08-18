@@ -1,3 +1,4 @@
+// Package sql provides the ORM and SQL persistence abstraction.
 package sql
 
 import (

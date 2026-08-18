@@ -1,3 +1,4 @@
+// Package httpapi provides HTTP controllers for the control plane.
 package httpapi
 
 import (

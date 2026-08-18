@@ -1,3 +1,4 @@
+// Package httpapi provides HTTP controllers for the Victron integration.
 package httpapi
 
 import (
@@ -77,14 +78,14 @@ type VictronWebSocketController struct {
 }
 
 func NewVictronWebSocketController(broker async.InternalBroker) *VictronWebSocketController {
-	return newVictronWebSocketController(broker, victronWebSocketPingInterval)
+	return buildVictronWebSocketController(broker, victronWebSocketPingInterval)
 }
 
 func NewVictronWebSocketControllerWithPingInterval(broker async.InternalBroker, pingInterval time.Duration) *VictronWebSocketController {
-	return newVictronWebSocketController(broker, pingInterval)
+	return buildVictronWebSocketController(broker, pingInterval)
 }
 
-func newVictronWebSocketController(broker async.InternalBroker, pingInterval time.Duration) *VictronWebSocketController {
+func buildVictronWebSocketController(broker async.InternalBroker, pingInterval time.Duration) *VictronWebSocketController {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wsc := &VictronWebSocketController{

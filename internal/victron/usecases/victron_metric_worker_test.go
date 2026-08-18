@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
-func collectVictronGauge(reader *metric.ManualReader, ctx context.Context, name string) (float64, bool) {
+func collectVictronGauge(ctx context.Context, reader *metric.ManualReader, name string) (float64, bool) {
 	var rm metricdata.ResourceMetrics
 	if err := reader.Collect(ctx, &rm); err != nil {
 		return 0, false
@@ -41,7 +41,7 @@ func collectVictronGauge(reader *metric.ManualReader, ctx context.Context, name 
 	return 0, false
 }
 
-func victronGaugeAttributes(reader *metric.ManualReader, ctx context.Context, name string) []attribute.KeyValue {
+func victronGaugeAttributes(ctx context.Context, reader *metric.ManualReader, name string) []attribute.KeyValue {
 	var rm metricdata.ResourceMetrics
 	if err := reader.Collect(ctx, &rm); err != nil {
 		return nil
@@ -108,7 +108,7 @@ var _ = ginkgo.Describe("VictronMetricWorker", func() {
 				})).To(gomega.Succeed())
 
 				gomega.Eventually(func() (float64, error) {
-					value, ok := collectVictronGauge(reader, context.Background(), "zensor_server_victron_battery_dc_0_voltage")
+					value, ok := collectVictronGauge(context.Background(), reader, "zensor_server_victron_battery_dc_0_voltage")
 					if !ok {
 						return 0, errors.New("gauge not recorded yet")
 					}
@@ -128,7 +128,7 @@ var _ = ginkgo.Describe("VictronMetricWorker", func() {
 				})).To(gomega.Succeed())
 
 				gomega.Eventually(func() []attribute.KeyValue {
-					return victronGaugeAttributes(reader, context.Background(), "zensor_server_victron_battery_soc")
+					return victronGaugeAttributes(context.Background(), reader, "zensor_server_victron_battery_soc")
 				}, 5*time.Second, 50*time.Millisecond).Should(gomega.ContainElements(
 					attribute.String("portal_id", "d41243b4e8e4"),
 					attribute.String("service_type", "battery"),
@@ -151,7 +151,7 @@ var _ = ginkgo.Describe("VictronMetricWorker", func() {
 				})).To(gomega.Succeed())
 
 				gomega.Consistently(func() bool {
-					_, ok := collectVictronGauge(reader, context.Background(), "zensor_server_victron_system_serial")
+					_, ok := collectVictronGauge(context.Background(), reader, "zensor_server_victron_system_serial")
 					return ok
 				}, 500*time.Millisecond, 100*time.Millisecond).Should(gomega.BeFalse())
 			})

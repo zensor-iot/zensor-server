@@ -1,3 +1,4 @@
+// Package o11y provides observability helpers.
 package o11y
 
 import (

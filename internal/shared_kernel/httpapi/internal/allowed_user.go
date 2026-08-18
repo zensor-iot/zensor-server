@@ -1,3 +1,4 @@
+// Package internal provides HTTP request and response types for shared kernel resources.
 package internal
 
 import (

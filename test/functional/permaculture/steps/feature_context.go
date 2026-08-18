@@ -153,9 +153,9 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the operation should fail with an error$`, fc.theOperationShouldFailWithAnError)
 
 	// Background steps for scheduled task tasks feature
-	ctx.Given(`^a tenant with id "([^"]*)"$`, fc.aTenantWithId)
-	ctx.Given(`^a device with id "([^"]*)" belonging to tenant "([^"]*)"$`, fc.aDeviceWithIdBelongingToTenant)
-	ctx.Given(`^a scheduled task with id "([^"]*)" for device "([^"]*)" with schedule "([^"]*)"$`, fc.aScheduledTaskWithIdForDeviceWithSchedule)
+	ctx.Given(`^a tenant with id "([^"]*)"$`, fc.aTenantWithID)
+	ctx.Given(`^a device with id "([^"]*)" belonging to tenant "([^"]*)"$`, fc.aDeviceWithIDBelongingToTenant)
+	ctx.Given(`^a scheduled task with id "([^"]*)" for device "([^"]*)" with schedule "([^"]*)"$`, fc.aScheduledTaskWithIDForDeviceWithSchedule)
 
 	// Evaluation Rule steps
 	ctx.Given(`^an evaluation rule exists for the device$`, fc.anEvaluationRuleExistsForTheDevice)
@@ -170,7 +170,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.Then(`^the cached states should contain the device data$`, fc.theCachedStatesShouldContainTheDeviceData)
 
 	// Tenant Configuration steps
-	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.iHaveATenantWithIdForConfiguration)
+	ctx.Given(`^I have a tenant with id "([^"]*)"$`, fc.iHaveATenantWithIDForConfiguration)
 	ctx.When(`^I create a tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iCreateATenantConfigurationForTenantWithTimezone)
 	ctx.When(`^I get the tenant configuration for tenant "([^"]*)"$`, fc.iGetTheTenantConfigurationForTenant)
 	ctx.When(`^I update the tenant configuration for tenant "([^"]*)" with timezone "([^"]*)"$`, fc.iUpdateTheTenantConfigurationForTenantWithTimezone)
@@ -187,7 +187,7 @@ func (fc *FeatureContext) RegisterSteps(ctx *godog.ScenarioContext) {
 	ctx.When(`^I associate user "([^"]*)" with tenants$`, fc.iAssociateUserWithTenants)
 	ctx.Given(`^user "([^"]*)" is associated with tenants$`, fc.userIsAssociatedWithTenants)
 	ctx.When(`^I get the user "([^"]*)"$`, fc.iGetTheUser)
-	ctx.Then(`^the response should contain the user with id "([^"]*)"$`, fc.theResponseShouldContainTheUserWithId)
+	ctx.Then(`^the response should contain the user with id "([^"]*)"$`, fc.theResponseShouldContainTheUserWithID)
 	ctx.Then(`^the response should contain exactly (\d+) tenants$`, fc.theResponseShouldContainExactlyTenants)
 	ctx.When(`^I update user "([^"]*)" with different tenants$`, fc.iUpdateUserWithDifferentTenants)
 	ctx.Given(`^user "([^"]*)" is associated with (\d+) tenants$`, fc.userIsAssociatedWithTenantsCount)

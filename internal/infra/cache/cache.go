@@ -1,3 +1,4 @@
+// Package cache provides caching abstractions backed by Redis.
 package cache
 
 import (

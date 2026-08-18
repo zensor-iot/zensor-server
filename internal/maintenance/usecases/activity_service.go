@@ -1,3 +1,4 @@
+// Package usecases provides business logic use cases for the maintenance module.
 package usecases
 
 //go:generate mockgen -source=./activity_service.go -destination=../../../test/unit/doubles/maintenance/usecases/maintenance_activity_service_mock.go -package=usecases -mock_names=ActivityService=MockActivityService

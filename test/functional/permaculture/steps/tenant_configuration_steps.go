@@ -27,8 +27,8 @@ type TenantConfigurationUpdateRequest struct {
 	Timezone string `json:"timezone"`
 }
 
-// iHaveATenantWithIdForConfiguration is a simplified version for tenant configuration tests.
-func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) error {
+// iHaveATenantWithIDForConfiguration is a simplified version for tenant configuration tests.
+func (fc *FeatureContext) iHaveATenantWithIDForConfiguration(tenantID string) error {
 	// Create a tenant with the specified ID
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for configuration")
 	fc.require.NoError(err)

@@ -1,3 +1,4 @@
+// Package workers provides event processing workers for the data plane.
 package workers
 
 import (
@@ -14,7 +15,7 @@ import (
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel/device"
+	devicepkg "zensor-server/internal/shared_kernel/device"
 	"zensor-server/internal/shared_kernel/domain"
 
 	"go.opentelemetry.io/otel"
@@ -375,14 +376,14 @@ func (w *LoraIntegrationWorker) dispatchCommand(ctx context.Context, cmd domain.
 	}
 }
 
-func domainCommandToDeviceCommand(cmd domain.Command) *device.Command {
-	return &device.Command{
+func domainCommandToDeviceCommand(cmd domain.Command) *devicepkg.Command {
+	return &devicepkg.Command{
 		ID:         cmd.ID.String(),
 		Version:    int(cmd.Version),
 		DeviceID:   cmd.Device.ID.String(),
 		DeviceName: cmd.Device.Name,
 		TaskID:     cmd.Task.ID.String(),
-		Payload: device.CommandPayload{
+		Payload: devicepkg.CommandPayload{
 			Index: uint8(cmd.Payload.Index),
 			Value: uint8(cmd.Payload.Value),
 		},

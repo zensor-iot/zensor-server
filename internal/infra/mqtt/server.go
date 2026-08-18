@@ -10,7 +10,7 @@ import (
 
 const (
 	username   string = "zensor_server"
-	qos_level  byte   = 0
+	qosLevel   byte   = 0
 	maxRetries int    = 10
 
 	EventTypeMessage  string = "message"
@@ -54,13 +54,12 @@ func connect(broker, id string) mqtt.Client {
 		client := mqtt.NewClient(opts)
 		token := client.Connect()
 
-		if token.Wait() && token.Error() != nil {
-			slog.Info("error connecting to mqtt broker: %s", slog.String("error", token.Error().Error()))
-			slog.Info("retrying... ")
-			time.Sleep(5 * time.Second)
-		} else {
+		if !token.Wait() || token.Error() == nil {
 			return client
 		}
+		slog.Info("error connecting to mqtt broker: %s", slog.String("error", token.Error().Error()))
+		slog.Info("retrying... ")
+		time.Sleep(5 * time.Second)
 	}
 
 	slog.Info("imposible to connect to mqtt broker after many retries", slog.Int("retries", maxRetries))
@@ -69,7 +68,7 @@ func connect(broker, id string) mqtt.Client {
 
 func (p *mqttPeer) subscribe() {
 	slog.Info("subscribing to channel", "topic", p.topic)
-	p.client.Subscribe(p.topic, qos_level, p.onMessageReceive)
+	p.client.Subscribe(p.topic, qosLevel, p.onMessageReceive)
 }
 
 func (p *mqttPeer) onMessageReceive(c mqtt.Client, msg mqtt.Message) {

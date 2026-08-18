@@ -1,3 +1,4 @@
+// Package mqtt provides MQTT client and server abstractions.
 package mqtt
 
 import (

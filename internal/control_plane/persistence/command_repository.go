@@ -1,3 +1,4 @@
+// Package persistence provides repository implementations backed by the ORM for the control plane.
 package persistence
 
 import (

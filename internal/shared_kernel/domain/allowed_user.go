@@ -1,3 +1,4 @@
+// Package domain provides shared domain models used across the server.
 package domain
 
 import (

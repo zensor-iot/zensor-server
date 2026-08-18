@@ -276,7 +276,7 @@ func (fc *FeatureContext) theOperationShouldFailWithAnError() error {
 	return nil
 }
 
-func (fc *FeatureContext) aTenantWithId(tenantID string) error {
+func (fc *FeatureContext) aTenantWithID(tenantID string) error {
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for scheduled task tasks")
 	fc.require.NoError(err)
 	defer func() {
@@ -327,7 +327,7 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 	return nil
 }
 
-func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID string) error {
+func (fc *FeatureContext) aDeviceWithIDBelongingToTenant(deviceID, tenantID string) error {
 	resp, err := fc.apiDriver.CreateDevice(deviceID, deviceID+" Display Name")
 	fc.require.NoError(err)
 	defer func() {
@@ -378,7 +378,7 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 	return nil
 }
 
-func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTaskID, deviceID, schedule string) error {
+func (fc *FeatureContext) aScheduledTaskWithIDForDeviceWithSchedule(scheduledTaskID, deviceID, schedule string) error {
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
 	defer func() {

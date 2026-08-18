@@ -1,3 +1,4 @@
+// Package notification provides notification delivery clients across multiple platforms.
 package notification
 
 import (

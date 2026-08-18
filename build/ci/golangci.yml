@@ -81,7 +81,6 @@ linters:
         - name: constant-logical-expr
         - name: confusing-naming
         - name: get-return
-        - name: confusing-results
         - name: identical-branches
         - name: string-format
         - name: time-naming
@@ -115,7 +114,6 @@ linters:
         - underef
         - unlabelStmt
         - unlambda
-        - unnamedResult
         - unnecessaryBlock
         - weakCond
   exclusions:

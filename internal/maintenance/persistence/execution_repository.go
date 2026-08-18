@@ -65,23 +65,9 @@ func (r *SimpleExecutionRepository) FindAllByActivity(
 	activityID shareddomain.ID,
 	pagination usecases.Pagination,
 ) ([]maintenanceDomain.Execution, int, error) {
-	var total int64
-	query := r.orm.WithContext(ctx).Model(&internal.Execution{})
-
-	err := query.Where("activity_id = ? AND deleted_at IS NULL", activityID.String()).Count(&total).Error()
+	entities, total, err := paginateByFilter(ctx, r.orm, internal.Execution{}, "activity_id = ? AND deleted_at IS NULL", pagination, activityID.String())
 	if err != nil {
-		return nil, 0, fmt.Errorf("count query: %w", err)
-	}
-
-	var entities []internal.Execution
-	err = query.
-		Where("activity_id = ? AND deleted_at IS NULL", activityID.String()).
-		Limit(pagination.Limit).
-		Offset(pagination.Offset).
-		Find(&entities).
-		Error()
-	if err != nil {
-		return nil, 0, fmt.Errorf("database query: %w", err)
+		return nil, 0, err
 	}
 
 	result := make([]maintenanceDomain.Execution, len(entities))
@@ -89,7 +75,7 @@ func (r *SimpleExecutionRepository) FindAllByActivity(
 		result[i] = entity.ToDomain()
 	}
 
-	return result, int(total), nil
+	return result, total, nil
 }
 
 func (r *SimpleExecutionRepository) FindByActivityAndScheduledDate(ctx context.Context, activityID shareddomain.ID, scheduledDate time.Time) (maintenanceDomain.Execution, error) {

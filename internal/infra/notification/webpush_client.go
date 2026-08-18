@@ -93,7 +93,7 @@ func (c *WebPushClient) SendPushNotification(ctx context.Context, request PushNo
 	case resp.StatusCode < 200 || resp.StatusCode >= 300:
 		return &NotificationError{
 			Message: "web push service error",
-			Err:     fmt.Errorf("unexpected status %d", resp.StatusCode),
+			Err:     fmt.Errorf("%w: unexpected status %d", ErrWebPushServiceError, resp.StatusCode),
 		}
 	}
 
@@ -104,6 +104,6 @@ func (c *WebPushClient) SendPushNotification(ctx context.Context, request PushNo
 func (c *WebPushClient) SendEmail(ctx context.Context, request EmailRequest) error {
 	return &NotificationError{
 		Message: "email notifications are not supported by Web Push",
-		Err:     errors.New("use MailerSend client for email notifications"),
+		Err:     ErrEmailNotSupported,
 	}
 }

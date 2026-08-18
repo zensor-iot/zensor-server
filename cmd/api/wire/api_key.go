@@ -1,3 +1,4 @@
+// Package wire contains the Wire dependency injection providers.
 package wire
 
 import (

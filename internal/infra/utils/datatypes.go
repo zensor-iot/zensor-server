@@ -38,15 +38,15 @@ func (t Time) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + formatted + `"`), nil
 }
 
-func (p Time) Value() (driver.Value, error) {
-	return p.Time, nil
+func (t Time) Value() (driver.Value, error) {
+	return t.Time, nil
 }
 
-func (p *Time) Scan(src any) error {
+func (t *Time) Scan(src any) error {
 	value, ok := src.(time.Time)
 	if !ok {
 		return fmt.Errorf("cannot scan %T into Time: %w", src, errCannotScanIntoTime)
 	}
-	p.Time = value
+	t.Time = value
 	return nil
 }

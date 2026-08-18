@@ -2,6 +2,7 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -16,6 +17,8 @@ const (
 	_defaultQueryTimeout = 30 * time.Second
 	_maxRetries          = 5
 )
+
+var ErrDatabaseConnectionFailed = errors.New("impossible to connect to database")
 
 type PostgreDatabase struct {
 	url  string
@@ -71,13 +74,13 @@ func (d *PostgreDatabase) Open() error {
 
 		if err1 != nil {
 			time.Sleep(5 * time.Second)
-		} else {
-			d.Conn = conn
-			return nil
+			continue
 		}
+		d.Conn = conn
+		return nil
 	}
 
-	return fmt.Errorf("imposible to connect to database after %d retries", _maxRetries)
+	return fmt.Errorf("%w after %d retries", ErrDatabaseConnectionFailed, _maxRetries)
 }
 
 func (d *PostgreDatabase) Close() {

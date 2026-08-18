@@ -1,3 +1,4 @@
+// Package web embeds the web frontend build output.
 package web
 
 import (

@@ -127,65 +127,37 @@ var _ = ginkgo.Describe("Cache", func() {
 		})
 	})
 
-	ginkgo.Context("GetOrSet", func() {
-		var (
-			key           string
-			expectedValue string
-			ttl           time.Duration
-			loader        func() (any, error)
-		)
+	registerGetOrSet := func(name, key, itDescription string) {
+		ginkgo.Context(name, func() {
+			var (
+				expectedValue string
+				ttl           time.Duration
+				loader        func() (any, error)
+			)
 
-		ginkgo.When("getting or setting a value", func() {
-			ginkgo.BeforeEach(func() {
-				key = "test-key-getorset"
-				expectedValue = "loaded-value"
-				ttl = 1 * time.Second
-				loader = func() (any, error) { //nolint:unparam
-					return expectedValue, nil
-				}
-			})
+			ginkgo.When("getting or setting a value", func() {
+				ginkgo.BeforeEach(func() {
+					expectedValue = "loaded-value"
+					ttl = 1 * time.Second
+					loader = func() (any, error) { //nolint:unparam
+						return expectedValue, nil
+					}
+				})
 
-			ginkgo.It("should load and cache the value", func() {
-				value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gomega.Expect(value).To(gomega.Equal(expectedValue))
+				ginkgo.It(itDescription, func() {
+					value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					gomega.Expect(value).To(gomega.Equal(expectedValue))
 
-				value, err = cacheInstance.GetOrSet(ctx, key, ttl, loader)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gomega.Expect(value).To(gomega.Equal(expectedValue))
-			})
-		})
-	})
-
-	ginkgo.Context("GetOrSetWithContext", func() {
-		var (
-			key           string
-			expectedValue string
-			ttl           time.Duration
-			loader        func() (any, error)
-		)
-
-		ginkgo.When("getting or setting with context", func() {
-			ginkgo.BeforeEach(func() {
-				key = "test-key-context"
-				expectedValue = "loaded-value"
-				ttl = 1 * time.Second
-				loader = func() (any, error) { //nolint:unparam
-					return expectedValue, nil
-				}
-			})
-
-			ginkgo.It("should handle context correctly", func() {
-				value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gomega.Expect(value).To(gomega.Equal(expectedValue))
-
-				value, err = cacheInstance.GetOrSet(ctx, key, ttl, loader)
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				gomega.Expect(value).To(gomega.Equal(expectedValue))
+					value, err = cacheInstance.GetOrSet(ctx, key, ttl, loader)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+					gomega.Expect(value).To(gomega.Equal(expectedValue))
+				})
 			})
 		})
-	})
+	}
+	registerGetOrSet("GetOrSet", "test-key-getorset", "should load and cache the value")
+	registerGetOrSet("GetOrSetWithContext", "test-key-context", "should handle context correctly")
 
 	ginkgo.Context("GetOrSetWithCancelledContext", func() {
 		var (

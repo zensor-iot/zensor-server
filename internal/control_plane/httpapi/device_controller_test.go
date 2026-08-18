@@ -83,20 +83,7 @@ var _ = Describe("DeviceController", func() {
 
 				router.ServeHTTP(recorder, request)
 
-				Expect(recorder.Code).To(Equal(http.StatusOK))
-
-				var response httpserver.PaginatedResponse
-				err := json.Unmarshal(recorder.Body.Bytes(), &response)
-				Expect(err).NotTo(HaveOccurred())
-
-				Expect(response.Pagination.Page).To(Equal(1))
-				Expect(response.Pagination.Limit).To(Equal(10))
-				Expect(response.Pagination.Total).To(Equal(2))
-				Expect(response.Pagination.TotalPages).To(Equal(1))
-
-				deviceData, ok := response.Data.([]any)
-				Expect(ok).To(BeTrue())
-				Expect(deviceData).To(HaveLen(2))
+				expectPaginatedDeviceResponse(recorder, 1, 10, 2, 1, 2)
 			})
 		})
 
@@ -126,20 +113,7 @@ var _ = Describe("DeviceController", func() {
 
 				router.ServeHTTP(recorder, request)
 
-				Expect(recorder.Code).To(Equal(http.StatusOK))
-
-				var response httpserver.PaginatedResponse
-				err := json.Unmarshal(recorder.Body.Bytes(), &response)
-				Expect(err).NotTo(HaveOccurred())
-
-				Expect(response.Pagination.Page).To(Equal(2))
-				Expect(response.Pagination.Limit).To(Equal(5))
-				Expect(response.Pagination.Total).To(Equal(25))
-				Expect(response.Pagination.TotalPages).To(Equal(5))
-
-				deviceData, ok := response.Data.([]any)
-				Expect(ok).To(BeTrue())
-				Expect(deviceData).To(HaveLen(1))
+				expectPaginatedDeviceResponse(recorder, 2, 5, 25, 5, 1)
 			})
 		})
 
@@ -238,3 +212,20 @@ var _ = Describe("DeviceController", func() {
 		})
 	})
 })
+
+func expectPaginatedDeviceResponse(recorder *httptest.ResponseRecorder, page, limit, total, totalPages, dataLen int) {
+	Expect(recorder.Code).To(Equal(http.StatusOK))
+
+	var response httpserver.PaginatedResponse
+	err := json.Unmarshal(recorder.Body.Bytes(), &response)
+	Expect(err).NotTo(HaveOccurred())
+
+	Expect(response.Pagination.Page).To(Equal(page))
+	Expect(response.Pagination.Limit).To(Equal(limit))
+	Expect(response.Pagination.Total).To(Equal(total))
+	Expect(response.Pagination.TotalPages).To(Equal(totalPages))
+
+	deviceData, ok := response.Data.([]any)
+	Expect(ok).To(BeTrue())
+	Expect(deviceData).To(HaveLen(dataLen))
+}

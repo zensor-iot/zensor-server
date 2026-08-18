@@ -1,3 +1,4 @@
+// Package internal provides ORM entity types for the control plane.
 package internal
 
 import (
