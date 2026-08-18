@@ -17,7 +17,7 @@ import (
 )
 
 var testSchedule = maintenanceDomain.Schedule{
-	StartDate: time.Now().AddDate(0, 0, 1),
+	StartDate: time.Now().UTC().Round(0).AddDate(0, 0, 1),
 	Every:     1,
 	Unit:      maintenanceDomain.RecurrenceUnitMonth,
 }
