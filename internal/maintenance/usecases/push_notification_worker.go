@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
+
 	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 
 	"go.opentelemetry.io/otel"

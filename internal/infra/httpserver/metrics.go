@@ -7,10 +7,10 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
-
 	"zensor-server/internal/infra/node"
 
 	"go.opentelemetry.io/otel"
@@ -95,10 +95,10 @@ func MetricsMiddleware() func(http.Handler) http.Handler {
 			endpoint := normalizeEndpoint(r.URL.Path)
 
 			globalAttrs := getGlobalAttributes()
-			activeAttrs := append(globalAttrs,
+			activeAttrs := slices.Concat(globalAttrs, []attribute.KeyValue{
 				attribute.String("http.method", r.Method),
 				attribute.String("http.endpoint", endpoint),
-			)
+			})
 			httpRequestActive.Add(r.Context(), 1, metric.WithAttributes(activeAttrs...))
 
 			wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -107,11 +107,11 @@ func MetricsMiddleware() func(http.Handler) http.Handler {
 
 			duration := time.Since(start).Seconds()
 
-			attrs := append(globalAttrs,
+			attrs := slices.Concat(globalAttrs, []attribute.KeyValue{
 				attribute.String("http.method", r.Method),
 				attribute.String("http.endpoint", endpoint),
 				attribute.Int("http.status_code", wrappedWriter.statusCode),
-			)
+			})
 
 			httpRequestDuration.Record(r.Context(), duration, metric.WithAttributes(attrs...))
 

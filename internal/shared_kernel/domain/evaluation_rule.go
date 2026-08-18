@@ -2,7 +2,6 @@ package domain
 
 import (
 	"errors"
-
 	"zensor-server/internal/infra/utils"
 )
 

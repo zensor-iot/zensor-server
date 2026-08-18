@@ -2,6 +2,7 @@ package steps
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,18 +31,24 @@ func (fc *FeatureContext) aScheduledTaskExistsForTheTenantAndDeviceWithSchedule(
 
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
-	fc.scheduledTaskID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Scheduled task id should be a string")
+	fc.scheduledTaskID = id
 	return nil
 }
 
 func (fc *FeatureContext) iCreateAScheduledTaskForTheTenantAndDeviceWithSchedule(schedule string) error {
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -51,7 +58,9 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetails() erro
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])
-	fc.scheduledTaskID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Scheduled task id should be a string")
+	fc.scheduledTaskID = id
 	fc.responseData = data
 	return nil
 }
@@ -59,6 +68,9 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetails() erro
 func (fc *FeatureContext) iListAllScheduledTasksForTheTenant() error {
 	resp, err := fc.apiDriver.ListScheduledTasks(fc.tenantID, fc.deviceID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -97,6 +109,9 @@ func (fc *FeatureContext) iUpdateTheScheduledTaskWithANewSchedule(newSchedule st
 	fc.updatedSchedule = newSchedule
 	resp, err := fc.apiDriver.UpdateScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID, newSchedule)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -104,6 +119,9 @@ func (fc *FeatureContext) iUpdateTheScheduledTaskWithANewSchedule(newSchedule st
 func (fc *FeatureContext) iGetTheScheduledTaskByItsID() error {
 	resp, err := fc.apiDriver.GetScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -121,6 +139,7 @@ func (fc *FeatureContext) thereAreTasksCreatedFromScheduledTask(count int, sched
 		resp, err := fc.apiDriver.CreateTaskFromScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID)
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusCreated, resp.StatusCode)
+		resp.Body.Close()
 	}
 	return nil
 }
@@ -128,6 +147,9 @@ func (fc *FeatureContext) thereAreTasksCreatedFromScheduledTask(count int, sched
 func (fc *FeatureContext) iRetrieveTheFirstTasksForScheduledTask(limit int, scheduledTaskID string) error {
 	resp, err := fc.apiDriver.GetTasksByScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID, 1, limit)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -135,6 +157,9 @@ func (fc *FeatureContext) iRetrieveTheFirstTasksForScheduledTask(limit int, sche
 func (fc *FeatureContext) iRetrievePageWithTasksForScheduledTask(page, limit int, scheduledTaskID string) error {
 	resp, err := fc.apiDriver.GetTasksByScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID, page, limit)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -142,6 +167,9 @@ func (fc *FeatureContext) iRetrievePageWithTasksForScheduledTask(page, limit int
 func (fc *FeatureContext) iRetrieveTasksForScheduledTask(scheduledTaskID string) error {
 	resp, err := fc.apiDriver.GetTasksByScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID, 0, 0)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -173,8 +201,14 @@ func (fc *FeatureContext) theTasksShouldBeSortedByCreationDateInDescendingOrder(
 	fc.require.True(ok, "Response data should contain tasks")
 
 	for i := range len(data) - 1 {
-		currentCreatedAt := data[i]["created_at"].(string)
-		nextCreatedAt := data[i+1]["created_at"].(string)
+		currentCreatedAt, ok := data[i]["created_at"].(string)
+		if !ok {
+			return errors.New("task created_at is not a string")
+		}
+		nextCreatedAt, ok := data[i+1]["created_at"].(string)
+		if !ok {
+			return errors.New("task created_at is not a string")
+		}
 		fc.require.GreaterOrEqual(currentCreatedAt, nextCreatedAt, "Tasks should be sorted by created_at in descending order")
 	}
 	return nil
@@ -203,6 +237,9 @@ func (fc *FeatureContext) thePaginationShouldIndicatePage(page int) error {
 func (fc *FeatureContext) iTryToRetrieveTasksForNonExistentScheduledTask(scheduledTaskID string) error {
 	resp, err := fc.apiDriver.GetTasksByScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID, 0, 0)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -210,6 +247,9 @@ func (fc *FeatureContext) iTryToRetrieveTasksForNonExistentScheduledTask(schedul
 func (fc *FeatureContext) iTryToRetrieveTasksForScheduledTaskUsingInvalidTenant(scheduledTaskID, invalidTenant string) error {
 	resp, err := fc.apiDriver.GetTasksByScheduledTask(invalidTenant, fc.deviceID, scheduledTaskID, 0, 0)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -217,6 +257,9 @@ func (fc *FeatureContext) iTryToRetrieveTasksForScheduledTaskUsingInvalidTenant(
 func (fc *FeatureContext) iTryToRetrieveTasksForScheduledTaskUsingInvalidDevice(scheduledTaskID, invalidDevice string) error {
 	resp, err := fc.apiDriver.GetTasksByScheduledTask(fc.tenantID, invalidDevice, scheduledTaskID, 0, 0)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -230,16 +273,20 @@ func (fc *FeatureContext) theOperationShouldFailWithAnError() error {
 func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for scheduled task tasks")
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
-		fc.tenantID = data["id"].(string)
+		id, ok := data["id"].(string)
+		fc.require.True(ok, "Tenant id should be a string")
+		fc.tenantID = id
 	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
+		defer listResp.Body.Close()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -250,7 +297,11 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 
 		for _, tenant := range listData.Data {
 			if tenant["name"] == tenantID {
-				fc.tenantID = tenant["id"].(string)
+				id, ok := tenant["id"].(string)
+				if !ok {
+					return errors.New("tenant id is not a string")
+				}
+				fc.tenantID = id
 				return nil
 			}
 		}
@@ -265,16 +316,20 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID string) error {
 	resp, err := fc.apiDriver.CreateDevice(deviceID, deviceID+" Display Name")
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
-		fc.deviceID = data["id"].(string)
+		id, ok := data["id"].(string)
+		fc.require.True(ok, "Device id should be a string")
+		fc.deviceID = id
 	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListDevices()
 		fc.require.NoError(err)
+		defer listResp.Body.Close()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -285,7 +340,11 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 
 		for _, device := range listData.Data {
 			if device["name"] == deviceID {
-				fc.deviceID = device["id"].(string)
+				id, ok := device["id"].(string)
+				if !ok {
+					return errors.New("device id is not a string")
+				}
+				fc.deviceID = id
 				return nil
 			}
 		}
@@ -300,16 +359,20 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTaskID, deviceID, schedule string) error {
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
-		fc.scheduledTaskID = data["id"].(string)
+		id, ok := data["id"].(string)
+		fc.require.True(ok, "Scheduled task id should be a string")
+		fc.scheduledTaskID = id
 	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListScheduledTasks(fc.tenantID, fc.deviceID)
 		fc.require.NoError(err)
+		defer listResp.Body.Close()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var paginatedResp struct {
@@ -319,7 +382,9 @@ func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTas
 		fc.require.NoError(err)
 		fc.require.NotEmpty(paginatedResp.Data, "Should have at least one scheduled task")
 
-		fc.scheduledTaskID = paginatedResp.Data[0]["id"].(string)
+		scheduledTaskID, ok := paginatedResp.Data[0]["id"].(string)
+		fc.require.True(ok, "Scheduled task id should be a string")
+		fc.scheduledTaskID = scheduledTaskID
 	default:
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating scheduled task")
 	}
@@ -329,6 +394,9 @@ func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTas
 func (fc *FeatureContext) iDeleteTheScheduledTask() error {
 	resp, err := fc.apiDriver.DeleteScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -336,6 +404,9 @@ func (fc *FeatureContext) iDeleteTheScheduledTask() error {
 func (fc *FeatureContext) iTryToGetTheScheduledTaskByItsID() error {
 	resp, err := fc.apiDriver.GetScheduledTask(fc.tenantID, fc.deviceID, fc.scheduledTaskID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -353,6 +424,9 @@ func (fc *FeatureContext) iCreateAScheduledTaskWith(table *godog.Table) error {
 
 	resp, err := fc.apiDriver.CreateScheduledTaskWithJSON(fc.tenantID, fc.deviceID, requestBody)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -370,6 +444,9 @@ func (fc *FeatureContext) iUpdateTheScheduledTaskWith(table *godog.Table) error 
 
 	resp, err := fc.apiDriver.UpdateScheduledTaskWithJSON(fc.tenantID, fc.deviceID, fc.scheduledTaskID, requestBody)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -471,7 +548,9 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetailsWithInt
 	fc.require.NotNil(schedulingMap["execution_time"], "Execution time should be present")
 	fc.require.NotNil(schedulingMap["next_execution"], "Next execution time should be calculated")
 
-	fc.scheduledTaskID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Scheduled task id should be a string")
+	fc.scheduledTaskID = id
 	fc.responseData = data
 	return nil
 }
@@ -484,11 +563,14 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithNextExecut
 	scheduling, exists := data["scheduling"]
 	fc.require.True(exists, "Response should contain scheduling configuration")
 
-	schedulingMap := scheduling.(map[string]any)
+	schedulingMap, ok := scheduling.(map[string]any)
+	fc.require.True(ok, "Scheduling should be a map")
 	nextExecution := schedulingMap["next_execution"]
 	fc.require.NotNil(nextExecution, "Next execution time should be present")
 
-	fc.scheduledTaskID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Scheduled task id should be a string")
+	fc.scheduledTaskID = id
 	fc.responseData = data
 	return nil
 }
@@ -498,12 +580,15 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskDetailsWith3Da
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 
-	scheduling := data["scheduling"].(map[string]any)
+	scheduling, ok := data["scheduling"].(map[string]any)
+	fc.require.True(ok, "Scheduling should be a map")
 	fc.require.Equal("interval", scheduling["type"])
-	fc.require.Equal(float64(3), scheduling["day_interval"], "Day interval should be 3")
+	fc.require.InDelta(float64(3), scheduling["day_interval"], 0.0001, "Day interval should be 3")
 	fc.require.Equal("15:00", scheduling["execution_time"], "Execution time should be 15:00")
 
-	fc.scheduledTaskID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Scheduled task id should be a string")
+	fc.scheduledTaskID = id
 	fc.responseData = data
 	return nil
 }
@@ -525,9 +610,10 @@ func (fc *FeatureContext) theResponseShouldContainTheUpdatedScheduledTaskWithInt
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 
-	scheduling := data["scheduling"].(map[string]any)
+	scheduling, ok := data["scheduling"].(map[string]any)
+	fc.require.True(ok, "Scheduling should be a map")
 	fc.require.Equal("interval", scheduling["type"])
-	fc.require.Equal(float64(5), scheduling["day_interval"], "Day interval should be 5")
+	fc.require.InDelta(float64(5), scheduling["day_interval"], 0.0001, "Day interval should be 5")
 	fc.require.Equal("10:30", scheduling["execution_time"], "Execution time should be 10:30")
 
 	return nil

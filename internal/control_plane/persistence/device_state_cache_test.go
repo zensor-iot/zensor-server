@@ -3,7 +3,6 @@ package persistence_test
 import (
 	"context"
 	"fmt"
-
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"

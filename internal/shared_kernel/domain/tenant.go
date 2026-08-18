@@ -2,7 +2,6 @@ package domain
 
 import (
 	"time"
-
 	"zensor-server/internal/infra/utils"
 )
 

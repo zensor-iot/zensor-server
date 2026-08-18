@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
-
 	"zensor-server/internal/infra/notification"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
@@ -82,7 +81,9 @@ var _ = Describe("WebPushClient", func() {
 				err := client.SendPushNotification(context.Background(), request)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(receivedRequests.Load()).To(Equal(int64(1)))
-				Expect(lastAuthHeader.Load().(string)).To(HavePrefix("vapid"))
+				authHeader, ok := lastAuthHeader.Load().(string)
+				Expect(ok).To(BeTrue())
+				Expect(authHeader).To(HavePrefix("vapid"))
 			})
 		})
 

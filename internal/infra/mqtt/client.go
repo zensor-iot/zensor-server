@@ -205,7 +205,7 @@ func (c *SimpleClient) Disconnect() {
 
 func (c *SimpleClient) Publish(ctx context.Context, topic string, msg any) error {
 	tracer := otel.Tracer("zensor-server")
-	ctx, span := tracer.Start(ctx, "mqtt.publish",
+	_, span := tracer.Start(ctx, "mqtt.publish",
 		trace.WithAttributes(
 			attribute.String("span.kind", "client"),
 			attribute.String("component", "mqtt-client"),

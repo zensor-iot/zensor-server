@@ -3,9 +3,9 @@ package persistence_test
 import (
 	"context"
 	"time"
-
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenancePersistence "zensor-server/internal/maintenance/persistence"
 	maintenancePersistenceInternal "zensor-server/internal/maintenance/persistence/internal"
@@ -132,7 +132,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 
 		ginkgo.BeforeEach(func() {
 			tenantID = shareddomain.ID(utils.GenerateUUID())
-			activities = []maintenanceDomain.Activity{}
+			activities = make([]maintenanceDomain.Activity, 0, 3)
 
 			activityType := maintenanceDomain.ActivityType{
 				Name:         shareddomain.Name(maintenanceDomain.ActivityTypeWaterSystem),

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/shared_kernel/httpapi/internal"

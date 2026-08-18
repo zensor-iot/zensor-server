@@ -2,6 +2,7 @@ package steps
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,6 +23,9 @@ type Device struct {
 func (fc *FeatureContext) iCreateANewDeviceWithNameAndDisplayName(name, displayName string) error {
 	resp, err := fc.apiDriver.CreateDevice(name, displayName)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -29,11 +33,13 @@ func (fc *FeatureContext) iCreateANewDeviceWithNameAndDisplayName(name, displayN
 func (fc *FeatureContext) aDeviceExistsWithName(name string) error {
 	resp, err := fc.apiDriver.CreateDevice(name, name)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
 		// Device already exists, try to get it by listing all devices
 		listResp, err := fc.apiDriver.ListDevices()
 		fc.require.NoError(err)
+		defer listResp.Body.Close()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -44,7 +50,11 @@ func (fc *FeatureContext) aDeviceExistsWithName(name string) error {
 
 		for _, device := range listData.Data {
 			if device["name"] == name {
-				fc.deviceID = device["id"].(string)
+				id, ok := device["id"].(string)
+				if !ok {
+					return errors.New("device id is not a string")
+				}
+				fc.deviceID = id
 				return nil
 			}
 		}
@@ -57,7 +67,9 @@ func (fc *FeatureContext) aDeviceExistsWithName(name string) error {
 	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
-	fc.deviceID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Device id should be a string")
+	fc.deviceID = id
 	return nil
 }
 
@@ -66,7 +78,9 @@ func (fc *FeatureContext) theResponseShouldContainTheDeviceDetails() error {
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])
-	fc.deviceID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Device id should be a string")
+	fc.deviceID = id
 	fc.responseData = data
 	return nil
 }
@@ -74,6 +88,9 @@ func (fc *FeatureContext) theResponseShouldContainTheDeviceDetails() error {
 func (fc *FeatureContext) iListAllDevices() error {
 	resp, err := fc.apiDriver.ListDevices()
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -103,6 +120,9 @@ func (fc *FeatureContext) theListShouldContainTheDeviceWithName(name string) err
 func (fc *FeatureContext) iUpdateTheDeviceWithANewDisplayName(newDisplayName string) error {
 	resp, err := fc.apiDriver.UpdateDevice(fc.deviceID, newDisplayName)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -110,6 +130,9 @@ func (fc *FeatureContext) iUpdateTheDeviceWithANewDisplayName(newDisplayName str
 func (fc *FeatureContext) iGetTheDeviceByItsID() error {
 	resp, err := fc.apiDriver.GetDevice(fc.deviceID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }

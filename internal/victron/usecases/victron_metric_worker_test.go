@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/victron/usecases"
 

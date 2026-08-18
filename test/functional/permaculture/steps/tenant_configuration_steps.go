@@ -2,6 +2,7 @@ package steps
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -31,21 +32,25 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 	// Create a tenant with the specified ID
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for configuration")
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 
 	// Accept both 201 (Created) and 409 (Conflict - already exists)
-	if resp.StatusCode == http.StatusCreated {
+	switch resp.StatusCode {
+	case http.StatusCreated:
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
-		actualID := data["id"].(string)
+		actualID, ok := data["id"].(string)
+		fc.require.True(ok, "Tenant id should be a string")
 
 		fc.tenantIDs = append(fc.tenantIDs, actualID)
 		fc.tenantNameToID[tenantID] = actualID
 		fc.tenantID = actualID
-	} else if resp.StatusCode == http.StatusConflict {
+	case http.StatusConflict:
 		// If tenant already exists, find it by listing and add to array
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
+		defer listResp.Body.Close()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -57,8 +62,14 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 		// Find the tenant
 		for _, tenant := range listData.Data {
 			if tenant["id"] != nil {
-				actualID := tenant["id"].(string)
-				name := tenant["name"].(string)
+				actualID, ok := tenant["id"].(string)
+				if !ok {
+					return errors.New("tenant id is not a string")
+				}
+				name, ok := tenant["name"].(string)
+				if !ok {
+					return errors.New("tenant name is not a string")
+				}
 				found := false
 				for _, existingID := range fc.tenantIDs {
 					if existingID == actualID {
@@ -76,7 +87,7 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 		}
 		fc.require.Fail("Tenant with name " + tenantID + " not found in list")
 		return nil
-	} else {
+	default:
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating tenant")
 	}
 	return nil
@@ -97,14 +108,18 @@ func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenan
 		callerID = "test-user-" + targetTenantID
 	}
 
-	_, err := fc.apiDriver.AssociateUserWithTenants(callerID, []string{targetTenantID})
+	associateResp, err := fc.apiDriver.AssociateUserWithTenants(callerID, []string{targetTenantID})
 	if err != nil {
 		return fmt.Errorf("failed to associate user with tenant: %w", err)
 	}
+	associateResp.Body.Close()
 
 	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, callerID)
 	if err != nil {
 		return fmt.Errorf("failed to create tenant configuration: %w", err)
+	}
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
 	}
 	fc.response = resp
 	return nil
@@ -115,6 +130,9 @@ func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantName string)
 		resp, err := fc.apiDriver.GetTenantConfiguration(tenantName)
 		if err != nil {
 			return fmt.Errorf("failed to get tenant configuration: %w", err)
+		}
+		if err := fc.bufferResponseBody(resp); err != nil {
+			return err
 		}
 		fc.response = resp
 		return nil
@@ -128,6 +146,9 @@ func (fc *FeatureContext) iGetTheTenantConfigurationForTenant(tenantName string)
 	resp, err := fc.apiDriver.GetTenantConfiguration(targetTenantID)
 	if err != nil {
 		return fmt.Errorf("failed to get tenant configuration: %w", err)
+	}
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
 	}
 	fc.response = resp
 	return nil
@@ -147,14 +168,18 @@ func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(ten
 		callerID = "test-user-" + targetTenantID
 	}
 
-	_, err := fc.apiDriver.AssociateUserWithTenants(callerID, []string{targetTenantID})
+	associateResp, err := fc.apiDriver.AssociateUserWithTenants(callerID, []string{targetTenantID})
 	if err != nil {
 		return fmt.Errorf("failed to associate user with tenant: %w", err)
 	}
+	associateResp.Body.Close()
 
 	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, callerID)
 	if err != nil {
 		return fmt.Errorf("failed to update tenant configuration: %w", err)
+	}
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
 	}
 	fc.response = resp
 	return nil

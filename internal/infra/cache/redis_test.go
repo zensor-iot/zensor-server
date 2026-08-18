@@ -3,8 +3,8 @@ package cache_test
 import (
 	"context"
 	"time"
-
 	"zensor-server/internal/infra/cache"
+
 	mockcache "zensor-server/test/unit/doubles/infra/cache"
 
 	"github.com/onsi/ginkgo/v2"
@@ -187,7 +187,7 @@ var _ = ginkgo.Describe("RedisCache", func() {
 				key = "test_getorset_key"
 				expectedValue = "test_getorset_value"
 				ttl = 5 * time.Second
-				loader = func() (any, error) {
+				loader = func() (any, error) { //nolint:unparam
 					return expectedValue, nil
 				}
 			})

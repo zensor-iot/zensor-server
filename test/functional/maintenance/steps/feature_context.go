@@ -1,8 +1,10 @@
 package steps
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,7 +13,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
 	"zensor-server/test/functional/maintenance/driver"
 
 	"github.com/cucumber/godog"
@@ -137,21 +138,22 @@ func (fc *FeatureContext) waitForDuration(duration string) error {
 
 	var d time.Duration
 
-	if strings.HasSuffix(duration, "ms") {
+	switch {
+	case strings.HasSuffix(duration, "ms"):
 		msStr := strings.TrimSuffix(duration, "ms")
 		ms, err := strconv.Atoi(msStr)
 		if err != nil {
 			return err
 		}
 		d = time.Duration(ms) * time.Millisecond
-	} else if strings.HasSuffix(duration, "s") {
+	case strings.HasSuffix(duration, "s"):
 		sStr := strings.TrimSuffix(duration, "s")
 		s, err := strconv.Atoi(sStr)
 		if err != nil {
 			return err
 		}
 		d = time.Duration(s) * time.Second
-	} else {
+	default:
 		ms, err := strconv.Atoi(duration)
 		if err != nil {
 			return err
@@ -171,10 +173,12 @@ func (fc *FeatureContext) theResponseStatusCodeShouldBe(code int) error {
 func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "A test tenant")
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
+		defer listResp.Body.Close()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -185,7 +189,11 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 
 		for _, tenant := range listData.Data {
 			if tenant["name"] == name {
-				fc.tenantID = tenant["id"].(string)
+				id, ok := tenant["id"].(string)
+				if !ok {
+					return errors.New("tenant id is not a string")
+				}
+				fc.tenantID = id
 				return nil
 			}
 		}
@@ -199,7 +207,10 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
 
-	tenantID := data["id"].(string)
+	tenantID, ok := data["id"].(string)
+	if !ok {
+		return errors.New("tenant id is not a string")
+	}
 	fc.tenantID = tenantID
 	fc.tenantIDs = append(fc.tenantIDs, tenantID)
 
@@ -248,6 +259,18 @@ func (fc *FeatureContext) decodeBody(body io.ReadCloser, target any) error {
 		return err
 	}
 	return json.Unmarshal(bodyBytes, target)
+}
+
+func (fc *FeatureContext) bufferResponseBody(resp *http.Response) error {
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	return nil
 }
 
 func (fc *FeatureContext) decodePaginatedResponse(body *http.Response) ([]map[string]any, error) {

@@ -2,8 +2,8 @@ package cache_test
 
 import (
 	"context"
+	"errors"
 	"time"
-
 	"zensor-server/internal/infra/cache"
 
 	"github.com/onsi/ginkgo/v2"
@@ -140,7 +140,7 @@ var _ = ginkgo.Describe("Cache", func() {
 				key = "test-key-getorset"
 				expectedValue = "loaded-value"
 				ttl = 1 * time.Second
-				loader = func() (any, error) {
+				loader = func() (any, error) { //nolint:unparam
 					return expectedValue, nil
 				}
 			})
@@ -170,7 +170,7 @@ var _ = ginkgo.Describe("Cache", func() {
 				key = "test-key-context"
 				expectedValue = "loaded-value"
 				ttl = 1 * time.Second
-				loader = func() (any, error) {
+				loader = func() (any, error) { //nolint:unparam
 					return expectedValue, nil
 				}
 			})
@@ -200,7 +200,7 @@ var _ = ginkgo.Describe("Cache", func() {
 				ttl = 1 * time.Second
 				loader = func() (any, error) {
 					ginkgo.Fail("loader should not be called with cancelled context")
-					return nil, nil
+					return nil, errors.New("loader should not be called")
 				}
 			})
 
@@ -228,7 +228,7 @@ var _ = ginkgo.Describe("Cache", func() {
 				key = "test-key-concurrent"
 				expectedValue = "concurrent-value"
 				ttl = 1 * time.Second
-				loader = func() (any, error) {
+				loader = func() (any, error) { //nolint:unparam
 					time.Sleep(10 * time.Millisecond)
 					return expectedValue, nil
 				}

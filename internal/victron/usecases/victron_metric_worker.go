@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-
 	"zensor-server/internal/infra/async"
 
 	victrondto "zensor-server/internal/victron/dto"

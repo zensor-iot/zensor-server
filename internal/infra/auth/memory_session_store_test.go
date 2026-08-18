@@ -3,7 +3,6 @@ package auth_test
 import (
 	"context"
 	"time"
-
 	"zensor-server/internal/infra/auth"
 	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/shared_kernel/usecases"

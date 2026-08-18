@@ -2,11 +2,20 @@ package internal
 
 import (
 	"encoding/json"
+	"log/slog"
 	"time"
-
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
+
+func mustMarshal(value any) []byte {
+	bytes, err := json.Marshal(value)
+	if err != nil {
+		slog.Error("failed to marshal persistence data", slog.Any("error", err))
+		return []byte("{}")
+	}
+	return bytes
+}
 
 // SchedulingConfigurationData represents the scheduling configuration
 // that should be stored in the database.
@@ -93,7 +102,7 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 		commandTemplateData[i] = ToCommandTemplateData(template)
 	}
 
-	commandTemplatesJSON, _ := json.Marshal(commandTemplateData)
+	commandTemplatesJSON := mustMarshal(commandTemplateData)
 
 	// Convert scheduling configuration to persistence format
 	var schedulingConfigJSON []byte
@@ -110,7 +119,7 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 			schedulingData.InitialDay = &initialDayStr
 		}
 
-		schedulingConfigJSON, _ = json.Marshal(schedulingData)
+		schedulingConfigJSON = mustMarshal(schedulingData)
 		schedulingConfigStr = string(schedulingConfigJSON)
 	}
 

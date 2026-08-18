@@ -2,8 +2,8 @@ package usecases
 
 import (
 	"context"
-
 	"zensor-server/internal/shared_kernel/domain"
+
 	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 )
 

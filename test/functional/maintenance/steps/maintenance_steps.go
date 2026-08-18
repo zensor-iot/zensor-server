@@ -32,6 +32,10 @@ func (fc *FeatureContext) iCreateAMaintenanceActivityForTenantWithTypeAndName(ty
 		fields,
 	)
 	fc.require.NoError(err)
+
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 
 	if resp.StatusCode == http.StatusCreated {
@@ -70,6 +74,10 @@ func (fc *FeatureContext) iCreateAMaintenanceActivityForTenantWithCustomTypeAndN
 		fields,
 	)
 	fc.require.NoError(err)
+
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 
 	if resp.StatusCode == http.StatusCreated {
@@ -95,6 +103,7 @@ func (fc *FeatureContext) aDeactivatedMaintenanceActivityExistsForTenantWithType
 	time.Sleep(50 * time.Millisecond)
 	resp, err := fc.apiDriver.DeactivateMaintenanceActivity(fc.maintenanceActivityID)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 	fc.require.Equal(http.StatusOK, resp.StatusCode)
 	return nil
 }
@@ -102,6 +111,9 @@ func (fc *FeatureContext) aDeactivatedMaintenanceActivityExistsForTenantWithType
 func (fc *FeatureContext) iListAllMaintenanceActivitiesForTheTenant() error {
 	resp, err := fc.apiDriver.ListMaintenanceActivities(fc.tenantID, 0, 0)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -124,6 +136,9 @@ func (fc *FeatureContext) theListShouldContainTheMaintenanceActivityWithName(nam
 func (fc *FeatureContext) iGetTheMaintenanceActivityByItsID() error {
 	resp, err := fc.apiDriver.GetMaintenanceActivity(fc.maintenanceActivityID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -164,6 +179,9 @@ func (fc *FeatureContext) iUpdateTheMaintenanceActivityWithName(newName string) 
 	}
 	resp, err := fc.apiDriver.UpdateMaintenanceActivity(fc.maintenanceActivityID, updates)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -172,6 +190,9 @@ func (fc *FeatureContext) iUpdateTheMaintenanceActivityWithName(newName string) 
 func (fc *FeatureContext) iActivateTheMaintenanceActivity() error {
 	resp, err := fc.apiDriver.ActivateMaintenanceActivity(fc.maintenanceActivityID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -180,6 +201,9 @@ func (fc *FeatureContext) iActivateTheMaintenanceActivity() error {
 func (fc *FeatureContext) iDeactivateTheMaintenanceActivity() error {
 	resp, err := fc.apiDriver.DeactivateMaintenanceActivity(fc.maintenanceActivityID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -194,7 +218,9 @@ func (fc *FeatureContext) theResponseShouldContainAnActiveMaintenanceActivity() 
 		fc.require.NoError(err)
 		fc.responseData = data
 	}
-	fc.require.True(data["is_active"].(bool), "Maintenance activity should be active")
+	isActive, ok := data["is_active"].(bool)
+	fc.require.True(ok, "Maintenance activity is_active should be a bool")
+	fc.require.True(isActive, "Maintenance activity should be active")
 	return nil
 }
 
@@ -207,13 +233,18 @@ func (fc *FeatureContext) theResponseShouldContainAnInactiveMaintenanceActivity(
 		fc.require.NoError(err)
 		fc.responseData = data
 	}
-	fc.require.False(data["is_active"].(bool), "Maintenance activity should be inactive")
+	isActive, ok := data["is_active"].(bool)
+	fc.require.True(ok, "Maintenance activity is_active should be a bool")
+	fc.require.False(isActive, "Maintenance activity should be inactive")
 	return nil
 }
 
 func (fc *FeatureContext) iDeleteTheMaintenanceActivity() error {
 	resp, err := fc.apiDriver.DeleteMaintenanceActivity(fc.maintenanceActivityID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -243,6 +274,7 @@ func (fc *FeatureContext) thereAreMaintenanceExecutionsForTheActivity(count int)
 				}
 			}
 		}
+		resp.Body.Close()
 		time.Sleep(10 * time.Millisecond)
 	}
 	return nil
@@ -256,6 +288,7 @@ func (fc *FeatureContext) aMaintenanceExecutionExistsForTheActivity() error {
 
 	resp, err := fc.createMaintenanceExecution(fc.maintenanceActivityID, scheduledDate, fieldValues)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
@@ -282,6 +315,7 @@ func (fc *FeatureContext) aFutureMaintenanceExecutionExistsForTheActivity() erro
 
 	resp, err := fc.createMaintenanceExecution(fc.maintenanceActivityID, scheduledDate, fieldValues)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
@@ -306,6 +340,7 @@ func (fc *FeatureContext) anOverdueMaintenanceExecutionExistsForTheActivity() er
 
 	resp, err := fc.createMaintenanceExecution(fc.maintenanceActivityID, scheduledDate, fieldValues)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
@@ -329,6 +364,9 @@ func (fc *FeatureContext) createMaintenanceExecution(activityID string, schedule
 func (fc *FeatureContext) iListAllMaintenanceExecutionsForTheActivity() error {
 	resp, err := fc.apiDriver.ListMaintenanceExecutions(fc.maintenanceActivityID, 0, 0)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -343,6 +381,9 @@ func (fc *FeatureContext) iShouldReceiveExecutions(count int) error {
 func (fc *FeatureContext) iGetTheMaintenanceExecutionByItsID() error {
 	resp, err := fc.apiDriver.GetMaintenanceExecution(fc.maintenanceExecutionID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -366,6 +407,9 @@ func (fc *FeatureContext) theResponseShouldContainTheMaintenanceExecutionDetails
 func (fc *FeatureContext) iMarkTheMaintenanceExecutionAsCompletedBy(completedBy string) error {
 	resp, err := fc.apiDriver.MarkMaintenanceExecutionCompleted(fc.maintenanceExecutionID, completedBy)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -375,6 +419,9 @@ func (fc *FeatureContext) iMarkTheMaintenanceExecutionAsCompletedByWithFieldValu
 	fieldValues := map[string]any{fieldName: fieldValue}
 	resp, err := fc.apiDriver.MarkMaintenanceExecutionCompletedWithFieldValues(fc.maintenanceExecutionID, completedBy, fieldValues)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -398,6 +445,9 @@ func (fc *FeatureContext) theResponseShouldContainFieldValueSetTo(fieldName, fie
 func (fc *FeatureContext) iRequestTheVAPIDPublicKey() error {
 	resp, err := fc.apiDriver.GetVAPIDPublicKey()
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.responseData = nil
 	return nil
@@ -450,6 +500,8 @@ func (fc *FeatureContext) theResponseShouldContainAnOverdueMaintenanceExecution(
 		fc.require.NoError(err)
 		fc.responseData = data
 	}
-	fc.require.True(data["is_overdue"].(bool), "Maintenance execution should be overdue")
+	isOverdue, ok := data["is_overdue"].(bool)
+	fc.require.True(ok, "Maintenance execution is_overdue should be a bool")
+	fc.require.True(isOverdue, "Maintenance execution should be overdue")
 	return nil
 }

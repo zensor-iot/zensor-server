@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-
 	"zensor-server/internal/shared_kernel/domain"
 )
 

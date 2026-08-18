@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"zensor-server/internal/infra/sql"
-	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	"zensor-server/internal/maintenance/persistence/internal"
 	"zensor-server/internal/maintenance/usecases"
+
+	maintenanceDomain "zensor-server/internal/maintenance/domain"
+
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 

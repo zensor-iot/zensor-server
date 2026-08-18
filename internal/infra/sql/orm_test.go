@@ -3,7 +3,6 @@ package sql_test
 import (
 	"context"
 	"time"
-
 	"zensor-server/internal/infra/sql"
 
 	"github.com/onsi/ginkgo/v2"

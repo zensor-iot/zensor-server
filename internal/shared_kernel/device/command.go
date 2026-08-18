@@ -2,7 +2,6 @@ package device
 
 import (
 	"fmt"
-
 	"zensor-server/internal/infra/utils"
 
 	"github.com/vmihailenco/msgpack/v5"

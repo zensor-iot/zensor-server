@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"os"
 	"syscall"
 	"time"
-
 	"zensor-server/test/functional/permaculture/driver"
 
 	"github.com/cucumber/godog"
@@ -265,6 +265,18 @@ func (fc *FeatureContext) decodeBody(body io.ReadCloser, target any) error {
 		return err
 	}
 	return json.Unmarshal(bodyBytes, target)
+}
+
+func (fc *FeatureContext) bufferResponseBody(resp *http.Response) error {
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	return nil
 }
 
 func (fc *FeatureContext) decodePaginatedResponse(body *http.Response) ([]map[string]any, error) {

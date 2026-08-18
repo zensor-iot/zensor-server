@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"errors"
 	"net/http"
 	"time"
 )
@@ -18,6 +19,9 @@ type Tenant struct {
 func (fc *FeatureContext) iCreateANewTenantWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "A test tenant")
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -25,11 +29,13 @@ func (fc *FeatureContext) iCreateANewTenantWithNameAndEmail(name, email string) 
 func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "A test tenant")
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
 		// Tenant already exists, try to get it by listing all tenants
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
+		defer listResp.Body.Close()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -41,7 +47,11 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 		// Find the tenant with the given name
 		for _, tenant := range listData.Data {
 			if tenant["name"] == name {
-				fc.tenantID = tenant["id"].(string)
+				id, ok := tenant["id"].(string)
+				if !ok {
+					return errors.New("tenant id is not a string")
+				}
+				fc.tenantID = id
 				return nil
 			}
 		}
@@ -55,7 +65,8 @@ func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) erro
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
 
-	tenantID := data["id"].(string)
+	tenantID, ok := data["id"].(string)
+	fc.require.True(ok, "Tenant id should be a string")
 	fc.tenantID = tenantID
 	fc.tenantIDs = append(fc.tenantIDs, tenantID)
 
@@ -70,6 +81,7 @@ func (fc *FeatureContext) aDeactivatedTenantExistsWithNameAndEmail(name, email s
 	fc.require.NoError(err)
 	resp, err := fc.apiDriver.DeactivateTenant(fc.tenantID)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 	fc.require.Equal(http.StatusNoContent, resp.StatusCode)
 	return nil
 }
@@ -77,6 +89,9 @@ func (fc *FeatureContext) aDeactivatedTenantExistsWithNameAndEmail(name, email s
 func (fc *FeatureContext) iGetTheTenantByItsID() error {
 	resp, err := fc.apiDriver.GetTenant(fc.tenantID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -92,6 +107,9 @@ func (fc *FeatureContext) theResponseShouldContainTheTenantWithName(name string)
 func (fc *FeatureContext) iListAllTenants() error {
 	resp, err := fc.apiDriver.ListTenants()
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -114,6 +132,9 @@ func (fc *FeatureContext) theListShouldContainTheTenantWithName(name string) err
 func (fc *FeatureContext) iUpdateTheTenantWithANewName(newName string) error {
 	resp, err := fc.apiDriver.UpdateTenant(fc.tenantID, newName)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -121,6 +142,9 @@ func (fc *FeatureContext) iUpdateTheTenantWithANewName(newName string) error {
 func (fc *FeatureContext) iDeactivateTheTenant() error {
 	resp, err := fc.apiDriver.DeactivateTenant(fc.tenantID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -128,6 +152,9 @@ func (fc *FeatureContext) iDeactivateTheTenant() error {
 func (fc *FeatureContext) iActivateTheTenant() error {
 	resp, err := fc.apiDriver.ActivateTenant(fc.tenantID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -135,6 +162,9 @@ func (fc *FeatureContext) iActivateTheTenant() error {
 func (fc *FeatureContext) iSoftDeleteTheTenant() error {
 	resp, err := fc.apiDriver.SoftDeleteTenant(fc.tenantID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }

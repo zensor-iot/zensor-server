@@ -7,9 +7,10 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+	"zensor-server/internal/infra/async"
 
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/infra/async"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )

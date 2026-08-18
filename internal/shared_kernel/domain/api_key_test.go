@@ -3,7 +3,6 @@ package domain_test
 import (
 	"crypto/sha256"
 	"encoding/hex"
-
 	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/onsi/ginkgo/v2"

@@ -22,6 +22,9 @@ func (fc *FeatureContext) iAssociateUserWithTenants(userID string) error {
 
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, tenantIDs)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	fc.userID = userID
 	return nil
@@ -35,6 +38,9 @@ func (fc *FeatureContext) userIsAssociatedWithTenants(userID string) error {
 
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, tenantIDs)
 	fc.require.NoError(err)
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
 	fc.require.Equal(http.StatusOK, resp.StatusCode)
 
 	fc.userID = userID
@@ -44,6 +50,9 @@ func (fc *FeatureContext) userIsAssociatedWithTenants(userID string) error {
 func (fc *FeatureContext) iGetTheUser(userID string) error {
 	resp, err := fc.apiDriver.GetUser(userID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -100,6 +109,9 @@ func (fc *FeatureContext) iUpdateUserWithDifferentTenants(userID string) error {
 
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, tenantIDs)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -108,6 +120,9 @@ func (fc *FeatureContext) userIsAssociatedWithTenantsCount(userID string, count 
 	tenantIDs := fc.tenantIDs
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, tenantIDs)
 	fc.require.NoError(err)
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
 	fc.require.Equal(http.StatusOK, resp.StatusCode)
 
 	time.Sleep(50 * time.Millisecond)
@@ -118,6 +133,9 @@ func (fc *FeatureContext) userIsAssociatedWithTenantsCount(userID string, count 
 func (fc *FeatureContext) iAssociateUserWithEmptyTenantList(userID string) error {
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, []string{})
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return nil
 }
@@ -125,6 +143,9 @@ func (fc *FeatureContext) iAssociateUserWithEmptyTenantList(userID string) error
 func (fc *FeatureContext) iAttemptToAssociateUserWithNonExistentTenant(userID string) error {
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, []string{"non-existent-tenant-id"})
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -133,6 +154,9 @@ func (fc *FeatureContext) iAttemptToAssociateUserWithMixedTenantList(userID stri
 	tenantIDs := []string{fc.tenantID, "invalid-tenant-id"}
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, tenantIDs)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -149,7 +173,8 @@ func (fc *FeatureContext) anotherTenantExistsWithNameAndEmail(name, email string
 	err = json.Unmarshal(bodyBytes, &data)
 	fc.require.NoError(err)
 
-	tenantID := data["id"].(string)
+	tenantID, ok := data["id"].(string)
+	fc.require.True(ok, "Tenant id should be a string")
 	fc.tenantIDs = append(fc.tenantIDs, tenantID)
 	fc.tenantID = tenantID
 
@@ -175,6 +200,11 @@ func (fc *FeatureContext) iHaveAUserAssociatedWithTenant(userID, tenantID string
 	if err != nil {
 		return fmt.Errorf("failed to associate user with tenant: %w", err)
 	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			fc.require.NoError(cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)

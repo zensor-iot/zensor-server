@@ -45,6 +45,7 @@ func (fc *FeatureContext) iConnectToTheWebSocketEndpoint() error {
 	conn, resp, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		if resp != nil {
+			defer resp.Body.Close()
 			return fmt.Errorf("websocket connection failed with status %d: %w", resp.StatusCode, err)
 		}
 		return fmt.Errorf("websocket connection failed: %w", err)

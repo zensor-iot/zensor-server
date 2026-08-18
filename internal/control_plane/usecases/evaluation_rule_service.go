@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-
 	"zensor-server/internal/shared_kernel/domain"
 )
 

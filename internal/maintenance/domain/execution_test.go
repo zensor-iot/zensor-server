@@ -2,7 +2,6 @@ package domain_test
 
 import (
 	"time"
-
 	"zensor-server/internal/infra/utils"
 
 	maintenanceDomain "zensor-server/internal/maintenance/domain"

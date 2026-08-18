@@ -3,7 +3,6 @@ package web_test
 import (
 	"net/http"
 	"net/http/httptest"
-
 	"zensor-server/internal/infra/httpserver/web"
 
 	. "github.com/onsi/ginkgo/v2"

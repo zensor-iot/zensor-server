@@ -3,6 +3,7 @@ package utils
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -39,6 +40,10 @@ func (p Time) Value() (driver.Value, error) {
 }
 
 func (p *Time) Scan(src any) error {
-	p.Time = src.(time.Time)
+	value, ok := src.(time.Time)
+	if !ok {
+		return fmt.Errorf("cannot scan %T into Time", src)
+	}
+	p.Time = value
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-
 	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/shared_kernel/domain"
 )

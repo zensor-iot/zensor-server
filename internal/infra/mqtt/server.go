@@ -77,7 +77,3 @@ func (p *mqttPeer) onMessageReceive(c mqtt.Client, msg mqtt.Message) {
 	p.outboundChannel <- Event{p.id, EventTypeMessage, msg.Payload()}
 	msg.Ack()
 }
-
-func (p *mqttPeer) publish(_ string) {
-	slog.Info("not implemented yet")
-}

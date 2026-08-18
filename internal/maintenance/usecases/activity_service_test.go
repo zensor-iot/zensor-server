@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"time"
+	"zensor-server/internal/infra/utils"
 
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/infra/utils"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
@@ -188,7 +189,7 @@ var _ = Describe("MaintenanceActivityService", func() {
 
 		BeforeEach(func() {
 			tenantID = shareddomain.ID(utils.GenerateUUID())
-			activities = []maintenanceDomain.Activity{}
+			activities = make([]maintenanceDomain.Activity, 0, 3)
 
 			activityType := maintenanceDomain.ActivityType{
 				Name:         shareddomain.Name(maintenanceDomain.ActivityTypeWaterSystem),

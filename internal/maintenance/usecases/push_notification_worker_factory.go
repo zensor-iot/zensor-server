@@ -3,10 +3,10 @@ package usecases
 import (
 	"fmt"
 	"log/slog"
-
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/notification"
+
 	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 )
 

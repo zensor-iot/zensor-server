@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-
 	"zensor-server/internal/shared_kernel/domain"
 )
 
@@ -32,13 +31,14 @@ func (s *SimpleUserService) AssociateTenants(ctx context.Context, userID domain.
 
 	for _, tenantID := range tenantIDs {
 		_, err := s.tenantRepository.GetByID(ctx, tenantID)
-		if errors.Is(err, ErrTenantNotFound) {
+		switch {
+		case errors.Is(err, ErrTenantNotFound):
 			slog.Warn("tenant not found", slog.String("tenant_id", tenantID.String()))
 			invalidTenants = append(invalidTenants, tenantID)
-		} else if err != nil {
+		case err != nil:
 			slog.Error("getting tenant", slog.String("error", err.Error()))
 			return fmt.Errorf("validating tenant: %w", err)
-		} else {
+		default:
 			validTenants = append(validTenants, tenantID)
 		}
 	}

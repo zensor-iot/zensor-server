@@ -3,7 +3,6 @@ package notification_test
 import (
 	"context"
 	"errors"
-
 	"zensor-server/internal/infra/notification"
 
 	mocknotification "zensor-server/test/unit/doubles/infra/notification"

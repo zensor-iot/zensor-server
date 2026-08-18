@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
 
@@ -229,7 +228,7 @@ func (wsc *VictronWebSocketController) run() {
 			wsc.clientsMux.Lock()
 			if _, ok := wsc.clients[client]; ok {
 				delete(wsc.clients, client)
-				close := func() {
+				closeConn := func() {
 					defer func() {
 						if r := recover(); r != nil {
 							slog.Warn("recovered from panic while closing victron websocket", slog.Any("panic", r))
@@ -237,7 +236,7 @@ func (wsc *VictronWebSocketController) run() {
 					}()
 					client.Close()
 				}
-				close()
+				closeConn()
 			}
 			wsc.clientsMux.Unlock()
 			slog.Info("victron websocket client unregistered", slog.Int("total_clients", len(wsc.clients)))
@@ -340,6 +339,7 @@ func (wsc *VictronWebSocketController) updateStructuredSnapshot(telemetry victro
 		wsc.updateTankData(telemetry)
 	case victrondto.ServiceSystem:
 		wsc.updateSystemData(telemetry)
+	case victrondto.ServiceGenerator, victrondto.ServiceAlternator, victrondto.ServiceFuelLevel, victrondto.ServiceGps:
 	}
 }
 

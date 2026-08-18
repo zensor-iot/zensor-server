@@ -3,9 +3,9 @@ package persistence_test
 import (
 	"context"
 	"time"
-
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenancePersistence "zensor-server/internal/maintenance/persistence"
 	maintenancePersistenceInternal "zensor-server/internal/maintenance/persistence/internal"
@@ -109,7 +109,7 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 
 		ginkgo.BeforeEach(func() {
 			activityID = shareddomain.ID(utils.GenerateUUID())
-			executions = []maintenanceDomain.Execution{}
+			executions = make([]maintenanceDomain.Execution, 0, 3)
 
 			for i := range 3 {
 				execution, _ := maintenanceDomain.NewExecutionBuilder().

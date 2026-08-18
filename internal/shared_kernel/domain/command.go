@@ -2,7 +2,6 @@ package domain
 
 import (
 	"time"
-
 	"zensor-server/internal/infra/utils"
 )
 
@@ -77,6 +76,7 @@ func (c *Command) UpdateStatus(status CommandStatus, errorMessage *string) {
 	now := utils.Time{Time: time.Now()}
 
 	switch status {
+	case CommandStatusPending:
 	case CommandStatusQueued:
 		c.QueuedAt = &now
 	case CommandStatusSent:

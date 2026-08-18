@@ -5,7 +5,6 @@ import (
 	"context"
 	"log/slog"
 	"strings"
-
 	"zensor-server/internal/infra/o11y"
 
 	"github.com/onsi/ginkgo/v2"

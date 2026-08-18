@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"errors"
-
 	"zensor-server/internal/shared_kernel/domain"
 )
 

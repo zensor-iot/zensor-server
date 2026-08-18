@@ -5,11 +5,11 @@ import (
 )
 
 type FieldDefinition struct {
-	Name         shareddomain.Name
-	DisplayName  shareddomain.DisplayName
-	Type         FieldType
-	IsRequired   bool
-	DefaultValue *any
+	Name         shareddomain.Name        `json:"name"`
+	DisplayName  shareddomain.DisplayName `json:"display_name"`
+	Type         FieldType                `json:"type"`
+	IsRequired   bool                     `json:"is_required"`
+	DefaultValue *any                     `json:"default_value,omitempty"`
 }
 
 type FieldType string

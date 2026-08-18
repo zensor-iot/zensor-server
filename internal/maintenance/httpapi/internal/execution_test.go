@@ -2,8 +2,8 @@ package internal_test
 
 import (
 	"time"
-
 	"zensor-server/internal/infra/utils"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenance_httpapi_internal "zensor-server/internal/maintenance/httpapi/internal"
 	shareddomain "zensor-server/internal/shared_kernel/domain"

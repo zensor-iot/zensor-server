@@ -14,7 +14,8 @@ func (fc *FeatureContext) waitForDuration(duration string) error {
 	// Handle common time units
 	var d time.Duration
 
-	if strings.HasSuffix(duration, "ms") {
+	switch {
+	case strings.HasSuffix(duration, "ms"):
 		// Parse milliseconds
 		msStr := strings.TrimSuffix(duration, "ms")
 		ms, err := strconv.Atoi(msStr)
@@ -22,7 +23,7 @@ func (fc *FeatureContext) waitForDuration(duration string) error {
 			return err
 		}
 		d = time.Duration(ms) * time.Millisecond
-	} else if strings.HasSuffix(duration, "s") {
+	case strings.HasSuffix(duration, "s"):
 		// Parse seconds
 		sStr := strings.TrimSuffix(duration, "s")
 		s, err := strconv.Atoi(sStr)
@@ -30,7 +31,7 @@ func (fc *FeatureContext) waitForDuration(duration string) error {
 			return err
 		}
 		d = time.Duration(s) * time.Second
-	} else {
+	default:
 		// Try to parse as milliseconds by default
 		ms, err := strconv.Atoi(duration)
 		if err != nil {
@@ -53,7 +54,9 @@ func (fc *FeatureContext) theResponseShouldContainTheTenantDetails() error {
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])
-	fc.tenantID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Tenant id should be a string")
+	fc.tenantID = id
 	fc.responseData = data
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"time"
-
 	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/onsi/ginkgo/v2"

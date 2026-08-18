@@ -62,12 +62,15 @@ type Subscription struct {
 }
 
 func (b *LocalBroker) Subscribe(topic BrokerTopicName) (Subscription, error) {
-	var subscriptors []*subscriptor
 	value, ok := b.subscriptors.Load(topic)
+	var subscriptors []*subscriptor
 	if !ok {
-		subscriptors = make([]*subscriptor, 0)
+		subscriptors = make([]*subscriptor, 0, 1)
 	} else {
-		subscriptors = value.([]*subscriptor)
+		subscriptors, ok = value.([]*subscriptor)
+		if !ok {
+			return Subscription{}, ErrTopicNotFound
+		}
 	}
 	id := uuid.NewString()
 	receiver := make(chan BrokerMessage)
@@ -83,7 +86,10 @@ func (b *LocalBroker) Unsubscribe(topic BrokerTopicName, subscription Subscripti
 		return ErrTopicNotFound
 	}
 
-	subscriptors := value.([]*subscriptor)
+	subscriptors, ok := value.([]*subscriptor)
+	if !ok {
+		return ErrTopicNotFound
+	}
 	index := slices.IndexFunc(subscriptors, func(s *subscriptor) bool { return s.subscription.ID == subscription.ID })
 	if index < 0 {
 		return ErrSubscriptorNotFound
@@ -100,8 +106,12 @@ func (b *LocalBroker) Publish(ctx context.Context, topic BrokerTopicName, msg Br
 	if !ok {
 		return ErrTopicNotFound
 	}
+	subscriptors, ok := topicSubscriptors.([]*subscriptor)
+	if !ok {
+		return ErrTopicNotFound
+	}
 
-	go b.publish(topicSubscriptors.([]*subscriptor), msg)
+	go b.publish(subscriptors, msg)
 
 	return nil
 }
@@ -116,8 +126,10 @@ func (b *LocalBroker) publish(topicSubscriptors []*subscriptor, msg BrokerMessag
 
 func (b *LocalBroker) Stop() {
 	b.subscriptors.Range(func(key, value any) bool {
-		for _, s := range value.([]*subscriptor) {
-			s.safeClose()
+		if subscriptors, ok := value.([]*subscriptor); ok {
+			for _, s := range subscriptors {
+				s.safeClose()
+			}
 		}
 		return true
 	})

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"time"
-
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/victron/dto"
 	"zensor-server/internal/victron/httpapi"

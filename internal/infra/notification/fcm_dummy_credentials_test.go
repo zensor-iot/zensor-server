@@ -3,7 +3,6 @@ package notification_test
 import (
 	"context"
 	"path/filepath"
-
 	"zensor-server/internal/infra/notification"
 
 	"github.com/onsi/ginkgo/v2"

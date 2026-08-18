@@ -201,17 +201,18 @@ func (d DB) InnerJoins(value string, conds ...any) ORM {
 	return &d
 }
 
-func (d DB) createSpan(operation string) (context.Context, trace.Span) {
-	if ctx := d.Statement.Context; ctx != nil {
-		tracer := otel.Tracer("zensor-server")
-		return tracer.Start(ctx, "db."+operation,
-			trace.WithAttributes(
-				attribute.String("span.kind", "client"),
-				attribute.String("component", "database"),
-				attribute.String("db.system", "postgresql"),
-				attribute.String("db.operation", operation),
-			),
-		)
+func (d DB) createSpan(operation string) {
+	if d.Statement.Context == nil {
+		return
 	}
-	return d.Statement.Context, trace.SpanFromContext(d.Statement.Context)
+	tracer := otel.Tracer("zensor-server")
+	_, span := tracer.Start(d.Statement.Context, "db."+operation,
+		trace.WithAttributes(
+			attribute.String("span.kind", "client"),
+			attribute.String("component", "database"),
+			attribute.String("db.system", "postgresql"),
+			attribute.String("db.operation", operation),
+		),
+	)
+	span.End()
 }

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
@@ -169,7 +168,7 @@ func (wsc *DeviceMessageWebSocketController) run() {
 			wsc.clientsMux.Lock()
 			if _, ok := wsc.clients[client]; ok {
 				delete(wsc.clients, client)
-				close := func() {
+				closeConn := func() {
 					defer func() {
 						if r := recover(); r != nil {
 							slog.Warn("recovered from panic while closing websocket", slog.Any("panic", r))
@@ -177,7 +176,7 @@ func (wsc *DeviceMessageWebSocketController) run() {
 					}()
 					client.Close()
 				}
-				close()
+				closeConn()
 			}
 			wsc.clientsMux.Unlock()
 			slog.Info("websocket client unregistered", slog.Int("total_clients", len(wsc.clients)))

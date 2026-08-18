@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
@@ -240,6 +239,8 @@ func (w *LoraIntegrationWorker) handleDownlinkResponse(ctx context.Context, msg 
 	case domain.CommandStatusFailed:
 		logAttrs = append(logAttrs, slog.String("error", envelop.Error.MessageFormat))
 		slog.Error(logMessage, logAttrs...)
+	case domain.CommandStatusPending, domain.CommandStatusQueued, domain.CommandStatusSent, domain.CommandStatusAck:
+		slog.Debug(logMessage, logAttrs...)
 	default:
 		slog.Debug(logMessage, logAttrs...)
 	}

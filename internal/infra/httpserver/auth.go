@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-
 	"zensor-server/internal/shared_kernel/domain"
 
 	"go.opentelemetry.io/otel/attribute"

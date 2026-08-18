@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"time"
-
 	"zensor-server/internal/data_plane/dto"
 )
 
@@ -11,15 +10,15 @@ import (
 
 // DeviceState represents the cached state of a device.
 type DeviceState struct {
-	DeviceID  string
-	Timestamp time.Time
-	Data      map[string][]SensorData
+	DeviceID  string                  `json:"device_id"`
+	Timestamp time.Time               `json:"timestamp"`
+	Data      map[string][]SensorData `json:"data"`
 }
 
 // SensorData represents a single sensor reading.
 type SensorData struct {
-	Index int
-	Value float64
+	Index int     `json:"index"`
+	Value float64 `json:"value"`
 }
 
 // DeviceStateCacheService defines the interface for caching device states.

@@ -2,7 +2,6 @@ package async_test
 
 import (
 	"context"
-
 	"zensor-server/internal/infra/async"
 
 	. "github.com/onsi/ginkgo/v2"

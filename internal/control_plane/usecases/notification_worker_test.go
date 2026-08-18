@@ -5,12 +5,12 @@ import (
 	"errors"
 	"sync"
 	"time"
-
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
+
 	usecases_mocks "zensor-server/test/unit/doubles/control_plane/usecases"
 	notification_mocks "zensor-server/test/unit/doubles/infra/notification"
 	sharedkernel_mocks "zensor-server/test/unit/doubles/shared_kernel/usecases"
@@ -42,7 +42,7 @@ var _ = Describe("NotificationWorker", func() {
 		mockTenantConfigService = sharedkernel_mocks.NewMockTenantConfigurationService(ctrl)
 		mockTaskService = usecases_mocks.NewMockTaskService(ctrl)
 		realBroker = async.NewLocalBroker()
-		ctx, cancel = context.WithCancel(context.Background())
+		ctx, cancel = context.WithCancel(context.Background()) //nolint:fatcontext // fresh root context per test setup
 
 		worker = usecases.NewNotificationWorker(
 			ticker,

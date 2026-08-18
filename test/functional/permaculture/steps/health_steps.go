@@ -11,6 +11,9 @@ func (fc *FeatureContext) iCallTheHealthzEndpoint() error {
 	if err != nil {
 		return err
 	}
+	if err := fc.bufferResponseBody(response); err != nil {
+		return err
+	}
 	fc.response = response
 	return nil
 }

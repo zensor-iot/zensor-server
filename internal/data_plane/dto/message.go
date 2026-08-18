@@ -32,14 +32,14 @@ type EndDeviceIDs struct {
 }
 
 type UplinkMessage struct {
-	Port           uint8  `json:"port"`
-	RawPayload     []byte `json:"frm_payload"`
-	DecodedPayload map[string][]SensorData
+	Port           uint8                   `json:"port"`
+	RawPayload     []byte                  `json:"frm_payload"`
+	DecodedPayload map[string][]SensorData `json:"decoded_payload,omitempty"`
 }
 
 type SensorData struct {
-	Index uint
-	Value float64
+	Index uint    `json:"index"`
+	Value float64 `json:"value"`
 }
 
 var codeToNameMapping = map[string]string{

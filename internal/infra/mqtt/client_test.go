@@ -2,7 +2,6 @@ package mqtt_test
 
 import (
 	"context"
-
 	"zensor-server/internal/infra/mqtt"
 
 	paho "github.com/eclipse/paho.mqtt.golang"

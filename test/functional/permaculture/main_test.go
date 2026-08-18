@@ -1,10 +1,9 @@
 package permaculture
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
 	"testing"
-
 	"zensor-server/test/functional/permaculture/steps"
 
 	"github.com/cucumber/godog"
@@ -22,9 +21,9 @@ func TestMain(m *testing.M) {
 
 	apiURL := steps.BaseURL()
 	if steps.IsExternalMode() {
-		fmt.Printf("🌍 Running tests against external API: %s\n", apiURL)
+		slog.Info("Running tests against external API", slog.String("api_url", apiURL))
 	} else {
-		fmt.Printf("🏠 Running tests against local server: %s\n", apiURL)
+		slog.Info("Running tests against local server", slog.String("api_url", apiURL))
 	}
 
 	featureContext := steps.NewFeatureContext()
@@ -46,9 +45,9 @@ func TestMain(m *testing.M) {
 func InitializeTestSuite(suite *godog.TestSuiteContext) {
 	suite.BeforeSuite(func() {
 		if steps.IsExternalMode() {
-			fmt.Println("Running tests in external mode - skipping local setup")
+			slog.Info("Running tests in external mode - skipping local setup")
 		} else {
-			fmt.Println("Running tests in local mode")
+			slog.Info("Running tests in local mode")
 		}
 	})
 }

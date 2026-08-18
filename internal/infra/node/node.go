@@ -1,8 +1,10 @@
 package node
 
 import (
+	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -58,12 +60,19 @@ func generateNodeID() string {
 }
 
 func getNodeIPAddressInternal() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+	dialer := &net.Dialer{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err := dialer.DialContext(ctx, "udp", "8.8.8.8:80")
 	if err != nil {
 		return "127.0.0.1"
 	}
 	defer conn.Close()
 
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	localAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return "127.0.0.1"
+	}
 	return localAddr.IP.String()
 }

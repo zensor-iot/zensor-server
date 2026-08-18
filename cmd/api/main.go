@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -9,7 +10,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
 	"zensor-server/cmd/api/wire"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/config"
@@ -60,24 +60,24 @@ func main() {
 	internalBroker := async.NewLocalBroker()
 
 	controllers := []httpserver.Controller{
-		handleWireInjector(wire.InitializeDeviceController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeEvaluationRuleController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeTaskController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeTenantController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeTenantConfigurationController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeScheduledTaskController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeUserController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializePushTokenController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeWebPushController()).(httpserver.Controller),
-		handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker)).(httpserver.Controller),
-		handleWireInjector(wire.InitializeDeviceSpecificWebSocketController(internalBroker)).(httpserver.Controller),
+		asController(handleWireInjector(wire.InitializeDeviceController())),
+		asController(handleWireInjector(wire.InitializeEvaluationRuleController())),
+		asController(handleWireInjector(wire.InitializeTaskController())),
+		asController(handleWireInjector(wire.InitializeTenantController())),
+		asController(handleWireInjector(wire.InitializeTenantConfigurationController())),
+		asController(handleWireInjector(wire.InitializeScheduledTaskController())),
+		asController(handleWireInjector(wire.InitializeUserController())),
+		asController(handleWireInjector(wire.InitializePushTokenController())),
+		asController(handleWireInjector(wire.InitializeWebPushController())),
+		asController(handleWireInjector(wire.InitializeDeviceMessageWebSocketController(internalBroker))),
+		asController(handleWireInjector(wire.InitializeDeviceSpecificWebSocketController(internalBroker))),
 	}
 
 	if appConfig.Modules.Maintenance.Enabled {
 		slog.Info("module enabled and will be wired", slog.String("module", "maintenance"))
 		controllers = append(controllers,
-			handleWireInjector(wire.InitializeMaintenanceActivityController()).(httpserver.Controller),
-			handleWireInjector(wire.InitializeMaintenanceExecutionController()).(httpserver.Controller),
+			asController(handleWireInjector(wire.InitializeMaintenanceActivityController())),
+			asController(handleWireInjector(wire.InitializeMaintenanceExecutionController())),
 		)
 	}
 
@@ -99,14 +99,14 @@ func main() {
 	switch {
 	case appConfig.Auth.Enabled && appConfig.Auth.Mode == config.AuthModeStatic:
 		slog.Warn("authentication enabled in STATIC mode: single hardcoded admin user, do not use in production")
-		staticAuthComponents := handleWireInjector(wire.InitializeStaticAuthComponents()).(*wire.StaticAuthComponents)
-		apiKeyComponents := handleWireInjector(wire.InitializeAPIKeyComponents()).(*wire.APIKeyComponents)
+		staticAuthComponents := asComponents[wire.StaticAuthComponents](handleWireInjector(wire.InitializeStaticAuthComponents()))
+		apiKeyComponents := asComponents[wire.APIKeyComponents](handleWireInjector(wire.InitializeAPIKeyComponents()))
 		controllers = append(controllers, staticAuthComponents.Controller, apiKeyComponents.Controller)
 		httpServer = httpserver.NewServerWithAuth(appConfig.HTTP.Port, staticAuthComponents.Service, apiKeyComponents.Service, controllers...)
 	case appConfig.Auth.Enabled:
 		slog.Info("authentication enabled: session middleware will protect /v1 and /ws routes")
-		authComponents := handleWireInjector(wire.InitializeAuthComponents()).(*wire.AuthComponents)
-		apiKeyComponents := handleWireInjector(wire.InitializeAPIKeyComponents()).(*wire.APIKeyComponents)
+		authComponents := asComponents[wire.AuthComponents](handleWireInjector(wire.InitializeAuthComponents()))
+		apiKeyComponents := asComponents[wire.APIKeyComponents](handleWireInjector(wire.InitializeAPIKeyComponents()))
 		controllers = append(controllers, authComponents.Controller, apiKeyComponents.Controller)
 		httpServer = httpserver.NewServerWithAuth(appConfig.HTTP.Port, authComponents.Service, apiKeyComponents.Service, controllers...)
 	default:
@@ -140,21 +140,21 @@ func main() {
 	// TODO: capture workers into a variable to shutdown them later
 	if appConfig.Modules.Permaculture.Enabled {
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		go asWorker(handleWireInjector(wire.InitializeLoraIntegrationWorker(ticker, mqttClient, internalBroker))).Run(appCtx, wg.Done)
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeCommandWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		go asWorker(handleWireInjector(wire.InitializeCommandWorker(internalBroker))).Run(appCtx, wg.Done)
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeScheduledTaskWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		go asWorker(handleWireInjector(wire.InitializeScheduledTaskWorker(internalBroker))).Run(appCtx, wg.Done)
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeNotificationWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		go asWorker(handleWireInjector(wire.InitializeNotificationWorker(internalBroker))).Run(appCtx, wg.Done)
 	}
 
 	if appConfig.Modules.Maintenance.Enabled {
 		wg.Add(1)
-		go handleWireInjector(wire.InitializeExecutionWorker(internalBroker)).(async.Worker).Run(appCtx, wg.Done)
+		go asWorker(handleWireInjector(wire.InitializeExecutionWorker(internalBroker))).Run(appCtx, wg.Done)
 
 		// Initialize push notification workers based on configuration
-		pushNotificationWorkerFactory := handleWireInjector(wire.InitializePushNotificationWorkerFactory(internalBroker)).(*maintenanceUsecases.PushNotificationWorkerFactory)
+		pushNotificationWorkerFactory := asComponents[maintenanceUsecases.PushNotificationWorkerFactory](handleWireInjector(wire.InitializePushNotificationWorkerFactory(internalBroker)))
 		pushNotificationWorkers, err := pushNotificationWorkerFactory.CreateWorkers(appConfig.PushNotifications)
 		if err != nil {
 			slog.Error("failed to create push notification workers", slog.Any("error", err))
@@ -222,7 +222,10 @@ func main() {
 
 func slogReplaceAttr(groups []string, a slog.Attr) slog.Attr {
 	if a.Key == slog.SourceKey {
-		source := a.Value.Any().(*slog.Source)
+		source, ok := a.Value.Any().(*slog.Source)
+		if !ok {
+			return a
+		}
 		source.File = filepath.Base(source.File)
 		return slog.Any(a.Key, source)
 	}
@@ -408,4 +411,28 @@ func handleWireInjector(value any, err error) any {
 	}
 
 	return value
+}
+
+func asController(value any) httpserver.Controller {
+	controller, ok := value.(httpserver.Controller)
+	if !ok {
+		panic(fmt.Sprintf("wire injector did not return an httpserver.Controller, got %T", value))
+	}
+	return controller
+}
+
+func asComponents[T any](value any) *T {
+	components, ok := value.(*T)
+	if !ok {
+		panic(fmt.Sprintf("wire injector did not return %T, got %T", (*T)(nil), value))
+	}
+	return components
+}
+
+func asWorker(value any) async.Worker {
+	worker, ok := value.(async.Worker)
+	if !ok {
+		panic(fmt.Sprintf("wire injector did not return an async.Worker, got %T", value))
+	}
+	return worker
 }

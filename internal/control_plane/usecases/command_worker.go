@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"sync"
 	"time"
-
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/device"
@@ -54,7 +53,14 @@ func (w *CommandWorker) Run(ctx context.Context, done func()) {
 			case "command_sent":
 				wg.Add(1)
 				procCtx := context.Background()
-				w.handleCommandSent(procCtx, msg.Value.(device.Command), wg.Done)
+				command, ok := msg.Value.(device.Command)
+				if !ok {
+					slog.Error("failed to cast command data",
+						slog.String("type", fmt.Sprintf("%T", msg.Value)),
+						slog.String("expected", "device.Command"))
+					return
+				}
+				w.handleCommandSent(procCtx, command, wg.Done)
 			case "command_status_update":
 				wg.Add(1)
 				procCtx := context.Background()

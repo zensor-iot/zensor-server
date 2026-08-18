@@ -29,18 +29,24 @@ func (fc *FeatureContext) anEvaluationRuleExistsForTheDevice() error {
 
 	resp, err := fc.apiDriver.CreateEvaluationRule(fc.deviceID)
 	fc.require.NoError(err)
+	defer resp.Body.Close()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
 	err = fc.decodeBody(resp.Body, &data)
 	fc.require.NoError(err)
-	fc.evaluationRuleID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Evaluation rule id should be a string")
+	fc.evaluationRuleID = id
 	return nil
 }
 
 func (fc *FeatureContext) iCreateAnEvaluationRuleForTheDevice() error {
 	resp, err := fc.apiDriver.CreateEvaluationRule(fc.deviceID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }
@@ -50,7 +56,9 @@ func (fc *FeatureContext) theResponseShouldContainTheEvaluationRuleDetails() err
 	err := fc.decodeBody(fc.response.Body, &data)
 	fc.require.NoError(err)
 	fc.require.NotEmpty(data["id"])
-	fc.evaluationRuleID = data["id"].(string)
+	id, ok := data["id"].(string)
+	fc.require.True(ok, "Evaluation rule id should be a string")
+	fc.evaluationRuleID = id
 	fc.responseData = data
 	return nil
 }
@@ -58,6 +66,9 @@ func (fc *FeatureContext) theResponseShouldContainTheEvaluationRuleDetails() err
 func (fc *FeatureContext) iListAllEvaluationRulesForTheDevice() error {
 	resp, err := fc.apiDriver.ListEvaluationRules(fc.deviceID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }

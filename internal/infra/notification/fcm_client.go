@@ -65,7 +65,7 @@ func NewFCMClient(ctx context.Context, config FCMConfig) (*FCMClient, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading service account file: %w", err)
 		}
-		creds, err = google.CredentialsFromJSON(ctx, jsonBytes, _fcmScope)
+		creds, err = google.CredentialsFromJSONWithTypeAndParams(ctx, jsonBytes, google.ServiceAccount, google.CredentialsParams{Scopes: []string{_fcmScope}})
 		if err != nil {
 			return nil, fmt.Errorf("creating credentials from service account: %w", err)
 		}

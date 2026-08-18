@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
 	"zensor-server/internal/shared_kernel/usecases"
 
 	"golang.org/x/oauth2"

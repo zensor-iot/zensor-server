@@ -8,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
 
@@ -213,12 +212,13 @@ func normalizePath(path string) string {
 	b := make([]byte, 0, len(path))
 	for i := range len(path) {
 		c := path[i]
-		if c >= 'A' && c <= 'Z' {
+		switch {
+		case c >= 'A' && c <= 'Z':
 			b = append(b, '_')
 			b = append(b, c+32)
-		} else if c == '/' {
+		case c == '/':
 			b = append(b, '_')
-		} else {
+		default:
 			b = append(b, c)
 		}
 	}

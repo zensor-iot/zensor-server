@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
-
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
@@ -78,7 +77,7 @@ func (e EvaluationRule) ToDomain() domain.EvaluationRule {
 }
 
 func MapToEvaluationRuleParameters(parameters map[string]any) []domain.EvaluationRuleParameter {
-	var result []domain.EvaluationRuleParameter
+	result := make([]domain.EvaluationRuleParameter, 0, len(parameters))
 	for key, value := range parameters {
 		result = append(result, domain.EvaluationRuleParameter{
 			Key:   key,

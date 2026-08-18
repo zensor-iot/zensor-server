@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )

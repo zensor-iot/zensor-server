@@ -3,6 +3,9 @@ package steps
 func (fc *FeatureContext) iCreateATaskForTheDevice() error {
 	resp, err := fc.apiDriver.CreateTask(fc.deviceID)
 	fc.require.NoError(err)
+	if err := fc.bufferResponseBody(resp); err != nil {
+		return err
+	}
 	fc.response = resp
 	return err
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
-
 	"zensor-server/internal/infra/utils"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
@@ -175,7 +175,7 @@ var _ = Describe("MaintenanceExecutionService", func() {
 
 		BeforeEach(func() {
 			activityID = shareddomain.ID(utils.GenerateUUID())
-			executions = []maintenanceDomain.Execution{}
+			executions = make([]maintenanceDomain.Execution, 0, 3)
 
 			for i := range 3 {
 				execution, _ := maintenanceDomain.NewExecutionBuilder().
