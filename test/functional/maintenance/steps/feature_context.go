@@ -1,3 +1,4 @@
+// Package steps provides Cucumber step definitions for the maintenance functional tests.
 package steps
 
 import (

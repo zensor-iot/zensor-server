@@ -1,3 +1,4 @@
+// Package internal provides ORM entity types for the maintenance module.
 package internal
 
 import (

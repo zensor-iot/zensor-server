@@ -1,3 +1,4 @@
+// Package httpapi provides HTTP controllers for shared kernel resources.
 package httpapi
 
 import (

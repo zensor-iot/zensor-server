@@ -1,3 +1,4 @@
+// Package usecases provides business logic use cases for the Victron integration.
 package usecases
 
 import (

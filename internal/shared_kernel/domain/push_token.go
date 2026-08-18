@@ -6,6 +6,12 @@ import (
 	"zensor-server/internal/infra/utils"
 )
 
+var (
+	ErrPushTokenUserIDRequired   = errors.New("user ID is required")
+	ErrPushTokenTokenRequired    = errors.New("token is required")
+	ErrPushTokenPlatformRequired = errors.New("platform is required")
+)
+
 type PushToken struct {
 	ID        ID
 	UserID    ID
@@ -64,15 +70,15 @@ func (b *pushTokenBuilder) Build() (PushToken, error) {
 	}
 
 	if result.UserID == "" {
-		return PushToken{}, errors.New("user ID is required")
+		return PushToken{}, ErrPushTokenUserIDRequired
 	}
 
 	if result.Token == "" {
-		return PushToken{}, errors.New("token is required")
+		return PushToken{}, ErrPushTokenTokenRequired
 	}
 
 	if result.Platform == "" {
-		return PushToken{}, errors.New("platform is required")
+		return PushToken{}, ErrPushTokenPlatformRequired
 	}
 
 	return result, nil

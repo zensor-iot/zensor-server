@@ -369,131 +369,75 @@ var _ = Describe("MaintenanceActivityService", func() {
 		})
 	})
 
-	Context("ActivateActivity", func() {
-		var activity maintenanceDomain.Activity
+	registerActivityStateContext := func(name string, isActive bool, whenSuccessLabel, successDescription string, method func(context.Context, shareddomain.ID) error) {
+		Context(name, func() {
+			var activity maintenanceDomain.Activity
 
-		BeforeEach(func() {
-			activityID := shareddomain.ID(utils.GenerateUUID())
-			activityType := maintenanceDomain.ActivityType{
-				Name:         shareddomain.Name(maintenanceDomain.ActivityTypeWaterSystem),
-				DisplayName:  shareddomain.DisplayName("Water System"),
-				Description:  shareddomain.Description("Water system maintenance"),
-				IsPredefined: true,
-				Fields:       []maintenanceDomain.FieldDefinition{},
-			}
+			BeforeEach(func() {
+				activityID := shareddomain.ID(utils.GenerateUUID())
+				activityType := maintenanceDomain.ActivityType{
+					Name:         shareddomain.Name(maintenanceDomain.ActivityTypeWaterSystem),
+					DisplayName:  shareddomain.DisplayName("Water System"),
+					Description:  shareddomain.Description("Water system maintenance"),
+					IsPredefined: true,
+					Fields:       []maintenanceDomain.FieldDefinition{},
+				}
 
-			activity, _ = maintenanceDomain.NewActivityBuilder().
-				WithTenantID(shareddomain.ID(utils.GenerateUUID())).
-				WithType(activityType).
-				WithName("Test Activity").
-				WithDescription("Test Description").
-				WithSchedule(serviceTestSchedule).
-				WithFields([]maintenanceDomain.FieldDefinition{}).
-				Build()
-			activity.ID = activityID
-			activity.IsActive = false
-		})
+				activity, _ = maintenanceDomain.NewActivityBuilder().
+					WithTenantID(shareddomain.ID(utils.GenerateUUID())).
+					WithType(activityType).
+					WithName("Test Activity").
+					WithDescription("Test Description").
+					WithSchedule(serviceTestSchedule).
+					WithFields([]maintenanceDomain.FieldDefinition{}).
+					Build()
+				activity.ID = activityID
+				activity.IsActive = isActive
+			})
 
-		When("activating an existing activity", func() {
-			It("should successfully activate the activity", func() {
-				mockRepository.EXPECT().
-					GetByID(gomock.Any(), activity.ID).
-					Return(activity, nil)
-				mockRepository.EXPECT().
-					Update(gomock.Any(), gomock.Any()).
-					Return(nil)
+			When(whenSuccessLabel, func() {
+				It(successDescription, func() {
+					mockRepository.EXPECT().
+						GetByID(gomock.Any(), activity.ID).
+						Return(activity, nil)
+					mockRepository.EXPECT().
+						Update(gomock.Any(), gomock.Any()).
+						Return(nil)
 
-				err := service.ActivateActivity(context.Background(), activity.ID)
-				Expect(err).NotTo(HaveOccurred())
+					err := method(context.Background(), activity.ID)
+					Expect(err).NotTo(HaveOccurred())
+				})
+			})
+
+			When("activity does not exist", func() {
+				It("should return ErrMaintenanceActivityNotFound", func() {
+					mockRepository.EXPECT().
+						GetByID(gomock.Any(), activity.ID).
+						Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
+
+					err := method(context.Background(), activity.ID)
+					Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
+				})
+			})
+
+			When("activity is deleted", func() {
+				It("should return an error", func() {
+					activity.SoftDelete()
+					mockRepository.EXPECT().
+						GetByID(gomock.Any(), activity.ID).
+						Return(activity, nil)
+
+					err := method(context.Background(), activity.ID)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("deleted"))
+				})
 			})
 		})
-
-		When("activity does not exist", func() {
-			It("should return ErrMaintenanceActivityNotFound", func() {
-				mockRepository.EXPECT().
-					GetByID(gomock.Any(), activity.ID).
-					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
-
-				err := service.ActivateActivity(context.Background(), activity.ID)
-				Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
-			})
-		})
-
-		When("activity is deleted", func() {
-			It("should return an error", func() {
-				activity.SoftDelete()
-				mockRepository.EXPECT().
-					GetByID(gomock.Any(), activity.ID).
-					Return(activity, nil)
-
-				err := service.ActivateActivity(context.Background(), activity.ID)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("deleted"))
-			})
-		})
+	}
+	registerActivityStateContext("ActivateActivity", false, "activating an existing activity", "should successfully activate the activity", func(ctx context.Context, id shareddomain.ID) error {
+		return service.ActivateActivity(ctx, id)
 	})
-
-	Context("DeactivateActivity", func() {
-		var activity maintenanceDomain.Activity
-
-		BeforeEach(func() {
-			activityID := shareddomain.ID(utils.GenerateUUID())
-			activityType := maintenanceDomain.ActivityType{
-				Name:         shareddomain.Name(maintenanceDomain.ActivityTypeWaterSystem),
-				DisplayName:  shareddomain.DisplayName("Water System"),
-				Description:  shareddomain.Description("Water system maintenance"),
-				IsPredefined: true,
-				Fields:       []maintenanceDomain.FieldDefinition{},
-			}
-
-			activity, _ = maintenanceDomain.NewActivityBuilder().
-				WithTenantID(shareddomain.ID(utils.GenerateUUID())).
-				WithType(activityType).
-				WithName("Test Activity").
-				WithDescription("Test Description").
-				WithSchedule(serviceTestSchedule).
-				WithFields([]maintenanceDomain.FieldDefinition{}).
-				Build()
-			activity.ID = activityID
-			activity.IsActive = true
-		})
-
-		When("deactivating an existing activity", func() {
-			It("should successfully deactivate the activity", func() {
-				mockRepository.EXPECT().
-					GetByID(gomock.Any(), activity.ID).
-					Return(activity, nil)
-				mockRepository.EXPECT().
-					Update(gomock.Any(), gomock.Any()).
-					Return(nil)
-
-				err := service.DeactivateActivity(context.Background(), activity.ID)
-				Expect(err).NotTo(HaveOccurred())
-			})
-		})
-
-		When("activity does not exist", func() {
-			It("should return ErrMaintenanceActivityNotFound", func() {
-				mockRepository.EXPECT().
-					GetByID(gomock.Any(), activity.ID).
-					Return(maintenanceDomain.Activity{}, maintenanceUsecases.ErrActivityNotFound)
-
-				err := service.DeactivateActivity(context.Background(), activity.ID)
-				Expect(err).To(MatchError(maintenanceUsecases.ErrActivityNotFound))
-			})
-		})
-
-		When("activity is deleted", func() {
-			It("should return an error", func() {
-				activity.SoftDelete()
-				mockRepository.EXPECT().
-					GetByID(gomock.Any(), activity.ID).
-					Return(activity, nil)
-
-				err := service.DeactivateActivity(context.Background(), activity.ID)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("deleted"))
-			})
-		})
+	registerActivityStateContext("DeactivateActivity", true, "deactivating an existing activity", "should successfully deactivate the activity", func(ctx context.Context, id shareddomain.ID) error {
+		return service.DeactivateActivity(ctx, id)
 	})
 })

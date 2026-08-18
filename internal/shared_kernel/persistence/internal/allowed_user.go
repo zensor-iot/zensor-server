@@ -1,3 +1,4 @@
+// Package internal provides ORM entity types for shared kernel resources.
 package internal
 
 import (

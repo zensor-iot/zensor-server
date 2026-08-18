@@ -18,10 +18,7 @@ func (c *NoOpClient) Subscribe(topic string, qos byte, callback MessageHandler) 
 
 // Publish implements Client.
 func (c *NoOpClient) Publish(ctx context.Context, topic string, msg any) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	return nil
+	return ctx.Err()
 }
 
 // Disconnect implements Client.

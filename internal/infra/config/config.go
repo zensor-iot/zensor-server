@@ -1,3 +1,4 @@
+// Package config provides server configuration loading and validation.
 package config
 
 import (

@@ -1,3 +1,4 @@
+// Package async provides an in-process event broker and worker abstractions.
 package async
 
 import (
@@ -111,12 +112,12 @@ func (b *LocalBroker) Publish(ctx context.Context, topic BrokerTopicName, msg Br
 		return ErrTopicNotFound
 	}
 
-	go b.publish(subscriptors, msg)
+	go b.publishToSubscriptors(subscriptors, msg)
 
 	return nil
 }
 
-func (b *LocalBroker) publish(topicSubscriptors []*subscriptor, msg BrokerMessage) {
+func (b *LocalBroker) publishToSubscriptors(topicSubscriptors []*subscriptor, msg BrokerMessage) {
 	for _, s := range topicSubscriptors {
 		if s.active {
 			s.subscription.Receiver <- msg

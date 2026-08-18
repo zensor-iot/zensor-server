@@ -71,24 +71,24 @@ func (w *ExecutionWorker) Run(ctx context.Context, done func()) {
 		case <-w.ticker.C:
 			wg.Add(1)
 			tickCtx := context.Background()
-			w.scheduleExecutions(tickCtx, wg.Done)
+			w.runScheduleExecutions(tickCtx, wg.Done)
 			wg.Add(1)
-			w.checkAndNotifyExecutions(tickCtx, wg.Done)
+			w.runCheckAndNotifyExecutions(tickCtx, wg.Done)
 		}
 	}
 }
 
 func (w *ExecutionWorker) ScheduleExecutions(ctx context.Context) {
 	done := func() {}
-	w.scheduleExecutions(ctx, done)
+	w.runScheduleExecutions(ctx, done)
 }
 
 func (w *ExecutionWorker) CheckAndNotifyExecutions(ctx context.Context) {
 	done := func() {}
-	w.checkAndNotifyExecutions(ctx, done)
+	w.runCheckAndNotifyExecutions(ctx, done)
 }
 
-func (w *ExecutionWorker) scheduleExecutions(ctx context.Context, done func()) {
+func (w *ExecutionWorker) runScheduleExecutions(ctx context.Context, done func()) {
 	slog.Info("scheduling executions", slog.Time("time", time.Now()))
 	defer done()
 
@@ -252,7 +252,7 @@ func (w *ExecutionWorker) publishFailureEvent(ctx context.Context, activity main
 	}
 }
 
-func (w *ExecutionWorker) checkAndNotifyExecutions(ctx context.Context, done func()) {
+func (w *ExecutionWorker) runCheckAndNotifyExecutions(ctx context.Context, done func()) {
 	slog.Info("checking executions for notifications", slog.Time("time", time.Now()))
 	defer done()
 
@@ -324,48 +324,33 @@ func (w *ExecutionWorker) checkOverdueExecutions(ctx context.Context, currentDat
 }
 
 func (w *ExecutionWorker) publishReadyForNotificationEvent(ctx context.Context, execution maintenanceDomain.Execution, activity maintenanceDomain.Activity, daysBefore int) {
-	brokerMsg := async.BrokerMessage{
-		Event: _executionReadyForNotification,
-		Value: map[string]any{
-			"execution_id":   execution.ID.String(),
-			"activity_id":    activity.ID.String(),
-			"activity_name":  string(activity.Name),
-			"tenant_id":      activity.TenantID.String(),
-			"scheduled_date": execution.ScheduledDate.Time,
-			"days_before":    daysBefore,
-		},
-	}
-	if err := w.broker.Publish(ctx, async.BrokerTopicName(_executionsTopic), brokerMsg); err != nil {
-		slog.Error("failed to publish execution ready for notification event",
-			slog.String("execution_id", execution.ID.String()),
-			slog.Any("error", err))
-	} else {
-		slog.Info("published execution ready for notification event",
-			slog.String("execution_id", execution.ID.String()),
-			slog.Int("days_before", daysBefore))
-	}
+	w.publishExecutionCountEvent(ctx, execution, activity, _executionReadyForNotification, "days_before", "ready for notification", daysBefore)
 }
 
 func (w *ExecutionWorker) publishOverdueEvent(ctx context.Context, execution maintenanceDomain.Execution, activity maintenanceDomain.Activity, overdueDays int) {
+	w.publishExecutionCountEvent(ctx, execution, activity, _executionOverdue, "overdue_days", "overdue", overdueDays)
+}
+
+func (w *ExecutionWorker) publishExecutionCountEvent(ctx context.Context, execution maintenanceDomain.Execution, activity maintenanceDomain.Activity, event string, countKey string, eventLabel string, count int) {
 	brokerMsg := async.BrokerMessage{
-		Event: _executionOverdue,
+		Event: event,
 		Value: map[string]any{
 			"execution_id":   execution.ID.String(),
 			"activity_id":    activity.ID.String(),
 			"activity_name":  string(activity.Name),
 			"tenant_id":      activity.TenantID.String(),
 			"scheduled_date": execution.ScheduledDate.Time,
-			"overdue_days":   overdueDays,
+			countKey:         count,
 		},
 	}
 	if err := w.broker.Publish(ctx, async.BrokerTopicName(_executionsTopic), brokerMsg); err != nil {
-		slog.Error("failed to publish execution overdue event",
+		slog.Error("failed to publish execution "+eventLabel+" event",
 			slog.String("execution_id", execution.ID.String()),
 			slog.Any("error", err))
 	} else {
-		slog.Info("published execution overdue event",
+		slog.Info("published execution "+eventLabel+" event",
 			slog.String("execution_id", execution.ID.String()),
-			slog.Int("overdue_days", overdueDays))
+			slog.Int(countKey, count))
 	}
 }
 

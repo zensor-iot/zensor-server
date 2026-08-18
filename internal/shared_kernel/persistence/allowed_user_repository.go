@@ -1,3 +1,4 @@
+// Package persistence provides repository implementations for shared kernel resources.
 package persistence
 
 import (

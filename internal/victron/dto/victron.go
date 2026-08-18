@@ -1,10 +1,14 @@
+// Package dto provides data transfer objects for the Victron integration.
 package dto
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
+
+var ErrInvalidVictronTopic = errors.New("invalid victron topic")
 
 type VictronValue struct {
 	Value float64
@@ -199,7 +203,7 @@ func ParseVictronTopic(topic string) (serviceType string, instance int, path str
 func ParseTelemetry(topic string, payload []byte) (VictronTelemetry, error) {
 	parts := strings.Split(topic, "/")
 	if len(parts) < 4 || parts[0] != "N" {
-		return VictronTelemetry{}, fmt.Errorf("invalid victron topic: %s", topic)
+		return VictronTelemetry{}, fmt.Errorf("%w: %s", ErrInvalidVictronTopic, topic)
 	}
 
 	var value VictronValue
@@ -209,7 +213,7 @@ func ParseTelemetry(topic string, payload []byte) (VictronTelemetry, error) {
 
 	serviceType, instance, path, ok := ParseVictronTopic(topic)
 	if !ok {
-		return VictronTelemetry{}, fmt.Errorf("invalid victron topic: %s", topic)
+		return VictronTelemetry{}, fmt.Errorf("%w: %s", ErrInvalidVictronTopic, topic)
 	}
 
 	return VictronTelemetry{

@@ -2,7 +2,6 @@ package notification
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -27,13 +26,13 @@ type MailerSendConfig struct {
 
 func (c *MailerSendConfig) validateConfig() error {
 	if c.APIKey == "" {
-		return errors.New("API key is required")
+		return ErrAPIKeyRequired
 	}
 	if c.FromEmail == "" {
-		return errors.New("From email is required")
+		return ErrFromEmailRequired
 	}
 	if c.FromName == "" {
-		return errors.New("From name is required")
+		return ErrFromNameRequired
 	}
 	return nil
 }
@@ -102,6 +101,6 @@ func (c *MailerSendClient) sendWithRetry(ctx context.Context, message *mailersen
 func (c *MailerSendClient) SendPushNotification(ctx context.Context, request PushNotificationRequest) error {
 	return &NotificationError{
 		Message: "push notifications are not supported by MailerSend",
-		Err:     errors.New("use FCM client for push notifications"),
+		Err:     ErrPushNotSupported,
 	}
 }

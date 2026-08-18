@@ -1,3 +1,4 @@
+// Package persistence provides repository implementations for the maintenance module.
 package persistence
 
 import (
@@ -64,23 +65,9 @@ func (r *SimpleActivityRepository) FindAllByTenant(
 	tenantID shareddomain.ID,
 	pagination usecases.Pagination,
 ) ([]maintenanceDomain.Activity, int, error) {
-	var total int64
-	query := r.orm.WithContext(ctx).Model(&internal.Activity{})
-
-	err := query.Where("tenant_id = ? AND deleted_at IS NULL", tenantID.String()).Count(&total).Error()
+	entities, total, err := paginateByFilter(ctx, r.orm, internal.Activity{}, "tenant_id = ? AND deleted_at IS NULL", pagination, tenantID.String())
 	if err != nil {
-		return nil, 0, fmt.Errorf("count query: %w", err)
-	}
-
-	var entities []internal.Activity
-	err = query.
-		Where("tenant_id = ? AND deleted_at IS NULL", tenantID.String()).
-		Limit(pagination.Limit).
-		Offset(pagination.Offset).
-		Find(&entities).
-		Error()
-	if err != nil {
-		return nil, 0, fmt.Errorf("database query: %w", err)
+		return nil, 0, err
 	}
 
 	result := make([]maintenanceDomain.Activity, len(entities))
@@ -88,7 +75,28 @@ func (r *SimpleActivityRepository) FindAllByTenant(
 		result[i] = entity.ToDomain()
 	}
 
-	return result, int(total), nil
+	return result, total, nil
+}
+
+func paginateByFilter[T any](ctx context.Context, orm sql.ORM, model T, filter string, pagination usecases.Pagination, args ...any) ([]T, int, error) {
+	var total int64
+	query := orm.WithContext(ctx).Model(&model)
+
+	if err := query.Where(filter, args...).Count(&total).Error(); err != nil {
+		return nil, 0, fmt.Errorf("count query: %w", err)
+	}
+
+	var entities []T
+	if err := query.
+		Where(filter, args...).
+		Limit(pagination.Limit).
+		Offset(pagination.Offset).
+		Find(&entities).
+		Error(); err != nil {
+		return nil, 0, fmt.Errorf("database query: %w", err)
+	}
+
+	return entities, int(total), nil
 }
 
 func (r *SimpleActivityRepository) FindAllActive(ctx context.Context) ([]maintenanceDomain.Activity, error) {

@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"strings"
 	"zensor-server/internal/infra/notification"
@@ -12,6 +11,9 @@ import (
 
 // ErrUserPushBroadcastBodyRequired is returned when the broadcast body is empty or whitespace-only.
 var ErrUserPushBroadcastBodyRequired = errors.New("push broadcast body is required")
+
+// ErrUserPushBroadcastFailed is returned when none of the push sends for a broadcast succeed.
+var ErrUserPushBroadcastFailed = errors.New("all push notification sends failed")
 
 // NewUserPushMessageSender builds a sender that resolves tokens via PushTokenService and delivers via notifier.
 func NewUserPushMessageSender(pushTokens PushTokenService, notifier notification.NotificationClient) *SimpleUserPushMessageSender {
@@ -76,9 +78,9 @@ func (s *SimpleUserPushMessageSender) SendBroadcastToUser(ctx context.Context, u
 
 	if successCount == 0 {
 		if lastSendErr != nil {
-			return fmt.Errorf("all push notification sends failed: %w", lastSendErr)
+			return errors.Join(ErrUserPushBroadcastFailed, lastSendErr)
 		}
-		return errors.New("all push notification sends failed")
+		return ErrUserPushBroadcastFailed
 	}
 
 	return nil

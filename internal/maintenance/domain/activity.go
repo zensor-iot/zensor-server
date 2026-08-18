@@ -1,3 +1,4 @@
+// Package domain provides maintenance domain models.
 package domain
 
 import (

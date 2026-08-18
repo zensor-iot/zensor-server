@@ -1,3 +1,4 @@
+// Package main implements the entry point and Wire dependency injection for the Zensor server.
 package main
 
 import (
@@ -278,10 +279,7 @@ func otelStart(ctx context.Context) (ShutdownFunc, error) {
 		if err := traceShutdownFunc(); err != nil {
 			return err
 		}
-		if err := logsShutdownFunc(); err != nil {
-			return err
-		}
-		return nil
+		return logsShutdownFunc()
 	}, nil
 }
 

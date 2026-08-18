@@ -8,31 +8,12 @@ import (
 )
 
 var _ = ginkgo.Describe("ToSnakeCase", func() {
-	ginkgo.Context("with camelCase strings", func() {
-		ginkgo.It("should convert simple camelCase to snake_case", func() {
-			result := utils.ToSnakeCase("camelCase")
-			gomega.Expect(result).To(gomega.Equal("camel_case"))
-		})
-
-		ginkgo.It("should convert PascalCase to snake_case", func() {
-			result := utils.ToSnakeCase("PascalCase")
-			gomega.Expect(result).To(gomega.Equal("pascal_case"))
-		})
-
-		ginkgo.It("should convert multiple words", func() {
-			result := utils.ToSnakeCase("thisIsALongCamelCaseString")
-			gomega.Expect(result).To(gomega.Equal("this_is_a_long_camel_case_string"))
-		})
-
-		ginkgo.It("should handle single character", func() {
-			result := utils.ToSnakeCase("A")
-			gomega.Expect(result).To(gomega.Equal("a"))
-		})
-
-		ginkgo.It("should handle two characters", func() {
-			result := utils.ToSnakeCase("AB")
-			gomega.Expect(result).To(gomega.Equal("a_b"))
-		})
+	registerSnakeCaseCases("with camelCase strings", []snakeCaseTestCase{
+		{"should convert simple camelCase to snake_case", "camelCase", "camel_case"},
+		{"should convert PascalCase to snake_case", "PascalCase", "pascal_case"},
+		{"should convert multiple words", "thisIsALongCamelCaseString", "this_is_a_long_camel_case_string"},
+		{"should handle single character", "A", "a"},
+		{"should handle two characters", "AB", "a_b"},
 	})
 
 	ginkgo.Context("with already snake_case strings", func() {
@@ -59,31 +40,12 @@ var _ = ginkgo.Describe("ToSnakeCase", func() {
 		})
 	})
 
-	ginkgo.Context("with special cases", func() {
-		ginkgo.It("should handle empty string", func() {
-			result := utils.ToSnakeCase("")
-			gomega.Expect(result).To(gomega.Equal(""))
-		})
-
-		ginkgo.It("should handle all lowercase", func() {
-			result := utils.ToSnakeCase("lowercase")
-			gomega.Expect(result).To(gomega.Equal("lowercase"))
-		})
-
-		ginkgo.It("should handle all uppercase", func() {
-			result := utils.ToSnakeCase("UPPERCASE")
-			gomega.Expect(result).To(gomega.Equal("u_p_p_e_r_c_a_s_e"))
-		})
-
-		ginkgo.It("should handle strings with numbers", func() {
-			result := utils.ToSnakeCase("test123String")
-			gomega.Expect(result).To(gomega.Equal("test123_string"))
-		})
-
-		ginkgo.It("should handle strings starting with numbers", func() {
-			result := utils.ToSnakeCase("123testString")
-			gomega.Expect(result).To(gomega.Equal("123test_string"))
-		})
+	registerSnakeCaseCases("with special cases", []snakeCaseTestCase{
+		{"should handle empty string", "", ""},
+		{"should handle all lowercase", "lowercase", "lowercase"},
+		{"should handle all uppercase", "UPPERCASE", "u_p_p_e_r_c_a_s_e"},
+		{"should handle strings with numbers", "test123String", "test123_string"},
+		{"should handle strings starting with numbers", "123testString", "123test_string"},
 	})
 
 	ginkgo.Context("with edge cases", func() {
@@ -130,3 +92,20 @@ var _ = ginkgo.Describe("ToSnakeCase", func() {
 		})
 	})
 })
+
+type snakeCaseTestCase struct {
+	description string
+	input       string
+	expected    string
+}
+
+func registerSnakeCaseCases(contextName string, cases []snakeCaseTestCase) {
+	ginkgo.Context(contextName, func() {
+		for _, tc := range cases {
+			ginkgo.It(tc.description, func() {
+				result := utils.ToSnakeCase(tc.input)
+				gomega.Expect(result).To(gomega.Equal(tc.expected))
+			})
+		}
+	})
+}

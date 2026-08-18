@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"zensor-server/internal/infra/async"
@@ -14,20 +15,22 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+var ErrUnsupportedMetricType = errors.New("unsupported metric type")
+
 // MetricWorker represents a single metric worker that handles one specific metric.
 type MetricWorker struct {
-	config       config.MetricWorkerConfig
-	broker       async.InternalBroker
-	subscription async.Subscription
-	metric       any
-	handler      func(ctx context.Context, msg async.BrokerMessage) // Strategy pattern - assigned once at creation
+	config         config.MetricWorkerConfig
+	broker         async.InternalBroker
+	subscription   async.Subscription
+	metricInstance any
+	handler        func(ctx context.Context, msg async.BrokerMessage) // Strategy pattern - assigned once at creation
 }
 
 // NewMetricWorker creates a new metric worker for a specific metric configuration.
 func NewMetricWorker(cfg config.MetricWorkerConfig, broker async.InternalBroker) (*MetricWorker, error) {
 	meter := otel.Meter("zensor_server")
 
-	var metric any
+	var metricInstance any
 	var handler func(ctx context.Context, msg async.BrokerMessage)
 	var err error
 
@@ -35,16 +38,16 @@ func NewMetricWorker(cfg config.MetricWorkerConfig, broker async.InternalBroker)
 
 	switch cfg.Type {
 	case "counter":
-		metric, err = meter.Float64Counter(metricName)
-		handler = createCounterHandler(metric, cfg.ValuePropertyName, cfg.CustomAttributes)
+		metricInstance, err = meter.Float64Counter(metricName)
+		handler = createCounterHandler(metricInstance, cfg.ValuePropertyName, cfg.CustomAttributes)
 	case "gauge":
-		metric, err = meter.Float64Gauge(metricName)
-		handler = createGaugeHandler(metric, cfg.ValuePropertyName, cfg.CustomAttributes)
+		metricInstance, err = meter.Float64Gauge(metricName)
+		handler = createGaugeHandler(metricInstance, cfg.ValuePropertyName, cfg.CustomAttributes)
 	case "histogram":
-		metric, err = meter.Float64Histogram(metricName)
-		handler = createHistogramHandler(metric, cfg.ValuePropertyName, cfg.CustomAttributes)
+		metricInstance, err = meter.Float64Histogram(metricName)
+		handler = createHistogramHandler(metricInstance, cfg.ValuePropertyName, cfg.CustomAttributes)
 	default:
-		return nil, fmt.Errorf("unsupported metric type: %s", cfg.Type)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMetricType, cfg.Type)
 	}
 
 	if err != nil {
@@ -52,10 +55,10 @@ func NewMetricWorker(cfg config.MetricWorkerConfig, broker async.InternalBroker)
 	}
 
 	return &MetricWorker{
-		config:  cfg,
-		broker:  broker,
-		metric:  metric,
-		handler: handler,
+		config:         cfg,
+		broker:         broker,
+		metricInstance: metricInstance,
+		handler:        handler,
 	}, nil
 }
 

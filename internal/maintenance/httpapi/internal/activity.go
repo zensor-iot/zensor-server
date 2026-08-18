@@ -1,3 +1,4 @@
+// Package internal provides HTTP request and response types for the maintenance module.
 package internal
 
 import (

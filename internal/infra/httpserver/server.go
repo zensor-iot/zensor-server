@@ -46,18 +46,20 @@ func (s *StandardServer) Shutdown() {
 
 const DefaultPort = 3000
 
+var errNoHijackSupport = errors.New("underlying ResponseWriter does not support hijacking")
+
 func NewServer(port int, controllers ...Controller) *StandardServer {
-	return newServer(port, createUserHeaderMiddleware(), true, controllers)
+	return buildServer(port, createUserHeaderMiddleware(), true, controllers)
 }
 
 // NewServerWithAuth builds a server whose /v1/* and /ws/* routes are protected by
 // session or API key authentication. /v1/me is expected to be registered by an
 // auth controller.
 func NewServerWithAuth(port int, sessions SessionResolver, apiKeys APIKeyResolver, controllers ...Controller) *StandardServer {
-	return newServer(port, NewAuthMiddleware(sessions, apiKeys), false, controllers)
+	return buildServer(port, NewAuthMiddleware(sessions, apiKeys), false, controllers)
 }
 
-func newServer(port int, userMiddleware func(http.Handler) http.Handler, includeLegacyMe bool, controllers []Controller) *StandardServer {
+func buildServer(port int, userMiddleware func(http.Handler) http.Handler, includeLegacyMe bool, controllers []Controller) *StandardServer {
 	if port == 0 {
 		port = DefaultPort
 	}
@@ -208,7 +210,7 @@ func (w *statusCodeResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error)
 	if hijacker, ok := w.ResponseWriter.(http.Hijacker); ok {
 		return hijacker.Hijack()
 	}
-	return nil, nil, errors.New("underlying ResponseWriter does not support hijacking")
+	return nil, nil, errNoHijackSupport
 }
 
 func getHealthz() http.HandlerFunc {

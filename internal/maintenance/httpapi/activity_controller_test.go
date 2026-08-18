@@ -389,82 +389,47 @@ var _ = Describe("MaintenanceActivityController", func() {
 		})
 	})
 
-	Context("activateActivity", func() {
-		var router *http.ServeMux
-		var activityID string
+	registerActivityStateContext := func(action, successDescription string, setup func(id shareddomain.ID) *gomock.Call) {
+		Context(action, func() {
+			var router *http.ServeMux
+			var activityID string
 
-		BeforeEach(func() {
-			router = http.NewServeMux()
-			controller.AddRoutes(router)
-			activityID = "activity-123"
-		})
+			BeforeEach(func() {
+				router = http.NewServeMux()
+				controller.AddRoutes(router)
+				activityID = "activity-123"
+			})
 
-		When("activity exists", func() {
-			It("should activate activity successfully", func() {
-				mockService.EXPECT().
-					ActivateActivity(gomock.Any(), shareddomain.ID(activityID)).
-					Return(nil)
+			When("activity exists", func() {
+				It(successDescription, func() {
+					setup(shareddomain.ID(activityID)).Return(nil)
 
-				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/activate", nil)
+					request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/"+action, nil)
 
-				router.ServeHTTP(recorder, request)
+					router.ServeHTTP(recorder, request)
 
-				Expect(recorder.Code).To(Equal(http.StatusOK))
+					Expect(recorder.Code).To(Equal(http.StatusOK))
+				})
+			})
+
+			When("activity not found", func() {
+				It("should return not found", func() {
+					setup(shareddomain.ID(activityID)).Return(maintenance_usecases.ErrActivityNotFound)
+
+					request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/"+action, nil)
+
+					router.ServeHTTP(recorder, request)
+
+					Expect(recorder.Code).To(Equal(http.StatusNotFound))
+				})
 			})
 		})
-
-		When("activity not found", func() {
-			It("should return not found", func() {
-				mockService.EXPECT().
-					ActivateActivity(gomock.Any(), shareddomain.ID(activityID)).
-					Return(maintenance_usecases.ErrActivityNotFound)
-
-				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/activate", nil)
-
-				router.ServeHTTP(recorder, request)
-
-				Expect(recorder.Code).To(Equal(http.StatusNotFound))
-			})
-		})
+	}
+	registerActivityStateContext("activate", "should activate activity successfully", func(id shareddomain.ID) *gomock.Call {
+		return mockService.EXPECT().ActivateActivity(gomock.Any(), id)
 	})
-
-	Context("deactivateActivity", func() {
-		var router *http.ServeMux
-		var activityID string
-
-		BeforeEach(func() {
-			router = http.NewServeMux()
-			controller.AddRoutes(router)
-			activityID = "activity-123"
-		})
-
-		When("activity exists", func() {
-			It("should deactivate activity successfully", func() {
-				mockService.EXPECT().
-					DeactivateActivity(gomock.Any(), shareddomain.ID(activityID)).
-					Return(nil)
-
-				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/deactivate", nil)
-
-				router.ServeHTTP(recorder, request)
-
-				Expect(recorder.Code).To(Equal(http.StatusOK))
-			})
-		})
-
-		When("activity not found", func() {
-			It("should return not found", func() {
-				mockService.EXPECT().
-					DeactivateActivity(gomock.Any(), shareddomain.ID(activityID)).
-					Return(maintenance_usecases.ErrActivityNotFound)
-
-				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/deactivate", nil)
-
-				router.ServeHTTP(recorder, request)
-
-				Expect(recorder.Code).To(Equal(http.StatusNotFound))
-			})
-		})
+	registerActivityStateContext("deactivate", "should deactivate activity successfully", func(id shareddomain.ID) *gomock.Call {
+		return mockService.EXPECT().DeactivateActivity(gomock.Any(), id)
 	})
 })
 

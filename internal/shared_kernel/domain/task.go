@@ -6,6 +6,11 @@ import (
 	"zensor-server/internal/infra/utils"
 )
 
+var (
+	ErrTaskDeviceRequired   = errors.New("device is required")
+	ErrTaskCommandsRequired = errors.New("commands are required")
+)
+
 type Task struct {
 	ID            ID
 	Version       Version
@@ -64,11 +69,11 @@ func (b *taskBuilder) Build() (Task, error) {
 	}
 
 	if result.Device.ID == "" {
-		return Task{}, errors.New("device is required")
+		return Task{}, ErrTaskDeviceRequired
 	}
 
 	if len(result.Commands) == 0 {
-		return Task{}, errors.New("commands are required")
+		return Task{}, ErrTaskCommandsRequired
 	}
 
 	return result, nil

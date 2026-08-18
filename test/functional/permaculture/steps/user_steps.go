@@ -57,7 +57,7 @@ func (fc *FeatureContext) iGetTheUser(userID string) error {
 	return nil
 }
 
-func (fc *FeatureContext) theResponseShouldContainTheUserWithId(userID string) error {
+func (fc *FeatureContext) theResponseShouldContainTheUserWithID(userID string) error {
 	bodyBytes, err := io.ReadAll(fc.response.Body)
 	fc.require.NoError(err)
 

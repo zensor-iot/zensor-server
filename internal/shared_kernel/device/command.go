@@ -1,3 +1,4 @@
+// Package device provides the device command domain model.
 package device
 
 import (

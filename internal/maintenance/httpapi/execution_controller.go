@@ -80,31 +80,7 @@ func (c *ExecutionController) createExecution() http.HandlerFunc {
 
 func (c *ExecutionController) listExecutions() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		activityID := r.URL.Query().Get("activity_id")
-		if activityID == "" {
-			http.Error(w, "activity_id is required", http.StatusBadRequest)
-			return
-		}
-
-		paginationParams := httpserver.ExtractPaginationParams(r)
-		pagination := usecases.Pagination{
-			Limit:  paginationParams.Limit,
-			Offset: (paginationParams.Page - 1) * paginationParams.Limit,
-		}
-
-		executions, total, err := c.service.ListExecutionsByActivity(r.Context(), shareddomain.ID(activityID), pagination)
-		if err != nil {
-			slog.Error("listing maintenance executions", slog.String("error", err.Error()))
-			http.Error(w, "failed to list maintenance executions", http.StatusInternalServerError)
-			return
-		}
-
-		executionResponses := make([]internal.ExecutionResponse, len(executions))
-		for i, execution := range executions {
-			executionResponses[i] = internal.ToExecutionResponse(execution)
-		}
-
-		httpserver.ReplyWithPaginatedData(w, http.StatusOK, executionResponses, total, paginationParams)
+		listPaginated(w, r, "activity_id", "activity_id is required", c.service.ListExecutionsByActivity, internal.ToExecutionResponse, "maintenance executions")
 	}
 }
 

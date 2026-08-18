@@ -1,3 +1,4 @@
+// Package driver provides the HTTP driver used by the maintenance functional tests.
 package driver
 
 import (

@@ -1,3 +1,4 @@
+// Package usecases provides business logic use cases for shared kernel resources.
 package usecases
 
 import (

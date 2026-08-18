@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -222,56 +223,39 @@ func (c *TenantController) softDeleteTenant() http.HandlerFunc {
 
 func (c *TenantController) activateTenant() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if id == "" {
-			http.Error(w, "tenant id is required", http.StatusBadRequest)
-			return
-		}
-
-		err := c.service.ActivateTenant(r.Context(), domain.ID(id))
-		if errors.Is(err, usecases.ErrTenantNotFound) {
-			http.Error(w, tenantNotFoundErrMessage, http.StatusNotFound)
-			return
-		}
-		if errors.Is(err, usecases.ErrTenantSoftDeleted) {
-			http.Error(w, tenantSoftDeletedErrMessage, http.StatusConflict)
-			return
-		}
-		if err != nil {
-			slog.Error("activating tenant", slog.String("error", err.Error()))
-			http.Error(w, "failed to activate tenant", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusNoContent)
+		c.setTenantActiveState(w, r, c.service.ActivateTenant, "activating")
 	}
 }
 
 func (c *TenantController) deactivateTenant() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if id == "" {
-			http.Error(w, "tenant id is required", http.StatusBadRequest)
-			return
-		}
-
-		err := c.service.DeactivateTenant(r.Context(), domain.ID(id))
-		if errors.Is(err, usecases.ErrTenantNotFound) {
-			http.Error(w, tenantNotFoundErrMessage, http.StatusNotFound)
-			return
-		}
-		if errors.Is(err, usecases.ErrTenantSoftDeleted) {
-			http.Error(w, tenantSoftDeletedErrMessage, http.StatusConflict)
-			return
-		}
-		if err != nil {
-			slog.Error("deactivating tenant", slog.String("error", err.Error()))
-			http.Error(w, "failed to deactivate tenant", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusNoContent)
+		c.setTenantActiveState(w, r, c.service.DeactivateTenant, "deactivating")
 	}
+}
+
+func (c *TenantController) setTenantActiveState(w http.ResponseWriter, r *http.Request, action func(context.Context, domain.ID) error, logAction string) {
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "tenant id is required", http.StatusBadRequest)
+		return
+	}
+
+	err := action(r.Context(), domain.ID(id))
+	if errors.Is(err, usecases.ErrTenantNotFound) {
+		http.Error(w, tenantNotFoundErrMessage, http.StatusNotFound)
+		return
+	}
+	if errors.Is(err, usecases.ErrTenantSoftDeleted) {
+		http.Error(w, tenantSoftDeletedErrMessage, http.StatusConflict)
+		return
+	}
+	if err != nil {
+		slog.Error(logAction+" tenant", slog.String("error", err.Error()))
+		http.Error(w, "failed to "+logAction+" tenant", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (c *TenantController) adoptDevice() http.HandlerFunc {

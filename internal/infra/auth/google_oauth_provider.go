@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 )
 
 const googleUserInfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
+
+var ErrUserInfoRequestFailed = errors.New("userinfo request failed")
 
 type GoogleOAuthProviderConfig struct {
 	ClientID     string
@@ -67,7 +70,7 @@ func (p *GoogleOAuthProvider) ExchangeCode(ctx context.Context, code string) (us
 	}()
 
 	if response.StatusCode != http.StatusOK {
-		return usecases.OAuthIdentity{}, fmt.Errorf("userinfo request failed with status %d", response.StatusCode)
+		return usecases.OAuthIdentity{}, fmt.Errorf("%w: status %d", ErrUserInfoRequestFailed, response.StatusCode)
 	}
 
 	var userInfo struct {

@@ -1,3 +1,4 @@
+// Package httpserver provides the HTTP server, middleware, and helpers.
 package httpserver
 
 import "net/http"

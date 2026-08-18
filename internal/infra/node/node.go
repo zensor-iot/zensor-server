@@ -1,3 +1,4 @@
+// Package node provides node-based utilities.
 package node
 
 import (

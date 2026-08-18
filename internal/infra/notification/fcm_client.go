@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	// Imported for its init side effect: it registers the GCE metadata client
+	// used by google.FindDefaultCredentials when running on Google Cloud.
 	_ "cloud.google.com/go/compute/metadata"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -194,7 +195,7 @@ func (c *FCMClient) send(ctx context.Context, request FCMRequest) error {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("FCM API error: status %d, body: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("%w: status %d, body: %s", ErrFCMAPIError, resp.StatusCode, string(body))
 	}
 
 	return nil
@@ -204,6 +205,6 @@ func (c *FCMClient) send(ctx context.Context, request FCMRequest) error {
 func (c *FCMClient) SendEmail(ctx context.Context, request EmailRequest) error {
 	return &NotificationError{
 		Message: "email notifications are not supported by FCM",
-		Err:     errors.New("use MailerSend client for email notifications"),
+		Err:     ErrEmailNotSupported,
 	}
 }

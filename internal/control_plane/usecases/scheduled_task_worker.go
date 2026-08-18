@@ -19,6 +19,11 @@ const (
 	_scheduledTasksTopic = "scheduled_tasks"
 )
 
+var (
+	ErrCronScheduleRequired         = errors.New("cron schedule is required for cron scheduling type")
+	ErrNoValidSchedulingConfigFound = errors.New("no valid scheduling configuration found")
+)
+
 func NewScheduledTaskWorker(
 	ticker *time.Ticker,
 	scheduledTaskRepository ScheduledTaskRepository,
@@ -154,7 +159,7 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 
 	case domain.SchedulingTypeCron:
 		if scheduledTask.Schedule == "" {
-			return false, errors.New("cron schedule is required for cron scheduling type")
+			return false, ErrCronScheduleRequired
 		}
 
 		scheduleSpec, err := w.cronParser.Parse(scheduledTask.Schedule)
@@ -166,7 +171,7 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 
 	default:
 		if scheduledTask.Schedule == "" {
-			return false, errors.New("no valid scheduling configuration found")
+			return false, ErrNoValidSchedulingConfigFound
 		}
 
 		scheduleSpec, err := w.cronParser.Parse(scheduledTask.Schedule)

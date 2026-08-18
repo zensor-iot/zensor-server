@@ -123,49 +123,7 @@ func (c *TaskController) create() http.HandlerFunc {
 
 		span.SetAttributes(attribute.String("task.id", task.ID.String()))
 
-		// Convert domain commands to API command responses
-		commandResponses := make([]internal.TaskCommandResponse, len(task.Commands))
-		for j, cmd := range task.Commands {
-			var sentAt *string
-			if !cmd.SentAt.IsZero() {
-				sentAtStr := cmd.SentAt.Format("2006-01-02T15:04:05Z07:00")
-				sentAt = &sentAtStr
-			}
-
-			// Convert optional timestamps
-			var queuedAt, ackedAt, failedAt *string
-			if cmd.QueuedAt != nil {
-				queuedAtStr := cmd.QueuedAt.Format("2006-01-02T15:04:05Z07:00")
-				queuedAt = &queuedAtStr
-			}
-			if cmd.AckedAt != nil {
-				ackedAtStr := cmd.AckedAt.Format("2006-01-02T15:04:05Z07:00")
-				ackedAt = &ackedAtStr
-			}
-			if cmd.FailedAt != nil {
-				failedAtStr := cmd.FailedAt.Format("2006-01-02T15:04:05Z07:00")
-				failedAt = &failedAtStr
-			}
-
-			commandResponses[j] = internal.TaskCommandResponse{
-				ID:            cmd.ID.String(),
-				Index:         uint8(cmd.Payload.Index),
-				Value:         uint8(cmd.Payload.Value),
-				Port:          uint8(cmd.Port),
-				Priority:      string(cmd.Priority),
-				DispatchAfter: cmd.DispatchAfter.Format("2006-01-02T15:04:05Z07:00"),
-				Ready:         cmd.Ready,
-				Sent:          cmd.Sent,
-				SentAt:        sentAt,
-
-				// Response tracking fields
-				Status:       string(cmd.Status),
-				ErrorMessage: cmd.ErrorMessage,
-				QueuedAt:     queuedAt,
-				AckedAt:      ackedAt,
-				FailedAt:     failedAt,
-			}
-		}
+		commandResponses := toTaskCommandResponses(task.Commands)
 
 		response := internal.TaskResponse{
 			ID:        task.ID.String(),
@@ -208,48 +166,7 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 
 		responses := make([]internal.TaskResponse, len(tasks))
 		for i, task := range tasks {
-			commandResponses := make([]internal.TaskCommandResponse, len(task.Commands))
-			for j, cmd := range task.Commands {
-				var sentAt *string
-				if !cmd.SentAt.IsZero() {
-					sentAtStr := cmd.SentAt.Format("2006-01-02T15:04:05Z07:00")
-					sentAt = &sentAtStr
-				}
-
-				// Convert optional timestamps
-				var queuedAt, ackedAt, failedAt *string
-				if cmd.QueuedAt != nil {
-					queuedAtStr := cmd.QueuedAt.Format("2006-01-02T15:04:05Z07:00")
-					queuedAt = &queuedAtStr
-				}
-				if cmd.AckedAt != nil {
-					ackedAtStr := cmd.AckedAt.Format("2006-01-02T15:04:05Z07:00")
-					ackedAt = &ackedAtStr
-				}
-				if cmd.FailedAt != nil {
-					failedAtStr := cmd.FailedAt.Format("2006-01-02T15:04:05Z07:00")
-					failedAt = &failedAtStr
-				}
-
-				commandResponses[j] = internal.TaskCommandResponse{
-					ID:            cmd.ID.String(),
-					Index:         uint8(cmd.Payload.Index),
-					Value:         uint8(cmd.Payload.Value),
-					Port:          uint8(cmd.Port),
-					Priority:      string(cmd.Priority),
-					DispatchAfter: cmd.DispatchAfter.Format("2006-01-02T15:04:05Z07:00"),
-					Ready:         cmd.Ready,
-					Sent:          cmd.Sent,
-					SentAt:        sentAt,
-
-					// Response tracking fields
-					Status:       string(cmd.Status),
-					ErrorMessage: cmd.ErrorMessage,
-					QueuedAt:     queuedAt,
-					AckedAt:      ackedAt,
-					FailedAt:     failedAt,
-				}
-			}
+			commandResponses := toTaskCommandResponses(task.Commands)
 
 			responses[i] = internal.TaskResponse{
 				ID:        task.ID.String(),
@@ -260,4 +177,48 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 
 		httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, params)
 	}
+}
+
+func toTaskCommandResponses(commands []domain.Command) []internal.TaskCommandResponse {
+	commandResponses := make([]internal.TaskCommandResponse, len(commands))
+	for j, cmd := range commands {
+		var sentAt *string
+		if !cmd.SentAt.IsZero() {
+			sentAtStr := cmd.SentAt.Format("2006-01-02T15:04:05Z07:00")
+			sentAt = &sentAtStr
+		}
+
+		var queuedAt, ackedAt, failedAt *string
+		if cmd.QueuedAt != nil {
+			queuedAtStr := cmd.QueuedAt.Format("2006-01-02T15:04:05Z07:00")
+			queuedAt = &queuedAtStr
+		}
+		if cmd.AckedAt != nil {
+			ackedAtStr := cmd.AckedAt.Format("2006-01-02T15:04:05Z07:00")
+			ackedAt = &ackedAtStr
+		}
+		if cmd.FailedAt != nil {
+			failedAtStr := cmd.FailedAt.Format("2006-01-02T15:04:05Z07:00")
+			failedAt = &failedAtStr
+		}
+
+		commandResponses[j] = internal.TaskCommandResponse{
+			ID:            cmd.ID.String(),
+			Index:         uint8(cmd.Payload.Index),
+			Value:         uint8(cmd.Payload.Value),
+			Port:          uint8(cmd.Port),
+			Priority:      string(cmd.Priority),
+			DispatchAfter: cmd.DispatchAfter.Format("2006-01-02T15:04:05Z07:00"),
+			Ready:         cmd.Ready,
+			Sent:          cmd.Sent,
+			SentAt:        sentAt,
+
+			Status:       string(cmd.Status),
+			ErrorMessage: cmd.ErrorMessage,
+			QueuedAt:     queuedAt,
+			AckedAt:      ackedAt,
+			FailedAt:     failedAt,
+		}
+	}
+	return commandResponses
 }

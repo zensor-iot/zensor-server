@@ -24,13 +24,13 @@ type SimplePushTokenService struct {
 
 func (s *SimplePushTokenService) RegisterToken(ctx context.Context, userID domain.ID, token string, platform string) error {
 	if userID == "" {
-		return errors.New("user ID is required")
+		return domain.ErrPushTokenUserIDRequired
 	}
 	if token == "" {
-		return errors.New("token is required")
+		return domain.ErrPushTokenTokenRequired
 	}
 	if platform == "" {
-		return errors.New("platform is required")
+		return domain.ErrPushTokenPlatformRequired
 	}
 
 	pushToken, err := domain.NewPushTokenBuilder().
@@ -61,7 +61,7 @@ func (s *SimplePushTokenService) RegisterToken(ctx context.Context, userID domai
 
 func (s *SimplePushTokenService) UnregisterToken(ctx context.Context, token string) error {
 	if token == "" {
-		return errors.New("token is required")
+		return domain.ErrPushTokenTokenRequired
 	}
 
 	err := s.repository.DeleteByToken(ctx, token)
@@ -80,7 +80,7 @@ func (s *SimplePushTokenService) UnregisterToken(ctx context.Context, token stri
 
 func (s *SimplePushTokenService) GetTokenByUserID(ctx context.Context, userID domain.ID) (domain.PushToken, error) {
 	if userID == "" {
-		return domain.PushToken{}, errors.New("user ID is required")
+		return domain.PushToken{}, domain.ErrPushTokenUserIDRequired
 	}
 
 	token, err := s.repository.GetByUserID(ctx, userID)
@@ -98,7 +98,7 @@ func (s *SimplePushTokenService) GetTokenByUserID(ctx context.Context, userID do
 // ListTokensByUserID returns all push tokens for the user, or ErrPushTokenNotFound if the list is empty.
 func (s *SimplePushTokenService) ListTokensByUserID(ctx context.Context, userID domain.ID) ([]domain.PushToken, error) {
 	if userID == "" {
-		return nil, errors.New("user ID is required")
+		return nil, domain.ErrPushTokenUserIDRequired
 	}
 
 	tokens, err := s.repository.ListByUserID(ctx, userID)

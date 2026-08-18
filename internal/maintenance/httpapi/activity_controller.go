@@ -1,6 +1,8 @@
+// Package httpapi provides HTTP controllers for the maintenance module.
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -50,32 +52,44 @@ func (c *ActivityController) AddRoutes(router *http.ServeMux) {
 
 func (c *ActivityController) listActivities() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tenantID := r.URL.Query().Get("tenant_id")
-		if tenantID == "" {
-			http.Error(w, "tenant_id is required", http.StatusBadRequest)
-			return
-		}
-
-		paginationParams := httpserver.ExtractPaginationParams(r)
-		pagination := usecases.Pagination{
-			Limit:  paginationParams.Limit,
-			Offset: (paginationParams.Page - 1) * paginationParams.Limit,
-		}
-
-		activities, total, err := c.service.ListActivitiesByTenant(r.Context(), shareddomain.ID(tenantID), pagination)
-		if err != nil {
-			slog.Error("listing maintenance activities", slog.String("error", err.Error()))
-			http.Error(w, "failed to list maintenance activities", http.StatusInternalServerError)
-			return
-		}
-
-		activityResponses := make([]internal.ActivityResponse, len(activities))
-		for i, activity := range activities {
-			activityResponses[i] = internal.ToActivityResponse(activity)
-		}
-
-		httpserver.ReplyWithPaginatedData(w, http.StatusOK, activityResponses, total, paginationParams)
+		listPaginated(w, r, "tenant_id", "tenant_id is required", c.service.ListActivitiesByTenant, internal.ToActivityResponse, "maintenance activities")
 	}
+}
+
+func listPaginated[T, R any](
+	w http.ResponseWriter,
+	r *http.Request,
+	idParam string,
+	idErrMessage string,
+	listFunc func(ctx context.Context, id shareddomain.ID, pagination usecases.Pagination) ([]T, int, error),
+	toResponse func(T) R,
+	listingLabel string,
+) {
+	idValue := r.URL.Query().Get(idParam)
+	if idValue == "" {
+		http.Error(w, idErrMessage, http.StatusBadRequest)
+		return
+	}
+
+	paginationParams := httpserver.ExtractPaginationParams(r)
+	pagination := usecases.Pagination{
+		Limit:  paginationParams.Limit,
+		Offset: (paginationParams.Page - 1) * paginationParams.Limit,
+	}
+
+	items, total, err := listFunc(r.Context(), shareddomain.ID(idValue), pagination)
+	if err != nil {
+		slog.Error("listing "+listingLabel, slog.String("error", err.Error()))
+		http.Error(w, "failed to list "+listingLabel, http.StatusInternalServerError)
+		return
+	}
+
+	responses := make([]R, len(items))
+	for i, item := range items {
+		responses[i] = toResponse(item)
+	}
+
+	httpserver.ReplyWithPaginatedData(w, http.StatusOK, responses, total, paginationParams)
 }
 
 func (c *ActivityController) getActivity() http.HandlerFunc {

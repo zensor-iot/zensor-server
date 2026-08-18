@@ -1,3 +1,4 @@
+// Package steps provides Cucumber step definitions for the permaculture functional tests.
 package steps
 
 import (

@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -140,7 +139,7 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if hijacker, ok := rw.ResponseWriter.(http.Hijacker); ok {
 		return hijacker.Hijack()
 	}
-	return nil, nil, errors.New("underlying ResponseWriter does not support hijacking")
+	return nil, nil, errNoHijackSupport
 }
 
 func normalizeEndpoint(path string) string {
