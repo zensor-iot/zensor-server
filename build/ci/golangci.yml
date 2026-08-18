@@ -65,7 +65,11 @@ linters:
         - "^//go:"
     revive:
       rules:
-        - name: exported
+        - name: dot-imports
+          arguments:
+            - allowedPackages:
+                - github.com/onsi/ginkgo/v2
+                - github.com/onsi/gomega
         - name: error-strings
         - name: var-naming
         - name: comment-spacings
@@ -90,9 +94,8 @@ linters:
         - name: increment-decrement
         - name: receiver-naming
         - name: blank-imports
-        - name: dot-imports
     sloglint:
-      no-global: "all"
+      static-msg: false
     gocritic:
       enabled-checks:
         - appendAssign
@@ -134,10 +137,6 @@ formatters:
     - gofmt
     - gofumpt
     - goimports
-  settings:
-    goimports:
-      local-prefixes:
-        - zensor-server
   exclusions:
     paths:
       - internal/infra/httpserver/web/dist
