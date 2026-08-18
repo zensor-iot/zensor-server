@@ -13,6 +13,11 @@ import (
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
+var (
+	errMaintenanceExecutionDeleted          = errors.New("maintenance execution is deleted")
+	errMaintenanceExecutionAlreadyCompleted = errors.New("maintenance execution is already completed")
+)
+
 type ExecutionService interface {
 	CreateExecution(ctx context.Context, execution maintenanceDomain.Execution) error
 	GetExecution(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Execution, error)
@@ -41,7 +46,7 @@ func (s *SimpleExecutionService) CreateExecution(ctx context.Context, execution 
 	_, err := s.activityRepository.GetByID(ctx, execution.ActivityID)
 	if err != nil {
 		if errors.Is(err, ErrActivityNotFound) {
-			return errors.New("activity not found")
+			return ErrActivityNotFound
 		}
 		return fmt.Errorf("getting maintenance activity: %w", err)
 	}
@@ -96,11 +101,11 @@ func (s *SimpleExecutionService) MarkExecutionCompleted(ctx context.Context, id 
 	}
 
 	if execution.IsDeleted() {
-		return errors.New("maintenance execution is deleted")
+		return errMaintenanceExecutionDeleted
 	}
 
 	if execution.IsCompleted() {
-		return errors.New("maintenance execution is already completed")
+		return errMaintenanceExecutionAlreadyCompleted
 	}
 
 	if execution.IsScheduledInTheFuture(time.Now()) {

@@ -9,6 +9,8 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
+var errInvalidType = errors.New("invalid type")
+
 type EvaluationRule struct {
 	ID          string     `json:"id" gorm:"primaryKey"`
 	DeviceID    string     `json:"device_id" gorm:"foreignKey:device_id"`
@@ -39,7 +41,7 @@ func (p *Parameters) Scan(src any) error {
 	case []byte:
 		data = string(v)
 	default:
-		return errors.New("invalid type")
+		return errInvalidType
 	}
 	return json.Unmarshal([]byte(data), p)
 }

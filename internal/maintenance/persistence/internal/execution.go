@@ -10,6 +10,8 @@ import (
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
+var errInvalidTypeForFieldValues = errors.New("invalid type for field_values")
+
 type Execution struct {
 	ID                   string      `json:"id" gorm:"primaryKey"`
 	Version              int         `json:"version"`
@@ -58,7 +60,7 @@ func (fv *FieldValues) Scan(src any) error {
 		*fv = make(map[string]any)
 		return nil
 	default:
-		return errors.New("invalid type for field_values")
+		return errInvalidTypeForFieldValues
 	}
 
 	return json.Unmarshal(data, fv)

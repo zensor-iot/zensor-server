@@ -13,6 +13,11 @@ import (
 	"zensor-server/internal/infra/cache"
 )
 
+var (
+	errCacheInstanceRequired  = errors.New("cache instance is required")
+	errFailedToSetDeviceState = errors.New("failed to set device state in cache for device")
+)
+
 // RedisDeviceStateCacheService implements usecases.DeviceStateCacheService using Redis.
 type RedisDeviceStateCacheService struct {
 	cache      cache.Cache
@@ -39,7 +44,7 @@ func NewRedisDeviceStateCacheService(config *RedisDeviceStateCacheConfig) (useca
 		config = DefaultRedisDeviceStateCacheConfig()
 	}
 	if config.Cache == nil {
-		return nil, errors.New("cache instance is required")
+		return nil, errCacheInstanceRequired
 	}
 	service := &RedisDeviceStateCacheService{
 		cache:      config.Cache,
@@ -71,7 +76,7 @@ func (s *RedisDeviceStateCacheService) SetState(ctx context.Context, deviceID st
 	key := s.makeDeviceStateKey(deviceID)
 	success := s.cache.Set(ctx, key, deviceState, s.defaultTTL)
 	if !success {
-		return fmt.Errorf("failed to set device state in cache for device %s", deviceID)
+		return fmt.Errorf("failed to set device state in cache for device %s: %w", deviceID, errFailedToSetDeviceState)
 	}
 	slog.Info("device state set in Redis cache",
 		slog.String("device_id", deviceID),

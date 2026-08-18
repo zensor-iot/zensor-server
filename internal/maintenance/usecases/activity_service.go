@@ -13,6 +13,11 @@ import (
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
+var (
+	errMaintenanceActivityDeleted        = errors.New("maintenance activity is deleted")
+	errMaintenanceActivityAlreadyDeleted = errors.New("maintenance activity is already deleted")
+)
+
 type ActivityService interface {
 	CreateActivity(ctx context.Context, activity maintenanceDomain.Activity) error
 	GetActivity(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Activity, error)
@@ -102,7 +107,7 @@ func (s *SimpleActivityService) UpdateActivity(ctx context.Context, activity mai
 	}
 
 	if existingActivity.IsDeleted() {
-		return errors.New("maintenance activity is deleted")
+		return errMaintenanceActivityDeleted
 	}
 
 	err = s.repository.Update(ctx, activity)
@@ -124,7 +129,7 @@ func (s *SimpleActivityService) DeleteActivity(ctx context.Context, id shareddom
 	}
 
 	if activity.IsDeleted() {
-		return errors.New("maintenance activity is already deleted")
+		return errMaintenanceActivityAlreadyDeleted
 	}
 
 	err = s.repository.Delete(ctx, id)
@@ -146,7 +151,7 @@ func (s *SimpleActivityService) ActivateActivity(ctx context.Context, id sharedd
 	}
 
 	if activity.IsDeleted() {
-		return errors.New("maintenance activity is deleted")
+		return errMaintenanceActivityDeleted
 	}
 
 	activity.Activate()
@@ -163,7 +168,7 @@ func (s *SimpleActivityService) DeactivateActivity(ctx context.Context, id share
 	}
 
 	if activity.IsDeleted() {
-		return errors.New("maintenance activity is deleted")
+		return errMaintenanceActivityDeleted
 	}
 
 	activity.Deactivate()

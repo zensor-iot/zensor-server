@@ -3,9 +3,12 @@ package utils
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var errCannotScanIntoTime = errors.New("cannot scan into Time")
 
 type Duration time.Duration
 
@@ -42,7 +45,7 @@ func (p Time) Value() (driver.Value, error) {
 func (p *Time) Scan(src any) error {
 	value, ok := src.(time.Time)
 	if !ok {
-		return fmt.Errorf("cannot scan %T into Time", src)
+		return fmt.Errorf("cannot scan %T into Time: %w", src, errCannotScanIntoTime)
 	}
 	p.Time = value
 	return nil

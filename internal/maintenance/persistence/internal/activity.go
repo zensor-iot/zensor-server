@@ -10,6 +10,11 @@ import (
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
+var (
+	errInvalidTypeForDays   = errors.New("invalid type for days")
+	errInvalidTypeForFields = errors.New("invalid type for fields")
+)
+
 type Activity struct {
 	ID                     string      `json:"id" gorm:"primaryKey"`
 	Version                int         `json:"version"`
@@ -52,7 +57,7 @@ func (d *Days) Scan(src any) error {
 		*d = Days{}
 		return nil
 	default:
-		return errors.New("invalid type for days")
+		return errInvalidTypeForDays
 	}
 
 	return json.Unmarshal(data, d)
@@ -79,7 +84,7 @@ func (f *Fields) Scan(src any) error {
 		*f = Fields{}
 		return nil
 	default:
-		return errors.New("invalid type for fields")
+		return errInvalidTypeForFields
 	}
 
 	return json.Unmarshal(data, f)

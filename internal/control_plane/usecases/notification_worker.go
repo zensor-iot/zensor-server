@@ -24,6 +24,8 @@ const (
 	_tasksTopic             = "scheduled_tasks"
 )
 
+var errInvalidScheduledTaskMessage = errors.New("invalid scheduled task message format")
+
 func NewNotificationWorker(
 	ticker *time.Ticker,
 	notificationClient notification.NotificationClient,
@@ -111,7 +113,7 @@ func (w *NotificationWorker) processScheduledTaskEvent(ctx context.Context, mess
 	scheduledTask, ok := message.Value.(domain.ScheduledTask)
 	if !ok {
 		slog.Warn("invalid scheduled task message format", slog.Any("value", message.Value))
-		span.RecordError(errors.New("invalid scheduled task message format"))
+		span.RecordError(errInvalidScheduledTaskMessage)
 		return
 	}
 

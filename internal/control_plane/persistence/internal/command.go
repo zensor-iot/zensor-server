@@ -3,11 +3,14 @@ package internal
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
+
+var errCannotScanIntoCommandPayload = errors.New("cannot scan into CommandPayload")
 
 type CommandSet []Command
 
@@ -72,7 +75,7 @@ func (v *CommandPayload) Scan(value any) error {
 	case nil:
 		return nil
 	default:
-		return fmt.Errorf("cannot scan %T into CommandPayload", value)
+		return fmt.Errorf("cannot scan %T into CommandPayload: %w", value, errCannotScanIntoCommandPayload)
 	}
 
 	return json.Unmarshal(data, &v)

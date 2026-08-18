@@ -7,6 +7,18 @@ import (
 	"zensor-server/internal/infra/utils"
 )
 
+var (
+	errCalculateNextExecutionIntervalOnly         = errors.New("calculateNextExecution only supports interval scheduling")
+	errTenantRequired                             = errors.New("tenant is required")
+	errDeviceRequired                             = errors.New("device is required")
+	errCommandTemplatesRequired                   = errors.New("command templates are required")
+	errScheduleOrSchedulingConfigRequired         = errors.New("either schedule or scheduling configuration is required")
+	errInitialDayRequiredForIntervalScheduling    = errors.New("initial_day is required for interval scheduling")
+	errDayIntervalMustBeGreaterThanZero           = errors.New("day_interval must be greater than 0 for interval scheduling")
+	errExecutionTimeRequiredForIntervalScheduling = errors.New("execution_time is required for interval scheduling")
+	errInitialDayWithExecutionTimeMustBeInFuture  = errors.New("initial_day with execution_time must be in the future")
+)
+
 type ScheduledTask struct {
 	ID               ID
 	Version          Version
@@ -49,7 +61,7 @@ func (st *ScheduledTask) SoftDelete() {
 
 func (st *ScheduledTask) CalculateNextExecution(tenantTimezone string) (time.Time, error) {
 	if st.Scheduling.Type != SchedulingTypeInterval {
-		return time.Time{}, errors.New("calculateNextExecution only supports interval scheduling")
+		return time.Time{}, errCalculateNextExecutionIntervalOnly
 	}
 
 	executionTime := *st.Scheduling.ExecutionTime
@@ -215,19 +227,19 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 	}
 
 	if result.Tenant.ID == "" {
-		return ScheduledTask{}, errors.New("tenant is required")
+		return ScheduledTask{}, errTenantRequired
 	}
 
 	if result.Device.ID == "" {
-		return ScheduledTask{}, errors.New("device is required")
+		return ScheduledTask{}, errDeviceRequired
 	}
 
 	if len(result.CommandTemplates) == 0 {
-		return ScheduledTask{}, errors.New("command templates are required")
+		return ScheduledTask{}, errCommandTemplatesRequired
 	}
 
 	if result.Schedule == "" && result.Scheduling.Type == "" {
-		return ScheduledTask{}, errors.New("either schedule or scheduling configuration is required")
+		return ScheduledTask{}, errScheduleOrSchedulingConfigRequired
 	}
 
 	if result.Schedule != "" && result.Scheduling.Type == "" {
@@ -238,13 +250,13 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 
 	if result.Scheduling.Type == SchedulingTypeInterval {
 		if result.Scheduling.InitialDay == nil {
-			return ScheduledTask{}, errors.New("initial_day is required for interval scheduling")
+			return ScheduledTask{}, errInitialDayRequiredForIntervalScheduling
 		}
 		if result.Scheduling.DayInterval == nil || *result.Scheduling.DayInterval <= 0 {
-			return ScheduledTask{}, errors.New("day_interval must be greater than 0 for interval scheduling")
+			return ScheduledTask{}, errDayIntervalMustBeGreaterThanZero
 		}
 		if result.Scheduling.ExecutionTime == nil || *result.Scheduling.ExecutionTime == "" {
-			return ScheduledTask{}, errors.New("execution_time is required for interval scheduling")
+			return ScheduledTask{}, errExecutionTimeRequiredForIntervalScheduling
 		}
 
 		hour, minute, err := utils.ParseExecutionTime(*result.Scheduling.ExecutionTime)
@@ -264,7 +276,7 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 		)
 
 		if firstExecutionTime.UTC().Before(time.Now().UTC()) {
-			return ScheduledTask{}, errors.New("initial_day with execution_time must be in the future")
+			return ScheduledTask{}, errInitialDayWithExecutionTimeMustBeInFuture
 		}
 	}
 
