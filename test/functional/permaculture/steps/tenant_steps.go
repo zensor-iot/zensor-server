@@ -29,13 +29,21 @@ func (fc *FeatureContext) iCreateANewTenantWithNameAndEmail(name, email string) 
 func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "A test tenant")
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	if resp.StatusCode == http.StatusConflict {
 		// Tenant already exists, try to get it by listing all tenants
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
-		defer listResp.Body.Close()
+		defer func() {
+			if err := listResp.Body.Close(); err != nil {
+				fc.require.NoError(err)
+			}
+		}()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -81,7 +89,11 @@ func (fc *FeatureContext) aDeactivatedTenantExistsWithNameAndEmail(name, email s
 	fc.require.NoError(err)
 	resp, err := fc.apiDriver.DeactivateTenant(fc.tenantID)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 	fc.require.Equal(http.StatusNoContent, resp.StatusCode)
 	return nil
 }

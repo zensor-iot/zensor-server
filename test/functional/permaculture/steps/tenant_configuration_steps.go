@@ -32,7 +32,11 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 	// Create a tenant with the specified ID
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for configuration")
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	// Accept both 201 (Created) and 409 (Conflict - already exists)
 	switch resp.StatusCode {
@@ -50,7 +54,11 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 		// If tenant already exists, find it by listing and add to array
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
-		defer listResp.Body.Close()
+		defer func() {
+			if err := listResp.Body.Close(); err != nil {
+				fc.require.NoError(err)
+			}
+		}()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -112,7 +120,9 @@ func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenan
 	if err != nil {
 		return fmt.Errorf("failed to associate user with tenant: %w", err)
 	}
-	associateResp.Body.Close()
+	if err := associateResp.Body.Close(); err != nil {
+		fc.require.NoError(err)
+	}
 
 	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, callerID)
 	if err != nil {
@@ -172,7 +182,9 @@ func (fc *FeatureContext) iUpdateTheTenantConfigurationForTenantWithTimezone(ten
 	if err != nil {
 		return fmt.Errorf("failed to associate user with tenant: %w", err)
 	}
-	associateResp.Body.Close()
+	if err := associateResp.Body.Close(); err != nil {
+		fc.require.NoError(err)
+	}
 
 	resp, err := fc.apiDriver.UpsertTenantConfiguration(targetTenantID, timezone, callerID)
 	if err != nil {

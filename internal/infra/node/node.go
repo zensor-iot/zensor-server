@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
@@ -68,7 +69,11 @@ func getNodeIPAddressInternal() string {
 	if err != nil {
 		return "127.0.0.1"
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			slog.Warn("failed to close UDP connection", slog.String("error", err.Error()))
+		}
+	}()
 
 	localAddr, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok {

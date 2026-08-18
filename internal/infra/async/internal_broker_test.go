@@ -29,7 +29,7 @@ var _ = Describe("Local Broker", func() {
 			It("should increase the number of subscriber", func() {
 				subscription, _ = broker.Subscribe(topic)
 
-				broker.Publish(ctx, topic, async.BrokerMessage{})
+				Expect(broker.Publish(ctx, topic, async.BrokerMessage{})).To(Succeed())
 
 				Eventually(subscription.Receiver).Should(Receive(&async.BrokerMessage{}))
 			})
@@ -45,7 +45,7 @@ var _ = Describe("Local Broker", func() {
 				subscription, _ = broker.Subscribe(topic)
 				subscription2, _ = broker.Subscribe(topic)
 
-				broker.Publish(ctx, topic, async.BrokerMessage{})
+				Expect(broker.Publish(ctx, topic, async.BrokerMessage{})).To(Succeed())
 
 				Eventually(subscription.Receiver).Should(Receive(&async.BrokerMessage{}))
 				Eventually(subscription2.Receiver).Should(Receive(&async.BrokerMessage{}))
@@ -63,7 +63,7 @@ var _ = Describe("Local Broker", func() {
 			})
 
 			It("should receive a message from channel", func() {
-				broker.Publish(context.TODO(), topic, message)
+				Expect(broker.Publish(context.TODO(), topic, message)).To(Succeed())
 
 				Eventually(subscription.Receiver).Should(Receive(And(
 					HaveField("Event", "f20a4b57-95bc-4f2a-b3e6-7e36e05f1b23"),
@@ -141,7 +141,7 @@ var _ = Describe("Local Broker", func() {
 			BeforeEach(func() {
 				topic = "b6541d7c-f455-446c-bea0-1e11bf9c76fc"
 				subscription, _ = broker.Subscribe(topic)
-				broker.Unsubscribe(topic, subscription)
+				Expect(broker.Unsubscribe(topic, subscription)).To(Succeed())
 				message = async.BrokerMessage{
 					Event: "f20a4b57-95bc-4f2a-b3e6-7e36e05f1b23",
 					Value: "a7024c11-3a52-4a29-9360-bc8e6a29ded1",
@@ -149,7 +149,7 @@ var _ = Describe("Local Broker", func() {
 			})
 
 			It("should not receive any message subscriptor", func() {
-				broker.Publish(context.TODO(), topic, message)
+				Expect(broker.Publish(context.TODO(), topic, message)).To(Succeed())
 
 				Eventually(subscription.Receiver).ShouldNot(Receive(And(
 					HaveField("Event", "f20a4b57-95bc-4f2a-b3e6-7e36e05f1b23"),
@@ -161,7 +161,7 @@ var _ = Describe("Local Broker", func() {
 			BeforeEach(func() {
 				topic = "b6541d7c-f455-446c-bea0-1e11bf9c76fc"
 				subscription, _ = broker.Subscribe(topic)
-				broker.Unsubscribe(topic, subscription)
+				Expect(broker.Unsubscribe(topic, subscription)).To(Succeed())
 			})
 
 			It("should remove subscriptor and don't panic", func() {
@@ -189,7 +189,7 @@ var _ = Describe("Local Broker", func() {
 			BeforeEach(func() {
 				topic = "bcf9eba6-519e-4983-85b2-aa58d31c8a01"
 				subcription, _ := broker.Subscribe(topic)
-				broker.Unsubscribe(topic, subcription)
+				Expect(broker.Unsubscribe(topic, subcription)).To(Succeed())
 			})
 
 			It("should return no error", func() {

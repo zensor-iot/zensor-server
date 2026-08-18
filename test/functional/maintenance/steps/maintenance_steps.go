@@ -103,7 +103,11 @@ func (fc *FeatureContext) aDeactivatedMaintenanceActivityExistsForTenantWithType
 	time.Sleep(50 * time.Millisecond)
 	resp, err := fc.apiDriver.DeactivateMaintenanceActivity(fc.maintenanceActivityID)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 	fc.require.Equal(http.StatusOK, resp.StatusCode)
 	return nil
 }
@@ -274,7 +278,9 @@ func (fc *FeatureContext) thereAreMaintenanceExecutionsForTheActivity(count int)
 				}
 			}
 		}
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	return nil
@@ -288,7 +294,11 @@ func (fc *FeatureContext) aMaintenanceExecutionExistsForTheActivity() error {
 
 	resp, err := fc.createMaintenanceExecution(fc.maintenanceActivityID, scheduledDate, fieldValues)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
@@ -315,7 +325,11 @@ func (fc *FeatureContext) aFutureMaintenanceExecutionExistsForTheActivity() erro
 
 	resp, err := fc.createMaintenanceExecution(fc.maintenanceActivityID, scheduledDate, fieldValues)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
@@ -340,7 +354,11 @@ func (fc *FeatureContext) anOverdueMaintenanceExecutionExistsForTheActivity() er
 
 	resp, err := fc.createMaintenanceExecution(fc.maintenanceActivityID, scheduledDate, fieldValues)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any

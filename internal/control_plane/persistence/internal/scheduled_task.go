@@ -141,7 +141,9 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 
 func (s ScheduledTask) ToDomain() domain.ScheduledTask {
 	var commandTemplateData []CommandTemplateData
-	json.Unmarshal([]byte(s.CommandTemplates), &commandTemplateData)
+	if err := json.Unmarshal([]byte(s.CommandTemplates), &commandTemplateData); err != nil {
+		return domain.ScheduledTask{}
+	}
 
 	// Convert CommandTemplateData back to domain CommandTemplates
 	commandTemplates := make([]domain.CommandTemplate, len(commandTemplateData))

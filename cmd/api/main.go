@@ -212,7 +212,9 @@ func main() {
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	<-signalChannel
-	shutdownOtel()
+	if err := shutdownOtel(); err != nil {
+		slog.Error("shutting down otel", slog.String("error", err.Error()))
+	}
 
 	cancelFn()
 	wg.Wait()

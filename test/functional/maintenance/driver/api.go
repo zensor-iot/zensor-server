@@ -45,18 +45,24 @@ func (d *APIDriver) post(url string, body []byte) (*http.Response, error) {
 	return d.client.Do(req)
 }
 
-func (d *APIDriver) Login() error {
+func (d *APIDriver) Login() (err error) {
 	resp, err := d.get(d.baseURL + "/auth/login")
 	if err != nil {
 		return fmt.Errorf("performing login flow: %w", err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		return fmt.Errorf("closing login response: %w", err)
+	}
 
 	meResp, err := d.get(d.baseURL + "/v1/me")
 	if err != nil {
 		return fmt.Errorf("fetching current user: %w", err)
 	}
-	defer meResp.Body.Close()
+	defer func() {
+		if cerr := meResp.Body.Close(); cerr != nil {
+			err = fmt.Errorf("closing current user response: %w", cerr)
+		}
+	}()
 
 	if meResp.StatusCode != http.StatusOK {
 		return fmt.Errorf("login did not establish a session: /v1/me returned %d", meResp.StatusCode)

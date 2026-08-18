@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -91,13 +92,17 @@ func ReplyWithError(w http.ResponseWriter, statusCode int, errMsg string) {
 	}
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(errResponse)
+	if err := json.NewEncoder(w).Encode(errResponse); err != nil {
+		slog.Error("encoding error response", slog.String("error", err.Error()))
+	}
 }
 
 func ReplyJSONResponse(w http.ResponseWriter, statusCode int, output any) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(output)
+	if err := json.NewEncoder(w).Encode(output); err != nil {
+		slog.Error("encoding JSON response", slog.String("error", err.Error()))
+	}
 }
 
 func DecodeJSONBody(r *http.Request, placeholder any) error {

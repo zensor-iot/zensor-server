@@ -66,7 +66,9 @@ var _ = ginkgo.Describe("VictronWebSocketController latest data endpoint", func(
 			ginkgo.It("should return the latest snapshot with its system summary", func() {
 				response, err := http.Get(server.URL + "/v1/victron/latest")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer response.Body.Close()
+				defer func() {
+					gomega.Expect(response.Body.Close()).To(gomega.Succeed())
+				}()
 
 				gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusOK))
 
@@ -84,7 +86,9 @@ var _ = ginkgo.Describe("VictronWebSocketController latest data endpoint", func(
 			ginkgo.It("should report the data as unavailable", func() {
 				response, err := http.Get(server.URL + "/v1/victron/latest")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer response.Body.Close()
+				defer func() {
+					gomega.Expect(response.Body.Close()).To(gomega.Succeed())
+				}()
 
 				gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusServiceUnavailable))
 			})

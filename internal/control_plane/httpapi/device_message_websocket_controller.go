@@ -100,13 +100,19 @@ func (wsc *DeviceMessageWebSocketController) handleWebSocket() http.HandlerFunc 
 func (wsc *DeviceMessageWebSocketController) handleClient(conn *websocket.Conn) {
 	defer func() {
 		wsc.unregister <- conn
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+		}
 	}()
 
 	conn.SetReadLimit(512)
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		slog.Warn("failed to set websocket read deadline", slog.String("error", err.Error()))
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+			slog.Warn("failed to set websocket read deadline", slog.String("error", err.Error()))
+		}
 		return nil
 	})
 
@@ -133,7 +139,9 @@ func (wsc *DeviceMessageWebSocketController) handlePingPong(conn *websocket.Conn
 		case <-wsc.ctx.Done():
 			return
 		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+				slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -148,7 +156,11 @@ func (wsc *DeviceMessageWebSocketController) run() {
 		slog.Error("failed to subscribe to device messages", slog.String("error", err.Error()))
 		return
 	}
-	defer wsc.broker.Unsubscribe(async.BrokerTopicName("device_messages"), subscription)
+	defer func() {
+		if err := wsc.broker.Unsubscribe(async.BrokerTopicName("device_messages"), subscription); err != nil {
+			slog.Error("failed to unsubscribe from device messages", slog.String("error", err.Error()))
+		}
+	}()
 
 	for {
 		select {
@@ -174,7 +186,9 @@ func (wsc *DeviceMessageWebSocketController) run() {
 							slog.Warn("recovered from panic while closing websocket", slog.Any("panic", r))
 						}
 					}()
-					client.Close()
+					if err := client.Close(); err != nil {
+						slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+					}
 				}
 				closeConn()
 			}
@@ -190,7 +204,9 @@ func (wsc *DeviceMessageWebSocketController) run() {
 					wsc.clientsMux.RUnlock()
 					return
 				default:
-					client.SetWriteDeadline(time.Now().Add(10 * time.Second))
+					if err := client.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+						slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+					}
 					if err := client.WriteJSON(message); err != nil {
 						slog.Error("failed to write message to websocket client", slog.String("error", err.Error()))
 						clientsToRemove = append(clientsToRemove, client)
@@ -212,7 +228,9 @@ func (wsc *DeviceMessageWebSocketController) run() {
 									slog.Warn("recovered from panic while closing websocket", slog.Any("panic", r))
 								}
 							}()
-							c.Close()
+							if err := c.Close(); err != nil {
+								slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+							}
 						}(client)
 					}
 				}
@@ -264,7 +282,9 @@ func (wsc *DeviceMessageWebSocketController) sendCachedStatesToClient(client *we
 			Data:      state.Data,
 		}
 
-		client.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if err := client.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+		}
 		if err := client.WriteJSON(stateMsg); err != nil {
 			slog.Error("failed to send cached state to new client",
 				slog.String("device_id", deviceID),
@@ -284,7 +304,9 @@ func (wsc *DeviceMessageWebSocketController) Shutdown() {
 
 	wsc.clientsMux.Lock()
 	for client := range wsc.clients {
-		client.Close()
+		if err := client.Close(); err != nil {
+			slog.Warn("failed to close websocket connection during shutdown", slog.String("error", err.Error()))
+		}
 	}
 	wsc.clientsMux.Unlock()
 

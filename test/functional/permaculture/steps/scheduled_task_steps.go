@@ -31,7 +31,11 @@ func (fc *FeatureContext) aScheduledTaskExistsForTheTenantAndDeviceWithSchedule(
 
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any
@@ -139,7 +143,9 @@ func (fc *FeatureContext) thereAreTasksCreatedFromScheduledTask(count int, sched
 		resp, err := fc.apiDriver.CreateTaskFromScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID)
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusCreated, resp.StatusCode)
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
 	}
 	return nil
 }
@@ -273,7 +279,11 @@ func (fc *FeatureContext) theOperationShouldFailWithAnError() error {
 func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for scheduled task tasks")
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
@@ -286,7 +296,11 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
-		defer listResp.Body.Close()
+		defer func() {
+			if err := listResp.Body.Close(); err != nil {
+				fc.require.NoError(err)
+			}
+		}()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -316,7 +330,11 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID string) error {
 	resp, err := fc.apiDriver.CreateDevice(deviceID, deviceID+" Display Name")
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
@@ -329,7 +347,11 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListDevices()
 		fc.require.NoError(err)
-		defer listResp.Body.Close()
+		defer func() {
+			if err := listResp.Body.Close(); err != nil {
+				fc.require.NoError(err)
+			}
+		}()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
@@ -359,7 +381,11 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTaskID, deviceID, schedule string) error {
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
@@ -372,7 +398,11 @@ func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTas
 	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListScheduledTasks(fc.tenantID, fc.deviceID)
 		fc.require.NoError(err)
-		defer listResp.Body.Close()
+		defer func() {
+			if err := listResp.Body.Close(); err != nil {
+				fc.require.NoError(err)
+			}
+		}()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var paginatedResp struct {

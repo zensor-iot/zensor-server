@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"zensor-server/internal/shared_kernel/usecases"
 
@@ -59,7 +60,11 @@ func (p *GoogleOAuthProvider) ExchangeCode(ctx context.Context, code string) (us
 	if err != nil {
 		return usecases.OAuthIdentity{}, fmt.Errorf("fetching userinfo: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			slog.Warn("failed to close userinfo response body", slog.String("error", err.Error()))
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		return usecases.OAuthIdentity{}, fmt.Errorf("userinfo request failed with status %d", response.StatusCode)

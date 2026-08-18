@@ -62,12 +62,14 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 				wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/victron/status"
 				conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer conn.Close()
+				defer func() {
+					gomega.Expect(conn.Close()).To(gomega.Succeed())
+				}()
 
 				time.Sleep(100 * time.Millisecond)
 
 				// initial snapshot sent right after registration
-				conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+				gomega.Expect(conn.SetReadDeadline(time.Now().Add(1 * time.Second))).To(gomega.Succeed())
 				var initial httpapi.VictronSystemStatusMessage
 				gomega.Expect(conn.ReadJSON(&initial)).To(gomega.Succeed())
 
@@ -79,7 +81,7 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 
 				var last httpapi.VictronSystemStatusMessage
 				for range 5 {
-					conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+					gomega.Expect(conn.SetReadDeadline(time.Now().Add(1 * time.Second))).To(gomega.Succeed())
 					gomega.Expect(conn.ReadJSON(&last)).To(gomega.Succeed())
 				}
 
@@ -97,11 +99,13 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 				wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/victron/status"
 				conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer conn.Close()
+				defer func() {
+					gomega.Expect(conn.Close()).To(gomega.Succeed())
+				}()
 
 				time.Sleep(100 * time.Millisecond)
 
-				conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+				gomega.Expect(conn.SetReadDeadline(time.Now().Add(1 * time.Second))).To(gomega.Succeed())
 				var initial httpapi.VictronSystemStatusMessage
 				gomega.Expect(conn.ReadJSON(&initial)).To(gomega.Succeed())
 
@@ -120,7 +124,7 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 				var last httpapi.VictronSystemStatusMessage
-				conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+				gomega.Expect(conn.SetReadDeadline(time.Now().Add(1 * time.Second))).To(gomega.Succeed())
 				gomega.Expect(conn.ReadJSON(&last)).To(gomega.Succeed())
 
 				gomega.Expect(last.System.AcLoadPower).To(gomega.Equal(250.0))
@@ -149,7 +153,9 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 					conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 					conns = append(conns, conn)
-					defer conn.Close()
+					defer func() {
+						gomega.Expect(conn.Close()).To(gomega.Succeed())
+					}()
 				}
 
 				done := make(chan struct{})

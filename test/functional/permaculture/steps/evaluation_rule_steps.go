@@ -29,7 +29,11 @@ func (fc *FeatureContext) anEvaluationRuleExistsForTheDevice() error {
 
 	resp, err := fc.apiDriver.CreateEvaluationRule(fc.deviceID)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 	fc.require.Equal(http.StatusCreated, resp.StatusCode)
 
 	var data map[string]any

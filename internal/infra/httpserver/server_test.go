@@ -27,7 +27,7 @@ var _ = ginkgo.Describe("HTTPServer", func() {
 	})
 
 	ginkgo.AfterEach(func() {
-		tp.Shutdown(context.Background())
+		gomega.Expect(tp.Shutdown(context.Background())).To(gomega.Succeed())
 	})
 
 	ginkgo.Context("TracingMiddleware", func() {

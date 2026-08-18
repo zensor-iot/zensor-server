@@ -67,7 +67,9 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 				// Make request
 				resp, err := http.DefaultClient.Do(req)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer resp.Body.Close()
+				defer func() {
+					gomega.Expect(resp.Body.Close()).To(gomega.Succeed())
+				}()
 
 				// Check status code
 				gomega.Expect(resp.StatusCode).To(gomega.Equal(http.StatusSwitchingProtocols))
@@ -88,7 +90,9 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 				// Make request
 				resp, err := http.DefaultClient.Do(req)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer resp.Body.Close()
+				defer func() {
+					gomega.Expect(resp.Body.Close()).To(gomega.Succeed())
+				}()
 
 				// Check status code
 				gomega.Expect(resp.StatusCode).To(gomega.Equal(http.StatusBadRequest))
@@ -104,14 +108,18 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 				wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + device1ID + "/messages"
 				conn1, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer conn1.Close()
+				defer func() {
+					gomega.Expect(conn1.Close()).To(gomega.Succeed())
+				}()
 
 				// Connect to WebSocket for device2
 				device2ID := "device-2"
 				wsURL2 := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + device2ID + "/messages"
 				conn2, _, err := websocket.DefaultDialer.Dial(wsURL2, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer conn2.Close()
+				defer func() {
+					gomega.Expect(conn2.Close()).To(gomega.Succeed())
+				}()
 
 				// Wait a bit for connections to be established
 				time.Sleep(100 * time.Millisecond)
@@ -141,7 +149,7 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 				time.Sleep(100 * time.Millisecond)
 
 				// Check if device1 received the message
-				conn1.SetReadDeadline(time.Now().Add(1 * time.Second))
+				gomega.Expect(conn1.SetReadDeadline(time.Now().Add(1 * time.Second))).To(gomega.Succeed())
 				var msg httpapi.DeviceSpecificMessage
 				err = conn1.ReadJSON(&msg)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
@@ -149,7 +157,7 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 				gomega.Expect(msg.DeviceID).To(gomega.Equal(device1ID))
 
 				// Check that device2 did NOT receive the message
-				conn2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+				gomega.Expect(conn2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))).To(gomega.Succeed())
 				var msg2 httpapi.DeviceSpecificMessage
 				err = conn2.ReadJSON(&msg2)
 				gomega.Expect(err).To(gomega.HaveOccurred(), "device2 should not have received message")
@@ -166,19 +174,21 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 					"temperature": {{Index: 0, Value: 25.5}},
 					"humidity":    {{Index: 0, Value: 60.0}},
 				}
-				stateCache.SetState(context.Background(), deviceID, sensorData)
+				gomega.Expect(stateCache.SetState(context.Background(), deviceID, sensorData)).To(gomega.Succeed())
 
 				// Connect to WebSocket
 				wsURL := strings.Replace(server.URL, "http", "ws", 1) + "/ws/devices/" + deviceID + "/messages"
 				conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer conn.Close()
+				defer func() {
+					gomega.Expect(conn.Close()).To(gomega.Succeed())
+				}()
 
 				// Wait for cached state to be sent
 				time.Sleep(100 * time.Millisecond)
 
 				// Check if cached state was received
-				conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+				gomega.Expect(conn.SetReadDeadline(time.Now().Add(1 * time.Second))).To(gomega.Succeed())
 				var msg httpapi.DeviceSpecificStateMessage
 				err = conn.ReadJSON(&msg)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())

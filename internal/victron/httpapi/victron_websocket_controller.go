@@ -160,7 +160,9 @@ func (wsc *VictronWebSocketController) handleWebSocket() http.HandlerFunc {
 		select {
 		case wsc.register <- conn:
 		case <-wsc.ctx.Done():
-			conn.Close()
+			if err := conn.Close(); err != nil {
+				slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+			}
 			return
 		}
 
@@ -174,13 +176,19 @@ func (wsc *VictronWebSocketController) handleClient(conn *websocket.Conn) {
 		case wsc.unregister <- conn:
 		case <-wsc.ctx.Done():
 		}
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+		}
 	}()
 
 	conn.SetReadLimit(512)
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		slog.Warn("failed to set websocket read deadline", slog.String("error", err.Error()))
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+			slog.Warn("failed to set websocket read deadline", slog.String("error", err.Error()))
+		}
 		return nil
 	})
 
@@ -203,7 +211,11 @@ func (wsc *VictronWebSocketController) run() {
 		slog.Error("failed to subscribe to victron data", slog.String("error", err.Error()))
 		return
 	}
-	defer wsc.broker.Unsubscribe(async.BrokerTopicName("victron_data"), subscription)
+	defer func() {
+		if err := wsc.broker.Unsubscribe(async.BrokerTopicName("victron_data"), subscription); err != nil {
+			slog.Error("failed to unsubscribe from victron data", slog.String("error", err.Error()))
+		}
+	}()
 
 	pingTicker := time.NewTicker(wsc.pingInterval)
 	defer pingTicker.Stop()
@@ -234,7 +246,9 @@ func (wsc *VictronWebSocketController) run() {
 							slog.Warn("recovered from panic while closing victron websocket", slog.Any("panic", r))
 						}
 					}()
-					client.Close()
+					if err := client.Close(); err != nil {
+						slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+					}
 				}
 				closeConn()
 			}
@@ -268,7 +282,9 @@ func (wsc *VictronWebSocketController) writeToAllClients(write func(*websocket.C
 			wsc.clientsMux.RUnlock()
 			return
 		default:
-			client.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := client.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+				slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+			}
 			if err := write(client); err != nil {
 				slog.Error("failed to write victron message to websocket client", slog.String("error", err.Error()))
 				clientsToRemove = append(clientsToRemove, client)
@@ -288,7 +304,9 @@ func (wsc *VictronWebSocketController) writeToAllClients(write func(*websocket.C
 							slog.Warn("recovered from panic while closing victron websocket", slog.Any("panic", r))
 						}
 					}()
-					c.Close()
+					if err := c.Close(); err != nil {
+						slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+					}
 				}(client)
 			}
 		}
@@ -520,7 +538,9 @@ func (wsc *VictronWebSocketController) sendCurrentSnapshot(client *websocket.Con
 		System: buildSummary(snapshotCopy),
 	}
 
-	client.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	if err := client.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+	}
 	if err := client.WriteJSON(msg); err != nil {
 		slog.Error("failed to send victron snapshot to new client", slog.String("error", err.Error()))
 	}
@@ -633,7 +653,9 @@ func (wsc *VictronWebSocketController) Shutdown() {
 
 	wsc.clientsMux.Lock()
 	for client := range wsc.clients {
-		client.Close()
+		if err := client.Close(); err != nil {
+			slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+		}
 	}
 	wsc.clientsMux.Unlock()
 }

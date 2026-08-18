@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync"
@@ -181,7 +182,11 @@ func (c *FCMClient) send(ctx context.Context, request FCMRequest) error {
 	if err != nil {
 		return fmt.Errorf("sending HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Warn("failed to close FCM response body", slog.String("error", err.Error()))
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

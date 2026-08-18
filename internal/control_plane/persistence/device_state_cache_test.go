@@ -155,13 +155,14 @@ var _ = ginkgo.Describe("SimpleDeviceStateCacheService", func() {
 			ginkgo.It("should handle concurrent updates safely", func() {
 				// Test concurrent updates
 				done := make(chan bool, 10)
+				errCh := make(chan error, 10)
 				for i := range 10 {
 					go func(id int) {
 						deviceID := fmt.Sprintf("device-%d", id)
 						sensorData := map[string][]dto.SensorData{
 							"temperature": {{Index: 0, Value: float64(id)}},
 						}
-						cache.SetState(ctx, deviceID, sensorData)
+						errCh <- cache.SetState(ctx, deviceID, sensorData)
 						done <- true
 					}(i)
 				}
@@ -169,6 +170,7 @@ var _ = ginkgo.Describe("SimpleDeviceStateCacheService", func() {
 				// Wait for all goroutines to complete
 				for range 10 {
 					<-done
+					gomega.Expect(<-errCh).To(gomega.Succeed())
 				}
 
 				// Verify all states were cached

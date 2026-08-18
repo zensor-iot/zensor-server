@@ -164,7 +164,11 @@ func (fc *FeatureContext) iAttemptToAssociateUserWithMixedTenantList(userID stri
 func (fc *FeatureContext) anotherTenantExistsWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "Another test tenant")
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	fc.require.NoError(err)

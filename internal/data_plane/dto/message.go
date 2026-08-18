@@ -51,7 +51,9 @@ var codeToNameMapping = map[string]string{
 
 func (m *UplinkMessage) FromMessagePack() any {
 	temp := make(map[string][]byte)
-	msgpack.Unmarshal(m.RawPayload, &temp)
+	if err := msgpack.Unmarshal(m.RawPayload, &temp); err != nil {
+		return nil
+	}
 	m.DecodedPayload = make(map[string][]SensorData)
 	for k, v := range temp {
 		chunks := slices.Chunk(v, 3)

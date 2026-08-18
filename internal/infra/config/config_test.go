@@ -85,7 +85,7 @@ mqtt_client:
 	ginkgo.AfterEach(func() {
 		// Clean up temporary config file
 		if tempConfigFile != "" {
-			os.Remove(tempConfigFile)
+			gomega.Expect(os.Remove(tempConfigFile)).To(gomega.Succeed())
 		}
 
 		// Reset config name

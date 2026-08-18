@@ -106,7 +106,9 @@ func (wsc *DeviceSpecificWebSocketController) handleWebSocket() http.HandlerFunc
 		select {
 		case wsc.register <- subscription:
 		case <-wsc.ctx.Done():
-			conn.Close()
+			if err := conn.Close(); err != nil {
+				slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+			}
 			return
 		}
 
@@ -126,13 +128,19 @@ func (wsc *DeviceSpecificWebSocketController) handleClient(conn *websocket.Conn)
 			default:
 			}
 		}
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+		}
 	}()
 
 	conn.SetReadLimit(512)
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		slog.Warn("failed to set websocket read deadline", slog.String("error", err.Error()))
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+			slog.Warn("failed to set websocket read deadline", slog.String("error", err.Error()))
+		}
 		return nil
 	})
 
@@ -158,7 +166,9 @@ func (wsc *DeviceSpecificWebSocketController) handlePingPong(conn *websocket.Con
 		case <-wsc.ctx.Done():
 			return
 		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+				slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -177,7 +187,11 @@ func (wsc *DeviceSpecificWebSocketController) run() {
 		slog.Error("failed to subscribe to device messages", slog.String("error", err.Error()))
 		return
 	}
-	defer wsc.broker.Unsubscribe(async.BrokerTopicName("device_messages"), subscription)
+	defer func() {
+		if err := wsc.broker.Unsubscribe(async.BrokerTopicName("device_messages"), subscription); err != nil {
+			slog.Error("failed to unsubscribe from device messages", slog.String("error", err.Error()))
+		}
+	}()
 
 	for {
 		select {
@@ -204,7 +218,9 @@ func (wsc *DeviceSpecificWebSocketController) run() {
 							slog.Warn("recovered from panic while closing websocket", slog.Any("panic", r))
 						}
 					}()
-					client.Close()
+					if err := client.Close(); err != nil {
+						slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+					}
 				}
 				closeConn()
 				slog.Info("device-specific websocket client unregistered",
@@ -252,7 +268,9 @@ func (wsc *DeviceSpecificWebSocketController) sendMessageToDeviceClients(deviceI
 				wsc.clientsMux.RUnlock()
 				return
 			default:
-				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				if err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+					slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+				}
 				if err := conn.WriteJSON(message); err != nil {
 					slog.Error("failed to write message to device-specific websocket client",
 						slog.String("device_id", deviceID),
@@ -275,7 +293,9 @@ func (wsc *DeviceSpecificWebSocketController) sendMessageToDeviceClients(deviceI
 							slog.Warn("recovered from panic while closing websocket", slog.Any("panic", r))
 						}
 					}()
-					c.Close()
+					if err := c.Close(); err != nil {
+						slog.Warn("failed to close websocket connection", slog.String("error", err.Error()))
+					}
 				}(conn)
 			}
 		}
@@ -305,7 +325,9 @@ func (wsc *DeviceSpecificWebSocketController) sendCachedStateToClient(clientSub 
 		Data:      state.Data,
 	}
 
-	clientSub.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	if err := clientSub.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		slog.Warn("failed to set websocket write deadline", slog.String("error", err.Error()))
+	}
 	if err := clientSub.conn.WriteJSON(stateMsg); err != nil {
 		slog.Error("failed to send cached state to new device-specific client",
 			slog.String("device_id", clientSub.deviceID),
@@ -324,7 +346,9 @@ func (wsc *DeviceSpecificWebSocketController) Shutdown() {
 
 	wsc.clientsMux.Lock()
 	for client := range wsc.clients {
-		client.Close()
+		if err := client.Close(); err != nil {
+			slog.Warn("failed to close websocket connection during shutdown", slog.String("error", err.Error()))
+		}
 	}
 	wsc.clientsMux.Unlock()
 

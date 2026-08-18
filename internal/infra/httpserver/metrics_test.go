@@ -28,7 +28,9 @@ var _ = ginkgo.Describe("Metrics", func() {
 					// Simulate some processing time
 					time.Sleep(10 * time.Millisecond)
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte("test response"))
+					if _, err := w.Write([]byte("test response")); err != nil {
+						return
+					}
 				})
 
 				// Create middleware

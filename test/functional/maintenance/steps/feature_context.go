@@ -173,12 +173,20 @@ func (fc *FeatureContext) theResponseStatusCodeShouldBe(code int) error {
 func (fc *FeatureContext) aTenantExistsWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "A test tenant")
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	if resp.StatusCode == http.StatusConflict {
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
-		defer listResp.Body.Close()
+		defer func() {
+			if err := listResp.Body.Close(); err != nil {
+				fc.require.NoError(err)
+			}
+		}()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {

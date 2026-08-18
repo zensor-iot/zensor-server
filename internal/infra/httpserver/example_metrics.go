@@ -25,14 +25,18 @@ func ExampleMetricsUsage() {
 		// 4. Capture HTTP method, endpoint, and status code
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hello, World!"))
+		if _, err := w.Write([]byte("Hello, World!")); err != nil {
+			return
+		}
 	}
 
 	// Example handler that returns an error status
 	errorHandler := func(w http.ResponseWriter, r *http.Request) {
 		// Simulate an error condition
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
+		if _, err := w.Write([]byte("Internal Server Error")); err != nil {
+			return
+		}
 	}
 
 	// Example handler for different HTTP methods
@@ -40,7 +44,9 @@ func ExampleMetricsUsage() {
 		// Simulate creating a resource
 		time.Sleep(50 * time.Millisecond)
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"id": "123", "status": "created"}`))
+		if _, err := w.Write([]byte(`{"id": "123", "status": "created"}`)); err != nil {
+			return
+		}
 	}
 
 	_ = handler       // Suppress unused variable warning
@@ -113,7 +119,9 @@ func ExampleUserHeaderUsage() {
 
 		// Your business logic here
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message": "User profile retrieved"}`))
+		if _, err := w.Write([]byte(`{"message": "User profile retrieved"}`)); err != nil {
+			return
+		}
 	}
 
 	// Example of how the UI would send requests with user headers:

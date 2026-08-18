@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -80,7 +81,11 @@ func (c *WebPushClient) SendPushNotification(ctx context.Context, request PushNo
 			Err:     err,
 		}
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Warn("failed to close web push response body", slog.String("error", err.Error()))
+		}
+	}()
 
 	switch {
 	case resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone:

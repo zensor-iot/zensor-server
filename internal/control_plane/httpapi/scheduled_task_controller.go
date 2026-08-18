@@ -166,7 +166,9 @@ func (c *ScheduledTaskController) create() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			slog.Error("encoding scheduled task response", slog.String("error", err.Error()))
+		}
 	}
 }
 
@@ -272,7 +274,9 @@ func (c *ScheduledTaskController) get() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			slog.Error("encoding scheduled task response", slog.String("error", err.Error()))
+		}
 	}
 }
 
@@ -389,7 +393,9 @@ func (c *ScheduledTaskController) update() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			slog.Error("encoding scheduled task response", slog.String("error", err.Error()))
+		}
 	}
 }
 

@@ -93,7 +93,9 @@ var _ = ginkgo.Describe("VictronWebSocketController summary endpoint", func() {
 	getSummary := func() httpapi.VictronSystemSummary {
 		response, err := http.Get(server.URL + "/v1/victron/summary")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		defer response.Body.Close()
+		defer func() {
+			gomega.Expect(response.Body.Close()).To(gomega.Succeed())
+		}()
 
 		gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusOK))
 
@@ -202,7 +204,9 @@ var _ = ginkgo.Describe("VictronWebSocketController summary endpoint", func() {
 			ginkgo.It("should report the state of charge as unknown rather than empty", func() {
 				response, err := http.Get(server.URL + "/v1/victron/summary")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer response.Body.Close()
+				defer func() {
+					gomega.Expect(response.Body.Close()).To(gomega.Succeed())
+				}()
 
 				var body map[string]any
 				gomega.Expect(json.NewDecoder(response.Body).Decode(&body)).To(gomega.Succeed())
@@ -298,7 +302,9 @@ var _ = ginkgo.Describe("VictronWebSocketController summary endpoint", func() {
 			ginkgo.It("should return the grid, battery and consumption figures", func() {
 				response, err := http.Get(server.URL + "/v1/victron/summary")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer response.Body.Close()
+				defer func() {
+					gomega.Expect(response.Body.Close()).To(gomega.Succeed())
+				}()
 
 				gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusOK))
 
@@ -316,7 +322,9 @@ var _ = ginkgo.Describe("VictronWebSocketController summary endpoint", func() {
 			ginkgo.It("should not include the per-device snapshot", func() {
 				response, err := http.Get(server.URL + "/v1/victron/summary")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer response.Body.Close()
+				defer func() {
+					gomega.Expect(response.Body.Close()).To(gomega.Succeed())
+				}()
 
 				var body map[string]any
 				gomega.Expect(json.NewDecoder(response.Body).Decode(&body)).To(gomega.Succeed())
@@ -331,7 +339,9 @@ var _ = ginkgo.Describe("VictronWebSocketController summary endpoint", func() {
 			ginkgo.It("should report the data as unavailable", func() {
 				response, err := http.Get(server.URL + "/v1/victron/summary")
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-				defer response.Body.Close()
+				defer func() {
+					gomega.Expect(response.Body.Close()).To(gomega.Succeed())
+				}()
 
 				gomega.Expect(response.StatusCode).To(gomega.Equal(http.StatusServiceUnavailable))
 			})

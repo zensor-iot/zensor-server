@@ -45,7 +45,11 @@ func (fc *FeatureContext) iConnectToTheWebSocketEndpoint() error {
 	conn, resp, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		if resp != nil {
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fc.require.NoError(err)
+				}
+			}()
 			return fmt.Errorf("websocket connection failed with status %d: %w", resp.StatusCode, err)
 		}
 		return fmt.Errorf("websocket connection failed: %w", err)
@@ -129,7 +133,9 @@ func (fc *FeatureContext) theCachedStatesShouldContainTheDeviceData() error {
 // Cleanup function to close WebSocket connection.
 func (fc *FeatureContext) cleanupWebSocket() {
 	if wsConn != nil {
-		wsConn.Close()
+		if err := wsConn.Close(); err != nil {
+			fc.require.NoError(err)
+		}
 		wsConn = nil
 	}
 }

@@ -33,13 +33,21 @@ func (fc *FeatureContext) iCreateANewDeviceWithNameAndDisplayName(name, displayN
 func (fc *FeatureContext) aDeviceExistsWithName(name string) error {
 	resp, err := fc.apiDriver.CreateDevice(name, name)
 	fc.require.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fc.require.NoError(err)
+		}
+	}()
 
 	if resp.StatusCode == http.StatusConflict {
 		// Device already exists, try to get it by listing all devices
 		listResp, err := fc.apiDriver.ListDevices()
 		fc.require.NoError(err)
-		defer listResp.Body.Close()
+		defer func() {
+			if err := listResp.Body.Close(); err != nil {
+				fc.require.NoError(err)
+			}
+		}()
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
 
 		var listData struct {
