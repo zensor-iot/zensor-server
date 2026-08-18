@@ -62,7 +62,7 @@ func (c *AuthController) login() http.HandlerFunc {
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is set conditionally on TLS/X-Forwarded-Proto
 			Name:     StateCookieName,
 			Value:    state,
 			Path:     "/",
@@ -110,7 +110,7 @@ func (c *AuthController) callback() http.HandlerFunc {
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is set conditionally on TLS/X-Forwarded-Proto
 			Name:     httpserver.SessionCookieName,
 			Value:    session.ID,
 			Path:     "/",
@@ -253,7 +253,7 @@ func (c *AuthController) sessionFromRequest(r *http.Request) (domain.Session, bo
 }
 
 func clearCookie(w http.ResponseWriter, name string, secure bool) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is set conditionally on TLS/X-Forwarded-Proto
 		Name:     name,
 		Value:    "",
 		Path:     "/",

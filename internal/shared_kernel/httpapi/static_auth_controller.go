@@ -55,7 +55,7 @@ func (c *StaticAuthController) login() http.HandlerFunc {
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is set conditionally on TLS/X-Forwarded-Proto
 			Name:     httpserver.SessionCookieName,
 			Value:    session.ID,
 			Path:     "/",

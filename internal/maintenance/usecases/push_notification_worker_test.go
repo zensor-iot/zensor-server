@@ -83,8 +83,8 @@ var _ = Describe("PushNotificationWorker", func() {
 		When("the user has tokens for multiple platforms", func() {
 			It("should propagate each token's platform on the request", func() {
 				tokens := []domain.PushToken{
-					{ID: "tok-a", UserID: "user-1", Token: "fcm-token", Platform: "android"},
-					{ID: "tok-w", UserID: "user-1", Token: `{"endpoint":"https://push.example"}`, Platform: "web"},
+					{ID: "tok-a", UserID: "user-1", Token: "fcm-token", Platform: "android"},                       // #nosec G101 -- test fixture
+					{ID: "tok-w", UserID: "user-1", Token: `{"endpoint":"https://push.example"}`, Platform: "web"}, // #nosec G101 -- test fixture
 				}
 				pushTokenService.EXPECT().
 					ListTokensByUserID(gomock.Any(), domain.ID("user-1")).
@@ -111,7 +111,7 @@ var _ = Describe("PushNotificationWorker", func() {
 
 		When("a web subscription is expired", func() {
 			It("should unregister the dead token", func() {
-				webToken := `{"endpoint":"https://push.example/expired"}`
+				webToken := `{"endpoint":"https://push.example/expired"}` // #nosec G101 -- test fixture
 				tokens := []domain.PushToken{
 					{ID: "tok-w", UserID: "user-1", Token: webToken, Platform: "web"},
 				}

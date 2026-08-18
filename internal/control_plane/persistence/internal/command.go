@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"math"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
@@ -86,8 +87,8 @@ func (c Command) ToDomain() domain.Command {
 		Port:     domain.Port(c.Port),
 		Priority: domain.CommandPriority(c.Priority),
 		Payload: domain.CommandPayload{
-			Index: domain.Index(c.PayloadIndex),
-			Value: domain.CommandValue(c.PayloadValue),
+			Index: domain.Index(toUint8(c.PayloadIndex)),
+			Value: domain.CommandValue(toUint8(c.PayloadValue)),
 		},
 		DispatchAfter: c.DispatchAfter,
 		CreatedAt:     c.CreatedAt,
@@ -102,6 +103,16 @@ func (c Command) ToDomain() domain.Command {
 		AckedAt:      c.AckedAt,
 		FailedAt:     c.FailedAt,
 	}
+}
+
+func toUint8(value int) uint8 {
+	if value < 0 {
+		return 0
+	}
+	if value > math.MaxUint8 {
+		return math.MaxUint8
+	}
+	return uint8(value)
 }
 
 func FromCommand(cmd domain.Command) Command {

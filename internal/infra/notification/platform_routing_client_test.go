@@ -36,7 +36,7 @@ var _ = Describe("PlatformRoutingPushClient", func() {
 		When("the platform is web", func() {
 			BeforeEach(func() {
 				request = notification.PushNotificationRequest{
-					Token:    `{"endpoint":"https://push.example"}`,
+					Token:    `{"endpoint":"https://push.example"}`, /* #nosec G101 -- test fixture */
 					Title:    "t",
 					Body:     "b",
 					Platform: "web",

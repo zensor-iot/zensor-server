@@ -70,12 +70,12 @@ mqtt_client:
 `
 
 		// Create config directory if it doesn't exist
-		err := os.MkdirAll("config", 0o755)
+		err := os.MkdirAll("config", 0o750)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		// Write temporary config file
 		tempConfigFile = "config/server_test.yaml"
-		err = os.WriteFile(tempConfigFile, []byte(tempConfig), 0o644)
+		err = os.WriteFile(tempConfigFile, []byte(tempConfig), 0o600)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		// Store original config name

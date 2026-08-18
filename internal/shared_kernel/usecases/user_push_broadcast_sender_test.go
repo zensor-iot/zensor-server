@@ -92,7 +92,7 @@ var _ = Describe("SimpleUserPushMessageSender", func() {
 		When("a web subscription is expired", func() {
 			It("should unregister the dead token and report failure", func() {
 				tokens := []domain.PushToken{
-					{ID: "tok-web", UserID: uid, Token: `{"endpoint":"https://push.example"}`, Platform: "web"},
+					{ID: "tok-web", UserID: uid, Token: `{"endpoint":"https://push.example"}`, Platform: "web"}, // #nosec G101 -- test fixture
 				}
 				tokenService.EXPECT().
 					ListTokensByUserID(gomock.Any(), uid).

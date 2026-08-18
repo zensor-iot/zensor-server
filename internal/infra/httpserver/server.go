@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 	"zensor-server/internal/infra/httpserver/web"
 	"zensor-server/internal/infra/node"
 
@@ -18,8 +19,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-
-	_ "net/http/pprof"
 )
 
 type Server interface {
@@ -98,7 +97,8 @@ func newServer(port int, userMiddleware func(http.Handler) http.Handler, include
 
 	server := &StandardServer{
 		&http.Server{
-			Addr: fmt.Sprintf(":%d", port),
+			Addr:              fmt.Sprintf(":%d", port),
+			ReadHeaderTimeout: 10 * time.Second,
 			Handler: c.Handler(
 				metricsMiddleware(
 					tracingMiddleware(

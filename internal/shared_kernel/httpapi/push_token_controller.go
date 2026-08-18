@@ -12,7 +12,7 @@ import (
 
 const (
 	registerTokenErrMessage    = "failed to register push token"
-	unregisterTokenErrMessage  = "failed to unregister push token"
+	unregisterTokenErrMessage  = "failed to unregister push token" // #nosec G101 -- error message, not a credential
 	broadcastPushErrMessage    = "failed to broadcast push notification"
 	invalidBroadcastErrMessage = "invalid push broadcast request"
 )
