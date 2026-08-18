@@ -1,13 +1,17 @@
 package domain
 
-type ID string
-type Version int
+type (
+	ID      string
+	Version int
+)
 
 func (vo ID) String() string {
 	return string(vo)
 }
 
-type Name string
-type Index uint8
-type DisplayName string
-type Description string
+type (
+	Name        string
+	Index       uint8
+	DisplayName string
+	Description string
+)

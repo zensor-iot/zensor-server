@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"fmt"
+
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/sql"
@@ -77,7 +78,6 @@ func (r *SimpleCommandRepository) FindAllPending(ctx context.Context) ([]domain.
 		Where("sent = ? AND ready = ?", false, false).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
@@ -92,7 +92,6 @@ func (r *SimpleCommandRepository) FindAllReadyToDispatch(ctx context.Context) ([
 		Where("ready = ? AND sent = ?", true, false).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
@@ -107,7 +106,6 @@ func (r *SimpleCommandRepository) FindPendingByDevice(ctx context.Context, devic
 		Where("sent = ? AND device_id = ?", false, deviceID.String()).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
@@ -121,7 +119,6 @@ func (r *SimpleCommandRepository) GetByID(ctx context.Context, id domain.ID) (do
 		WithContext(ctx).
 		First(&entity, "id = ?", id.String()).
 		Error()
-
 	if err != nil {
 		return domain.Command{}, fmt.Errorf("database query: %w", err)
 	}
@@ -137,7 +134,6 @@ func (r *SimpleCommandRepository) FindByTaskID(ctx context.Context, taskID domai
 		Where("task_id = ?", taskID.String()).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}

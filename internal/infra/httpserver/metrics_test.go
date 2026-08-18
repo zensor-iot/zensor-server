@@ -36,7 +36,7 @@ var _ = ginkgo.Describe("Metrics", func() {
 				handler := middleware(testHandler)
 
 				// Create test request
-				req := httptest.NewRequest("GET", "/test/endpoint", nil)
+				req := httptest.NewRequest(http.MethodGet, "/test/endpoint", nil)
 				w := httptest.NewRecorder()
 
 				// Execute request

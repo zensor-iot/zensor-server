@@ -2,6 +2,7 @@ package domain
 
 import (
 	"time"
+
 	"zensor-server/internal/infra/utils"
 )
 
@@ -38,12 +39,12 @@ func (d *Device) UpdateDisplayName(displayName string) {
 	d.DisplayName = displayName
 }
 
-// UpdateLastMessageReceivedAt updates the timestamp when a message was last received from TTN
+// UpdateLastMessageReceivedAt updates the timestamp when a message was last received from TTN.
 func (d *Device) UpdateLastMessageReceivedAt(timestamp utils.Time) {
 	d.LastMessageReceivedAt = timestamp
 }
 
-// IsOnline returns true if the device received a message within the last 5 minutes
+// IsOnline returns true if the device received a message within the last 5 minutes.
 func (d *Device) IsOnline() bool {
 	if d.LastMessageReceivedAt.IsZero() {
 		return false
@@ -53,7 +54,7 @@ func (d *Device) IsOnline() bool {
 	return d.LastMessageReceivedAt.After(fiveMinutesAgo)
 }
 
-// GetStatus returns "online" or "offline" based on last message timestamp
+// GetStatus returns "online" or "offline" based on last message timestamp.
 func (d *Device) GetStatus() string {
 	if d.IsOnline() {
 		return "online"

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/shared_kernel/usecases"
 
@@ -38,7 +39,7 @@ func (s *RedisSessionStore) Create(ctx context.Context, session domain.Session) 
 
 	ttl := time.Until(session.ExpiresAt)
 	if ttl <= 0 {
-		return fmt.Errorf("session already expired")
+		return errors.New("session already expired")
 	}
 
 	if err := s.client.Set(ctx, sessionKeyPrefix+session.ID, payload, ttl).Err(); err != nil {

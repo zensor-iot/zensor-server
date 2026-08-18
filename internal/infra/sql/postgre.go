@@ -23,7 +23,7 @@ type PostgreDatabase struct {
 	DB   *gorm.DB
 }
 
-// Singleton pattern for PostgreSQL database
+// Singleton pattern for PostgreSQL database.
 var (
 	postgreInstance *PostgreDatabase
 	postgreOnce     sync.Once

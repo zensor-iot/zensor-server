@@ -3,12 +3,13 @@ package internal
 import (
 	"encoding/json"
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
 // SchedulingConfigurationData represents the scheduling configuration
-// that should be stored in the database
+// that should be stored in the database.
 type SchedulingConfigurationData struct {
 	Type          string  `json:"type"`
 	InitialDay    *string `json:"initial_day,omitempty"`    // RFC3339 formatted time
@@ -17,7 +18,7 @@ type SchedulingConfigurationData struct {
 }
 
 // CommandTemplateData represents the essential command template information
-// that should be stored in the database, without the full device object
+// that should be stored in the database, without the full device object.
 type CommandTemplateData struct {
 	Port     uint8  `json:"port"`
 	Priority string `json:"priority"`
@@ -28,7 +29,7 @@ type CommandTemplateData struct {
 	WaitFor string `json:"wait_for"` // Duration as string (e.g., "5s")
 }
 
-// ToCommandTemplateData converts a domain CommandTemplate to CommandTemplateData
+// ToCommandTemplateData converts a domain CommandTemplate to CommandTemplateData.
 func ToCommandTemplateData(template domain.CommandTemplate) CommandTemplateData {
 	return CommandTemplateData{
 		Port:     uint8(template.Port),
@@ -44,7 +45,7 @@ func ToCommandTemplateData(template domain.CommandTemplate) CommandTemplateData 
 	}
 }
 
-// ToCommand converts a CommandTemplateData to a domain Command with calculated DispatchAfter
+// ToCommand converts a CommandTemplateData to a domain Command with calculated DispatchAfter.
 func (ctd CommandTemplateData) ToCommand(device domain.Device, task domain.Task, baseTime time.Time) domain.Command {
 	waitFor, _ := time.ParseDuration(ctd.WaitFor)
 	dispatchAfter := baseTime.Add(waitFor)
@@ -105,7 +106,7 @@ func FromScheduledTask(value domain.ScheduledTask) ScheduledTask {
 		}
 
 		if value.Scheduling.InitialDay != nil {
-			initialDayStr := value.Scheduling.InitialDay.Time.Format(time.RFC3339)
+			initialDayStr := value.Scheduling.InitialDay.Format(time.RFC3339)
 			schedulingData.InitialDay = &initialDayStr
 		}
 

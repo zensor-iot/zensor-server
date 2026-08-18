@@ -55,4 +55,3 @@ func (fc *FeatureContext) theResponseShouldContainCommandDetails() error {
 
 	return nil
 }
-

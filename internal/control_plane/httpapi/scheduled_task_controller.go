@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
@@ -448,7 +449,7 @@ func (c *ScheduledTaskController) getTasksByScheduledTask() http.HandlerFunc {
 			for j, cmd := range task.Commands {
 				var sentAt *string
 				if !cmd.SentAt.IsZero() {
-					sentAtStr := cmd.SentAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					sentAtStr := cmd.SentAt.Format("2006-01-02T15:04:05Z07:00")
 					sentAt = &sentAtStr
 				}
 
@@ -458,7 +459,7 @@ func (c *ScheduledTaskController) getTasksByScheduledTask() http.HandlerFunc {
 					Value:         uint8(cmd.Payload.Value),
 					Port:          uint8(cmd.Port),
 					Priority:      string(cmd.Priority),
-					DispatchAfter: cmd.DispatchAfter.Time.Format("2006-01-02T15:04:05Z07:00"),
+					DispatchAfter: cmd.DispatchAfter.Format("2006-01-02T15:04:05Z07:00"),
 					Ready:         cmd.Ready,
 					Sent:          cmd.Sent,
 					SentAt:        sentAt,
@@ -468,7 +469,7 @@ func (c *ScheduledTaskController) getTasksByScheduledTask() http.HandlerFunc {
 			responses[i] = internal.TaskResponse{
 				ID:        task.ID.String(),
 				Commands:  commandResponses,
-				CreatedAt: task.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+				CreatedAt: task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			}
 		}
 

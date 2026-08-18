@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -174,7 +175,7 @@ func (c *FCMClient) send(ctx context.Context, request FCMRequest) error {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -194,10 +195,10 @@ func (c *FCMClient) send(ctx context.Context, request FCMRequest) error {
 	return nil
 }
 
-// SendEmail is not supported by FCM
+// SendEmail is not supported by FCM.
 func (c *FCMClient) SendEmail(ctx context.Context, request EmailRequest) error {
 	return &NotificationError{
 		Message: "email notifications are not supported by FCM",
-		Err:     fmt.Errorf("use MailerSend client for email notifications"),
+		Err:     errors.New("use MailerSend client for email notifications"),
 	}
 }

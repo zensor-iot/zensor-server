@@ -2,11 +2,11 @@ package persistence_test
 
 import (
 	"context"
-	"fmt"
+
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
-	sharedPersistence "zensor-server/internal/shared_kernel/persistence"
 	"zensor-server/internal/shared_kernel/domain"
+	sharedPersistence "zensor-server/internal/shared_kernel/persistence"
 	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 
 	"github.com/onsi/ginkgo/v2"
@@ -39,7 +39,7 @@ var _ = ginkgo.Describe("TenantRepository", func() {
 			id := utils.GenerateUUID()
 			tenant = domain.Tenant{
 				ID:      domain.ID(id),
-				Name:    fmt.Sprintf("acme-%s", id),
+				Name:    "acme-" + id,
 				Email:   "acme@example.com",
 				Version: 1,
 			}
@@ -63,7 +63,7 @@ var _ = ginkgo.Describe("TenantRepository", func() {
 			id := utils.GenerateUUID()
 			tenant = domain.Tenant{
 				ID:      domain.ID(id),
-				Name:    fmt.Sprintf("acme-%s", id),
+				Name:    "acme-" + id,
 				Email:   "acme@example.com",
 				Version: 1,
 			}

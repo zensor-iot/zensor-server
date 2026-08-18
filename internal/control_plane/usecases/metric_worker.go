@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-// MetricWorker represents a single metric worker that handles one specific metric
+// MetricWorker represents a single metric worker that handles one specific metric.
 type MetricWorker struct {
 	config       config.MetricWorkerConfig
 	broker       async.InternalBroker
@@ -24,7 +24,7 @@ type MetricWorker struct {
 	handler      func(ctx context.Context, msg async.BrokerMessage) // Strategy pattern - assigned once at creation
 }
 
-// NewMetricWorker creates a new metric worker for a specific metric configuration
+// NewMetricWorker creates a new metric worker for a specific metric configuration.
 func NewMetricWorker(cfg config.MetricWorkerConfig, broker async.InternalBroker) (*MetricWorker, error) {
 	meter := otel.Meter("zensor_server")
 
@@ -32,7 +32,7 @@ func NewMetricWorker(cfg config.MetricWorkerConfig, broker async.InternalBroker)
 	var handler func(ctx context.Context, msg async.BrokerMessage)
 	var err error
 
-	metricName := fmt.Sprintf("zensor_server.%s", cfg.Name)
+	metricName := "zensor_server." + cfg.Name
 
 	switch cfg.Type {
 	case "counter":
@@ -60,7 +60,7 @@ func NewMetricWorker(cfg config.MetricWorkerConfig, broker async.InternalBroker)
 	}, nil
 }
 
-// Run starts the metric worker
+// Run starts the metric worker.
 func (w *MetricWorker) Run(ctx context.Context, done func()) {
 	defer done()
 
@@ -97,7 +97,7 @@ func (w *MetricWorker) Run(ctx context.Context, done func()) {
 	}
 }
 
-// Shutdown gracefully shuts down the metric worker
+// Shutdown gracefully shuts down the metric worker.
 func (w *MetricWorker) Shutdown() {
 	slog.Info("metric worker shutdown", slog.String("name", w.config.Name))
 	if w.subscription.ID != "" {
@@ -159,7 +159,7 @@ func createHistogramHandler(metricInstance any, propertyName string, customAttri
 	}
 }
 
-// getGlobalAttributes returns global attributes that should be included in all metrics
+// getGlobalAttributes returns global attributes that should be included in all metrics.
 func getGlobalAttributes() []attribute.KeyValue {
 	nodeInfo := node.GetNodeInfo()
 	return []attribute.KeyValue{

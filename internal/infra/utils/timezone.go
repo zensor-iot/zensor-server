@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-// ValidateTimezone validates that the given timezone string is a valid IANA timezone name
+// ValidateTimezone validates that the given timezone string is a valid IANA timezone name.
 func ValidateTimezone(timezone string) error {
 	if timezone == "" {
-		return fmt.Errorf("timezone cannot be empty")
+		return errors.New("timezone cannot be empty")
 	}
 
 	// Try to load the location to validate it's a valid IANA timezone
@@ -23,12 +23,12 @@ func ValidateTimezone(timezone string) error {
 	return nil
 }
 
-// IsValidTimezone checks if the given timezone string is a valid IANA timezone name
+// IsValidTimezone checks if the given timezone string is a valid IANA timezone name.
 func IsValidTimezone(timezone string) bool {
 	return ValidateTimezone(timezone) == nil
 }
 
-// ParseExecutionTime parses a time string like "02:00" or "14:30"
+// ParseExecutionTime parses a time string like "02:00" or "14:30".
 func ParseExecutionTime(timeStr string) (hour, minute int, err error) {
 	parts := strings.Split(timeStr, ":")
 	if len(parts) != 2 {

@@ -15,7 +15,7 @@ type ErrorResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
-// PaginatedResponse represents a paginated response with data and pagination metadata
+// PaginatedResponse represents a paginated response with data and pagination metadata.
 type PaginatedResponse struct {
 	Data       any `json:"data"`
 	Pagination struct {
@@ -26,13 +26,13 @@ type PaginatedResponse struct {
 	} `json:"pagination"`
 }
 
-// PaginationParams represents pagination parameters extracted from query parameters
+// PaginationParams represents pagination parameters extracted from query parameters.
 type PaginationParams struct {
 	Page  int
 	Limit int
 }
 
-// DefaultPaginationParams returns default pagination parameters
+// DefaultPaginationParams returns default pagination parameters.
 func DefaultPaginationParams() PaginationParams {
 	return PaginationParams{
 		Page:  1,
@@ -40,7 +40,7 @@ func DefaultPaginationParams() PaginationParams {
 	}
 }
 
-// ExtractPaginationParams extracts pagination parameters from request query parameters
+// ExtractPaginationParams extracts pagination parameters from request query parameters.
 func ExtractPaginationParams(r *http.Request) PaginationParams {
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
@@ -70,7 +70,7 @@ func ExtractPaginationParams(r *http.Request) PaginationParams {
 	}
 }
 
-// ReplyWithPaginatedData responds with a paginated set of entities
+// ReplyWithPaginatedData responds with a paginated set of entities.
 func ReplyWithPaginatedData(w http.ResponseWriter, statusCode int, data any, total int, params PaginationParams) {
 	totalPages := (total + params.Limit - 1) / params.Limit // Ceiling division
 
@@ -125,7 +125,7 @@ func GetQueryParamMapKeyValue(r *http.Request, name string) (string, string) {
 }
 
 // GetSpanFromContext extracts the current span from the request context
-// This is useful for adding custom attributes or events to the current span
+// This is useful for adding custom attributes or events to the current span.
 func GetSpanFromContext(r *http.Request) trace.Span {
 	return trace.SpanFromContext(r.Context())
 }

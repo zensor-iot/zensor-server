@@ -2,6 +2,7 @@ package node_test
 
 import (
 	"net"
+
 	"zensor-server/internal/infra/node"
 
 	"github.com/onsi/ginkgo/v2"
@@ -23,7 +24,7 @@ var _ = ginkgo.Describe("Node", func() {
 		ginkgo.It("should return a valid UUID for node ID", func() {
 			nodeInfo := node.GetNodeInfo()
 			gomega.Expect(nodeInfo.ID).ToNot(gomega.BeEmpty())
-			gomega.Expect(len(nodeInfo.ID)).To(gomega.Equal(36)) // UUID length
+			gomega.Expect(nodeInfo.ID).To(gomega.HaveLen(36)) // UUID length
 		})
 
 		ginkgo.It("should return the same node ID on multiple calls (singleton)", func() {

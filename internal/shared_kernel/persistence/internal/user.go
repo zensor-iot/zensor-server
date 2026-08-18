@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 )
 
@@ -98,12 +99,14 @@ func (t TenantIDs) Value() (driver.Value, error) {
 		return "{}", nil
 	}
 	result := "{"
+	var resultSb101 strings.Builder
 	for i, tenant := range t {
 		if i > 0 {
-			result += ","
+			resultSb101.WriteString(",")
 		}
-		result += tenant
+		resultSb101.WriteString(tenant)
 	}
+	result += resultSb101.String()
 	result += "}"
 	return result, nil
 }

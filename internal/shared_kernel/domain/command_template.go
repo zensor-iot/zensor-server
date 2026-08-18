@@ -2,12 +2,13 @@ package domain
 
 import (
 	"time"
+
 	"zensor-server/internal/infra/utils"
 )
 
 // CommandTemplate is a Value Object that represents a command template
 // It contains all the command structure except instance-specific fields
-// and includes a WaitFor field to calculate DispatchAfter when creating tasks
+// and includes a WaitFor field to calculate DispatchAfter when creating tasks.
 type CommandTemplate struct {
 	Device   Device
 	Port     Port
@@ -16,7 +17,7 @@ type CommandTemplate struct {
 	WaitFor  time.Duration // Duration to wait before dispatching the command
 }
 
-// NewCommandTemplateBuilder creates a new command template builder
+// NewCommandTemplateBuilder creates a new command template builder.
 func NewCommandTemplateBuilder() *commandTemplateBuilder {
 	return &commandTemplateBuilder{}
 }
@@ -79,7 +80,7 @@ func (b *commandTemplateBuilder) Build() (CommandTemplate, error) {
 	return result, nil
 }
 
-// ToCommand converts a CommandTemplate to a Command with calculated DispatchAfter
+// ToCommand converts a CommandTemplate to a Command with calculated DispatchAfter.
 func (ct CommandTemplate) ToCommand(task Task, baseTime time.Time) Command {
 	dispatchAfter := baseTime.Add(ct.WaitFor)
 

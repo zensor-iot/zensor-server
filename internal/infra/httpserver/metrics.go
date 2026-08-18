@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"zensor-server/internal/infra/node"
 
 	"go.opentelemetry.io/otel"
@@ -17,25 +19,25 @@ import (
 )
 
 var (
-	// HTTP metrics
+	// HTTP metrics.
 	httpRequestDuration metric.Float64Histogram
 	httpRequestTotal    metric.Int64Counter
 	httpRequestActive   metric.Int64UpDownCounter
 	metricsInitialized  bool
 	metricsMutex        sync.Mutex
 
-	// UUID regex pattern for identifying UUIDs in paths
+	// UUID regex pattern for identifying UUIDs in paths.
 	uuidRegex = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 )
 
-// ResetMetricsForTesting resets the metrics initialization state for testing purposes
+// ResetMetricsForTesting resets the metrics initialization state for testing purposes.
 func ResetMetricsForTesting() {
 	metricsMutex.Lock()
 	defer metricsMutex.Unlock()
 	metricsInitialized = false
 }
 
-// IsMetricsInitialized returns whether metrics have been initialized (for testing)
+// IsMetricsInitialized returns whether metrics have been initialized (for testing).
 func IsMetricsInitialized() bool {
 	metricsMutex.Lock()
 	defer metricsMutex.Unlock()
@@ -82,7 +84,7 @@ func initMetrics() {
 	metricsInitialized = true
 }
 
-// MetricsMiddleware creates a middleware that measures HTTP request metrics
+// MetricsMiddleware creates a middleware that measures HTTP request metrics.
 func MetricsMiddleware() func(http.Handler) http.Handler {
 	initMetrics()
 
@@ -138,7 +140,7 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if hijacker, ok := rw.ResponseWriter.(http.Hijacker); ok {
 		return hijacker.Hijack()
 	}
-	return nil, nil, fmt.Errorf("underlying ResponseWriter does not support hijacking")
+	return nil, nil, errors.New("underlying ResponseWriter does not support hijacking")
 }
 
 func normalizeEndpoint(path string) string {
@@ -162,7 +164,7 @@ func normalizeEndpoint(path string) string {
 	return normalizedPath
 }
 
-// getGlobalAttributes returns global attributes that should be included in all HTTP metrics
+// getGlobalAttributes returns global attributes that should be included in all HTTP metrics.
 func getGlobalAttributes() []attribute.KeyValue {
 	nodeInfo := node.GetNodeInfo()
 	return []attribute.KeyValue{

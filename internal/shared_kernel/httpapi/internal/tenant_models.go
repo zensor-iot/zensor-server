@@ -2,10 +2,11 @@ package internal
 
 import (
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-// Request models
+// Request models.
 type TenantCreateRequest struct {
 	Name        string `json:"name" validate:"required,min=1,max=100"`
 	Email       string `json:"email" validate:"required,email"`
@@ -23,7 +24,7 @@ type TenantAdoptDeviceRequest struct {
 	DeviceID string `json:"device_id" validate:"required,uuid"`
 }
 
-// Response models
+// Response models.
 type TenantResponse struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
@@ -53,7 +54,7 @@ type DeviceResponse struct {
 	LastMessageReceivedAt *time.Time `json:"last_message_received_at,omitempty"`
 }
 
-// Conversion functions
+// Conversion functions.
 func ToTenantResponse(tenant domain.Tenant) TenantResponse {
 	return TenantResponse{
 		ID:          tenant.ID.String(),

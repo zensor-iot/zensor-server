@@ -3,6 +3,7 @@ package persistence_test
 import (
 	"context"
 	"time"
+
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
@@ -88,7 +89,6 @@ var _ = ginkgo.Describe("CommandRepository", func() {
 	ginkgo.Context("Create", func() {
 		var cmd domain.Command
 		ginkgo.When("creating a new command", func() {
-
 			ginkgo.BeforeEach(func() {
 				id := utils.GenerateUUID()
 				cmd = domain.Command{

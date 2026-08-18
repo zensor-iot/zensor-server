@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -13,13 +14,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// RedisCache provides a generic caching implementation with TTL support using Redis
+// RedisCache provides a generic caching implementation with TTL support using Redis.
 type RedisCache struct {
 	client CacheClient
 	config *RedisConfig
 }
 
-// RedisConfig holds configuration for the Redis cache
+// RedisConfig holds configuration for the Redis cache.
 type RedisConfig struct {
 	// Addr is the Redis server address (e.g., "localhost:6379")
 	Addr string
@@ -47,7 +48,7 @@ type RedisConfig struct {
 	IdleCheckFrequency time.Duration
 }
 
-// DefaultRedisConfig returns a default Redis configuration
+// DefaultRedisConfig returns a default Redis configuration.
 func DefaultRedisConfig() *RedisConfig {
 	return &RedisConfig{
 		Addr:               "localhost:6379",
@@ -65,7 +66,7 @@ func DefaultRedisConfig() *RedisConfig {
 	}
 }
 
-// NewRedisCacheWithClient creates a new RedisCache instance with a custom client (for testing)
+// NewRedisCacheWithClient creates a new RedisCache instance with a custom client (for testing).
 func NewRedisCacheWithClient(client CacheClient, config *RedisConfig) *RedisCache {
 	return &RedisCache{
 		client: client,
@@ -73,7 +74,7 @@ func NewRedisCacheWithClient(client CacheClient, config *RedisConfig) *RedisCach
 	}
 }
 
-// NewRedisCache creates a new RedisCache instance
+// NewRedisCache creates a new RedisCache instance.
 func NewRedisCache(config *RedisConfig) (*RedisCache, error) {
 	if config == nil {
 		config = DefaultRedisConfig()
@@ -112,14 +113,14 @@ func NewRedisCache(config *RedisConfig) (*RedisCache, error) {
 	return cache, nil
 }
 
-// Get retrieves a value from the cache
+// Get retrieves a value from the cache.
 func (c *RedisCache) Get(ctx context.Context, key string) (any, bool) {
 	ctx, span := c.createSpan(ctx, "get", key)
 	defer span.End()
 
 	result, err := c.client.Get(ctx, key).Result()
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			span.SetAttributes(attribute.Bool("cache.hit", false))
 			return nil, false
 		}
@@ -140,7 +141,7 @@ func (c *RedisCache) Get(ctx context.Context, key string) (any, bool) {
 	return value, true
 }
 
-// Set stores a value in the cache with TTL
+// Set stores a value in the cache with TTL.
 func (c *RedisCache) Set(ctx context.Context, key string, value any, ttl time.Duration) bool {
 	ctx, span := c.createSpan(ctx, "set", key)
 	defer span.End()
@@ -174,7 +175,7 @@ func (c *RedisCache) Set(ctx context.Context, key string, value any, ttl time.Du
 	return true
 }
 
-// Delete removes a value from the cache
+// Delete removes a value from the cache.
 func (c *RedisCache) Delete(ctx context.Context, key string) {
 	ctx, span := c.createSpan(ctx, "delete", key)
 	defer span.End()
@@ -187,7 +188,7 @@ func (c *RedisCache) Delete(ctx context.Context, key string) {
 	}
 }
 
-// GetOrSet retrieves a value from the cache, or sets it if not found
+// GetOrSet retrieves a value from the cache, or sets it if not found.
 func (c *RedisCache) GetOrSet(ctx context.Context, key string, ttl time.Duration, loader func() (any, error)) (any, error) {
 	if value, found := c.Get(ctx, key); found {
 		return value, nil
@@ -202,18 +203,18 @@ func (c *RedisCache) GetOrSet(ctx context.Context, key string, ttl time.Duration
 	return value, nil
 }
 
-// Keys returns all keys matching the pattern
+// Keys returns all keys matching the pattern.
 func (c *RedisCache) Keys(ctx context.Context, pattern string) ([]string, error) {
 	return c.client.Keys(ctx, pattern).Result()
 }
 
-// Ping tests the Redis connection
+// Ping tests the Redis connection.
 func (c *RedisCache) Ping() error {
 	ctx := context.Background()
 	return c.client.Ping(ctx).Err()
 }
 
-// PingWithContext tests the Redis connection with context
+// PingWithContext tests the Redis connection with context.
 func (c *RedisCache) PingWithContext(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()
 }

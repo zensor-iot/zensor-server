@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
+	"zensor-server/internal/infra/mqtt"
+
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 
-	"zensor-server/internal/infra/mqtt"
 	mockusecases "zensor-server/test/unit/doubles/control_plane/usecases"
 	mockasync "zensor-server/test/unit/doubles/infra/async"
 )
@@ -58,7 +59,7 @@ var _ = ginkgo.Describe("LoRaIntegrationCorrelation", func() {
 	})
 })
 
-// MockMQTTClient is a simple mock for MQTT client (keeping this as it's not a generated interface)
+// MockMQTTClient is a simple mock for MQTT client (keeping this as it's not a generated interface).
 type MockMQTTClient struct {
 	ctrl *gomock.Controller
 }

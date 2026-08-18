@@ -7,7 +7,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-// ExampleMetricsUsage demonstrates how the metrics middleware automatically collects HTTP metrics
+// ExampleMetricsUsage demonstrates how the metrics middleware automatically collects HTTP metrics.
 func ExampleMetricsUsage() {
 	// This example shows how the metrics middleware automatically collects metrics
 	// for all HTTP requests without any additional code needed in your handlers
@@ -48,7 +48,7 @@ func ExampleMetricsUsage() {
 	_ = createHandler // Suppress unused variable warning
 }
 
-// ExampleMetricsData shows what metrics data looks like
+// ExampleMetricsData shows what metrics data looks like.
 func ExampleMetricsData() {
 	/*
 		The metrics middleware automatically collects the following metrics:
@@ -73,7 +73,7 @@ func ExampleMetricsData() {
 	*/
 }
 
-// ExampleEndpointExtraction shows how endpoints are extracted from URLs
+// ExampleEndpointExtraction shows how endpoints are extracted from URLs.
 func ExampleEndpointExtraction() {
 	/*
 		The metrics middleware extracts endpoint names from URL paths:
@@ -90,7 +90,7 @@ func ExampleEndpointExtraction() {
 	*/
 }
 
-// ExampleUserHeaderUsage demonstrates how user headers are automatically captured and added to spans
+// ExampleUserHeaderUsage demonstrates how user headers are automatically captured and added to spans.
 func ExampleUserHeaderUsage() {
 	// This example shows how the user header middleware automatically captures
 	// user information from request headers and adds them as span attributes
@@ -133,7 +133,7 @@ func ExampleUserHeaderUsage() {
 	_ = handler // Suppress unused variable warning
 }
 
-// ExampleUserHeaderData shows what user header data looks like in traces
+// ExampleUserHeaderData shows what user header data looks like in traces.
 func ExampleUserHeaderData() {
 	/*
 		The user header middleware automatically captures user information from request headers:

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 )
 
@@ -33,7 +34,7 @@ type DeviceUpdateRequest struct {
 	DisplayName string `json:"display_name" validate:"required,min=1,max=100"`
 }
 
-// ToDeviceResponse converts a domain Device to DeviceResponse
+// ToDeviceResponse converts a domain Device to DeviceResponse.
 func ToDeviceResponse(device domain.Device) DeviceResponse {
 	response := DeviceResponse{
 		ID:          device.ID.String(),
@@ -58,7 +59,7 @@ func ToDeviceResponse(device domain.Device) DeviceResponse {
 	return response
 }
 
-// ToDeviceListResponse converts a slice of domain Devices to DeviceListResponse
+// ToDeviceListResponse converts a slice of domain Devices to DeviceListResponse.
 func ToDeviceListResponse(devices []domain.Device) DeviceListResponse {
 	responses := make([]DeviceResponse, len(devices))
 	for i, device := range devices {

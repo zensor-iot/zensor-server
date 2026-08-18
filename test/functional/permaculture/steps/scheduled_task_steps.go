@@ -117,7 +117,7 @@ func (fc *FeatureContext) theResponseShouldContainTheScheduledTaskWithTheNewSche
 }
 
 func (fc *FeatureContext) thereAreTasksCreatedFromScheduledTask(count int, scheduledTaskID string) error {
-	for i := 0; i < count; i++ {
+	for range count {
 		resp, err := fc.apiDriver.CreateTaskFromScheduledTask(fc.tenantID, fc.deviceID, scheduledTaskID)
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusCreated, resp.StatusCode)
@@ -172,7 +172,7 @@ func (fc *FeatureContext) theTasksShouldBeSortedByCreationDateInDescendingOrder(
 	data, ok := fc.responseData["data"].([]map[string]any)
 	fc.require.True(ok, "Response data should contain tasks")
 
-	for i := 0; i < len(data)-1; i++ {
+	for i := range len(data) - 1 {
 		currentCreatedAt := data[i]["created_at"].(string)
 		nextCreatedAt := data[i+1]["created_at"].(string)
 		fc.require.GreaterOrEqual(currentCreatedAt, nextCreatedAt, "Tasks should be sorted by created_at in descending order")
@@ -223,7 +223,7 @@ func (fc *FeatureContext) iTryToRetrieveTasksForScheduledTaskUsingInvalidDevice(
 
 func (fc *FeatureContext) theOperationShouldFailWithAnError() error {
 	fc.require.NotEqual(http.StatusOK, fc.response.StatusCode)
-	fc.require.True(fc.response.StatusCode >= 400, "Expected error status code (4xx or 5xx)")
+	fc.require.GreaterOrEqual(fc.response.StatusCode, 400, "Expected error status code (4xx or 5xx)")
 	return nil
 }
 
@@ -231,12 +231,13 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for scheduled task tasks")
 	fc.require.NoError(err)
 
-	if resp.StatusCode == http.StatusCreated {
+	switch resp.StatusCode {
+	case http.StatusCreated:
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
 		fc.tenantID = data["id"].(string)
-	} else if resp.StatusCode == http.StatusConflict {
+	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListTenants()
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
@@ -255,7 +256,7 @@ func (fc *FeatureContext) aTenantWithId(tenantID string) error {
 		}
 		fc.require.Fail("Tenant with name " + tenantID + " not found in list")
 		return nil
-	} else {
+	default:
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating tenant")
 	}
 	return nil
@@ -265,12 +266,13 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 	resp, err := fc.apiDriver.CreateDevice(deviceID, deviceID+" Display Name")
 	fc.require.NoError(err)
 
-	if resp.StatusCode == http.StatusCreated {
+	switch resp.StatusCode {
+	case http.StatusCreated:
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
 		fc.deviceID = data["id"].(string)
-	} else if resp.StatusCode == http.StatusConflict {
+	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListDevices()
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
@@ -289,7 +291,7 @@ func (fc *FeatureContext) aDeviceWithIdBelongingToTenant(deviceID, tenantID stri
 		}
 		fc.require.Fail("Device with name " + deviceID + " not found in list")
 		return nil
-	} else {
+	default:
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating device")
 	}
 	return nil
@@ -299,12 +301,13 @@ func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTas
 	resp, err := fc.apiDriver.CreateScheduledTask(fc.tenantID, fc.deviceID, schedule)
 	fc.require.NoError(err)
 
-	if resp.StatusCode == http.StatusCreated {
+	switch resp.StatusCode {
+	case http.StatusCreated:
 		var data map[string]any
 		err = fc.decodeBody(resp.Body, &data)
 		fc.require.NoError(err)
 		fc.scheduledTaskID = data["id"].(string)
-	} else if resp.StatusCode == http.StatusConflict {
+	case http.StatusConflict:
 		listResp, err := fc.apiDriver.ListScheduledTasks(fc.tenantID, fc.deviceID)
 		fc.require.NoError(err)
 		fc.require.Equal(http.StatusOK, listResp.StatusCode)
@@ -317,7 +320,7 @@ func (fc *FeatureContext) aScheduledTaskWithIdForDeviceWithSchedule(scheduledTas
 		fc.require.NotEmpty(paginatedResp.Data, "Should have at least one scheduled task")
 
 		fc.scheduledTaskID = paginatedResp.Data[0]["id"].(string)
-	} else {
+	default:
 		fc.require.Equal(http.StatusCreated, resp.StatusCode, "Unexpected status code when creating scheduled task")
 	}
 	return nil
@@ -529,4 +532,3 @@ func (fc *FeatureContext) theResponseShouldContainTheUpdatedScheduledTaskWithInt
 
 	return nil
 }
-

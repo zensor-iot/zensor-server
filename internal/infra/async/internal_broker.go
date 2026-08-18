@@ -35,8 +35,10 @@ type MessageHandler func(msg BrokerMessage)
 
 var _ InternalBroker = (*LocalBroker)(nil)
 
-var ErrTopicNotFound = errors.New("topic not found")
-var ErrSubscriptorNotFound = errors.New("subscriptor not found")
+var (
+	ErrTopicNotFound       = errors.New("topic not found")
+	ErrSubscriptorNotFound = errors.New("subscriptor not found")
+)
 
 func NewLocalBroker() *LocalBroker {
 	return &LocalBroker{

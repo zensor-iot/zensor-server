@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
@@ -128,22 +129,22 @@ func (c *TaskController) create() http.HandlerFunc {
 		for j, cmd := range task.Commands {
 			var sentAt *string
 			if !cmd.SentAt.IsZero() {
-				sentAtStr := cmd.SentAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				sentAtStr := cmd.SentAt.Format("2006-01-02T15:04:05Z07:00")
 				sentAt = &sentAtStr
 			}
 
 			// Convert optional timestamps
 			var queuedAt, ackedAt, failedAt *string
 			if cmd.QueuedAt != nil {
-				queuedAtStr := cmd.QueuedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				queuedAtStr := cmd.QueuedAt.Format("2006-01-02T15:04:05Z07:00")
 				queuedAt = &queuedAtStr
 			}
 			if cmd.AckedAt != nil {
-				ackedAtStr := cmd.AckedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				ackedAtStr := cmd.AckedAt.Format("2006-01-02T15:04:05Z07:00")
 				ackedAt = &ackedAtStr
 			}
 			if cmd.FailedAt != nil {
-				failedAtStr := cmd.FailedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+				failedAtStr := cmd.FailedAt.Format("2006-01-02T15:04:05Z07:00")
 				failedAt = &failedAtStr
 			}
 
@@ -153,7 +154,7 @@ func (c *TaskController) create() http.HandlerFunc {
 				Value:         uint8(cmd.Payload.Value),
 				Port:          uint8(cmd.Port),
 				Priority:      string(cmd.Priority),
-				DispatchAfter: cmd.DispatchAfter.Time.Format("2006-01-02T15:04:05Z07:00"),
+				DispatchAfter: cmd.DispatchAfter.Format("2006-01-02T15:04:05Z07:00"),
 				Ready:         cmd.Ready,
 				Sent:          cmd.Sent,
 				SentAt:        sentAt,
@@ -170,7 +171,7 @@ func (c *TaskController) create() http.HandlerFunc {
 		response := internal.TaskResponse{
 			ID:        task.ID.String(),
 			Commands:  commandResponses,
-			CreatedAt: task.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt: task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
 
 		httpserver.ReplyJSONResponse(w, http.StatusCreated, response)
@@ -212,22 +213,22 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 			for j, cmd := range task.Commands {
 				var sentAt *string
 				if !cmd.SentAt.IsZero() {
-					sentAtStr := cmd.SentAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					sentAtStr := cmd.SentAt.Format("2006-01-02T15:04:05Z07:00")
 					sentAt = &sentAtStr
 				}
 
 				// Convert optional timestamps
 				var queuedAt, ackedAt, failedAt *string
 				if cmd.QueuedAt != nil {
-					queuedAtStr := cmd.QueuedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					queuedAtStr := cmd.QueuedAt.Format("2006-01-02T15:04:05Z07:00")
 					queuedAt = &queuedAtStr
 				}
 				if cmd.AckedAt != nil {
-					ackedAtStr := cmd.AckedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					ackedAtStr := cmd.AckedAt.Format("2006-01-02T15:04:05Z07:00")
 					ackedAt = &ackedAtStr
 				}
 				if cmd.FailedAt != nil {
-					failedAtStr := cmd.FailedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+					failedAtStr := cmd.FailedAt.Format("2006-01-02T15:04:05Z07:00")
 					failedAt = &failedAtStr
 				}
 
@@ -237,7 +238,7 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 					Value:         uint8(cmd.Payload.Value),
 					Port:          uint8(cmd.Port),
 					Priority:      string(cmd.Priority),
-					DispatchAfter: cmd.DispatchAfter.Time.Format("2006-01-02T15:04:05Z07:00"),
+					DispatchAfter: cmd.DispatchAfter.Format("2006-01-02T15:04:05Z07:00"),
 					Ready:         cmd.Ready,
 					Sent:          cmd.Sent,
 					SentAt:        sentAt,
@@ -254,7 +255,7 @@ func (c *TaskController) getByDevice() http.HandlerFunc {
 			responses[i] = internal.TaskResponse{
 				ID:        task.ID.String(),
 				Commands:  commandResponses,
-				CreatedAt: task.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+				CreatedAt: task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			}
 		}
 

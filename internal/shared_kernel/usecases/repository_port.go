@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+
 	"zensor-server/internal/shared_kernel/domain"
 )
 
@@ -19,7 +20,7 @@ var (
 	ErrMixedTenantValidation       = errors.New("mixed tenant validation failed")
 )
 
-// Pagination encapsulates pagination parameters for repository queries
+// Pagination encapsulates pagination parameters for repository queries.
 type Pagination struct {
 	Limit  int
 	Offset int

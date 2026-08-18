@@ -9,7 +9,7 @@ import (
 
 //go:generate mockgen -source=redis_interface.go -destination=../../../test/unit/doubles/infra/cache/cache_client_mock.go -package=cache
 
-// CacheClient defines the interface for cache client operations used by cache implementations
+// CacheClient defines the interface for cache client operations used by cache implementations.
 type CacheClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
@@ -18,12 +18,12 @@ type CacheClient interface {
 	Ping(ctx context.Context) *redis.StatusCmd
 }
 
-// RedisClient wraps the redis.Client to implement CacheClient
+// RedisClient wraps the redis.Client to implement CacheClient.
 type RedisClient struct {
 	client *redis.Client
 }
 
-// NewRedisClient creates a new Redis client wrapper
+// NewRedisClient creates a new Redis client wrapper.
 func NewRedisClient(client *redis.Client) CacheClient {
 	return &RedisClient{client: client}
 }

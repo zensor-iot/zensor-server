@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-var (
-	ErrScheduledTaskNotFound = errors.New("scheduled task not found")
-)
+var ErrScheduledTaskNotFound = errors.New("scheduled task not found")
 
 func NewScheduledTaskService(repository ScheduledTaskRepository) *SimpleScheduledTaskService {
 	return &SimpleScheduledTaskService{

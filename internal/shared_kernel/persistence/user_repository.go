@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"zensor-server/internal/shared_kernel/persistence/internal"
-	"zensor-server/internal/shared_kernel/usecases"
+
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/domain"
+	"zensor-server/internal/shared_kernel/persistence/internal"
+	"zensor-server/internal/shared_kernel/usecases"
 )
 
 func NewUserRepository(orm sql.ORM) (*SimpleUserRepository, error) {
@@ -89,7 +90,6 @@ func (r *SimpleUserRepository) FindByTenant(ctx context.Context, tenantID domain
 		WithContext(ctx).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/thoas/go-funk"
 )
 
-// ExtractStringValue uses go-funk to extract a string value from a message using the specified property name
+// ExtractStringValue uses go-funk to extract a string value from a message using the specified property name.
 func ExtractStringValue(msg any, propertyName string) string {
 	if propertyName == "" {
 		return ""
@@ -24,7 +24,7 @@ func ExtractStringValue(msg any, propertyName string) string {
 	return ""
 }
 
-// ExtractFloat64Value uses go-funk to extract a float64 value from a message using the specified property name
+// ExtractFloat64Value uses go-funk to extract a float64 value from a message using the specified property name.
 func ExtractFloat64Value(msg any, propertyName string) float64 {
 	if propertyName == "" {
 		return 0.0

@@ -11,6 +11,7 @@ import (
 
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/mqtt"
+
 	victrondto "zensor-server/internal/victron/dto"
 
 	"go.opentelemetry.io/otel"
@@ -210,7 +211,7 @@ func (w *VictronWorker) Shutdown() {
 
 func normalizePath(path string) string {
 	b := make([]byte, 0, len(path))
-	for i := 0; i < len(path); i++ {
+	for i := range len(path) {
 		c := path[i]
 		if c >= 'A' && c <= 'Z' {
 			b = append(b, '_')

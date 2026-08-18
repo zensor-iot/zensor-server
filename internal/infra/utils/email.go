@@ -1,14 +1,15 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 )
 
-// ValidateEmail validates that the given email string is a valid email address
+// ValidateEmail validates that the given email string is a valid email address.
 func ValidateEmail(email string) error {
 	if email == "" {
-		return fmt.Errorf("email cannot be empty")
+		return errors.New("email cannot be empty")
 	}
 
 	// Basic email regex pattern
@@ -20,7 +21,7 @@ func ValidateEmail(email string) error {
 	return nil
 }
 
-// IsValidEmail checks if the given email string is a valid email address
+// IsValidEmail checks if the given email string is a valid email address.
 func IsValidEmail(email string) bool {
 	return ValidateEmail(email) == nil
 }

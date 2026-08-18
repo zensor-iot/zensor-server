@@ -2,10 +2,11 @@ package internal
 
 import (
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-// TenantConfigurationResponse represents the response for tenant configuration operations
+// TenantConfigurationResponse represents the response for tenant configuration operations.
 type TenantConfigurationResponse struct {
 	ID                string    `json:"id"`
 	TenantID          string    `json:"tenant_id"`
@@ -16,19 +17,19 @@ type TenantConfigurationResponse struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-// TenantConfigurationCreateRequest represents the request for creating a tenant configuration
+// TenantConfigurationCreateRequest represents the request for creating a tenant configuration.
 type TenantConfigurationCreateRequest struct {
 	Timezone          string `json:"timezone" validate:"required"`
 	NotificationEmail string `json:"notification_email,omitempty"`
 }
 
-// TenantConfigurationUpdateRequest represents the request for updating a tenant configuration
+// TenantConfigurationUpdateRequest represents the request for updating a tenant configuration.
 type TenantConfigurationUpdateRequest struct {
 	Timezone          string  `json:"timezone" validate:"required"`
 	NotificationEmail *string `json:"notification_email,omitempty"`
 }
 
-// ToTenantConfigurationResponse converts a domain.TenantConfiguration to TenantConfigurationResponse
+// ToTenantConfigurationResponse converts a domain.TenantConfiguration to TenantConfigurationResponse.
 func ToTenantConfigurationResponse(config domain.TenantConfiguration) TenantConfigurationResponse {
 	return TenantConfigurationResponse{
 		ID:                config.ID.String(),

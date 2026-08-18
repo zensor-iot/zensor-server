@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-// Device represents a device entity in the response
+// Device represents a device entity in the response.
 type Device struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
@@ -18,7 +18,7 @@ type Device struct {
 	UpdatedAt     string `json:"updated_at"`
 }
 
-// Device step implementations
+// Device step implementations.
 func (fc *FeatureContext) iCreateANewDeviceWithNameAndDisplayName(name, displayName string) error {
 	resp, err := fc.apiDriver.CreateDevice(name, displayName)
 	fc.require.NoError(err)
@@ -96,7 +96,7 @@ func (fc *FeatureContext) theListShouldContainTheDeviceWithName(name string) err
 			break
 		}
 	}
-	fc.require.True(found, fmt.Sprintf("Device with name %s not found in list", name))
+	fc.require.True(found, "Device with name %s not found in list", name)
 	return nil
 }
 

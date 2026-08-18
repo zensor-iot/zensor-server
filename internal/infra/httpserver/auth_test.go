@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/onsi/ginkgo/v2"
@@ -89,7 +90,7 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 	})
 
 	request := func(path, sessionID string, spoofHeaders bool) *httptest.ResponseRecorder {
-		req := httptest.NewRequest("GET", path, nil)
+		req := httptest.NewRequest(http.MethodGet, path, nil)
 		if sessionID != "" {
 			req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: sessionID})
 		}
@@ -104,7 +105,7 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 	}
 
 	bearerRequest := func(path, authorization string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest("GET", path, nil)
+		req := httptest.NewRequest(http.MethodGet, path, nil)
 		if authorization != "" {
 			req.Header.Set("Authorization", authorization)
 		}
@@ -277,7 +278,7 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 
 		ginkgo.When("a request carries both a session cookie and a bearer key", func() {
 			ginkgo.It("should prefer the session identity", func() {
-				req := httptest.NewRequest("GET", "/v1/tenants", nil)
+				req := httptest.NewRequest(http.MethodGet, "/v1/tenants", nil)
 				req.AddCookie(&http.Cookie{Name: SessionCookieName, Value: "valid-session"})
 				req.Header.Set("Authorization", "Bearer zsk_valid")
 				rec := httptest.NewRecorder()

@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-// Example usage of the pagination helper methods
+// Example usage of the pagination helper methods.
 func ExamplePaginationUsage() {
 	// This is an example handler showing how to use the pagination helpers
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +29,7 @@ func ExamplePaginationUsage() {
 	_ = handler // Suppress unused variable warning
 }
 
-// Example of how to use pagination with database queries
+// Example of how to use pagination with database queries.
 func ExampleDatabasePagination() {
 	// This is a conceptual example showing how pagination would work with database queries
 	/*

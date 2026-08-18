@@ -27,13 +27,13 @@ func NewAPIDriver(baseURL string) *APIDriver {
 }
 
 func (d *APIDriver) Login() error {
-	resp, err := d.client.Get(fmt.Sprintf("%s/auth/login", d.baseURL))
+	resp, err := d.client.Get(d.baseURL + "/auth/login")
 	if err != nil {
 		return fmt.Errorf("performing login flow: %w", err)
 	}
 	resp.Body.Close()
 
-	meResp, err := d.client.Get(fmt.Sprintf("%s/v1/me", d.baseURL))
+	meResp, err := d.client.Get(d.baseURL + "/v1/me")
 	if err != nil {
 		return fmt.Errorf("fetching current user: %w", err)
 	}
@@ -67,7 +67,7 @@ func (d *APIDriver) CreateTenant(name, email, description string) (*http.Respons
 	if err != nil {
 		panic(err)
 	}
-	return d.client.Post(fmt.Sprintf("%s/v1/tenants", d.baseURL), "application/json", bytes.NewBuffer(reqBody))
+	return d.client.Post(d.baseURL+"/v1/tenants", "application/json", bytes.NewBuffer(reqBody))
 }
 
 func (d *APIDriver) GetTenant(id string) (*http.Response, error) {
@@ -75,7 +75,7 @@ func (d *APIDriver) GetTenant(id string) (*http.Response, error) {
 }
 
 func (d *APIDriver) ListTenants() (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/tenants", d.baseURL))
+	return d.client.Get(d.baseURL + "/v1/tenants")
 }
 
 func (d *APIDriver) UpdateTenant(id, newName string) (*http.Response, error) {
@@ -112,11 +112,11 @@ func (d *APIDriver) CreateDevice(name, displayName string) (*http.Response, erro
 	if err != nil {
 		panic(err)
 	}
-	return d.client.Post(fmt.Sprintf("%s/v1/devices", d.baseURL), "application/json", bytes.NewBuffer(reqBody))
+	return d.client.Post(d.baseURL+"/v1/devices", "application/json", bytes.NewBuffer(reqBody))
 }
 
 func (d *APIDriver) ListDevices() (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/devices", d.baseURL))
+	return d.client.Get(d.baseURL + "/v1/devices")
 }
 
 func (d *APIDriver) GetDevice(id string) (*http.Response, error) {
@@ -185,7 +185,7 @@ func (d *APIDriver) UpdateTenantConfiguration(tenantID, timezone string) (*http.
 }
 
 func (d *APIDriver) GetHealthz() (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/healthz", d.baseURL))
+	return d.client.Get(d.baseURL + "/healthz")
 }
 
 func (d *APIDriver) AssociateUserWithTenants(userID string, tenantIDs []string) (*http.Response, error) {
@@ -295,4 +295,3 @@ func (d *APIDriver) CreateTaskFromScheduledTask(tenantID, deviceID, scheduledTas
 	}
 	return d.client.Post(fmt.Sprintf("%s/v1/tenants/%s/devices/%s/scheduled-tasks/%s/tasks", d.baseURL, tenantID, deviceID, scheduledTaskID), "application/json", bytes.NewBuffer(reqBody))
 }
-

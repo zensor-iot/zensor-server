@@ -2,11 +2,12 @@ package internal
 
 import (
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-// SchedulingConfigurationRequest represents the scheduling configuration in API requests
+// SchedulingConfigurationRequest represents the scheduling configuration in API requests.
 type SchedulingConfigurationRequest struct {
 	Type          string     `json:"type"`                     // "cron" or "interval"
 	Schedule      *string    `json:"schedule,omitempty"`       // Cron expression (for cron type)
@@ -15,7 +16,7 @@ type SchedulingConfigurationRequest struct {
 	ExecutionTime *string    `json:"execution_time,omitempty"` // Time of day (e.g., "02:00", "14:30")
 }
 
-// SchedulingConfigurationResponse represents the scheduling configuration in API responses
+// SchedulingConfigurationResponse represents the scheduling configuration in API responses.
 type SchedulingConfigurationResponse struct {
 	Type          string     `json:"type"`                     // "cron" or "interval"
 	Schedule      *string    `json:"schedule,omitempty"`       // Cron expression (for cron type)
@@ -52,7 +53,7 @@ type ScheduledTaskListResponse struct {
 	ScheduledTasks []ScheduledTaskResponse `json:"scheduled_tasks"`
 }
 
-// ToSchedulingConfiguration converts a request to domain SchedulingConfiguration
+// ToSchedulingConfiguration converts a request to domain SchedulingConfiguration.
 func (req *SchedulingConfigurationRequest) ToSchedulingConfiguration() domain.SchedulingConfiguration {
 	config := domain.SchedulingConfiguration{
 		Type: domain.SchedulingType(req.Type),
@@ -76,7 +77,7 @@ func (req *SchedulingConfigurationRequest) ToSchedulingConfiguration() domain.Sc
 	return config
 }
 
-// FromSchedulingConfiguration converts domain SchedulingConfiguration to response
+// FromSchedulingConfiguration converts domain SchedulingConfiguration to response.
 func FromSchedulingConfiguration(config domain.SchedulingConfiguration, nextExecution *time.Time) *SchedulingConfigurationResponse {
 	resp := &SchedulingConfigurationResponse{
 		Type: string(config.Type),

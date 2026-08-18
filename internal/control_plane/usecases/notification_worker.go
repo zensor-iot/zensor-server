@@ -2,10 +2,13 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
+
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/shared_kernel/domain"
@@ -109,7 +112,7 @@ func (w *NotificationWorker) processScheduledTaskEvent(ctx context.Context, mess
 	scheduledTask, ok := message.Value.(domain.ScheduledTask)
 	if !ok {
 		slog.Warn("invalid scheduled task message format", slog.Any("value", message.Value))
-		span.RecordError(fmt.Errorf("invalid scheduled task message format"))
+		span.RecordError(errors.New("invalid scheduled task message format"))
 		return
 	}
 
@@ -212,7 +215,7 @@ func (w *NotificationWorker) processTaskNotification(ctx context.Context, task d
 }
 
 func (w *NotificationWorker) sendTaskNotification(ctx context.Context, device domain.Device, task domain.Task, scheduledTask domain.ScheduledTask, notificationEmail string) error {
-	subject := fmt.Sprintf("New Task Created for Device: %s", device.DisplayName)
+	subject := "New Task Created for Device: " + device.DisplayName
 	body := w.createTaskNotificationBody(device, task, scheduledTask)
 
 	emailRequest := notification.EmailRequest{
@@ -239,9 +242,9 @@ func (w *NotificationWorker) createTaskNotificationBody(device domain.Device, ta
 
 	body += "\nTask Details:\n"
 	body += "- Task ID: " + task.ID.String() + "\n"
-	body += "- Created At: " + task.CreatedAt.Time.Format(time.RFC3339) + "\n"
+	body += "- Created At: " + task.CreatedAt.Format(time.RFC3339) + "\n"
 	body += "- Scheduled Task ID: " + scheduledTask.ID.String() + "\n"
-	body += "- Number of Commands: " + fmt.Sprintf("%d", len(task.Commands)) + "\n"
+	body += "- Number of Commands: " + strconv.Itoa(len(task.Commands)) + "\n"
 
 	body += "\nThis is an automated notification from Zensor Server.\n"
 

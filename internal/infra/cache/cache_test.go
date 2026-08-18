@@ -3,6 +3,7 @@ package cache_test
 import (
 	"context"
 	"time"
+
 	"zensor-server/internal/infra/cache"
 
 	"github.com/onsi/ginkgo/v2"
@@ -238,7 +239,7 @@ var _ = ginkgo.Describe("Cache", func() {
 				results := make(chan any, numGoroutines)
 				errors := make(chan error, numGoroutines)
 
-				for i := 0; i < numGoroutines; i++ {
+				for range numGoroutines {
 					go func() {
 						value, err := cacheInstance.GetOrSet(ctx, key, ttl, loader)
 						results <- value
@@ -246,7 +247,7 @@ var _ = ginkgo.Describe("Cache", func() {
 					}()
 				}
 
-				for i := 0; i < numGoroutines; i++ {
+				for range numGoroutines {
 					value := <-results
 					err := <-errors
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())

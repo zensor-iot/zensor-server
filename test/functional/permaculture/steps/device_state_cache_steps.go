@@ -2,6 +2,7 @@ package steps
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -9,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// DeviceStateMessage represents a device state message from WebSocket
+// DeviceStateMessage represents a device state message from WebSocket.
 type DeviceStateMessage struct {
 	Type      string                  `json:"type"`
 	DeviceID  string                  `json:"device_id"`
@@ -17,13 +18,13 @@ type DeviceStateMessage struct {
 	Data      map[string][]SensorData `json:"data"`
 }
 
-// SensorData represents sensor data in the WebSocket message
+// SensorData represents sensor data in the WebSocket message.
 type SensorData struct {
 	Index uint    `json:"index"`
 	Value float64 `json:"value"`
 }
 
-// WebSocket connection for testing
+// WebSocket connection for testing.
 var wsConn *websocket.Conn
 
 // cachedStateReadWindow bounds how long cached device states are collected
@@ -40,7 +41,7 @@ func (fc *FeatureContext) theDeviceHasCachedSensorData() error {
 func (fc *FeatureContext) iConnectToTheWebSocketEndpoint() error {
 	wsURL := strings.Replace(fc.baseURL, "http://", "ws://", 1)
 	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
-	url := fmt.Sprintf("%s/ws/device-messages", wsURL)
+	url := wsURL + "/ws/device-messages"
 	conn, resp, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		if resp != nil {
@@ -55,7 +56,7 @@ func (fc *FeatureContext) iConnectToTheWebSocketEndpoint() error {
 
 func (fc *FeatureContext) iShouldReceiveCachedDeviceStatesImmediately() error {
 	if wsConn == nil {
-		return fmt.Errorf("websocket connection not established")
+		return errors.New("websocket connection not established")
 	}
 
 	if err := wsConn.SetReadDeadline(time.Now().Add(cachedStateReadWindow)); err != nil {
@@ -84,7 +85,7 @@ func (fc *FeatureContext) iShouldReceiveCachedDeviceStatesImmediately() error {
 
 	// We should have received at least some cached states
 	if len(messages) == 0 {
-		return fmt.Errorf("no cached device states received")
+		return errors.New("no cached device states received")
 	}
 
 	fc.responseData = map[string]any{
@@ -96,12 +97,12 @@ func (fc *FeatureContext) iShouldReceiveCachedDeviceStatesImmediately() error {
 
 func (fc *FeatureContext) theCachedStatesShouldContainTheDeviceData() error {
 	if fc.responseData == nil {
-		return fmt.Errorf("no response data available")
+		return errors.New("no response data available")
 	}
 
 	cachedStates, ok := fc.responseData["cached_states"].([]DeviceStateMessage)
 	if !ok {
-		return fmt.Errorf("cached states not found in response data")
+		return errors.New("cached states not found in response data")
 	}
 
 	// Look for our test device
@@ -111,20 +112,20 @@ func (fc *FeatureContext) theCachedStatesShouldContainTheDeviceData() error {
 			found = true
 			// Verify the state has some data
 			if len(state.Data) == 0 {
-				return fmt.Errorf("device state has no sensor data")
+				return errors.New("device state has no sensor data")
 			}
 			break
 		}
 	}
 
 	if !found {
-		return fmt.Errorf("cached state for cache-test-device not found")
+		return errors.New("cached state for cache-test-device not found")
 	}
 
 	return nil
 }
 
-// Cleanup function to close WebSocket connection
+// Cleanup function to close WebSocket connection.
 func (fc *FeatureContext) cleanupWebSocket() {
 	if wsConn != nil {
 		wsConn.Close()

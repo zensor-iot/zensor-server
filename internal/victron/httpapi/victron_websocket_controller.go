@@ -9,6 +9,7 @@ import (
 
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/httpserver"
+
 	victrondto "zensor-server/internal/victron/dto"
 
 	"github.com/gorilla/websocket"

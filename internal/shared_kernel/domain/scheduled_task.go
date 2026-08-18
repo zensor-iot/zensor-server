@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
 	"zensor-server/internal/infra/utils"
 )
 
@@ -69,7 +70,7 @@ func (st *ScheduledTask) CalculateNextExecution(tenantTimezone string) (time.Tim
 			*st.Scheduling.DayInterval,
 			hour,
 			minute,
-			st.Scheduling.InitialDay.Time.In(location),
+			st.Scheduling.InitialDay.In(location),
 			location,
 			true,
 		), nil
@@ -79,7 +80,7 @@ func (st *ScheduledTask) CalculateNextExecution(tenantTimezone string) (time.Tim
 			*st.Scheduling.DayInterval,
 			hour,
 			minute,
-			st.LastExecutedAt.Time.In(location),
+			st.LastExecutedAt.In(location),
 			location,
 			false,
 		), nil
@@ -253,14 +254,14 @@ func (b *scheduledTaskBuilder) Build() (ScheduledTask, error) {
 		}
 
 		firstExecutionTime := time.Date(
-			result.Scheduling.InitialDay.Time.Year(),
-			result.Scheduling.InitialDay.Time.Month(),
-			result.Scheduling.InitialDay.Time.Day(),
+			result.Scheduling.InitialDay.Year(),
+			result.Scheduling.InitialDay.Month(),
+			result.Scheduling.InitialDay.Day(),
 			hour,
 			minute,
 			0,
 			0,
-			result.Scheduling.InitialDay.Time.Location(),
+			result.Scheduling.InitialDay.Location(),
 		)
 
 		if firstExecutionTime.UTC().Before(time.Now().UTC()) {

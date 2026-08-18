@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-var (
-	errUnknown = errors.New("unknown error")
-)
+var errUnknown = errors.New("unknown error")
 
 func NewDeviceService(
 	repository DeviceRepository,

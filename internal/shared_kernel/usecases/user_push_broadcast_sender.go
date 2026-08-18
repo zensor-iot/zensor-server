@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
 	"zensor-server/internal/infra/notification"
 	"zensor-server/internal/shared_kernel/domain"
 )
@@ -78,7 +79,7 @@ func (s *SimpleUserPushMessageSender) SendBroadcastToUser(ctx context.Context, u
 		if lastSendErr != nil {
 			return fmt.Errorf("all push notification sends failed: %w", lastSendErr)
 		}
-		return fmt.Errorf("all push notification sends failed")
+		return errors.New("all push notification sends failed")
 	}
 
 	return nil

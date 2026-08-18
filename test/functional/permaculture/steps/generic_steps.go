@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Generic step implementations
+// Generic step implementations.
 func (fc *FeatureContext) waitForDuration(duration string) error {
 	// Parse duration string (e.g., "250ms", "1s", "500ms")
 	duration = strings.TrimSpace(duration)

@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
-	"zensor-server/internal/shared_kernel/domain"
+
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 type EvaluationRule struct {

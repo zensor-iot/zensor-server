@@ -95,10 +95,10 @@ func (c *WebPushClient) SendPushNotification(ctx context.Context, request PushNo
 	return nil
 }
 
-// SendEmail is not supported by Web Push
+// SendEmail is not supported by Web Push.
 func (c *WebPushClient) SendEmail(ctx context.Context, request EmailRequest) error {
 	return &NotificationError{
 		Message: "email notifications are not supported by Web Push",
-		Err:     fmt.Errorf("use MailerSend client for email notifications"),
+		Err:     errors.New("use MailerSend client for email notifications"),
 	}
 }

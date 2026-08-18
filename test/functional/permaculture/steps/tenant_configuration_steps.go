@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// TenantConfiguration represents a tenant configuration entity in the response
+// TenantConfiguration represents a tenant configuration entity in the response.
 type TenantConfiguration struct {
 	ID        string `json:"id"`
 	TenantID  string `json:"tenant_id"`
@@ -16,17 +16,17 @@ type TenantConfiguration struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
-// TenantConfigurationCreateRequest represents the request for creating a tenant configuration
+// TenantConfigurationCreateRequest represents the request for creating a tenant configuration.
 type TenantConfigurationCreateRequest struct {
 	Timezone string `json:"timezone"`
 }
 
-// TenantConfigurationUpdateRequest represents the request for updating a tenant configuration
+// TenantConfigurationUpdateRequest represents the request for updating a tenant configuration.
 type TenantConfigurationUpdateRequest struct {
 	Timezone string `json:"timezone"`
 }
 
-// iHaveATenantWithIdForConfiguration is a simplified version for tenant configuration tests
+// iHaveATenantWithIdForConfiguration is a simplified version for tenant configuration tests.
 func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) error {
 	// Create a tenant with the specified ID
 	resp, err := fc.apiDriver.CreateTenant(tenantID, tenantID+"@example.com", "Test tenant for configuration")
@@ -82,7 +82,7 @@ func (fc *FeatureContext) iHaveATenantWithIdForConfiguration(tenantID string) er
 	return nil
 }
 
-// Tenant Configuration step implementations
+// Tenant Configuration step implementations.
 func (fc *FeatureContext) iCreateATenantConfigurationForTenantWithTimezone(tenantName string, timezone string) error {
 	targetTenantID, exists := fc.tenantNameToID[tenantName]
 	if !exists {

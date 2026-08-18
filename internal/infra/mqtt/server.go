@@ -50,7 +50,7 @@ func connect(broker, id string) mqtt.Client {
 	opts.AddBroker(broker)
 	opts.SetClientID(id)
 	opts.SetUsername(username)
-	for try := 0; try < maxRetries; try++ {
+	for range maxRetries {
 		client := mqtt.NewClient(opts)
 		token := client.Connect()
 

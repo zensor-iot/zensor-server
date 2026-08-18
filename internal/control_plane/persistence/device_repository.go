@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/sql"
@@ -29,7 +30,7 @@ type SimpleDeviceRepository struct {
 
 func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain.Device) error {
 	currentDevice, err := s.GetByName(ctx, device.Name)
-	if err != nil && err != usecases.ErrDeviceNotFound {
+	if err != nil && !errors.Is(err, usecases.ErrDeviceNotFound) {
 		return fmt.Errorf("getting device: %w", err)
 	}
 
@@ -48,7 +49,7 @@ func (s *SimpleDeviceRepository) CreateDevice(ctx context.Context, device domain
 
 func (s *SimpleDeviceRepository) UpdateDevice(ctx context.Context, device domain.Device) error {
 	currentDevice, err := s.GetByName(ctx, device.Name)
-	if err != nil && err != usecases.ErrDeviceNotFound {
+	if err != nil && !errors.Is(err, usecases.ErrDeviceNotFound) {
 		return fmt.Errorf("getting device: %w", err)
 	}
 
@@ -128,7 +129,6 @@ func (s *SimpleDeviceRepository) FindAll(ctx context.Context, pagination usecase
 		Offset(pagination.Offset).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
@@ -180,7 +180,6 @@ func (s *SimpleDeviceRepository) FindAllEvaluationRules(ctx context.Context, dev
 		Where("device_id = ?", device.ID).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}

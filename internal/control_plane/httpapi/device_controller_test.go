@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+
 	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
@@ -68,7 +69,7 @@ var _ = Describe("DeviceController", func() {
 					},
 				}
 
-				request = httptest.NewRequest("GET", "/v1/devices", nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/devices", nil)
 			})
 
 			It("should return paginated response with default parameters", func() {
@@ -95,7 +96,7 @@ var _ = Describe("DeviceController", func() {
 
 				deviceData, ok := response.Data.([]any)
 				Expect(ok).To(BeTrue())
-				Expect(len(deviceData)).To(Equal(2))
+				Expect(deviceData).To(HaveLen(2))
 			})
 		})
 
@@ -111,7 +112,7 @@ var _ = Describe("DeviceController", func() {
 					},
 				}
 
-				request = httptest.NewRequest("GET", "/v1/devices?page=2&limit=5", nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/devices?page=2&limit=5", nil)
 			})
 
 			It("should return paginated response with custom parameters", func() {
@@ -138,13 +139,13 @@ var _ = Describe("DeviceController", func() {
 
 				deviceData, ok := response.Data.([]any)
 				Expect(ok).To(BeTrue())
-				Expect(len(deviceData)).To(Equal(1))
+				Expect(deviceData).To(HaveLen(1))
 			})
 		})
 
 		When("service returns error", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/devices", nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/devices", nil)
 			})
 
 			It("should return internal server error", func() {
@@ -175,7 +176,7 @@ var _ = Describe("DeviceController", func() {
 					},
 				}
 
-				request = httptest.NewRequest("GET", "/v1/devices?page=invalid&limit=abc", nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/devices?page=invalid&limit=abc", nil)
 			})
 
 			It("should use default pagination parameters", func() {
@@ -212,7 +213,7 @@ var _ = Describe("DeviceController", func() {
 					},
 				}
 
-				request = httptest.NewRequest("GET", "/v1/devices?limit=200", nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/devices?limit=200", nil)
 			})
 
 			It("should cap limit at maximum value", func() {

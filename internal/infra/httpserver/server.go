@@ -3,9 +3,11 @@ package httpserver
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+
 	"zensor-server/internal/infra/httpserver/web"
 	"zensor-server/internal/infra/node"
 
@@ -33,7 +35,7 @@ type StandardServer struct {
 }
 
 func (s *StandardServer) Run() {
-	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
 	}
 }
@@ -207,7 +209,7 @@ func (w *statusCodeResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error)
 	if hijacker, ok := w.ResponseWriter.(http.Hijacker); ok {
 		return hijacker.Hijack()
 	}
-	return nil, nil, fmt.Errorf("underlying ResponseWriter does not support hijacking")
+	return nil, nil, errors.New("underlying ResponseWriter does not support hijacking")
 }
 
 func getHealthz() http.HandlerFunc {

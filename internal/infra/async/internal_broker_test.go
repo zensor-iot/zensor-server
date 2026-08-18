@@ -163,7 +163,6 @@ var _ = Describe("Local Broker", func() {
 				topic = "b6541d7c-f455-446c-bea0-1e11bf9c76fc"
 				subscription, _ = broker.Subscribe(topic)
 				broker.Unsubscribe(topic, subscription)
-
 			})
 
 			It("should remove subscriptor and don't panic", func() {

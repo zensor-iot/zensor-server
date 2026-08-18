@@ -7,19 +7,19 @@ import (
 	"zensor-server/internal/infra/config"
 )
 
-// MetricWorkerFactory creates metric workers based on configuration
+// MetricWorkerFactory creates metric workers based on configuration.
 type MetricWorkerFactory struct {
 	broker async.InternalBroker
 }
 
-// NewMetricWorkerFactory creates a new factory
+// NewMetricWorkerFactory creates a new factory.
 func NewMetricWorkerFactory(broker async.InternalBroker) *MetricWorkerFactory {
 	return &MetricWorkerFactory{
 		broker: broker,
 	}
 }
 
-// CreateWorkers creates all metric workers based on the configuration
+// CreateWorkers creates all metric workers based on the configuration.
 func (f *MetricWorkerFactory) CreateWorkers(cfg config.MetricsConfig) ([]*MetricWorker, error) {
 	var workers []*MetricWorker
 

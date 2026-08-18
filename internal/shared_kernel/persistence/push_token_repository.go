@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/shared_kernel/persistence/internal"
@@ -122,7 +123,6 @@ func (r *SimplePushTokenRepository) DeleteByToken(ctx context.Context, token str
 	err = r.orm.WithContext(ctx).
 		Delete(&existing).
 		Error()
-
 	if err != nil {
 		return fmt.Errorf("deleting push token: %w", err)
 	}

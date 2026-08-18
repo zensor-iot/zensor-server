@@ -4,11 +4,12 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
-	"zensor-server/internal/shared_kernel/httpapi/internal"
-	"zensor-server/internal/shared_kernel/usecases"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/shared_kernel/domain"
+	"zensor-server/internal/shared_kernel/httpapi/internal"
+	"zensor-server/internal/shared_kernel/usecases"
 )
 
 const (
@@ -49,10 +50,7 @@ func (c *TenantController) AddRoutes(router *http.ServeMux) {
 
 func (c *TenantController) listTenants() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		includeDeleted := false
-		if r.URL.Query().Get("include_deleted") == "true" {
-			includeDeleted = true
-		}
+		includeDeleted := r.URL.Query().Get("include_deleted") == "true"
 
 		params := httpserver.ExtractPaginationParams(r)
 		pagination := usecases.Pagination{Limit: params.Limit, Offset: (params.Page - 1) * params.Limit}

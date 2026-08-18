@@ -3,11 +3,12 @@ package httpapi
 import (
 	"log/slog"
 	"net/http"
-	"zensor-server/internal/shared_kernel/domain"
+
 	"zensor-server/internal/control_plane/httpapi/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 const (
@@ -96,7 +97,6 @@ func (c *EvaluationRuleController) craeteEvaluationRule() http.HandlerFunc {
 			WithKind(body.Kind).
 			WithParameters(params...).
 			Build()
-
 		if err != nil {
 			slog.Warn(createEvaluationRuleErrMessage, slog.String("error", err.Error()))
 			http.Error(w, createEvaluationRuleErrMessage, http.StatusBadRequest)

@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-var loadConfigOnce sync.Once
-var configInstance AppConfig
+var (
+	loadConfigOnce sync.Once
+	configInstance AppConfig
+)
 
 func LoadConfig() AppConfig {
 	loadConfigOnce.Do(func() {

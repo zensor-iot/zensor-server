@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Node represents the current application node with its metadata
+// Node represents the current application node with its metadata.
 type Node struct {
 	ID         string
 	IPAddress  string
@@ -15,8 +15,10 @@ type Node struct {
 	CommitHash string
 }
 
-var Version = "development"
-var CommitHash = "unknown"
+var (
+	Version    = "development"
+	CommitHash = "unknown"
+)
 
 var (
 	nodeID     string
@@ -25,7 +27,7 @@ var (
 	nodeIPOnce sync.Once
 )
 
-// GetNodeInfo returns the current node information
+// GetNodeInfo returns the current node information.
 func GetNodeInfo() *Node {
 	return &Node{
 		ID:         getNodeID(),
@@ -35,7 +37,7 @@ func GetNodeInfo() *Node {
 	}
 }
 
-// getNodeID returns the current node ID
+// getNodeID returns the current node ID.
 func getNodeID() string {
 	nodeIDOnce.Do(func() {
 		nodeID = generateNodeID()
@@ -43,7 +45,7 @@ func getNodeID() string {
 	return nodeID
 }
 
-// getNodeIPAddress returns the current node IP address
+// getNodeIPAddress returns the current node IP address.
 func getNodeIPAddress() string {
 	nodeIPOnce.Do(func() {
 		nodeIP = getNodeIPAddressInternal()

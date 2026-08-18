@@ -2,16 +2,17 @@ package internal
 
 import (
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-// APIKeyCreateRequest represents the request for creating an API key
+// APIKeyCreateRequest represents the request for creating an API key.
 type APIKeyCreateRequest struct {
 	Name string `json:"name" validate:"required"`
 }
 
 // APIKeyCreatedResponse is the create response carrying the plaintext key,
-// which is exposed exactly once at creation time
+// which is exposed exactly once at creation time.
 type APIKeyCreatedResponse struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -20,7 +21,7 @@ type APIKeyCreatedResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// APIKeyResponse represents an API key in listings, never exposing key material
+// APIKeyResponse represents an API key in listings, never exposing key material.
 type APIKeyResponse struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -28,7 +29,7 @@ type APIKeyResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// ToAPIKeyCreatedResponse converts a freshly created key and its plaintext to the create response
+// ToAPIKeyCreatedResponse converts a freshly created key and its plaintext to the create response.
 func ToAPIKeyCreatedResponse(key domain.APIKey, plaintext string) APIKeyCreatedResponse {
 	return APIKeyCreatedResponse{
 		ID:        key.ID.String(),
@@ -39,7 +40,7 @@ func ToAPIKeyCreatedResponse(key domain.APIKey, plaintext string) APIKeyCreatedR
 	}
 }
 
-// ToAPIKeyResponse converts a domain.APIKey to APIKeyResponse
+// ToAPIKeyResponse converts a domain.APIKey to APIKeyResponse.
 func ToAPIKeyResponse(key domain.APIKey) APIKeyResponse {
 	return APIKeyResponse{
 		ID:        key.ID.String(),

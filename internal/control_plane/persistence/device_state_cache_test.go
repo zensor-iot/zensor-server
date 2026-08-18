@@ -3,6 +3,7 @@ package persistence_test
 import (
 	"context"
 	"fmt"
+
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
@@ -155,7 +156,7 @@ var _ = ginkgo.Describe("SimpleDeviceStateCacheService", func() {
 			ginkgo.It("should handle concurrent updates safely", func() {
 				// Test concurrent updates
 				done := make(chan bool, 10)
-				for i := 0; i < 10; i++ {
+				for i := range 10 {
 					go func(id int) {
 						deviceID := fmt.Sprintf("device-%d", id)
 						sensorData := map[string][]dto.SensorData{
@@ -167,7 +168,7 @@ var _ = ginkgo.Describe("SimpleDeviceStateCacheService", func() {
 				}
 
 				// Wait for all goroutines to complete
-				for i := 0; i < 10; i++ {
+				for range 10 {
 					<-done
 				}
 

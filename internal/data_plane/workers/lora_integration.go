@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
@@ -336,7 +337,7 @@ func (w *LoraIntegrationWorker) dispatchCommand(ctx context.Context, cmd domain.
 				FPort:          command.Port,
 				Priority:       command.Priority,
 				FrmPayload:     rawPayload,
-				CorrelationIDs: []string{fmt.Sprintf("zensor:%s", command.ID)},
+				CorrelationIDs: []string{"zensor:" + command.ID},
 			},
 		},
 	}
@@ -491,7 +492,7 @@ func (w *LoraIntegrationWorker) handleSensorData(ctx context.Context, envelope d
 				Index:      sensorData.Index,
 			}
 
-			eventName := fmt.Sprintf("%s_data_received", utils.ToSnakeCase(sensorType))
+			eventName := utils.ToSnakeCase(sensorType) + "_data_received"
 			brokerMsg := async.BrokerMessage{
 				Event: eventName,
 				Value: sensorDataReceived,

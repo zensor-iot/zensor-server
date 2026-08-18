@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+
 	"zensor-server/internal/shared_kernel/domain"
 	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 )
@@ -40,34 +41,40 @@ type ScheduledTaskService interface {
 	Delete(context.Context, domain.ID) error
 }
 
-// Type aliases for types moved to shared_kernel/usecases
-type UserService = sharedUsecases.UserService
-type TenantService = sharedUsecases.TenantService
-type TenantConfigurationService = sharedUsecases.TenantConfigurationService
-type PushTokenService = sharedUsecases.PushTokenService
-type UserRepository = sharedUsecases.UserRepository
-type TenantRepository = sharedUsecases.TenantRepository
-type TenantConfigurationRepository = sharedUsecases.TenantConfigurationRepository
-type PushTokenRepository = sharedUsecases.PushTokenRepository
-type SimpleUserService = sharedUsecases.SimpleUserService
-type SimpleTenantService = sharedUsecases.SimpleTenantService
-type SimpleTenantConfigurationService = sharedUsecases.SimpleTenantConfigurationService
-type SimplePushTokenService = sharedUsecases.SimplePushTokenService
+// Type aliases for types moved to shared_kernel/usecases.
+type (
+	UserService                      = sharedUsecases.UserService
+	TenantService                    = sharedUsecases.TenantService
+	TenantConfigurationService       = sharedUsecases.TenantConfigurationService
+	PushTokenService                 = sharedUsecases.PushTokenService
+	UserRepository                   = sharedUsecases.UserRepository
+	TenantRepository                 = sharedUsecases.TenantRepository
+	TenantConfigurationRepository    = sharedUsecases.TenantConfigurationRepository
+	PushTokenRepository              = sharedUsecases.PushTokenRepository
+	SimpleUserService                = sharedUsecases.SimpleUserService
+	SimpleTenantService              = sharedUsecases.SimpleTenantService
+	SimpleTenantConfigurationService = sharedUsecases.SimpleTenantConfigurationService
+	SimplePushTokenService           = sharedUsecases.SimplePushTokenService
+)
 
-// Constructor aliases
-var NewUserService = sharedUsecases.NewUserService
-var NewTenantService = sharedUsecases.NewTenantService
-var NewTenantConfigurationService = sharedUsecases.NewTenantConfigurationService
-var NewPushTokenService = sharedUsecases.NewPushTokenService
+// Constructor aliases.
+var (
+	NewUserService                = sharedUsecases.NewUserService
+	NewTenantService              = sharedUsecases.NewTenantService
+	NewTenantConfigurationService = sharedUsecases.NewTenantConfigurationService
+	NewPushTokenService           = sharedUsecases.NewPushTokenService
+)
 
-// Error aliases
-var ErrTenantConfigurationNotFound = sharedUsecases.ErrTenantConfigurationNotFound
-var ErrUserNotFound = sharedUsecases.ErrUserNotFound
-var ErrPushTokenNotFound = sharedUsecases.ErrPushTokenNotFound
-var ErrTenantNotFound = sharedUsecases.ErrTenantNotFound
-var ErrTenantDuplicated = sharedUsecases.ErrTenantDuplicated
-var ErrTenantSoftDeleted = sharedUsecases.ErrTenantSoftDeleted
-var ErrTenantVersionConflict = sharedUsecases.ErrTenantVersionConflict
-var ErrMixedTenantValidation = sharedUsecases.ErrMixedTenantValidation
-var ErrInvalidTimezone = sharedUsecases.ErrInvalidTimezone
-var ErrForbiddenTenantConfigurationAccess = sharedUsecases.ErrForbiddenTenantConfigurationAccess
+// Error aliases.
+var (
+	ErrTenantConfigurationNotFound        = sharedUsecases.ErrTenantConfigurationNotFound
+	ErrUserNotFound                       = sharedUsecases.ErrUserNotFound
+	ErrPushTokenNotFound                  = sharedUsecases.ErrPushTokenNotFound
+	ErrTenantNotFound                     = sharedUsecases.ErrTenantNotFound
+	ErrTenantDuplicated                   = sharedUsecases.ErrTenantDuplicated
+	ErrTenantSoftDeleted                  = sharedUsecases.ErrTenantSoftDeleted
+	ErrTenantVersionConflict              = sharedUsecases.ErrTenantVersionConflict
+	ErrMixedTenantValidation              = sharedUsecases.ErrMixedTenantValidation
+	ErrInvalidTimezone                    = sharedUsecases.ErrInvalidTimezone
+	ErrForbiddenTenantConfigurationAccess = sharedUsecases.ErrForbiddenTenantConfigurationAccess
+)

@@ -2,21 +2,24 @@ package domain
 
 import (
 	"time"
+
 	"zensor-server/internal/infra/utils"
 )
 
 const (
 	_defaultPort Port = 15
 	// _overlapBufferTime defines the time window to consider commands as potentially overlapping
-	// This accounts for execution time, network delays, and safety margin
+	// This accounts for execution time, network delays, and safety margin.
 	_overlapBufferTime = 30 * time.Second
 )
 
-type Port uint8
-type CommandPriority string
-type CommandValue uint8
+type (
+	Port            uint8
+	CommandPriority string
+	CommandValue    uint8
+)
 
-// CommandStatus represents the different states of a command during its lifecycle
+// CommandStatus represents the different states of a command during its lifecycle.
 type CommandStatus string
 
 const (
@@ -53,22 +56,22 @@ type Command struct {
 	FailedAt     *utils.Time   `json:"failed_at,omitempty"`     // When command failed
 }
 
-// IsCompleted returns true if the command has reached a final state (ack or failed)
+// IsCompleted returns true if the command has reached a final state (ack or failed).
 func (c Command) IsCompleted() bool {
 	return c.Status == CommandStatusAck || c.Status == CommandStatusFailed
 }
 
-// IsFailed returns true if the command has failed
+// IsFailed returns true if the command has failed.
 func (c Command) IsFailed() bool {
 	return c.Status == CommandStatusFailed
 }
 
-// IsSuccessful returns true if the command was acknowledged
+// IsSuccessful returns true if the command was acknowledged.
 func (c Command) IsSuccessful() bool {
 	return c.Status == CommandStatusAck
 }
 
-// UpdateStatus updates the command status and sets appropriate timestamp
+// UpdateStatus updates the command status and sets appropriate timestamp.
 func (c *Command) UpdateStatus(status CommandStatus, errorMessage *string) {
 	c.Status = status
 	now := utils.Time{Time: time.Now()}
@@ -180,7 +183,7 @@ func (b *commandBuilder) Build() (Command, error) {
 	return result, nil
 }
 
-// CommandStatusUpdate represents a command status change event
+// CommandStatusUpdate represents a command status change event.
 type CommandStatusUpdate struct {
 	CommandID    string
 	DeviceName   string

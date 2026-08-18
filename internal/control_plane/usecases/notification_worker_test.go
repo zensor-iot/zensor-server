@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"time"
+
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/notification"
@@ -161,7 +162,7 @@ var _ = Describe("NotificationWorker", func() {
 					Value: scheduledTask,
 				}
 				err := realBroker.Publish(ctx, async.BrokerTopicName("scheduled_tasks"), brokerMessage)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				time.Sleep(200 * time.Millisecond)
 
@@ -217,7 +218,7 @@ var _ = Describe("NotificationWorker", func() {
 					Value: scheduledTask,
 				}
 				err := realBroker.Publish(ctx, async.BrokerTopicName("scheduled_tasks"), brokerMessage)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				time.Sleep(200 * time.Millisecond)
 				cancel()
@@ -271,7 +272,7 @@ var _ = Describe("NotificationWorker", func() {
 					Value: scheduledTask,
 				}
 				err := realBroker.Publish(ctx, async.BrokerTopicName("scheduled_tasks"), brokerMessage)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				time.Sleep(200 * time.Millisecond)
 				cancel()
@@ -303,7 +304,7 @@ var _ = Describe("NotificationWorker", func() {
 					Value: scheduledTask,
 				}
 				err := realBroker.Publish(ctx, async.BrokerTopicName("scheduled_tasks"), brokerMessage)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				time.Sleep(200 * time.Millisecond)
 				cancel()
@@ -340,7 +341,7 @@ var _ = Describe("NotificationWorker", func() {
 					Value: scheduledTask,
 				}
 				err := realBroker.Publish(ctx, async.BrokerTopicName("scheduled_tasks"), brokerMessage)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				time.Sleep(200 * time.Millisecond)
 				cancel()
@@ -387,7 +388,7 @@ var _ = Describe("NotificationWorker", func() {
 					Value: scheduledTask,
 				}
 				err := realBroker.Publish(ctx, async.BrokerTopicName("scheduled_tasks"), brokerMessage)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				time.Sleep(200 * time.Millisecond)
 				cancel()

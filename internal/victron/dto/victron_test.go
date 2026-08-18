@@ -8,7 +8,6 @@ import (
 )
 
 var _ = Describe("Victron DTO", func() {
-
 	Describe("ParseVictronTopic", func() {
 		When("topic is a valid battery voltage path", func() {
 			It("should parse service type, instance, and path", func() {

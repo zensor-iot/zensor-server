@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"time"
+
 	"zensor-server/internal/shared_kernel/domain"
 
 	"github.com/onsi/ginkgo/v2"
@@ -29,7 +30,7 @@ var _ = ginkgo.Describe("Command", func() {
 				// Verify that CreatedAt is within the last second
 				now := time.Now()
 				gomega.Expect(cmd.CreatedAt.Time.After(now)).To(gomega.BeFalse())
-				gomega.Expect(now.Sub(cmd.CreatedAt.Time) <= time.Second).To(gomega.BeTrue())
+				gomega.Expect(now.Sub(cmd.CreatedAt.Time)).To(gomega.BeNumerically("<=", time.Second))
 
 				// Verify other fields are set correctly
 				gomega.Expect(cmd.ID).NotTo(gomega.BeEmpty())
@@ -68,10 +69,10 @@ var _ = ginkgo.Describe("Command", func() {
 				// Verify that QueuedAt is recent
 				now := time.Now()
 				gomega.Expect(cmd.QueuedAt.Time.After(now)).To(gomega.BeFalse())
-				gomega.Expect(now.Sub(cmd.QueuedAt.Time) <= time.Second).To(gomega.BeTrue())
+				gomega.Expect(now.Sub(cmd.QueuedAt.Time)).To(gomega.BeNumerically("<=", time.Second))
 
-			// Verify that status is updated
-			gomega.Expect(cmd.Status).To(gomega.Equal(domain.CommandStatusQueued))
+				// Verify that status is updated
+				gomega.Expect(cmd.Status).To(gomega.Equal(domain.CommandStatusQueued))
 			})
 		})
 	})

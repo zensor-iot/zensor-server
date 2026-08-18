@@ -13,7 +13,7 @@ func SomeHasFieldWithValue[T any, K any](items []T, fieldName string, expected K
 
 func HasFieldWithValue[T any, K any](obj T, fieldName string, expected K) bool {
 	v := reflect.ValueOf(obj)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {

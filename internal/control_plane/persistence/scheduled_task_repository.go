@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/sql"
@@ -47,7 +48,6 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenant(ctx context.Context, ten
 		Where("tenant_id = ? AND deleted_at IS NULL", tenantID.String()).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
@@ -71,7 +71,6 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Con
 		Where("tenant_id = ? AND device_id = ? AND deleted_at IS NULL", tenantID.String(), deviceID.String()).
 		Count(&total).
 		Error()
-
 	if err != nil {
 		return nil, 0, fmt.Errorf("counting scheduled tasks: %w", err)
 	}
@@ -84,7 +83,6 @@ func (r *SimpleScheduledTaskRepository) FindAllByTenantAndDevice(ctx context.Con
 		Offset(pagination.Offset).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
@@ -104,7 +102,6 @@ func (r *SimpleScheduledTaskRepository) FindAllActive(ctx context.Context) ([]do
 		Where("is_active = ? AND deleted_at IS NULL", true).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}

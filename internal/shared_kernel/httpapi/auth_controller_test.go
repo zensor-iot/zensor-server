@@ -12,6 +12,7 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/shared_kernel/httpapi"
 	"zensor-server/internal/shared_kernel/usecases"
+
 	mockusecases "zensor-server/test/unit/doubles/shared_kernel/usecases"
 
 	"github.com/onsi/ginkgo/v2"
@@ -55,7 +56,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 					return "https://accounts.google.com/auth?state=" + state
 				})
 
-				req := httptest.NewRequest("GET", "/auth/login", nil)
+				req := httptest.NewRequest(http.MethodGet, "/auth/login", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
@@ -87,7 +88,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 
 		callbackRequest := func(queryState, cookieState, code string) *httptest.ResponseRecorder {
 			target := "/auth/callback?" + url.Values{"state": {queryState}, "code": {code}}.Encode()
-			req := httptest.NewRequest("GET", target, nil)
+			req := httptest.NewRequest(http.MethodGet, target, nil)
 			if cookieState != "" {
 				req.AddCookie(&http.Cookie{Name: httpapi.StateCookieName, Value: cookieState})
 			}
@@ -160,7 +161,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 			ginkgo.It("should delete the session and expire the cookie", func() {
 				service.EXPECT().Logout(gomock.Any(), "session-id").Return(nil)
 
-				req := httptest.NewRequest("POST", "/auth/logout", nil)
+				req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 				req.AddCookie(&http.Cookie{Name: httpserver.SessionCookieName, Value: "session-id"})
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
@@ -175,7 +176,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 
 		ginkgo.When("logging out without a session cookie", func() {
 			ginkgo.It("should still succeed", func() {
-				req := httptest.NewRequest("POST", "/auth/logout", nil)
+				req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
@@ -190,7 +191,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 				session := domain.Session{ID: "session-id", UserID: "user-1", Email: "user@example.com", Name: "User", IsAdmin: true}
 				service.EXPECT().GetSession(gomock.Any(), "session-id").Return(session, nil)
 
-				req := httptest.NewRequest("GET", "/v1/me", nil)
+				req := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
 				req.AddCookie(&http.Cookie{Name: httpserver.SessionCookieName, Value: "session-id"})
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
@@ -208,7 +209,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 
 		ginkgo.When("there is no session cookie", func() {
 			ginkgo.It("should return 401", func() {
-				req := httptest.NewRequest("GET", "/v1/me", nil)
+				req := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
@@ -220,7 +221,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 			ginkgo.It("should return 401", func() {
 				service.EXPECT().GetSession(gomock.Any(), "stale").Return(domain.Session{}, usecases.ErrSessionNotFound)
 
-				req := httptest.NewRequest("GET", "/v1/me", nil)
+				req := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
 				req.AddCookie(&http.Cookie{Name: httpserver.SessionCookieName, Value: "stale"})
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
@@ -239,7 +240,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 				}
 				service.EXPECT().ListAllowedUsers(gomock.Any()).Return(users, nil)
 
-				req := httptest.NewRequest("GET", "/v1/admin/allowed-users", nil)
+				req := httptest.NewRequest(http.MethodGet, "/v1/admin/allowed-users", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
@@ -257,7 +258,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 				created := domain.AllowedUser{ID: "u1", Email: "new@example.com", IsAdmin: true}
 				service.EXPECT().AddAllowedUser(gomock.Any(), "new@example.com", true).Return(created, nil)
 
-				req := httptest.NewRequest("POST", "/v1/admin/allowed-users",
+				req := httptest.NewRequest(http.MethodPost, "/v1/admin/allowed-users",
 					strings.NewReader(`{"email":"new@example.com","is_admin":true}`))
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
@@ -275,7 +276,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 				service.EXPECT().AddAllowedUser(gomock.Any(), "dup@example.com", false).
 					Return(domain.AllowedUser{}, usecases.ErrAllowedUserDuplicated)
 
-				req := httptest.NewRequest("POST", "/v1/admin/allowed-users",
+				req := httptest.NewRequest(http.MethodPost, "/v1/admin/allowed-users",
 					strings.NewReader(`{"email":"dup@example.com"}`))
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
@@ -289,7 +290,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 				updated := domain.AllowedUser{ID: "u1", Email: "a@example.com", IsAdmin: true}
 				service.EXPECT().UpdateAllowedUser(gomock.Any(), domain.ID("u1"), true).Return(updated, nil)
 
-				req := httptest.NewRequest("PUT", "/v1/admin/allowed-users/u1",
+				req := httptest.NewRequest(http.MethodPut, "/v1/admin/allowed-users/u1",
 					strings.NewReader(`{"is_admin":true}`))
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
@@ -307,7 +308,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 				service.EXPECT().UpdateAllowedUser(gomock.Any(), domain.ID("missing"), false).
 					Return(domain.AllowedUser{}, usecases.ErrAllowedUserNotFound)
 
-				req := httptest.NewRequest("PUT", "/v1/admin/allowed-users/missing",
+				req := httptest.NewRequest(http.MethodPut, "/v1/admin/allowed-users/missing",
 					strings.NewReader(`{"is_admin":false}`))
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
@@ -320,7 +321,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 			ginkgo.It("should return 204", func() {
 				service.EXPECT().RemoveAllowedUser(gomock.Any(), domain.ID("u1")).Return(nil)
 
-				req := httptest.NewRequest("DELETE", "/v1/admin/allowed-users/u1", nil)
+				req := httptest.NewRequest(http.MethodDelete, "/v1/admin/allowed-users/u1", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 

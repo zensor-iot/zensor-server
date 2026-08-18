@@ -23,4 +23,3 @@ func (c *CompositeNotificationClient) SendEmail(ctx context.Context, request Ema
 func (c *CompositeNotificationClient) SendPushNotification(ctx context.Context, request PushNotificationRequest) error {
 	return c.pushClient.SendPushNotification(ctx, request)
 }
-

@@ -45,9 +45,7 @@ type DB struct {
 	timeout              time.Duration
 }
 
-var (
-	ErrRecordNotFound = errors.New("record not found")
-)
+var ErrRecordNotFound = errors.New("record not found")
 
 func (d DB) Error() error {
 	switch {
@@ -204,7 +202,7 @@ func (d DB) InnerJoins(value string, conds ...any) ORM {
 }
 
 func (d DB) createSpan(operation string) (context.Context, trace.Span) {
-	if ctx := d.DB.Statement.Context; ctx != nil {
+	if ctx := d.Statement.Context; ctx != nil {
 		tracer := otel.Tracer("zensor-server")
 		return tracer.Start(ctx, "db."+operation,
 			trace.WithAttributes(
@@ -215,5 +213,5 @@ func (d DB) createSpan(operation string) (context.Context, trace.Span) {
 			),
 		)
 	}
-	return d.DB.Statement.Context, trace.SpanFromContext(d.DB.Statement.Context)
+	return d.Statement.Context, trace.SpanFromContext(d.Statement.Context)
 }

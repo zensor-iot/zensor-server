@@ -42,14 +42,12 @@ type SensorData struct {
 	Value float64
 }
 
-var (
-	codeToNameMapping = map[string]string{
-		"t": "temperature",
-		"h": "humidity",
-		"w": "waterFlow",
-		"r": "relay",
-	}
-)
+var codeToNameMapping = map[string]string{
+	"t": "temperature",
+	"h": "humidity",
+	"w": "waterFlow",
+	"r": "relay",
+}
 
 func (m *UplinkMessage) FromMessagePack() any {
 	temp := make(map[string][]byte)

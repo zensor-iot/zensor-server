@@ -1,0 +1,143 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - dupl
+    - durationcheck
+    - err113
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - fatcontext
+    - forbidigo
+    - forcetypeassert
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - gocritic
+    - godot
+    - gomoddirectives
+    - gosec
+    - govet
+    - importas
+    - intrange
+    - loggercheck
+    - mirror
+    - misspell
+    - musttag
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - revive
+    - rowserrcheck
+    - sloglint
+    - sqlclosecheck
+    - staticcheck
+    - testableexamples
+    - testifylint
+    - tparallel
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+  settings:
+    err113:
+      ignore:
+        - zensor-server/internal/maintenance/domain.Err.*
+        - zensor-server/internal/control_plane/domain.Err.*
+    errorlint:
+      errorf: true
+      assertion: true
+      comparison: true
+    godot:
+      scope: declarations
+      exclude:
+        - "^//go:"
+    revive:
+      rules:
+        - name: exported
+        - name: error-strings
+        - name: var-naming
+        - name: comment-spacings
+        - name: if-return
+        - name: range-val-in-closure
+        - name: redundant-import-alias
+        - name: import-shadowing
+        - name: unreachable-code
+        - name: constant-logical-expr
+        - name: confusing-naming
+        - name: get-return
+        - name: confusing-results
+        - name: identical-branches
+        - name: string-format
+        - name: time-naming
+        - name: context-as-argument
+        - name: error-return
+        - name: error-naming
+        - name: package-comments
+        - name: empty-lines
+        - name: early-return
+        - name: increment-decrement
+        - name: receiver-naming
+        - name: blank-imports
+        - name: dot-imports
+    sloglint:
+      no-global: "all"
+    gocritic:
+      enabled-checks:
+        - appendAssign
+        - badCall
+        - dupArg
+        - dupBranchBody
+        - dupCase
+        - dupSubExpr
+        - ifElseChain
+        - nilValReturn
+        - octalLiteral
+        - offBy1
+        - regexpMust
+        - sloppyReassign
+        - truncateCmp
+        - typeAssertChain
+        - underef
+        - unlabelStmt
+        - unlambda
+        - unnamedResult
+        - unnecessaryBlock
+        - weakCond
+  exclusions:
+    rules:
+      - path: (_test\.go|test/functional)
+        linters:
+          - err113
+          - gochecknoglobals
+          - sloglint
+      - path: test/functional
+        linters:
+          - dupl
+      - path: internal/maintenance/domain
+        linters:
+          - gochecknoglobals
+
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - zensor-server
+  exclusions:
+    paths:
+      - internal/infra/httpserver/web/dist

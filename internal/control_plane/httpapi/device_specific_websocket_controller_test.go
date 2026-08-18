@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"time"
+
 	"zensor-server/internal/control_plane/httpapi"
 	"zensor-server/internal/control_plane/persistence"
 	"zensor-server/internal/control_plane/usecases"
@@ -55,7 +56,7 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 			ginkgo.It("should accept valid device ID", func() {
 				// Create request
 				url := server.URL + "/ws/devices/test-device-123/messages"
-				req, err := http.NewRequest("GET", url, nil)
+				req, err := http.NewRequest(http.MethodGet, url, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 				// Add WebSocket headers
@@ -76,7 +77,7 @@ var _ = ginkgo.Describe("DeviceSpecificWebSocketController", func() {
 			ginkgo.It("should reject empty device ID", func() {
 				// Create request with whitespace device ID
 				url := server.URL + "/ws/devices/   /messages"
-				req, err := http.NewRequest("GET", url, nil)
+				req, err := http.NewRequest(http.MethodGet, url, nil)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 				// Add WebSocket headers

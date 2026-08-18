@@ -3,10 +3,11 @@ package persistence
 import (
 	"context"
 	"fmt"
-	"zensor-server/internal/shared_kernel/domain"
+
 	"zensor-server/internal/control_plane/persistence/internal"
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/sql"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 var _ usecases.EvaluationRuleRepository = (*EvaluationRuleRepository)(nil)

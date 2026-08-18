@@ -39,7 +39,7 @@ type SimpleClientOpts struct {
 	Password string
 }
 
-// Subscription tracks a topic subscription for reconnection recovery
+// Subscription tracks a topic subscription for reconnection recovery.
 type subscription struct {
 	topic    string
 	qos      byte
@@ -110,7 +110,7 @@ type SimpleClient struct {
 	processedMsgs sync.Map // Track processed message IDs to prevent duplicates
 }
 
-// resubscribeAll re-establishes all subscriptions after reconnection
+// resubscribeAll re-establishes all subscriptions after reconnection.
 func (c *SimpleClient) resubscribeAll(client paho.Client) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

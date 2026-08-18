@@ -17,6 +17,7 @@ import (
 	"zensor-server/internal/infra/mqtt"
 	"zensor-server/internal/infra/node"
 	"zensor-server/internal/infra/o11y"
+
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	victronHTTPAPI "zensor-server/internal/victron/httpapi"
 	victronUsecases "zensor-server/internal/victron/usecases"
@@ -35,14 +36,12 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
-var (
-	logLevelMapping = map[string]slog.Level{
-		"debug": slog.LevelDebug,
-		"info":  slog.LevelInfo,
-		"warn":  slog.LevelWarn,
-		"error": slog.LevelError,
-	}
-)
+var logLevelMapping = map[string]slog.Level{
+	"debug": slog.LevelDebug,
+	"info":  slog.LevelInfo,
+	"warn":  slog.LevelWarn,
+	"error": slog.LevelError,
+}
 
 func main() {
 	appConfig := config.LoadConfig()
@@ -133,7 +132,7 @@ func main() {
 			Broker:   appConfig.MQTTClient.Broker,
 			ClientID: appConfig.MQTTClient.ClientID,
 			Username: appConfig.MQTTClient.Username,
-			Password: appConfig.MQTTClient.Password, //pragma: allowlist secret
+			Password: appConfig.MQTTClient.Password, // pragma: allowlist secret
 		}
 		mqttClient = mqtt.NewSimpleClient(simpleClientOpts)
 	}
@@ -239,9 +238,7 @@ const (
 	_minimumInterval = time.Minute
 )
 
-var (
-	_histogramBuckets = []float64{5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000, 25000, 50000, 100000}
-)
+var _histogramBuckets = []float64{5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000, 25000, 50000, 100000}
 
 func startOTel() ShutdownFunc {
 	slog.Info("starting OTel providers")

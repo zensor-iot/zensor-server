@@ -2,7 +2,7 @@ package notification
 
 import (
 	"context"
-	"fmt"
+	"errors"
 )
 
 const _platformWeb = "web"
@@ -31,10 +31,10 @@ func (c *PlatformRoutingPushClient) SendPushNotification(ctx context.Context, re
 	return c.fcm.SendPushNotification(ctx, request)
 }
 
-// SendEmail is not supported by the push routing client
+// SendEmail is not supported by the push routing client.
 func (c *PlatformRoutingPushClient) SendEmail(ctx context.Context, request EmailRequest) error {
 	return &NotificationError{
 		Message: "email notifications are not supported by the platform routing push client",
-		Err:     fmt.Errorf("use MailerSend client for email notifications"),
+		Err:     errors.New("use MailerSend client for email notifications"),
 	}
 }

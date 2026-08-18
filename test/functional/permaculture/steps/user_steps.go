@@ -2,6 +2,7 @@ package steps
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -167,7 +168,7 @@ func (fc *FeatureContext) iHaveAUserAssociatedWithTenant(userID, tenantID string
 	}
 
 	if targetTenantID == "" {
-		return fmt.Errorf("no tenant ID available in context")
+		return errors.New("no tenant ID available in context")
 	}
 
 	resp, err := fc.apiDriver.AssociateUserWithTenants(userID, []string{targetTenantID})

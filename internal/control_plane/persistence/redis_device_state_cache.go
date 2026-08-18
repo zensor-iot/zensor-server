@@ -3,23 +3,25 @@ package persistence
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
+
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/cache"
 )
 
-// RedisDeviceStateCacheService implements usecases.DeviceStateCacheService using Redis
+// RedisDeviceStateCacheService implements usecases.DeviceStateCacheService using Redis.
 type RedisDeviceStateCacheService struct {
 	cache      cache.Cache
 	keyPrefix  string
 	defaultTTL time.Duration
 }
 
-// RedisDeviceStateCacheConfig holds configuration for the Redis device state cache
+// RedisDeviceStateCacheConfig holds configuration for the Redis device state cache.
 type RedisDeviceStateCacheConfig struct {
 	Cache      cache.Cache
 	KeyPrefix  string
@@ -38,7 +40,7 @@ func NewRedisDeviceStateCacheService(config *RedisDeviceStateCacheConfig) (useca
 		config = DefaultRedisDeviceStateCacheConfig()
 	}
 	if config.Cache == nil {
-		return nil, fmt.Errorf("cache instance is required")
+		return nil, errors.New("cache instance is required")
 	}
 	service := &RedisDeviceStateCacheService{
 		cache:      config.Cache,

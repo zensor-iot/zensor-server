@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-// EvaluationRule represents an evaluation rule entity in the response
+// EvaluationRule represents an evaluation rule entity in the response.
 type EvaluationRule struct {
 	ID          string `json:"id"`
 	DeviceID    string `json:"device_id"`
@@ -20,7 +20,7 @@ type EvaluationRule struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
-// Evaluation Rule step implementations
+// Evaluation Rule step implementations.
 func (fc *FeatureContext) anEvaluationRuleExistsForTheDevice() error {
 	err := fc.aTenantExistsWithNameAndEmail("er-tenant", "er-tenant@example.com")
 	fc.require.NoError(err)

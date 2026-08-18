@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 	"zensor-server/internal/infra/async"
@@ -16,7 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// DeviceSpecificMessage represents a message sent to a device-specific WebSocket client
+// DeviceSpecificMessage represents a message sent to a device-specific WebSocket client.
 type DeviceSpecificMessage struct {
 	Type      string    `json:"type"`
 	DeviceID  string    `json:"device_id"`
@@ -24,7 +25,7 @@ type DeviceSpecificMessage struct {
 	Data      any       `json:"data"`
 }
 
-// DeviceSpecificStateMessage represents a device state message for device-specific WebSocket
+// DeviceSpecificStateMessage represents a device state message for device-specific WebSocket.
 type DeviceSpecificStateMessage struct {
 	Type      string                           `json:"type"`
 	DeviceID  string                           `json:"device_id"`
@@ -32,13 +33,13 @@ type DeviceSpecificStateMessage struct {
 	Data      map[string][]usecases.SensorData `json:"data"`
 }
 
-// ClientSubscription represents a WebSocket client subscription to a specific device
+// ClientSubscription represents a WebSocket client subscription to a specific device.
 type ClientSubscription struct {
 	conn     *websocket.Conn
 	deviceID string
 }
 
-// DeviceSpecificWebSocketController handles WebSocket connections for device-specific notifications
+// DeviceSpecificWebSocketController handles WebSocket connections for device-specific notifications.
 type DeviceSpecificWebSocketController struct {
 	broker     async.InternalBroker
 	stateCache usecases.DeviceStateCacheService
@@ -51,7 +52,7 @@ type DeviceSpecificWebSocketController struct {
 	wg         sync.WaitGroup
 }
 
-// NewDeviceSpecificWebSocketController creates a new device-specific WebSocket controller
+// NewDeviceSpecificWebSocketController creates a new device-specific WebSocket controller.
 func NewDeviceSpecificWebSocketController(broker async.InternalBroker, stateCache usecases.DeviceStateCacheService) *DeviceSpecificWebSocketController {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -214,7 +215,8 @@ func (wsc *DeviceSpecificWebSocketController) run() {
 			wsc.clientsMux.Unlock()
 
 		case brokerMsg := <-subscription.Receiver:
-			if brokerMsg.Event == "uplink" {
+			switch brokerMsg.Event {
+			case "uplink":
 				if envelop, ok := brokerMsg.Value.(dto.Envelop); ok {
 					deviceMsg := DeviceSpecificMessage{
 						Type:      "device_state",
@@ -225,7 +227,7 @@ func (wsc *DeviceSpecificWebSocketController) run() {
 
 					wsc.sendMessageToDeviceClients(envelop.EndDeviceIDs.DeviceID, deviceMsg)
 				}
-			} else if brokerMsg.Event == "command_sent" {
+			case "command_sent":
 				if command, ok := brokerMsg.Value.(domain.Command); ok {
 					deviceMsg := DeviceSpecificMessage{
 						Type:      "command_sent",

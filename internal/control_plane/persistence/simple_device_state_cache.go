@@ -6,19 +6,20 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
 	"zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/data_plane/dto"
 )
 
 // SimpleDeviceStateCacheService implements usecases.DeviceStateCacheService
 // In-memory implementation for development/testing
-// Not suitable for distributed/multi-instance deployments
+// Not suitable for distributed/multi-instance deployments.
 type SimpleDeviceStateCacheService struct {
 	states map[string]usecases.DeviceState
 	mutex  sync.RWMutex
 }
 
-// NewSimpleDeviceStateCacheService creates a new in-memory device state cache service
+// NewSimpleDeviceStateCacheService creates a new in-memory device state cache service.
 func NewSimpleDeviceStateCacheService() usecases.DeviceStateCacheService {
 	return &SimpleDeviceStateCacheService{
 		states: make(map[string]usecases.DeviceState),

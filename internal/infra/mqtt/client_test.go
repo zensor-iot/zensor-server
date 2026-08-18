@@ -2,6 +2,7 @@ package mqtt_test
 
 import (
 	"context"
+
 	"zensor-server/internal/infra/mqtt"
 
 	paho "github.com/eclipse/paho.mqtt.golang"
@@ -65,7 +66,7 @@ var _ = ginkgo.Describe("MQTT Client", func() {
 		ginkgo.When("checking message type alias", func() {
 			ginkgo.It("should properly alias Message to paho.Message", func() {
 				// This test ensures that Message is properly aliased to paho.Message
-				var _ mqtt.Message = (paho.Message)(nil)
+				_ = (paho.Message)(nil)
 			})
 		})
 	})

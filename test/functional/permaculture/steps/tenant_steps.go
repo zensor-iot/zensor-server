@@ -1,12 +1,11 @@
 package steps
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 )
 
-// Tenant represents a tenant entity in the response
+// Tenant represents a tenant entity in the response.
 type Tenant struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -15,7 +14,7 @@ type Tenant struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
-// Tenant step implementations
+// Tenant step implementations.
 func (fc *FeatureContext) iCreateANewTenantWithNameAndEmail(name, email string) error {
 	resp, err := fc.apiDriver.CreateTenant(name, email, "A test tenant")
 	fc.require.NoError(err)
@@ -108,7 +107,7 @@ func (fc *FeatureContext) theListShouldContainTheTenantWithName(name string) err
 			break
 		}
 	}
-	fc.require.True(found, fmt.Sprintf("Tenant with name %s not found in list", name))
+	fc.require.True(found, "Tenant with name %s not found in list", name)
 	return nil
 }
 

@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"zensor-server/internal/infra/async"
-	victrondto "zensor-server/internal/victron/dto"
 	"zensor-server/internal/victron/usecases"
+
+	victrondto "zensor-server/internal/victron/dto"
 
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"

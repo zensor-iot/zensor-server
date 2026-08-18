@@ -6,7 +6,7 @@ import (
 
 //go:generate mockgen -source=notification_client.go -destination=../../../test/unit/doubles/infra/notification/notification_client_mock.go -package=notification -mock_names=NotificationClient=MockNotificationClient
 
-// NotificationClient defines the interface for sending notifications
+// NotificationClient defines the interface for sending notifications.
 type NotificationClient interface {
 	// SendEmail sends an email notification
 	SendEmail(ctx context.Context, request EmailRequest) error
@@ -14,14 +14,14 @@ type NotificationClient interface {
 	SendPushNotification(ctx context.Context, request PushNotificationRequest) error
 }
 
-// EmailRequest represents the data needed to send an email notification
+// EmailRequest represents the data needed to send an email notification.
 type EmailRequest struct {
 	To      string
 	Subject string
 	Body    string
 }
 
-// PushNotificationRequest represents the data needed to send a push notification
+// PushNotificationRequest represents the data needed to send a push notification.
 type PushNotificationRequest struct {
 	Token    string
 	Title    string
@@ -30,7 +30,7 @@ type PushNotificationRequest struct {
 	Platform string
 }
 
-// NotificationError represents an error that occurred during notification sending
+// NotificationError represents an error that occurred during notification sending.
 type NotificationError struct {
 	Message string
 	Err     error

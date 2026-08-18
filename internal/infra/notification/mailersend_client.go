@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,14 +11,14 @@ import (
 
 //go:generate mockgen -source=mailersend_client.go -destination=../../../test/unit/doubles/infra/notification/mailersend_client_mock.go -package=notification -mock_names=MailerSendClient=MockMailerSendClient
 
-// MailerSendClient implements NotificationClient using MailerSend API
+// MailerSendClient implements NotificationClient using MailerSend API.
 type MailerSendClient struct {
 	client    *mailersend.Mailersend
 	fromEmail string
 	fromName  string
 }
 
-// MailerSendConfig holds configuration for MailerSend client
+// MailerSendConfig holds configuration for MailerSend client.
 type MailerSendConfig struct {
 	APIKey    string
 	FromEmail string
@@ -26,18 +27,18 @@ type MailerSendConfig struct {
 
 func (c *MailerSendConfig) validateConfig() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("API key is required")
+		return errors.New("API key is required")
 	}
 	if c.FromEmail == "" {
-		return fmt.Errorf("From email is required")
+		return errors.New("From email is required")
 	}
 	if c.FromName == "" {
-		return fmt.Errorf("From name is required")
+		return errors.New("From name is required")
 	}
 	return nil
 }
 
-// NewMailerSendClient creates a new MailerSend client
+// NewMailerSendClient creates a new MailerSend client.
 func NewMailerSendClient(config MailerSendConfig) *MailerSendClient {
 	if err := config.validateConfig(); err != nil {
 		panic(err)
@@ -52,7 +53,7 @@ func NewMailerSendClient(config MailerSendConfig) *MailerSendClient {
 	}
 }
 
-// SendEmail sends an email using MailerSend API
+// SendEmail sends an email using MailerSend API.
 func (c *MailerSendClient) SendEmail(ctx context.Context, request EmailRequest) error {
 	message := c.client.Email.NewMessage()
 
@@ -97,10 +98,10 @@ func (c *MailerSendClient) sendWithRetry(ctx context.Context, message *mailersen
 	return lastErr
 }
 
-// SendPushNotification is not supported by MailerSend
+// SendPushNotification is not supported by MailerSend.
 func (c *MailerSendClient) SendPushNotification(ctx context.Context, request PushNotificationRequest) error {
 	return &NotificationError{
 		Message: "push notifications are not supported by MailerSend",
-		Err:     fmt.Errorf("use FCM client for push notifications"),
+		Err:     errors.New("use FCM client for push notifications"),
 	}
 }

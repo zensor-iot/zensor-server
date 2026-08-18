@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"zensor-server/internal/shared_kernel/persistence/internal"
-	"zensor-server/internal/shared_kernel/usecases"
+
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/shared_kernel/domain"
+	"zensor-server/internal/shared_kernel/persistence/internal"
+	"zensor-server/internal/shared_kernel/usecases"
 )
 
 func NewTenantConfigurationRepository(orm sql.ORM) (*SimpleTenantConfigurationRepository, error) {

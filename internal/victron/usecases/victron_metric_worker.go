@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"zensor-server/internal/infra/async"
+
 	victrondto "zensor-server/internal/victron/dto"
 
 	"go.opentelemetry.io/otel"

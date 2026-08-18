@@ -1,12 +1,12 @@
 package internal
 
 import (
-	"fmt"
-	"zensor-server/internal/infra/utils"
-	"zensor-server/internal/shared_kernel/domain"
-
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
+
+	"zensor-server/internal/infra/utils"
+	"zensor-server/internal/shared_kernel/domain"
 )
 
 type CommandSet []Command

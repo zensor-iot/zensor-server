@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/utils"
 	"zensor-server/internal/shared_kernel/domain"
@@ -162,7 +163,7 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 			return false, fmt.Errorf("parsing cron schedule: %w", err)
 		}
 		nextRun = scheduleSpec.Next(lastExecutedInTZ)
-		scheduleInfo = fmt.Sprintf("cron: %s", scheduledTask.Schedule)
+		scheduleInfo = "cron: " + scheduledTask.Schedule
 
 	default:
 		if scheduledTask.Schedule == "" {
@@ -174,7 +175,7 @@ func (w *ScheduledTaskWorker) shouldExecuteSchedule(ctx context.Context, schedul
 			return false, fmt.Errorf("parsing cron schedule: %w", err)
 		}
 		nextRun = scheduleSpec.Next(lastExecutedInTZ)
-		scheduleInfo = fmt.Sprintf("legacy cron: %s", scheduledTask.Schedule)
+		scheduleInfo = "legacy cron: " + scheduledTask.Schedule
 	}
 
 	slog.Debug("evaluating schedule with timezone",

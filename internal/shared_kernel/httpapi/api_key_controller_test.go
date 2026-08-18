@@ -10,6 +10,7 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 	"zensor-server/internal/shared_kernel/httpapi"
 	"zensor-server/internal/shared_kernel/usecases"
+
 	mockusecases "zensor-server/test/unit/doubles/shared_kernel/usecases"
 
 	"github.com/onsi/ginkgo/v2"
@@ -37,7 +38,7 @@ var _ = ginkgo.Describe("APIKeyController", func() {
 
 	ginkgo.Context("Create", func() {
 		createRequest := func(body string) *httptest.ResponseRecorder {
-			req := httptest.NewRequest("POST", "/v1/admin/api-keys", strings.NewReader(body))
+			req := httptest.NewRequest(http.MethodPost, "/v1/admin/api-keys", strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-User-ID", "admin-1")
 			rec := httptest.NewRecorder()
@@ -117,7 +118,7 @@ var _ = ginkgo.Describe("APIKeyController", func() {
 				}
 				service.EXPECT().List(gomock.Any()).Return(keys, nil)
 
-				req := httptest.NewRequest("GET", "/v1/admin/api-keys", nil)
+				req := httptest.NewRequest(http.MethodGet, "/v1/admin/api-keys", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
@@ -139,7 +140,7 @@ var _ = ginkgo.Describe("APIKeyController", func() {
 			ginkgo.It("should return 204", func() {
 				service.EXPECT().Revoke(gomock.Any(), domain.ID("key-1")).Return(nil)
 
-				req := httptest.NewRequest("DELETE", "/v1/admin/api-keys/key-1", nil)
+				req := httptest.NewRequest(http.MethodDelete, "/v1/admin/api-keys/key-1", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
@@ -152,7 +153,7 @@ var _ = ginkgo.Describe("APIKeyController", func() {
 				service.EXPECT().Revoke(gomock.Any(), domain.ID("missing")).
 					Return(usecases.ErrAPIKeyNotFound)
 
-				req := httptest.NewRequest("DELETE", "/v1/admin/api-keys/missing", nil)
+				req := httptest.NewRequest(http.MethodDelete, "/v1/admin/api-keys/missing", nil)
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
