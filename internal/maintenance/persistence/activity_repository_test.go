@@ -2,6 +2,8 @@ package persistence_test
 
 import (
 	"context"
+	"time"
+
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
@@ -13,6 +15,12 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 )
+
+var testSchedule = maintenanceDomain.Schedule{
+	StartDate: time.Now().AddDate(0, 0, 1),
+	Every:     1,
+	Unit:      maintenanceDomain.RecurrenceUnitMonth,
+}
 
 var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 	var (
@@ -52,7 +60,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 				WithType(activityType).
 				WithName("Monthly Water Filter Check").
 				WithDescription("Replace or clean water filter").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(testSchedule).
 				WithNotificationDaysBefore([]int{7, 1}).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
@@ -87,7 +95,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 					WithType(activityType).
 					WithName("Test Activity").
 					WithDescription("Test Description").
-					WithSchedule("0 0 1 * *").
+					WithSchedule(testSchedule).
 					WithNotificationDaysBefore([]int{7, 3}).
 					WithFields([]maintenanceDomain.FieldDefinition{}).
 					Build()
@@ -134,13 +142,13 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 				Fields:       []maintenanceDomain.FieldDefinition{},
 			}
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				activity, _ := maintenanceDomain.NewActivityBuilder().
 					WithTenantID(tenantID).
 					WithType(activityType).
 					WithName("Test Activity " + string(rune('0'+i))).
 					WithDescription("Test Description").
-					WithSchedule("0 0 1 * *").
+					WithSchedule(testSchedule).
 					WithFields([]maintenanceDomain.FieldDefinition{}).
 					Build()
 				activities = append(activities, activity)
@@ -188,7 +196,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 				WithType(activityType).
 				WithName("Original Name").
 				WithDescription("Original Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(testSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 
@@ -222,7 +230,7 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 					WithType(activityType).
 					WithName("Test Activity to Delete").
 					WithDescription("Test Description").
-					WithSchedule("0 0 1 * *").
+					WithSchedule(testSchedule).
 					WithFields([]maintenanceDomain.FieldDefinition{}).
 					Build()
 
@@ -234,7 +242,6 @@ var _ = ginkgo.Describe("MaintenanceActivityRepository", func() {
 			ginkgo.It("should successfully soft-delete the activity", func() {
 				err := repo.Delete(ctx, activity.ID)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
 			})
 		})
 

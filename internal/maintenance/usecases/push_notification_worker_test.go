@@ -6,8 +6,10 @@ import (
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/notification"
-	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	"zensor-server/internal/shared_kernel/domain"
+
+	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
+
 	mocknotification "zensor-server/test/unit/doubles/infra/notification"
 	mocksharedusecases "zensor-server/test/unit/doubles/shared_kernel/usecases"
 

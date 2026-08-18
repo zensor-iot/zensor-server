@@ -2,6 +2,7 @@ package internal_test
 
 import (
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenance_httpapi_internal "zensor-server/internal/maintenance/httpapi/internal"
@@ -189,7 +190,7 @@ var _ = Describe("MaintenanceExecution", func() {
 			})
 
 			It("should return empty data array", func() {
-				Expect(response.Data).To(HaveLen(0))
+				Expect(response.Data).To(BeEmpty())
 			})
 		})
 	})

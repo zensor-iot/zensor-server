@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
@@ -75,7 +76,7 @@ func (me *Execution) IsOverdue() bool {
 }
 
 func (me *Execution) IsScheduledInTheFuture(asOf time.Time) bool {
-	return me.ScheduledDate.Time.After(asOf)
+	return me.ScheduledDate.After(asOf)
 }
 
 func (me *Execution) CalculateOverdueDays(currentDate time.Time) int {

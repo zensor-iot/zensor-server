@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"time"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenance_httpapi "zensor-server/internal/maintenance/httpapi"
 	maintenance_httpapi_internal "zensor-server/internal/maintenance/httpapi/internal"
@@ -69,7 +70,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 					Build()
 
 				executions = []maintenanceDomain.Execution{execution1, execution2}
-				request = httptest.NewRequest("GET", "/v1/maintenance/executions?activity_id="+activityID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/executions?activity_id="+activityID, nil)
 			})
 
 			It("should return paginated response with default parameters", func() {
@@ -94,7 +95,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 
 		When("activity_id is missing", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/maintenance/executions", nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/executions", nil)
 			})
 
 			It("should return bad request", func() {
@@ -107,7 +108,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 
 		When("service returns error", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/maintenance/executions?activity_id="+activityID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/executions?activity_id="+activityID, nil)
 			})
 
 			It("should return internal server error", func() {
@@ -146,7 +147,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 					WithFieldValues(map[string]any{"maintenance_type": "Filter Replacement"}).
 					Build()
 
-				request = httptest.NewRequest("GET", "/v1/maintenance/executions/"+executionID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/executions/"+executionID, nil)
 			})
 
 			It("should return the execution", func() {
@@ -167,7 +168,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 
 		When("execution not found", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/maintenance/executions/"+executionID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/executions/"+executionID, nil)
 			})
 
 			It("should return not found", func() {
@@ -204,7 +205,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 					Return(nil)
 
 				body, _ := json.Marshal(completeRequest)
-				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -221,7 +222,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 					Return(nil)
 
 				body, _ := json.Marshal(completeRequest)
-				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -237,7 +238,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 					Return(maintenance_usecases.ErrExecutionNotFound)
 
 				body, _ := json.Marshal(completeRequest)
-				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -253,7 +254,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 					Return(maintenance_usecases.ErrExecutionScheduledInFuture)
 
 				body, _ := json.Marshal(completeRequest)
-				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -265,7 +266,7 @@ var _ = Describe("MaintenanceExecutionController", func() {
 
 		When("invalid JSON body", func() {
 			It("should return bad request", func() {
-				request = httptest.NewRequest("POST", "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader([]byte("invalid json")))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/executions/"+executionID+"/complete", bytes.NewReader([]byte("invalid json")))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)

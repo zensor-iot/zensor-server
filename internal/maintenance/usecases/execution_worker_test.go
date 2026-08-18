@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"time"
+
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/utils"
@@ -18,6 +19,12 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 )
+
+var workerTestSchedule = maintenanceDomain.Schedule{
+	StartDate: time.Now().AddDate(0, 0, 1),
+	Every:     1,
+	Unit:      maintenanceDomain.RecurrenceUnitMonth,
+}
 
 var _ = Describe("ExecutionWorker", func() {
 	var (
@@ -90,7 +97,7 @@ var _ = Describe("ExecutionWorker", func() {
 				WithType(activityType).
 				WithName("Test Activity").
 				WithDescription("Test Description").
-				WithSchedule("0 0 * * *").
+				WithSchedule(workerTestSchedule).
 				WithFields(activityType.Fields).
 				Build()
 			activity.ID = activityID
@@ -224,12 +231,16 @@ var _ = Describe("ExecutionWorker", func() {
 			})
 		})
 
-		When("active activities exist and activity has invalid cron schedule", func() {
+		When("active activities exist and activity has invalid recurrence", func() {
 			var invalidActivity maintenanceDomain.Activity
 
 			BeforeEach(func() {
 				invalidActivity = activity
-				invalidActivity.Schedule = maintenanceDomain.Schedule("invalid cron expression that will definitely fail")
+				invalidActivity.Schedule = maintenanceDomain.Schedule{
+					StartDate: time.Time{},
+					Every:     1,
+					Unit:      maintenanceDomain.RecurrenceUnitMonth,
+				}
 				mockActivityRepository.EXPECT().
 					FindAllActive(gomock.Any()).
 					Return([]maintenanceDomain.Activity{invalidActivity}, nil)
@@ -412,7 +423,7 @@ var _ = Describe("ExecutionWorker", func() {
 					WithType(activityType).
 					WithName(string(activity.Name)).
 					WithDescription(string(activity.Description)).
-					WithSchedule(string(activity.Schedule)).
+					WithSchedule(activity.Schedule).
 					WithFields(activityType.Fields).
 					Build()
 				activityWithoutDefaults.ID = activity.ID
@@ -495,7 +506,7 @@ var _ = Describe("ExecutionWorker", func() {
 				WithTenantID(tenantID).
 				WithType(activityType).
 				WithName("Test Activity").
-				WithSchedule("0 0 * * *").
+				WithSchedule(workerTestSchedule).
 				Build()
 			activity.ID = activityID
 

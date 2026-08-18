@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
@@ -91,12 +92,16 @@ func (m Activity) ToDomain() maintenanceDomain.Activity {
 		TenantID:               shareddomain.ID(m.TenantID),
 		Name:                   shareddomain.Name(m.Name),
 		Description:            shareddomain.Description(m.Description),
-		Schedule:               maintenanceDomain.Schedule(m.Schedule),
 		NotificationDaysBefore: maintenanceDomain.Days(m.NotificationDaysBefore),
 		Fields:                 []maintenanceDomain.FieldDefinition(m.Fields),
 		IsActive:               m.IsActive,
 		CreatedAt:              m.CreatedAt,
 		UpdatedAt:              m.UpdatedAt,
+	}
+
+	var schedule maintenanceDomain.Schedule
+	if err := json.Unmarshal([]byte(m.Schedule), &schedule); err == nil {
+		result.Schedule = schedule
 	}
 
 	result.Type = maintenanceDomain.ActivityType{
@@ -127,12 +132,15 @@ func FromActivity(value maintenanceDomain.Activity) Activity {
 		TypeName:               string(value.Type.Name),
 		Name:                   string(value.Name),
 		Description:            string(value.Description),
-		Schedule:               string(value.Schedule),
 		NotificationDaysBefore: Days(value.NotificationDaysBefore),
 		Fields:                 Fields(value.Fields),
 		IsActive:               value.IsActive,
 		CreatedAt:              value.CreatedAt,
 		UpdatedAt:              value.UpdatedAt,
+	}
+
+	if scheduleJSON, err := json.Marshal(value.Schedule); err == nil {
+		result.Schedule = string(scheduleJSON)
 	}
 
 	if value.CustomTypeName != nil {

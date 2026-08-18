@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"time"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenance_httpapi "zensor-server/internal/maintenance/httpapi"
 	maintenance_httpapi_internal "zensor-server/internal/maintenance/httpapi/internal"
@@ -19,6 +21,12 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 )
+
+var controllerTestSchedule = maintenanceDomain.Schedule{
+	StartDate: time.Now().AddDate(0, 0, 1),
+	Every:     1,
+	Unit:      maintenanceDomain.RecurrenceUnitMonth,
+}
 
 var _ = Describe("MaintenanceActivityController", func() {
 	var controller *maintenance_httpapi.ActivityController
@@ -59,7 +67,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					WithType(activityType).
 					WithName("Activity 1").
 					WithDescription("Description 1").
-					WithSchedule("0 0 1 * *").
+					WithSchedule(controllerTestSchedule).
 					WithFields([]maintenanceDomain.FieldDefinition{}).
 					Build()
 
@@ -68,12 +76,16 @@ var _ = Describe("MaintenanceActivityController", func() {
 					WithType(activityType).
 					WithName("Activity 2").
 					WithDescription("Description 2").
-					WithSchedule("0 0 15 * *").
+					WithSchedule(maintenanceDomain.Schedule{
+						StartDate: time.Now().AddDate(0, 0, 1),
+						Every:     1,
+						Unit:      maintenanceDomain.RecurrenceUnitMonth,
+					}).
 					WithFields([]maintenanceDomain.FieldDefinition{}).
 					Build()
 
 				activities = []maintenanceDomain.Activity{activity1, activity2}
-				request = httptest.NewRequest("GET", "/v1/maintenance/activities?tenant_id="+tenantID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/activities?tenant_id="+tenantID, nil)
 			})
 
 			It("should return paginated response with default parameters", func() {
@@ -98,7 +110,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 
 		When("tenant_id is missing", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/maintenance/activities", nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/activities", nil)
 			})
 
 			It("should return bad request", func() {
@@ -111,7 +123,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 
 		When("service returns error", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/maintenance/activities?tenant_id="+tenantID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/activities?tenant_id="+tenantID, nil)
 			})
 
 			It("should return internal server error", func() {
@@ -151,11 +163,11 @@ var _ = Describe("MaintenanceActivityController", func() {
 					WithType(activityType).
 					WithName("Test Activity").
 					WithDescription("Test Description").
-					WithSchedule("0 0 1 * *").
+					WithSchedule(controllerTestSchedule).
 					WithFields([]maintenanceDomain.FieldDefinition{}).
 					Build()
 
-				request = httptest.NewRequest("GET", "/v1/maintenance/activities/"+activityID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/activities/"+activityID, nil)
 			})
 
 			It("should return the activity", func() {
@@ -177,7 +189,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 
 		When("activity not found", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/maintenance/activities/"+activityID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/activities/"+activityID, nil)
 			})
 
 			It("should return not found", func() {
@@ -194,7 +206,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 
 		When("service returns error", func() {
 			BeforeEach(func() {
-				request = httptest.NewRequest("GET", "/v1/maintenance/activities/"+activityID, nil)
+				request = httptest.NewRequest(http.MethodGet, "/v1/maintenance/activities/"+activityID, nil)
 			})
 
 			It("should return internal server error", func() {
@@ -218,11 +230,15 @@ var _ = Describe("MaintenanceActivityController", func() {
 			controller.AddRoutes(router)
 
 			createRequest = maintenance_httpapi_internal.ActivityCreateRequest{
-				TenantID:               "tenant-123",
-				TypeName:               maintenanceDomain.ActivityTypeWaterSystem,
-				Name:                   "Test Activity",
-				Description:            "Test Description",
-				Schedule:               "0 0 1 * *",
+				TenantID:    "tenant-123",
+				TypeName:    maintenanceDomain.ActivityTypeWaterSystem,
+				Name:        "Test Activity",
+				Description: "Test Description",
+				Schedule: maintenance_httpapi_internal.ScheduleRequest{
+					StartDate: time.Now().AddDate(0, 0, 1),
+					Every:     1,
+					Unit:      string(maintenanceDomain.RecurrenceUnitMonth),
+				},
 				NotificationDaysBefore: []int{7, 3},
 				Fields:                 []maintenance_httpapi_internal.FieldDefinitionRequest{},
 			}
@@ -235,7 +251,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					Return(nil)
 
 				body, _ := json.Marshal(createRequest)
-				request = httptest.NewRequest("POST", "/v1/maintenance/activities", bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities", bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -246,7 +262,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 
 		When("invalid JSON body", func() {
 			It("should return bad request", func() {
-				request = httptest.NewRequest("POST", "/v1/maintenance/activities", bytes.NewReader([]byte("invalid json")))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities", bytes.NewReader([]byte("invalid json")))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -262,7 +278,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					Return(errors.New("database error"))
 
 				body, _ := json.Marshal(createRequest)
-				request = httptest.NewRequest("POST", "/v1/maintenance/activities", bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities", bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -289,7 +305,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 				WithType(activityType).
 				WithName("Original Name").
 				WithDescription("Original Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(controllerTestSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 
@@ -308,7 +324,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					Return(nil)
 
 				body, _ := json.Marshal(updateRequest)
-				request = httptest.NewRequest("PUT", "/v1/maintenance/activities/"+activityID, bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPut, "/v1/maintenance/activities/"+activityID, bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -324,7 +340,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					Return(maintenanceDomain.Activity{}, maintenance_usecases.ErrActivityNotFound)
 
 				body, _ := json.Marshal(updateRequest)
-				request = httptest.NewRequest("PUT", "/v1/maintenance/activities/"+activityID, bytes.NewReader(body))
+				request = httptest.NewRequest(http.MethodPut, "/v1/maintenance/activities/"+activityID, bytes.NewReader(body))
 				request.Header.Set("Content-Type", "application/json")
 
 				router.ServeHTTP(recorder, request)
@@ -350,7 +366,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					DeleteActivity(gomock.Any(), shareddomain.ID(activityID)).
 					Return(nil)
 
-				request = httptest.NewRequest("DELETE", "/v1/maintenance/activities/"+activityID, nil)
+				request = httptest.NewRequest(http.MethodDelete, "/v1/maintenance/activities/"+activityID, nil)
 
 				router.ServeHTTP(recorder, request)
 
@@ -364,7 +380,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					DeleteActivity(gomock.Any(), shareddomain.ID(activityID)).
 					Return(maintenance_usecases.ErrActivityNotFound)
 
-				request = httptest.NewRequest("DELETE", "/v1/maintenance/activities/"+activityID, nil)
+				request = httptest.NewRequest(http.MethodDelete, "/v1/maintenance/activities/"+activityID, nil)
 
 				router.ServeHTTP(recorder, request)
 
@@ -389,7 +405,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					ActivateActivity(gomock.Any(), shareddomain.ID(activityID)).
 					Return(nil)
 
-				request = httptest.NewRequest("POST", "/v1/maintenance/activities/"+activityID+"/activate", nil)
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/activate", nil)
 
 				router.ServeHTTP(recorder, request)
 
@@ -403,7 +419,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					ActivateActivity(gomock.Any(), shareddomain.ID(activityID)).
 					Return(maintenance_usecases.ErrActivityNotFound)
 
-				request = httptest.NewRequest("POST", "/v1/maintenance/activities/"+activityID+"/activate", nil)
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/activate", nil)
 
 				router.ServeHTTP(recorder, request)
 
@@ -428,7 +444,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					DeactivateActivity(gomock.Any(), shareddomain.ID(activityID)).
 					Return(nil)
 
-				request = httptest.NewRequest("POST", "/v1/maintenance/activities/"+activityID+"/deactivate", nil)
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/deactivate", nil)
 
 				router.ServeHTTP(recorder, request)
 
@@ -442,7 +458,7 @@ var _ = Describe("MaintenanceActivityController", func() {
 					DeactivateActivity(gomock.Any(), shareddomain.ID(activityID)).
 					Return(maintenance_usecases.ErrActivityNotFound)
 
-				request = httptest.NewRequest("POST", "/v1/maintenance/activities/"+activityID+"/deactivate", nil)
+				request = httptest.NewRequest(http.MethodPost, "/v1/maintenance/activities/"+activityID+"/deactivate", nil)
 
 				router.ServeHTTP(recorder, request)
 

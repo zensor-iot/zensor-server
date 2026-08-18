@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import { Plus, X, Trash2 } from 'lucide-react'
 import {
-    FREQUENCIES,
-    WEEKDAYS,
-    MONTHS,
-    buildCronExpression,
-    parseCronExpression
+    UNITS,
+    buildSchedule
 } from '../../utils/maintenanceSchedule'
 import { maintenanceApi } from '../../config/api'
 import { useNotification } from '../../hooks/useNotification'
@@ -28,20 +25,14 @@ const ActivityForm = ({ tenantId, activity = null, onSaved, onCancel }) => {
     const isEdit = Boolean(activity)
     const { showSuccess, showError } = useNotification()
 
-    const parsedSchedule = isEdit ? parseCronExpression(activity.schedule) : null
-    const scheduleUnparsable = isEdit && !parsedSchedule
-
     const [name, setName] = useState(activity?.name || '')
     const [description, setDescription] = useState(activity?.description || '')
     const [typeName, setTypeName] = useState(activity?.type_name || 'water_system')
     const [customTypeName, setCustomTypeName] = useState(activity?.custom_type_name || '')
-    const [useRawCron, setUseRawCron] = useState(scheduleUnparsable)
-    const [rawCron, setRawCron] = useState(activity?.schedule || '')
-    const [scheduleForm, setScheduleForm] = useState(parsedSchedule || {
-        frequency: 'weekly',
-        dayOfWeek: 1,
-        dayOfMonth: 1,
-        month: 1
+    const [schedule, setSchedule] = useState({
+        startDate: activity?.schedule?.start_date ? new Date(activity.schedule.start_date).toISOString().slice(0, 16) : '',
+        every: activity?.schedule?.every || 1,
+        unit: activity?.schedule?.unit || 'month'
     })
     const [reminderDays, setReminderDays] = useState(activity?.notification_days_before || [1])
     const [reminderDayInput, setReminderDayInput] = useState('')
@@ -56,9 +47,9 @@ const ActivityForm = ({ tenantId, activity = null, onSaved, onCancel }) => {
     )
     const [saving, setSaving] = useState(false)
 
-    const schedule = useRawCron ? rawCron : buildCronExpression(scheduleForm)
+    const schedulePayload = buildSchedule(schedule)
 
-    const updateScheduleForm = (patch) => setScheduleForm(prev => ({ ...prev, ...patch }))
+    const updateSchedule = (patch) => setSchedule(prev => ({ ...prev, ...patch }))
 
     const addReminderDay = () => {
         const day = parseInt(reminderDayInput, 10)
@@ -110,6 +101,10 @@ const ActivityForm = ({ tenantId, activity = null, onSaved, onCancel }) => {
             showError('Custom type name is required')
             return
         }
+        if (!schedulePayload) {
+            showError('A start date is required')
+            return
+        }
         if (fields.some(f => !f.name.trim() || !f.display_name.trim())) {
             showError('Every custom field needs a name and a display name')
             return
@@ -121,7 +116,9 @@ const ActivityForm = ({ tenantId, activity = null, onSaved, onCancel }) => {
                 const updates = {}
                 if (name !== activity.name) updates.name = name
                 if (description !== activity.description) updates.description = description
-                if (schedule !== activity.schedule) updates.schedule = schedule
+                if (JSON.stringify(schedulePayload) !== JSON.stringify(activity.schedule)) {
+                    updates.schedule = schedulePayload
+                }
                 const originalReminders = activity.notification_days_before || []
                 if (JSON.stringify(reminderDays) !== JSON.stringify(originalReminders)) {
                     updates.notification_days_before = reminderDays
@@ -150,7 +147,7 @@ const ActivityForm = ({ tenantId, activity = null, onSaved, onCancel }) => {
                     type_name: typeName,
                     name,
                     description,
-                    schedule,
+                    schedule: schedulePayload,
                     notification_days_before: reminderDays,
                     fields: buildFieldsPayload()
                 }
@@ -223,86 +220,39 @@ const ActivityForm = ({ tenantId, activity = null, onSaved, onCancel }) => {
 
             <div className="maintenance-form-field">
                 <label>Schedule</label>
-                {scheduleUnparsable && !useRawCron && (
-                    <div className="maintenance-form-warning">
-                        The existing schedule could not be converted to the friendly editor; saving will replace it.
-                    </div>
-                )}
-                {useRawCron ? (
-                    <>
-                        {scheduleUnparsable && (
-                            <div className="maintenance-form-warning">
-                                This schedule uses a cron expression the friendly editor cannot represent. Edit it as raw cron below.
-                            </div>
-                        )}
+                <div className="maintenance-form-row">
+                    <div className="maintenance-form-field">
+                        <label htmlFor="schedule-start">Start date and time</label>
                         <input
-                            type="text"
-                            value={rawCron}
-                            onChange={(e) => setRawCron(e.target.value)}
-                            placeholder="0 9 * * 1"
+                            id="schedule-start"
+                            type="datetime-local"
+                            value={schedule.startDate}
+                            onChange={(e) => updateSchedule({ startDate: e.target.value })}
                         />
-                        <button type="button" className="maintenance-btn" onClick={() => setUseRawCron(false)}>
-                            Use friendly editor
-                        </button>
-                    </>
-                ) : (
-                    <div className="maintenance-form-row">
-                        <div className="maintenance-form-field">
-                            <label htmlFor="schedule-frequency">Frequency</label>
-                            <select
-                                id="schedule-frequency"
-                                value={scheduleForm.frequency}
-                                onChange={(e) => updateScheduleForm({ frequency: e.target.value })}
-                            >
-                                {FREQUENCIES.map(f => (
-                                    <option key={f} value={f}>{capitalize(f)}</option>
-                                ))}
-                            </select>
-                        </div>
-                        {scheduleForm.frequency === 'weekly' && (
-                            <div className="maintenance-form-field">
-                                <label htmlFor="schedule-weekday">Day of week</label>
-                                <select
-                                    id="schedule-weekday"
-                                    value={scheduleForm.dayOfWeek}
-                                    onChange={(e) => updateScheduleForm({ dayOfWeek: Number(e.target.value) })}
-                                >
-                                    {WEEKDAYS.map(d => (
-                                        <option key={d.value} value={d.value}>{d.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                        {scheduleForm.frequency !== 'weekly' && (
-                            <div className="maintenance-form-field">
-                                <label htmlFor="schedule-day">Day of month</label>
-                                <select
-                                    id="schedule-day"
-                                    value={scheduleForm.dayOfMonth}
-                                    onChange={(e) => updateScheduleForm({ dayOfMonth: Number(e.target.value) })}
-                                >
-                                    {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
-                                        <option key={d} value={d}>{d}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                        {scheduleForm.frequency === 'yearly' && (
-                            <div className="maintenance-form-field">
-                                <label htmlFor="schedule-month">Month</label>
-                                <select
-                                    id="schedule-month"
-                                    value={scheduleForm.month}
-                                    onChange={(e) => updateScheduleForm({ month: Number(e.target.value) })}
-                                >
-                                    {MONTHS.map(m => (
-                                        <option key={m.value} value={m.value}>{m.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
                     </div>
-                )}
+                    <div className="maintenance-form-field">
+                        <label htmlFor="schedule-every">Repeat every</label>
+                        <input
+                            id="schedule-every"
+                            type="number"
+                            min="1"
+                            value={schedule.every}
+                            onChange={(e) => updateSchedule({ every: Math.max(1, Number(e.target.value) || 1) })}
+                        />
+                    </div>
+                    <div className="maintenance-form-field">
+                        <label htmlFor="schedule-unit">Unit</label>
+                        <select
+                            id="schedule-unit"
+                            value={schedule.unit}
+                            onChange={(e) => updateSchedule({ unit: e.target.value })}
+                        >
+                            {UNITS.map(u => (
+                                <option key={u.value} value={u.value}>{u.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div className="maintenance-form-field">

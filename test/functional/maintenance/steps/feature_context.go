@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
 	"zensor-server/test/functional/maintenance/driver"
 
 	"github.com/cucumber/godog"
@@ -62,7 +63,7 @@ func BaseURL() string {
 		port = "3000"
 	}
 
-	return fmt.Sprintf("http://127.0.0.1:%s", port)
+	return "http://127.0.0.1:" + port
 }
 
 func IsExternalMode() bool {

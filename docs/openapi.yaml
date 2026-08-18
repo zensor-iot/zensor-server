@@ -2857,9 +2857,7 @@ components:
           description: Maintenance activity description
           example: "Monthly inspection of all equipment"
         schedule:
-          type: string
-          description: Cron expression for scheduling maintenance activities
-          example: "0 0 1 * *"
+          $ref: "#/components/schemas/Schedule"
         notification_days_before:
           type: array
           items:
@@ -2884,9 +2882,7 @@ components:
           description: Maintenance activity description
           example: "Monthly inspection of all equipment"
         schedule:
-          type: string
-          description: Cron expression for scheduling maintenance activities
-          example: "0 0 1 * *"
+          $ref: "#/components/schemas/Schedule"
         notification_days_before:
           type: array
           items:
@@ -2934,9 +2930,7 @@ components:
           description: Maintenance activity description
           example: "Monthly inspection of all equipment"
         schedule:
-          type: string
-          description: Cron expression for scheduling maintenance activities
-          example: "0 0 1 * *"
+          $ref: "#/components/schemas/Schedule"
         notification_days_before:
           type: array
           items:
@@ -2962,6 +2956,29 @@ components:
           format: date-time
           description: Last update timestamp
           example: "2024-01-01T00:00:00Z"
+
+    Schedule:
+      type: object
+      required:
+        - start_date
+        - every
+        - unit
+      properties:
+        start_date:
+          type: string
+          format: date-time
+          description: Start date and time of the maintenance schedule
+          example: "2026-09-01T09:00:00Z"
+        every:
+          type: integer
+          minimum: 1
+          description: Recurrence interval quantity
+          example: 1
+        unit:
+          type: string
+          enum: [day, week, month, quarter, year]
+          description: Recurrence interval unit
+          example: "month"
 
     FieldDefinitionRequest:
       type: object

@@ -11,4 +11,3 @@ func TestInternal(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Internal Suite")
 }
-

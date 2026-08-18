@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
 	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/notification"
@@ -143,7 +144,7 @@ func (w *PushNotificationWorker) handleNotification(ctx context.Context, msg asy
 func (w *PushNotificationWorker) sendToUser(ctx context.Context, userID domain.ID, msg async.BrokerMessage) {
 	tokens, err := w.pushTokenService.ListTokensByUserID(ctx, userID)
 	if err != nil {
-		if err == sharedUsecases.ErrPushTokenNotFound {
+		if errors.Is(err, sharedUsecases.ErrPushTokenNotFound) {
 			slog.Debug("user has no push token registered",
 				slog.String("user_id", userID.String()),
 				slog.String("notification", w.config.Name))

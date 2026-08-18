@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
@@ -14,6 +15,12 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 )
+
+var executionServiceTestSchedule = maintenanceDomain.Schedule{
+	StartDate: time.Now().AddDate(0, 0, 1),
+	Every:     1,
+	Unit:      maintenanceDomain.RecurrenceUnitMonth,
+}
 
 var _ = Describe("MaintenanceExecutionService", func() {
 	var (
@@ -53,7 +60,7 @@ var _ = Describe("MaintenanceExecutionService", func() {
 				WithType(activityType).
 				WithName("Test Activity").
 				WithDescription("Test Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(executionServiceTestSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
@@ -170,7 +177,7 @@ var _ = Describe("MaintenanceExecutionService", func() {
 			activityID = shareddomain.ID(utils.GenerateUUID())
 			executions = []maintenanceDomain.Execution{}
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				execution, _ := maintenanceDomain.NewExecutionBuilder().
 					WithActivityID(activityID).
 					WithScheduledDate(time.Now().AddDate(0, 0, 30+i*30)).

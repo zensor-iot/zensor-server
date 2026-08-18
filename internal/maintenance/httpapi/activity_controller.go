@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/httpserver"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
@@ -140,11 +141,14 @@ func (c *ActivityController) createActivity() http.HandlerFunc {
 			WithType(activityType).
 			WithName(body.Name).
 			WithDescription(body.Description).
-			WithSchedule(body.Schedule).
+			WithSchedule(maintenanceDomain.Schedule{
+				StartDate: body.Schedule.StartDate,
+				Every:     body.Schedule.Every,
+				Unit:      maintenanceDomain.RecurrenceUnit(body.Schedule.Unit),
+			}).
 			WithNotificationDaysBefore(body.NotificationDaysBefore).
 			WithFields(fields).
 			Build()
-
 		if err != nil {
 			http.Error(w, createActivityErrMessage, http.StatusBadRequest)
 			return
@@ -197,7 +201,11 @@ func (c *ActivityController) updateActivity() http.HandlerFunc {
 			activity.Description = shareddomain.Description(*body.Description)
 		}
 		if body.Schedule != nil {
-			activity.Schedule = maintenanceDomain.Schedule(*body.Schedule)
+			activity.Schedule = maintenanceDomain.Schedule{
+				StartDate: body.Schedule.StartDate,
+				Every:     body.Schedule.Every,
+				Unit:      maintenanceDomain.RecurrenceUnit(body.Schedule.Unit),
+			}
 		}
 		if body.NotificationDaysBefore != nil {
 			activity.NotificationDaysBefore = maintenanceDomain.Days(*body.NotificationDaysBefore)

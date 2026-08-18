@@ -3,6 +3,7 @@ package internal_test
 import (
 	"encoding/json"
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	persistenceInternal "zensor-server/internal/maintenance/persistence/internal"
@@ -133,9 +134,11 @@ var _ = ginkgo.Describe("MaintenanceActivity Internal Model", func() {
 
 	ginkgo.Context("ToDomain", func() {
 		var internalActivity persistenceInternal.Activity
+		var scheduleJSON string
 
 		ginkgo.BeforeEach(func() {
 			now := utils.Time{Time: time.Now()}
+			scheduleJSON = `{"start_date":"2026-09-01T09:00:00Z","every":2,"unit":"month"}`
 			internalActivity = persistenceInternal.Activity{
 				ID:                     "activity-id",
 				Version:                1,
@@ -144,7 +147,7 @@ var _ = ginkgo.Describe("MaintenanceActivity Internal Model", func() {
 				CustomTypeName:         nil,
 				Name:                   "Test Activity",
 				Description:            "Test Description",
-				Schedule:               "0 0 1 * *",
+				Schedule:               scheduleJSON,
 				NotificationDaysBefore: persistenceInternal.Days{7, 3},
 				Fields:                 persistenceInternal.Fields{},
 				IsActive:               true,
@@ -162,7 +165,11 @@ var _ = ginkgo.Describe("MaintenanceActivity Internal Model", func() {
 				gomega.Expect(domain.TenantID).To(gomega.Equal(shareddomain.ID("tenant-id")))
 				gomega.Expect(domain.Name).To(gomega.Equal(shareddomain.Name("Test Activity")))
 				gomega.Expect(domain.Description).To(gomega.Equal(shareddomain.Description("Test Description")))
-				gomega.Expect(domain.Schedule).To(gomega.Equal(maintenanceDomain.Schedule("0 0 1 * *")))
+				gomega.Expect(domain.Schedule).To(gomega.Equal(maintenanceDomain.Schedule{
+					StartDate: time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC),
+					Every:     2,
+					Unit:      maintenanceDomain.RecurrenceUnitMonth,
+				}))
 				gomega.Expect(domain.NotificationDaysBefore).To(gomega.Equal(maintenanceDomain.Days{7, 3}))
 				gomega.Expect(domain.IsActive).To(gomega.BeTrue())
 			})
@@ -203,7 +210,11 @@ var _ = ginkgo.Describe("MaintenanceActivity Internal Model", func() {
 				WithType(activityType).
 				WithName("Test Activity").
 				WithDescription("Test Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(maintenanceDomain.Schedule{
+					StartDate: time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC),
+					Every:     2,
+					Unit:      maintenanceDomain.RecurrenceUnitMonth,
+				}).
 				WithNotificationDaysBefore([]int{7, 3}).
 				WithFields([]maintenanceDomain.FieldDefinition{
 					{Name: shareddomain.Name("maintenance_type"), DisplayName: shareddomain.DisplayName("Maintenance Type"), Type: maintenanceDomain.FieldTypeText, IsRequired: true},
@@ -220,7 +231,9 @@ var _ = ginkgo.Describe("MaintenanceActivity Internal Model", func() {
 				gomega.Expect(internal.TypeName).To(gomega.Equal(string(domainActivity.Type.Name)))
 				gomega.Expect(internal.Name).To(gomega.Equal(string(domainActivity.Name)))
 				gomega.Expect(internal.Description).To(gomega.Equal(string(domainActivity.Description)))
-				gomega.Expect(internal.Schedule).To(gomega.Equal(string(domainActivity.Schedule)))
+				var gotSchedule maintenanceDomain.Schedule
+				gomega.Expect(json.Unmarshal([]byte(internal.Schedule), &gotSchedule)).To(gomega.Succeed())
+				gomega.Expect(gotSchedule).To(gomega.Equal(domainActivity.Schedule))
 				gomega.Expect(internal.NotificationDaysBefore).To(gomega.Equal(persistenceInternal.Days{7, 3}))
 				gomega.Expect(internal.Fields).To(gomega.HaveLen(1))
 				gomega.Expect(internal.IsActive).To(gomega.Equal(domainActivity.IsActive))

@@ -3,6 +3,7 @@ package persistence_test
 import (
 	"context"
 	"time"
+
 	"zensor-server/internal/infra/sql"
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
@@ -110,7 +111,7 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 			activityID = shareddomain.ID(utils.GenerateUUID())
 			executions = []maintenanceDomain.Execution{}
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				execution, _ := maintenanceDomain.NewExecutionBuilder().
 					WithActivityID(activityID).
 					WithScheduledDate(time.Now().AddDate(0, 0, 30+i*30)).
@@ -230,7 +231,7 @@ var _ = ginkgo.Describe("MaintenanceExecutionRepository", func() {
 					TenantID: tenantID.String(),
 					TypeName: "water_system",
 					Name:     "Test Activity",
-					Schedule: "0 0 1 * *",
+					Schedule: `{"start_date":"2026-09-01T09:00:00Z","every":1,"unit":"month"}`,
 					IsActive: true,
 				}
 				err := orm.WithContext(ctx).Create(&internalActivity).Error()

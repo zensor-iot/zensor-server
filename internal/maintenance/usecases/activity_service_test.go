@@ -3,18 +3,26 @@ package usecases_test
 import (
 	"context"
 	"errors"
+	"time"
+
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
-	mocksharedkernel "zensor-server/test/unit/doubles/shared_kernel/usecases"
 	mockmaintenance "zensor-server/test/unit/doubles/maintenance/usecases"
+	mocksharedkernel "zensor-server/test/unit/doubles/shared_kernel/usecases"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 )
+
+var serviceTestSchedule = maintenanceDomain.Schedule{
+	StartDate: time.Now().AddDate(0, 0, 1),
+	Every:     1,
+	Unit:      maintenanceDomain.RecurrenceUnitMonth,
+}
 
 var _ = Describe("MaintenanceActivityService", func() {
 	var (
@@ -54,7 +62,7 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithType(activityType).
 				WithName("Monthly Water Filter Check").
 				WithDescription("Replace or clean water filter").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(serviceTestSchedule).
 				WithNotificationDaysBefore([]int{7, 1}).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
@@ -129,7 +137,7 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithType(activityType).
 				WithName("Test Activity").
 				WithDescription("Test Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(serviceTestSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
@@ -190,13 +198,13 @@ var _ = Describe("MaintenanceActivityService", func() {
 				Fields:       []maintenanceDomain.FieldDefinition{},
 			}
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				activity, _ := maintenanceDomain.NewActivityBuilder().
 					WithTenantID(tenantID).
 					WithType(activityType).
 					WithName("Test Activity " + string(rune('0'+i))).
 					WithDescription("Test Description").
-					WithSchedule("0 0 1 * *").
+					WithSchedule(serviceTestSchedule).
 					WithFields([]maintenanceDomain.FieldDefinition{}).
 					Build()
 				activities = append(activities, activity)
@@ -251,7 +259,7 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithType(activityType).
 				WithName("Original Name").
 				WithDescription("Original Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(serviceTestSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
@@ -315,7 +323,7 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithType(activityType).
 				WithName("Test Activity").
 				WithDescription("Test Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(serviceTestSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
@@ -378,7 +386,7 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithType(activityType).
 				WithName("Test Activity").
 				WithDescription("Test Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(serviceTestSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID
@@ -442,7 +450,7 @@ var _ = Describe("MaintenanceActivityService", func() {
 				WithType(activityType).
 				WithName("Test Activity").
 				WithDescription("Test Description").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(serviceTestSchedule).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 			activity.ID = activityID

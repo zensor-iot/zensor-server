@@ -1,103 +1,60 @@
-// Cron helpers for maintenance activity schedules (5-field cron: minute hour dom month dow).
-// JS port of the mobile app's schedule utilities: a friendly builder for
-// weekly/monthly/quarterly/yearly schedules plus reverse parsing with a
-// fallback for cron expressions the builder cannot represent.
+// Calendar schedule helpers for maintenance activity schedules.
+// Schedules are { start_date: ISO8601, every: number, unit: 'day'|'week'|'month'|'quarter'|'year' }.
 
-export const FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'yearly']
-
-export const WEEKDAYS = [
-    { value: 0, label: 'Sunday' },
-    { value: 1, label: 'Monday' },
-    { value: 2, label: 'Tuesday' },
-    { value: 3, label: 'Wednesday' },
-    { value: 4, label: 'Thursday' },
-    { value: 5, label: 'Friday' },
-    { value: 6, label: 'Saturday' }
+export const UNITS = [
+    { value: 'day', label: 'Day' },
+    { value: 'week', label: 'Week' },
+    { value: 'month', label: 'Month' },
+    { value: 'quarter', label: 'Quarter' },
+    { value: 'year', label: 'Year' }
 ]
 
-export const MONTHS = [
-    { value: 1, label: 'January' },
-    { value: 2, label: 'February' },
-    { value: 3, label: 'March' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'May' },
-    { value: 6, label: 'June' },
-    { value: 7, label: 'July' },
-    { value: 8, label: 'August' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'October' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'December' }
-]
+const unitLabel = (unit) => {
+    const found = UNITS.find(u => u.value === unit)
+    return found ? found.label.toLowerCase() : unit
+}
 
-const QUARTER_MONTHS = '1,4,7,10'
+const pluralize = (count, label) => (count === 1 ? label : `${label}s`)
 
-export function buildCronExpression({ frequency, dayOfWeek = 1, dayOfMonth = 1, month = 1 }) {
-    switch (frequency) {
-        case 'weekly':
-            return `0 9 * * ${dayOfWeek}`
-        case 'monthly':
-            return `0 9 ${dayOfMonth} * *`
-        case 'quarterly':
-            return `0 9 ${dayOfMonth} ${QUARTER_MONTHS} *`
-        case 'yearly':
-            return `0 9 ${dayOfMonth} ${month} *`
-        default:
-            throw new Error(`Unknown frequency: ${frequency}`)
+export function describeSchedule(schedule) {
+    if (!schedule || typeof schedule !== 'object') {
+        return 'Unknown schedule'
+    }
+    const { start_date: startDate, every, unit } = schedule
+    if (!startDate || !every || !unit) {
+        return 'Unknown schedule'
+    }
+    const date = new Date(startDate)
+    const dateLabel = date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+    if (every === 1) {
+        return `Every ${unitLabel(unit)} starting ${dateLabel}`
+    }
+    return `Every ${every} ${pluralize(every, unitLabel(unit))} starting ${dateLabel}`
+}
+
+// Converts a schedule object to the payload shape the API expects, trimming
+// the start date to whole seconds for stable comparisons.
+export function toSchedulePayload(schedule) {
+    if (!schedule || typeof schedule !== 'object') {
+        return null
+    }
+    const { start_date: startDate, every, unit } = schedule
+    if (!startDate || !every || !unit) {
+        return null
+    }
+    return {
+        start_date: new Date(startDate).toISOString(),
+        every,
+        unit
     }
 }
 
-const isNumeric = (field) => /^\d+$/.test(field)
-
-// Returns {frequency, dayOfWeek, dayOfMonth, month} for expressions the
-// builder can represent, or null so callers can warn and fall back to raw
-// cron editing.
-export function parseCronExpression(cron) {
-    if (typeof cron !== 'string') {
+// Builds a schedule payload from form state { startDate, every, unit }.
+export function buildSchedule({ startDate, every, unit }) {
+    if (!startDate || !every || !unit) {
         return null
     }
-    const fields = cron.trim().split(/\s+/)
-    if (fields.length !== 5) {
-        return null
-    }
-    const [, , dayOfMonth, month, dayOfWeek] = fields
-
-    if (dayOfMonth === '*' && month === '*' && isNumeric(dayOfWeek)) {
-        return { frequency: 'weekly', dayOfWeek: Number(dayOfWeek) % 7, dayOfMonth: 1, month: 1 }
-    }
-    if (isNumeric(dayOfMonth) && month === '*' && dayOfWeek === '*') {
-        return { frequency: 'monthly', dayOfWeek: 1, dayOfMonth: Number(dayOfMonth), month: 1 }
-    }
-    if (isNumeric(dayOfMonth) && (month === QUARTER_MONTHS || month === '*/3') && dayOfWeek === '*') {
-        return { frequency: 'quarterly', dayOfWeek: 1, dayOfMonth: Number(dayOfMonth), month: 1 }
-    }
-    if (isNumeric(dayOfMonth) && isNumeric(month) && dayOfWeek === '*') {
-        return { frequency: 'yearly', dayOfWeek: 1, dayOfMonth: Number(dayOfMonth), month: Number(month) }
-    }
-    return null
-}
-
-export function describeSchedule(cron) {
-    const parsed = parseCronExpression(cron)
-    if (!parsed) {
-        return cron
-    }
-    switch (parsed.frequency) {
-        case 'weekly': {
-            const weekday = WEEKDAYS.find(d => d.value === parsed.dayOfWeek)
-            return `Weekly on ${weekday ? weekday.label : `day ${parsed.dayOfWeek}`}`
-        }
-        case 'monthly':
-            return `Monthly on day ${parsed.dayOfMonth}`
-        case 'quarterly':
-            return `Quarterly on day ${parsed.dayOfMonth}`
-        case 'yearly': {
-            const month = MONTHS.find(m => m.value === parsed.month)
-            return `Yearly on ${month ? month.label : `month ${parsed.month}`} ${parsed.dayOfMonth}`
-        }
-        default:
-            return cron
-    }
+    return toSchedulePayload({ start_date: new Date(startDate).toISOString(), every, unit })
 }
 
 // Relative label for an execution's scheduled date ("Today", "In 3 days", "5 days overdue").

@@ -2,6 +2,7 @@ package internal_test
 
 import (
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	maintenance_httpapi_internal "zensor-server/internal/maintenance/httpapi/internal"
@@ -14,9 +15,15 @@ import (
 var _ = Describe("MaintenanceActivity", func() {
 	var activity maintenanceDomain.Activity
 	var customTypeName string
+	var testSchedule maintenanceDomain.Schedule
 
 	BeforeEach(func() {
 		customTypeName = "CustomType"
+		testSchedule = maintenanceDomain.Schedule{
+			StartDate: time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC),
+			Every:     2,
+			Unit:      maintenanceDomain.RecurrenceUnitMonth,
+		}
 		activityType, _ := maintenanceDomain.NewActivityTypeBuilder().
 			WithName(maintenanceDomain.ActivityTypeWaterSystem).
 			WithDisplayName("Water System Maintenance").
@@ -46,7 +53,7 @@ var _ = Describe("MaintenanceActivity", func() {
 			WithCustomTypeName(customTypeName).
 			WithName("Test Activity").
 			WithDescription("Test Description").
-			WithSchedule("0 0 1 * *").
+			WithSchedule(testSchedule).
 			WithNotificationDaysBefore([]int{7, 3, 1}).
 			WithFields([]maintenanceDomain.FieldDefinition{field1, field2}).
 			Build()
@@ -96,7 +103,9 @@ var _ = Describe("MaintenanceActivity", func() {
 			})
 
 			It("should map Schedule correctly", func() {
-				Expect(response.Schedule).To(Equal("0 0 1 * *"))
+				Expect(response.Schedule.StartDate).To(Equal(time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC)))
+				Expect(response.Schedule.Every).To(Equal(2))
+				Expect(response.Schedule.Unit).To(Equal(string(maintenanceDomain.RecurrenceUnitMonth)))
 			})
 
 			It("should map NotificationDaysBefore correctly", func() {
@@ -159,7 +168,7 @@ var _ = Describe("MaintenanceActivity", func() {
 			})
 
 			It("should return empty fields array", func() {
-				Expect(response.Fields).To(HaveLen(0))
+				Expect(response.Fields).To(BeEmpty())
 			})
 		})
 
@@ -200,7 +209,11 @@ var _ = Describe("MaintenanceActivity", func() {
 				WithType(activityType).
 				WithName("Activity 1").
 				WithDescription("Description 1").
-				WithSchedule("0 0 1 * *").
+				WithSchedule(maintenanceDomain.Schedule{
+					StartDate: time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC),
+					Every:     1,
+					Unit:      maintenanceDomain.RecurrenceUnitWeek,
+				}).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 
@@ -209,7 +222,11 @@ var _ = Describe("MaintenanceActivity", func() {
 				WithType(activityType).
 				WithName("Activity 2").
 				WithDescription("Description 2").
-				WithSchedule("0 0 15 * *").
+				WithSchedule(maintenanceDomain.Schedule{
+					StartDate: time.Date(2026, 10, 15, 8, 30, 0, 0, time.UTC),
+					Every:     1,
+					Unit:      maintenanceDomain.RecurrenceUnitYear,
+				}).
 				WithFields([]maintenanceDomain.FieldDefinition{}).
 				Build()
 
@@ -245,7 +262,7 @@ var _ = Describe("MaintenanceActivity", func() {
 			})
 
 			It("should return empty data array", func() {
-				Expect(response.Data).To(HaveLen(0))
+				Expect(response.Data).To(BeEmpty())
 			})
 		})
 	})

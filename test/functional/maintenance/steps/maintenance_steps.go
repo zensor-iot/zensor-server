@@ -23,7 +23,11 @@ func (fc *FeatureContext) iCreateAMaintenanceActivityForTenantWithTypeAndName(ty
 		typeName,
 		name,
 		"Test maintenance activity",
-		"0 0 * * *",
+		map[string]any{
+			"start_date": time.Now().AddDate(0, 0, 1).UTC().Format(time.RFC3339),
+			"every":      1,
+			"unit":       "day",
+		},
 		[]int{1, 3},
 		fields,
 	)
@@ -57,7 +61,11 @@ func (fc *FeatureContext) iCreateAMaintenanceActivityForTenantWithCustomTypeAndN
 		"custom",
 		name,
 		"Test custom maintenance activity",
-		"0 0 * * *",
+		map[string]any{
+			"start_date": time.Now().AddDate(0, 0, 1).UTC().Format(time.RFC3339),
+			"every":      1,
+			"unit":       "day",
+		},
 		[]int{1},
 		fields,
 	)
@@ -109,7 +117,7 @@ func (fc *FeatureContext) theListShouldContainTheMaintenanceActivityWithName(nam
 			break
 		}
 	}
-	fc.require.True(found, fmt.Sprintf("Maintenance activity with name %s not found in list", name))
+	fc.require.True(found, "Maintenance activity with name %s not found in list", name)
 	return nil
 }
 
@@ -211,7 +219,7 @@ func (fc *FeatureContext) iDeleteTheMaintenanceActivity() error {
 }
 
 func (fc *FeatureContext) thereAreMaintenanceExecutionsForTheActivity(count int) error {
-	for i := 0; i < count; i++ {
+	for i := range count {
 		scheduledDate := time.Now().Add(time.Duration(i+1) * 24 * time.Hour)
 		fieldValues := map[string]any{
 			"service_type": fmt.Sprintf("Service %d", i+1),
@@ -328,7 +336,7 @@ func (fc *FeatureContext) iListAllMaintenanceExecutionsForTheActivity() error {
 func (fc *FeatureContext) iShouldReceiveExecutions(count int) error {
 	items, err := fc.decodePaginatedResponse(fc.response)
 	fc.require.NoError(err)
-	fc.require.Len(items, count, fmt.Sprintf("Expected %d executions, got %d", count, len(items)))
+	fc.require.Len(items, count, "Expected %d executions, got %d", count, len(items))
 	return nil
 }
 

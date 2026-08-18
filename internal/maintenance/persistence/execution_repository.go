@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"zensor-server/internal/infra/sql"
-	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	"zensor-server/internal/maintenance/persistence/internal"
 	"zensor-server/internal/maintenance/usecases"
+
+	maintenanceDomain "zensor-server/internal/maintenance/domain"
+
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
 
@@ -79,7 +81,6 @@ func (r *SimpleExecutionRepository) FindAllByActivity(
 		Offset(pagination.Offset).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
@@ -142,7 +143,6 @@ func (r *SimpleExecutionRepository) FindAllOverdue(ctx context.Context, tenantID
 		Where("maintenance_activities.tenant_id = ? AND maintenance_executions.deleted_at IS NULL AND maintenance_executions.completed_at IS NULL AND maintenance_executions.scheduled_date < ?", tenantID.String(), now).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
@@ -166,7 +166,6 @@ func (r *SimpleExecutionRepository) FindAllDueSoon(ctx context.Context, tenantID
 		Where("maintenance_activities.tenant_id = ? AND maintenance_executions.deleted_at IS NULL AND maintenance_executions.completed_at IS NULL AND maintenance_executions.scheduled_date BETWEEN ? AND ?", tenantID.String(), now, dueDate).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
@@ -193,7 +192,6 @@ func (r *SimpleExecutionRepository) FindPendingExecutionsReadyForNotification(ct
 		Where("maintenance_executions.scheduled_date > ?", currentDate).
 		Find(&executions).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}
@@ -249,7 +247,6 @@ func (r *SimpleExecutionRepository) FindOverdueExecutions(ctx context.Context) (
 		Where("maintenance_executions.scheduled_date < ?", now).
 		Find(&executions).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}

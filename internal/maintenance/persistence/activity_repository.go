@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"zensor-server/internal/infra/sql"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	"zensor-server/internal/maintenance/persistence/internal"
@@ -77,7 +78,6 @@ func (r *SimpleActivityRepository) FindAllByTenant(
 		Offset(pagination.Offset).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, 0, fmt.Errorf("database query: %w", err)
 	}
@@ -97,7 +97,6 @@ func (r *SimpleActivityRepository) FindAllActive(ctx context.Context) ([]mainten
 		Where("is_active = ? AND deleted_at IS NULL", true).
 		Find(&entities).
 		Error()
-
 	if err != nil {
 		return nil, fmt.Errorf("database query: %w", err)
 	}

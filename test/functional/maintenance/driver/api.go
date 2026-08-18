@@ -26,13 +26,13 @@ func NewAPIDriver(baseURL string) *APIDriver {
 }
 
 func (d *APIDriver) Login() error {
-	resp, err := d.client.Get(fmt.Sprintf("%s/auth/login", d.baseURL))
+	resp, err := d.client.Get(d.baseURL + "/auth/login")
 	if err != nil {
 		return fmt.Errorf("performing login flow: %w", err)
 	}
 	resp.Body.Close()
 
-	meResp, err := d.client.Get(fmt.Sprintf("%s/v1/me", d.baseURL))
+	meResp, err := d.client.Get(d.baseURL + "/v1/me")
 	if err != nil {
 		return fmt.Errorf("fetching current user: %w", err)
 	}
@@ -54,7 +54,7 @@ func (d *APIDriver) CreateTenant(name, email, description string) (*http.Respons
 	if err != nil {
 		panic(err)
 	}
-	return d.client.Post(fmt.Sprintf("%s/v1/tenants", d.baseURL), "application/json", bytes.NewBuffer(reqBody))
+	return d.client.Post(d.baseURL+"/v1/tenants", "application/json", bytes.NewBuffer(reqBody))
 }
 
 func (d *APIDriver) GetTenant(id string) (*http.Response, error) {
@@ -62,7 +62,7 @@ func (d *APIDriver) GetTenant(id string) (*http.Response, error) {
 }
 
 func (d *APIDriver) ListTenants() (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/tenants", d.baseURL))
+	return d.client.Get(d.baseURL + "/v1/tenants")
 }
 
 func (d *APIDriver) UpdateTenant(id, newName string) (*http.Response, error) {
@@ -94,7 +94,7 @@ func (d *APIDriver) SoftDeleteTenant(id string) (*http.Response, error) {
 	return d.client.Do(req)
 }
 
-func (d *APIDriver) CreateMaintenanceActivity(tenantID, typeName, name, description, schedule string, notificationDaysBefore []int, fields []map[string]any) (*http.Response, error) {
+func (d *APIDriver) CreateMaintenanceActivity(tenantID, typeName, name, description string, schedule map[string]any, notificationDaysBefore []int, fields []map[string]any) (*http.Response, error) {
 	reqBody := map[string]any{
 		"tenant_id":                tenantID,
 		"type_name":                typeName,
@@ -108,7 +108,7 @@ func (d *APIDriver) CreateMaintenanceActivity(tenantID, typeName, name, descript
 	if err != nil {
 		panic(err)
 	}
-	return d.client.Post(fmt.Sprintf("%s/v1/maintenance/activities", d.baseURL), "application/json", bytes.NewBuffer(body))
+	return d.client.Post(d.baseURL+"/v1/maintenance/activities", "application/json", bytes.NewBuffer(body))
 }
 
 func (d *APIDriver) ListMaintenanceActivities(tenantID string, page, limit int) (*http.Response, error) {
@@ -183,7 +183,7 @@ func (d *APIDriver) MarkMaintenanceExecutionCompletedWithFieldValues(id, complet
 }
 
 func (d *APIDriver) GetVAPIDPublicKey() (*http.Response, error) {
-	return d.client.Get(fmt.Sprintf("%s/v1/push/vapid-public-key", d.baseURL))
+	return d.client.Get(d.baseURL + "/v1/push/vapid-public-key")
 }
 
 func (d *APIDriver) CreateMaintenanceExecution(activityID string, scheduledDate time.Time, fieldValues map[string]any) (*http.Response, error) {
@@ -196,5 +196,5 @@ func (d *APIDriver) CreateMaintenanceExecution(activityID string, scheduledDate 
 	if err != nil {
 		panic(err)
 	}
-	return d.client.Post(fmt.Sprintf("%s/v1/maintenance/executions", d.baseURL), "application/json", bytes.NewBuffer(body))
+	return d.client.Post(d.baseURL+"/v1/maintenance/executions", "application/json", bytes.NewBuffer(body))
 }

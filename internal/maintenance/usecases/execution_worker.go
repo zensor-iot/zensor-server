@@ -7,12 +7,11 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
 	controlPlaneUsecases "zensor-server/internal/control_plane/usecases"
 	"zensor-server/internal/infra/async"
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
-
-	"github.com/robfig/cron/v3"
 )
 
 const (
@@ -42,7 +41,6 @@ func NewExecutionWorker(
 		tenantService:              tenantService,
 		tenantConfigurationService: tenantConfigurationService,
 		broker:                     broker,
-		cronParser:                 cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow),
 	}
 }
 
@@ -56,7 +54,6 @@ type ExecutionWorker struct {
 	tenantService              controlPlaneUsecases.TenantService
 	tenantConfigurationService controlPlaneUsecases.TenantConfigurationService
 	broker                     async.InternalBroker
-	cronParser                 cron.Parser
 }
 
 func (w *ExecutionWorker) Run(ctx context.Context, done func()) {
@@ -143,25 +140,17 @@ func (w *ExecutionWorker) processActivity(ctx context.Context, activity maintena
 
 	now := time.Now().In(location)
 
-	scheduleSpec, err := w.cronParser.Parse(string(activity.Schedule))
-	if err != nil {
-		slog.Error("parsing cron schedule",
-			slog.String("activity_id", activity.ID.String()),
-			slog.String("schedule", string(activity.Schedule)),
-			slog.Any("error", err))
-		w.publishFailureEvent(ctx, activity, fmt.Errorf("parsing cron schedule: %w", err))
-		return
-	}
-
 	fieldValues := w.buildFieldValuesFromActivity(activity)
 
 	lastExecutionTime := now
 	for range _nextExecutionsCount {
-		nextTime := scheduleSpec.Next(lastExecutionTime)
-
-		if nextTime.Before(now) || nextTime.Equal(now) {
-			lastExecutionTime = nextTime
-			continue
+		nextTime, err := activity.Schedule.Next(lastExecutionTime)
+		if err != nil {
+			slog.Error("computing next execution",
+				slog.String("activity_id", activity.ID.String()),
+				slog.Any("error", err))
+			w.publishFailureEvent(ctx, activity, fmt.Errorf("computing next execution: %w", err))
+			return
 		}
 
 		lastExecutionTime = nextTime

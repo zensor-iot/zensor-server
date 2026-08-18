@@ -2,6 +2,7 @@ package domain
 
 import (
 	"time"
+
 	"zensor-server/internal/infra/utils"
 	shareddomain "zensor-server/internal/shared_kernel/domain"
 )
@@ -105,9 +106,9 @@ func (b *activityBuilder) WithDescription(value string) *activityBuilder {
 	return b
 }
 
-func (b *activityBuilder) WithSchedule(value string) *activityBuilder {
+func (b *activityBuilder) WithSchedule(value Schedule) *activityBuilder {
 	b.actions = append(b.actions, func(d *Activity) error {
-		d.Schedule = Schedule(value)
+		d.Schedule = value
 		return nil
 	})
 	return b
@@ -145,6 +146,10 @@ func (b *activityBuilder) Build() (Activity, error) {
 		if err := a(&result); err != nil {
 			return Activity{}, err
 		}
+	}
+
+	if _, err := result.Schedule.Next(time.Now().Add(-1 * time.Second)); err != nil {
+		return Activity{}, err
 	}
 
 	return result, nil

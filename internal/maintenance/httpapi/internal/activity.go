@@ -2,6 +2,7 @@ package internal
 
 import (
 	"time"
+
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
 )
 
@@ -17,12 +18,18 @@ type ActivityResponse struct {
 	CustomTypeName         *string                   `json:"custom_type_name,omitempty"`
 	Name                   string                    `json:"name"`
 	Description            string                    `json:"description"`
-	Schedule               string                    `json:"schedule"`
+	Schedule               ScheduleResponse          `json:"schedule"`
 	NotificationDaysBefore []int                     `json:"notification_days_before"`
 	Fields                 []FieldDefinitionResponse `json:"fields"`
 	IsActive               bool                      `json:"is_active"`
 	CreatedAt              time.Time                 `json:"created_at"`
 	UpdatedAt              time.Time                 `json:"updated_at"`
+}
+
+type ScheduleResponse struct {
+	StartDate time.Time `json:"start_date"`
+	Every     int       `json:"every"`
+	Unit      string    `json:"unit"`
 }
 
 type FieldDefinitionResponse struct {
@@ -39,9 +46,15 @@ type ActivityCreateRequest struct {
 	CustomTypeName         *string                  `json:"custom_type_name,omitempty"`
 	Name                   string                   `json:"name"`
 	Description            string                   `json:"description"`
-	Schedule               string                   `json:"schedule"`
+	Schedule               ScheduleRequest          `json:"schedule"`
 	NotificationDaysBefore []int                    `json:"notification_days_before"`
 	Fields                 []FieldDefinitionRequest `json:"fields"`
+}
+
+type ScheduleRequest struct {
+	StartDate time.Time `json:"start_date"`
+	Every     int       `json:"every"`
+	Unit      string    `json:"unit"`
 }
 
 type FieldDefinitionRequest struct {
@@ -55,20 +68,24 @@ type FieldDefinitionRequest struct {
 type ActivityUpdateRequest struct {
 	Name                   *string                   `json:"name,omitempty"`
 	Description            *string                   `json:"description,omitempty"`
-	Schedule               *string                   `json:"schedule,omitempty"`
+	Schedule               *ScheduleRequest          `json:"schedule,omitempty"`
 	NotificationDaysBefore *[]int                    `json:"notification_days_before,omitempty"`
 	Fields                 *[]FieldDefinitionRequest `json:"fields,omitempty"`
 }
 
 func ToActivityResponse(activity maintenanceDomain.Activity) ActivityResponse {
 	response := ActivityResponse{
-		ID:                     activity.ID.String(),
-		Version:                int(activity.Version),
-		TenantID:               activity.TenantID.String(),
-		TypeName:               string(activity.Type.Name),
-		Name:                   string(activity.Name),
-		Description:            string(activity.Description),
-		Schedule:               string(activity.Schedule),
+		ID:          activity.ID.String(),
+		Version:     int(activity.Version),
+		TenantID:    activity.TenantID.String(),
+		TypeName:    string(activity.Type.Name),
+		Name:        string(activity.Name),
+		Description: string(activity.Description),
+		Schedule: ScheduleResponse{
+			StartDate: activity.Schedule.StartDate,
+			Every:     activity.Schedule.Every,
+			Unit:      string(activity.Schedule.Unit),
+		},
 		NotificationDaysBefore: []int(activity.NotificationDaysBefore),
 		Fields:                 []FieldDefinitionResponse{},
 		IsActive:               activity.IsActive,
