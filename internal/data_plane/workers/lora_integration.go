@@ -261,6 +261,8 @@ func (w *LoraIntegrationWorker) uplinkMessageHandler(ctx context.Context, msg mq
 	if err != nil {
 		slog.Error("failed to unmarshal message",
 			slog.String("error", err.Error()),
+			slog.String("topic", msg.Topic()),
+			slog.String("payload", string(msg.Payload())),
 			slog.String("trace_id", span.SpanContext().TraceID().String()),
 			slog.String("span_id", span.SpanContext().SpanID().String()),
 		)

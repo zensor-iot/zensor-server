@@ -1,6 +1,10 @@
 package dto
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -40,6 +44,135 @@ type UplinkMessage struct {
 type SensorData struct {
 	Index uint    `json:"index"`
 	Value float64 `json:"value"`
+}
+
+// UnmarshalJSON decodes an uplink message tolerating any decoded_payload shape
+// produced by a device payload formatter. Entries that cannot be interpreted as
+// sensor readings are skipped instead of failing the whole message.
+func (m *UplinkMessage) UnmarshalJSON(data []byte) error {
+	type uplinkMessageAlias struct {
+		Port           uint8                      `json:"port"`
+		RawPayload     []byte                     `json:"frm_payload"`
+		DecodedPayload map[string]json.RawMessage `json:"decoded_payload,omitempty"`
+	}
+
+	var alias uplinkMessageAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return fmt.Errorf("unmarshalling uplink message: %w", err)
+	}
+
+	m.Port = alias.Port
+	m.RawPayload = alias.RawPayload
+	m.DecodedPayload = nil
+
+	if alias.DecodedPayload == nil {
+		return nil
+	}
+
+	m.DecodedPayload = make(map[string][]SensorData, len(alias.DecodedPayload))
+	for key, raw := range alias.DecodedPayload {
+		readings, ok := parseSensorDataList(raw)
+		if !ok {
+			slog.Warn("unsupported decoded payload entry", slog.String("key", key), slog.String("value", string(raw)))
+			continue
+		}
+		m.DecodedPayload[key] = readings
+	}
+
+	return nil
+}
+
+func parseSensorDataList(raw json.RawMessage) ([]SensorData, bool) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return nil, false
+	}
+
+	switch trimmed[0] {
+	case 'n':
+		return nil, true
+	case '[':
+		return parseSensorDataArray(trimmed)
+	case '{':
+		reading, ok := parseSensorDataObject(trimmed)
+		if !ok {
+			return nil, false
+		}
+		return []SensorData{reading}, true
+	default:
+		value, ok := parseSensorValue(trimmed)
+		if !ok {
+			return nil, false
+		}
+		return []SensorData{{Value: value}}, true
+	}
+}
+
+func parseSensorDataArray(raw json.RawMessage) ([]SensorData, bool) {
+	var items []json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return nil, false
+	}
+
+	readings := make([]SensorData, 0, len(items))
+	for index, item := range items {
+		trimmed := bytes.TrimSpace(item)
+		if len(trimmed) == 0 {
+			return nil, false
+		}
+
+		if trimmed[0] == '{' {
+			reading, ok := parseSensorDataObject(trimmed)
+			if !ok {
+				return nil, false
+			}
+			readings = append(readings, reading)
+			continue
+		}
+
+		value, ok := parseSensorValue(trimmed)
+		if !ok {
+			return nil, false
+		}
+		readings = append(readings, SensorData{Index: uint(index), Value: value})
+	}
+
+	return readings, true
+}
+
+func parseSensorDataObject(raw json.RawMessage) (SensorData, bool) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return SensorData{}, false
+	}
+
+	if _, found := fields["value"]; !found {
+		return SensorData{}, false
+	}
+
+	var reading SensorData
+	if err := json.Unmarshal(raw, &reading); err != nil {
+		return SensorData{}, false
+	}
+
+	return reading, true
+}
+
+func parseSensorValue(raw json.RawMessage) (float64, bool) {
+	var number float64
+	if err := json.Unmarshal(raw, &number); err == nil {
+		return number, true
+	}
+
+	var flag bool
+	if err := json.Unmarshal(raw, &flag); err == nil {
+		if flag {
+			return 1, true
+		}
+		return 0, true
+	}
+
+	return 0, false
 }
 
 var codeToNameMapping = map[string]string{
