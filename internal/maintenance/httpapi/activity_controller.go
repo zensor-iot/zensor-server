@@ -246,6 +246,10 @@ func (c *ActivityController) updateActivity() http.HandlerFunc {
 
 		err = c.service.UpdateActivity(r.Context(), activity)
 		if err != nil {
+			if errors.Is(err, usecases.ErrInvalidActivitySchedule) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			slog.Error("updating maintenance activity", slog.String("error", err.Error()))
 			http.Error(w, updateActivityErrMessage, http.StatusInternalServerError)
 			return

@@ -29,7 +29,7 @@ type Schedule struct {
 }
 
 func (s Schedule) Next(after time.Time) (time.Time, error) {
-	if err := s.validate(); err != nil {
+	if err := s.Validate(); err != nil {
 		return time.Time{}, err
 	}
 
@@ -58,7 +58,8 @@ func (s Schedule) advance(current time.Time) time.Time {
 	}
 }
 
-func (s Schedule) validate() error {
+// Validate reports whether the schedule can produce execution dates.
+func (s Schedule) Validate() error {
 	if s.StartDate.IsZero() {
 		return ErrStartDateRequired
 	}

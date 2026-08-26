@@ -149,6 +149,9 @@ func (w *ExecutionWorker) processActivity(ctx context.Context, activity maintena
 		if err != nil {
 			slog.Error("computing next execution",
 				slog.String("activity_id", activity.ID.String()),
+				slog.String("activity_name", string(activity.Name)),
+				slog.String("tenant_id", activity.TenantID.String()),
+				slog.Any("schedule", activity.Schedule),
 				slog.Any("error", err))
 			w.publishFailureEvent(ctx, activity, fmt.Errorf("computing next execution: %w", err))
 			return

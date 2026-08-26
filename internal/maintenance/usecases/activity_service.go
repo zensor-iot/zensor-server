@@ -19,6 +19,10 @@ var (
 	errMaintenanceActivityAlreadyDeleted = errors.New("maintenance activity is already deleted")
 )
 
+// ErrInvalidActivitySchedule is returned when an activity would be persisted with a schedule
+// that cannot produce execution dates.
+var ErrInvalidActivitySchedule = errors.New("invalid activity schedule")
+
 type ActivityService interface {
 	CreateActivity(ctx context.Context, activity maintenanceDomain.Activity) error
 	GetActivity(ctx context.Context, id shareddomain.ID) (maintenanceDomain.Activity, error)
@@ -56,6 +60,10 @@ func (s *SimpleActivityService) CreateActivity(ctx context.Context, activity mai
 			slog.String("tenant_id", activity.TenantID.String()),
 			slog.String("error", err.Error()))
 		return fmt.Errorf("getting tenant: %w", err)
+	}
+
+	if err := activity.Schedule.Validate(); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidActivitySchedule, err)
 	}
 
 	err = s.repository.Create(ctx, activity)
@@ -109,6 +117,10 @@ func (s *SimpleActivityService) UpdateActivity(ctx context.Context, activity mai
 
 	if existingActivity.IsDeleted() {
 		return errMaintenanceActivityDeleted
+	}
+
+	if err := activity.Schedule.Validate(); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidActivitySchedule, err)
 	}
 
 	err = s.repository.Update(ctx, activity)

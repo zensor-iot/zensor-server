@@ -304,6 +304,41 @@ var _ = Describe("MaintenanceActivityService", func() {
 				Expect(err.Error()).To(ContainSubstring("deleted"))
 			})
 		})
+
+		When("the schedule has no start date", func() {
+			It("should not persist the activity", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+
+				activity.Schedule = maintenanceDomain.Schedule{
+					Every: 1,
+					Unit:  maintenanceDomain.RecurrenceUnitWeek,
+				}
+
+				err := service.UpdateActivity(context.Background(), activity)
+				Expect(err).To(MatchError(maintenanceUsecases.ErrInvalidActivitySchedule))
+				Expect(err).To(MatchError(maintenanceDomain.ErrStartDateRequired))
+			})
+		})
+
+		When("the schedule has a non positive interval", func() {
+			It("should not persist the activity", func() {
+				mockRepository.EXPECT().
+					GetByID(gomock.Any(), activity.ID).
+					Return(activity, nil)
+
+				activity.Schedule = maintenanceDomain.Schedule{
+					StartDate: time.Now(),
+					Every:     0,
+					Unit:      maintenanceDomain.RecurrenceUnitWeek,
+				}
+
+				err := service.UpdateActivity(context.Background(), activity)
+				Expect(err).To(MatchError(maintenanceUsecases.ErrInvalidActivitySchedule))
+				Expect(err).To(MatchError(maintenanceDomain.ErrIntervalRequired))
+			})
+		})
 	})
 
 	Context("DeleteActivity", func() {

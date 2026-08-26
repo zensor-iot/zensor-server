@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"zensor-server/internal/infra/utils"
 
 	maintenanceDomain "zensor-server/internal/maintenance/domain"
@@ -106,8 +107,19 @@ func (m Activity) ToDomain() maintenanceDomain.Activity {
 	}
 
 	var schedule maintenanceDomain.Schedule
-	if err := json.Unmarshal([]byte(m.Schedule), &schedule); err == nil {
+	if err := json.Unmarshal([]byte(m.Schedule), &schedule); err != nil {
+		slog.Error("unmarshalling stored activity schedule",
+			slog.String("activity_id", m.ID),
+			slog.String("schedule", m.Schedule),
+			slog.Any("error", err))
+	} else {
 		result.Schedule = schedule
+		if err := schedule.Validate(); err != nil {
+			slog.Error("stored activity schedule is invalid",
+				slog.String("activity_id", m.ID),
+				slog.String("schedule", m.Schedule),
+				slog.Any("error", err))
+		}
 	}
 
 	result.Type = maintenanceDomain.ActivityType{
