@@ -13,6 +13,9 @@ import (
 	victrondto "zensor-server/internal/victron/dto"
 
 	"github.com/gorilla/websocket"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -30,6 +33,9 @@ const (
 	acActiveInputNone = 240
 
 	victronWebSocketPingInterval = 54 * time.Second
+
+	victronWebSocketMeterName   = "victron_websocket_controller"
+	victronSystemLoadMetricName = "zensor_server_victron_system_load_power"
 )
 
 var upgrader = websocket.Upgrader{
@@ -75,6 +81,7 @@ type VictronWebSocketController struct {
 	hasData      bool
 	snapMux      sync.RWMutex
 	pingInterval time.Duration
+	loadGauge    metric.Float64Gauge
 }
 
 func NewVictronWebSocketController(broker async.InternalBroker) *VictronWebSocketController {
@@ -88,6 +95,11 @@ func NewVictronWebSocketControllerWithPingInterval(broker async.InternalBroker, 
 func buildVictronWebSocketController(broker async.InternalBroker, pingInterval time.Duration) *VictronWebSocketController {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	loadGauge, err := otel.Meter(victronWebSocketMeterName).Float64Gauge(victronSystemLoadMetricName)
+	if err != nil {
+		slog.Error("creating victron system load gauge", slog.Any("error", err))
+	}
+
 	wsc := &VictronWebSocketController{
 		broker:       broker,
 		clients:      make(map[*websocket.Conn]bool),
@@ -98,6 +110,7 @@ func buildVictronWebSocketController(broker async.InternalBroker, pingInterval t
 		cancel:       cancel,
 		snapshot:     &victrondto.VictronSystemSnapshot{},
 		pingInterval: pingInterval,
+		loadGauge:    loadGauge,
 	}
 
 	go wsc.run()
@@ -327,10 +340,17 @@ func (wsc *VictronWebSocketController) handleTelemetryUpdate(telemetry victrondt
 	snapshotCopy := *wsc.snapshot
 	wsc.snapMux.Unlock()
 
+	summary := buildSummary(snapshotCopy)
+	if wsc.loadGauge != nil {
+		wsc.loadGauge.Record(context.Background(), summary.AcLoadPower,
+			metric.WithAttributes(attribute.String("portal_id", snapshotCopy.PortalID)),
+		)
+	}
+
 	msg := VictronSystemStatusMessage{
 		Type:   victronStatusMessageType,
 		Data:   snapshotCopy,
-		System: buildSummary(snapshotCopy),
+		System: summary,
 	}
 
 	select {

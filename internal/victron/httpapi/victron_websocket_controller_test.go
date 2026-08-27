@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,7 +14,34 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
+
+func collectGauge(ctx context.Context, reader *metric.ManualReader, name string) (float64, bool) {
+	var rm metricdata.ResourceMetrics
+	if err := reader.Collect(ctx, &rm); err != nil {
+		return 0, false
+	}
+
+	for _, scope := range rm.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			if m.Name != name {
+				continue
+			}
+			gauge, ok := m.Data.(metricdata.Gauge[float64])
+			if !ok {
+				continue
+			}
+			if len(gauge.DataPoints) == 0 {
+				return 0, false
+			}
+			return gauge.DataPoints[0].Value, true
+		}
+	}
+	return 0, false
+}
 
 var _ = ginkgo.Describe("VictronWebSocketController", func() {
 	var (
@@ -21,9 +49,13 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 		controller *httpapi.VictronWebSocketController
 		router     *http.ServeMux
 		server     *httptest.Server
+		reader     *metric.ManualReader
 	)
 
 	ginkgo.BeforeEach(func() {
+		reader = metric.NewManualReader()
+		otel.SetMeterProvider(metric.NewMeterProvider(metric.WithReader(reader)))
+
 		broker = async.NewLocalBroker()
 		controller = httpapi.NewVictronWebSocketController(broker)
 		time.Sleep(50 * time.Millisecond)
@@ -128,6 +160,22 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 				gomega.Expect(conn.ReadJSON(&last)).To(gomega.Succeed())
 
 				gomega.Expect(last.System.AcLoadPower).To(gomega.Equal(250.0))
+			})
+		})
+	})
+
+	ginkgo.Context("system load OpenTelemetry metric", func() {
+		ginkgo.When("the AC load power summary changes", func() {
+			ginkgo.It("should record it as a system load gauge", func() {
+				publishSystemTelemetry(broker, "Ac/Consumption/L1/Power", 800)
+
+				gomega.Eventually(func() (float64, error) {
+					value, ok := collectGauge(context.Background(), reader, "zensor_server_victron_system_load_power")
+					if !ok {
+						return 0, errors.New("gauge not recorded yet")
+					}
+					return value, nil
+				}, 2*time.Second, 20*time.Millisecond).Should(gomega.Equal(800.0))
 			})
 		})
 	})
