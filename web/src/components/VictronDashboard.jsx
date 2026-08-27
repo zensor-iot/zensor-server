@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
 import useMetricHistory from '../hooks/useMetricHistory';
+import useCumulativeEnergyToday from '../hooks/useCumulativeEnergyToday';
 import { getWebSocketUrl } from '../config/api';
 import {
   Sun, Battery, Zap, Gauge, Thermometer, Activity,
@@ -13,6 +14,7 @@ import {
 
 const SOC_METRIC_NAME = 'zensor_server_victron_battery_soc';
 const LOAD_METRIC_NAME = 'zensor_server_victron_system_load_power';
+const SOLAR_POWER_METRIC_NAME = 'zensor_server_victron_solar_power';
 
 const TIME_RANGES = [
   { value: '1h', label: '1h', ms: 60 * 60 * 1000, step: '30s' },
@@ -37,6 +39,20 @@ const VictronDashboard = () => {
 
   const loadRangeConfig = TIME_RANGES.find((r) => r.value === loadRange) ?? TIME_RANGES[1];
   const { history: loadHistory, loading: loadHistoryLoading, error: loadHistoryError } = useMetricHistory(LOAD_METRIC_NAME, loadRangeConfig);
+
+  const {
+    history: solarEnergyHistory,
+    totalKWh: solarEnergyTotalKWh,
+    loading: solarEnergyLoading,
+    error: solarEnergyError,
+  } = useCumulativeEnergyToday(SOLAR_POWER_METRIC_NAME);
+
+  const {
+    history: loadEnergyHistory,
+    totalKWh: loadEnergyTotalKWh,
+    loading: loadEnergyLoading,
+    error: loadEnergyError,
+  } = useCumulativeEnergyToday(LOAD_METRIC_NAME);
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'victron_status') {
@@ -435,6 +451,110 @@ const VictronDashboard = () => {
                       stroke="#f59e0b"
                       strokeWidth={2}
                       fill="url(#loadGradient)"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div className="victron-section">
+            <div className="victron-section-header">
+              <h2><Sun size={20} /> Solar Energy Today{solarEnergyHistory.length > 0 ? ` — ${solarEnergyTotalKWh.toFixed(2)} kWh` : ''}</h2>
+            </div>
+            <div className="victron-chart-card">
+              {solarEnergyLoading && solarEnergyHistory.length === 0 && (
+                <div className="chart-placeholder">Loading today's solar energy...</div>
+              )}
+              {!solarEnergyLoading && solarEnergyError && (
+                <div className="chart-error">Metrics unavailable: {solarEnergyError}</div>
+              )}
+              {!solarEnergyLoading && !solarEnergyError && solarEnergyHistory.length === 0 && (
+                <div className="chart-placeholder">No solar data yet today.</div>
+              )}
+              {solarEnergyHistory.length > 0 && (
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={solarEnergyHistory}>
+                    <defs>
+                      <linearGradient id="solarEnergyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#eab308" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#eab308" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="time"
+                      type="number"
+                      scale="time"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={formatChartTime}
+                      tick={{ fontSize: 12 }}
+                      stroke="#9ca3af"
+                    />
+                    <YAxis unit="kWh" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                    <Tooltip
+                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
+                      formatter={(value) => [`${Number(value).toFixed(2)} kWh`, 'Solar energy']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#eab308"
+                      strokeWidth={2}
+                      fill="url(#solarEnergyGradient)"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div className="victron-section">
+            <div className="victron-section-header">
+              <h2><Zap size={20} /> Load Energy Today{loadEnergyHistory.length > 0 ? ` — ${loadEnergyTotalKWh.toFixed(2)} kWh` : ''}</h2>
+            </div>
+            <div className="victron-chart-card">
+              {loadEnergyLoading && loadEnergyHistory.length === 0 && (
+                <div className="chart-placeholder">Loading today's load energy...</div>
+              )}
+              {!loadEnergyLoading && loadEnergyError && (
+                <div className="chart-error">Metrics unavailable: {loadEnergyError}</div>
+              )}
+              {!loadEnergyLoading && !loadEnergyError && loadEnergyHistory.length === 0 && (
+                <div className="chart-placeholder">No load data yet today.</div>
+              )}
+              {loadEnergyHistory.length > 0 && (
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={loadEnergyHistory}>
+                    <defs>
+                      <linearGradient id="loadEnergyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="time"
+                      type="number"
+                      scale="time"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={formatChartTime}
+                      tick={{ fontSize: 12 }}
+                      stroke="#9ca3af"
+                    />
+                    <YAxis unit="kWh" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                    <Tooltip
+                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
+                      formatter={(value) => [`${Number(value).toFixed(2)} kWh`, 'Load energy']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      fill="url(#loadEnergyGradient)"
                       dot={false}
                     />
                   </AreaChart>
