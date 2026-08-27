@@ -180,6 +180,22 @@ var _ = ginkgo.Describe("VictronWebSocketController", func() {
 		})
 	})
 
+	ginkgo.Context("solar power OpenTelemetry metric", func() {
+		ginkgo.When("the solar power summary changes", func() {
+			ginkgo.It("should record it as a solar power gauge", func() {
+				publishSystemTelemetry(broker, "Dc/Pv/Power", 1200)
+
+				gomega.Eventually(func() (float64, error) {
+					value, ok := collectGauge(context.Background(), reader, "zensor_server_victron_solar_power")
+					if !ok {
+						return 0, errors.New("gauge not recorded yet")
+					}
+					return value, nil
+				}, 2*time.Second, 20*time.Millisecond).Should(gomega.Equal(1200.0))
+			})
+		})
+	})
+
 	ginkgo.Context("concurrent websocket writes", func() {
 		ginkgo.When("telemetry broadcasts while the keepalive ping fires", func() {
 			ginkgo.It("should not panic from concurrent writes", func() {

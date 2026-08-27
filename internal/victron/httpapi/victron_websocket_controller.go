@@ -36,6 +36,7 @@ const (
 
 	victronWebSocketMeterName   = "victron_websocket_controller"
 	victronSystemLoadMetricName = "zensor_server_victron_system_load_power"
+	victronSolarPowerMetricName = "zensor_server_victron_solar_power"
 )
 
 var upgrader = websocket.Upgrader{
@@ -82,6 +83,7 @@ type VictronWebSocketController struct {
 	snapMux      sync.RWMutex
 	pingInterval time.Duration
 	loadGauge    metric.Float64Gauge
+	solarGauge   metric.Float64Gauge
 }
 
 func NewVictronWebSocketController(broker async.InternalBroker) *VictronWebSocketController {
@@ -100,6 +102,11 @@ func buildVictronWebSocketController(broker async.InternalBroker, pingInterval t
 		slog.Error("creating victron system load gauge", slog.Any("error", err))
 	}
 
+	solarGauge, err := otel.Meter(victronWebSocketMeterName).Float64Gauge(victronSolarPowerMetricName)
+	if err != nil {
+		slog.Error("creating victron solar power gauge", slog.Any("error", err))
+	}
+
 	wsc := &VictronWebSocketController{
 		broker:       broker,
 		clients:      make(map[*websocket.Conn]bool),
@@ -111,6 +118,7 @@ func buildVictronWebSocketController(broker async.InternalBroker, pingInterval t
 		snapshot:     &victrondto.VictronSystemSnapshot{},
 		pingInterval: pingInterval,
 		loadGauge:    loadGauge,
+		solarGauge:   solarGauge,
 	}
 
 	go wsc.run()
@@ -343,6 +351,11 @@ func (wsc *VictronWebSocketController) handleTelemetryUpdate(telemetry victrondt
 	summary := buildSummary(snapshotCopy)
 	if wsc.loadGauge != nil {
 		wsc.loadGauge.Record(context.Background(), summary.AcLoadPower,
+			metric.WithAttributes(attribute.String("portal_id", snapshotCopy.PortalID)),
+		)
+	}
+	if wsc.solarGauge != nil {
+		wsc.solarGauge.Record(context.Background(), summary.SolarPower,
 			metric.WithAttributes(attribute.String("portal_id", snapshotCopy.PortalID)),
 		)
 	}
