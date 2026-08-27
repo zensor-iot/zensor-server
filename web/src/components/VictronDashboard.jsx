@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
-import { getWebSocketUrl, metricsApi } from '../config/api';
+import useMetricHistory from '../hooks/useMetricHistory';
+import { getWebSocketUrl } from '../config/api';
 import {
   Sun, Battery, Zap, Gauge, Thermometer, Activity,
   Wifi, WifiOff, RefreshCw, Power, Droplets, TrendingUp
@@ -11,8 +12,9 @@ import {
 } from 'recharts';
 
 const SOC_METRIC_NAME = 'zensor_server_victron_battery_soc';
+const LOAD_METRIC_NAME = 'zensor_server_victron_system_load_power';
 
-const SOC_TIME_RANGES = [
+const TIME_RANGES = [
   { value: '1h', label: '1h', ms: 60 * 60 * 1000, step: '30s' },
   { value: '6h', label: '6h', ms: 6 * 60 * 60 * 1000, step: '60s' },
   { value: '24h', label: '24h', ms: 24 * 60 * 60 * 1000, step: '300s' },
@@ -23,37 +25,18 @@ const VictronDashboard = () => {
   const [systemStatus, setSystemStatus] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [timeAgo, setTimeAgo] = useState('');
-  const [socHistory, setSocHistory] = useState([]);
-  const [socLoading, setSocLoading] = useState(false);
-  const [socError, setSocError] = useState(null);
   const [socRange, setSocRange] = useState('6h');
+  const [loadRange, setLoadRange] = useState('6h');
 
   const wsUrl = getWebSocketUrl('/ws/victron/status');
 
   const { isConnected, lastMessage, connectionError, connectionStatus } = useWebSocket(wsUrl);
 
-  useEffect(() => {
-    let cancelled = false;
-    const range = SOC_TIME_RANGES.find((r) => r.value === socRange) ?? SOC_TIME_RANGES[1];
-    const fetchSoc = async () => {
-      setSocLoading(true);
-      setSocError(null);
-      try {
-        const points = await metricsApi.queryRange(SOC_METRIC_NAME, {
-          start: Date.now() - range.ms,
-          step: range.step,
-        });
-        if (!cancelled) setSocHistory(points);
-      } catch (err) {
-        if (!cancelled) setSocError(err.message);
-      } finally {
-        if (!cancelled) setSocLoading(false);
-      }
-    };
-    fetchSoc();
-    const interval = setInterval(fetchSoc, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [socRange]);
+  const socRangeConfig = TIME_RANGES.find((r) => r.value === socRange) ?? TIME_RANGES[1];
+  const { history: socHistory, loading: socLoading, error: socError } = useMetricHistory(SOC_METRIC_NAME, socRangeConfig);
+
+  const loadRangeConfig = TIME_RANGES.find((r) => r.value === loadRange) ?? TIME_RANGES[1];
+  const { history: loadHistory, loading: loadHistoryLoading, error: loadHistoryError } = useMetricHistory(LOAD_METRIC_NAME, loadRangeConfig);
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'victron_status') {
@@ -337,7 +320,7 @@ const VictronDashboard = () => {
             <div className="victron-section-header">
               <h2><TrendingUp size={20} /> Battery SOC History</h2>
               <div className="time-range-selector">
-                {SOC_TIME_RANGES.map((range) => (
+                {TIME_RANGES.map((range) => (
                   <button
                     key={range.value}
                     className={`range-btn ${socRange === range.value ? 'active' : ''}`}
@@ -389,6 +372,69 @@ const VictronDashboard = () => {
                       stroke="#10b981"
                       strokeWidth={2}
                       fill="url(#socGradient)"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div className="victron-section">
+            <div className="victron-section-header">
+              <h2><TrendingUp size={20} /> System Load History</h2>
+              <div className="time-range-selector">
+                {TIME_RANGES.map((range) => (
+                  <button
+                    key={range.value}
+                    className={`range-btn ${loadRange === range.value ? 'active' : ''}`}
+                    onClick={() => setLoadRange(range.value)}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="victron-chart-card">
+              {loadHistoryLoading && loadHistory.length === 0 && (
+                <div className="chart-placeholder">Loading load history...</div>
+              )}
+              {!loadHistoryLoading && loadHistoryError && (
+                <div className="chart-error">Metrics unavailable: {loadHistoryError}</div>
+              )}
+              {!loadHistoryLoading && !loadHistoryError && loadHistory.length === 0 && (
+                <div className="chart-placeholder">No load data in this time range.</div>
+              )}
+              {loadHistory.length > 0 && (
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={loadHistory}>
+                    <defs>
+                      <linearGradient id="loadGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="time"
+                      type="number"
+                      scale="time"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={formatChartTime}
+                      tick={{ fontSize: 12 }}
+                      stroke="#9ca3af"
+                    />
+                    <YAxis unit="W" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                    <Tooltip
+                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
+                      formatter={(value) => [`${Number(value).toFixed(0)} W`, 'Load']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fill="url(#loadGradient)"
                       dot={false}
                     />
                   </AreaChart>
