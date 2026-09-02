@@ -417,3 +417,71 @@ func (mr *MockAuthServiceMockRecorder) UpdateAllowedUser(ctx, id, isAdmin any) *
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAllowedUser", reflect.TypeOf((*MockAuthService)(nil).UpdateAllowedUser), ctx, id, isAdmin)
 }
+
+// MockStaticAuthService is a mock of StaticAuthService interface.
+type MockStaticAuthService struct {
+	ctrl     *gomock.Controller
+	recorder *MockStaticAuthServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockStaticAuthServiceMockRecorder is the mock recorder for MockStaticAuthService.
+type MockStaticAuthServiceMockRecorder struct {
+	mock *MockStaticAuthService
+}
+
+// NewMockStaticAuthService creates a new mock instance.
+func NewMockStaticAuthService(ctrl *gomock.Controller) *MockStaticAuthService {
+	mock := &MockStaticAuthService{ctrl: ctrl}
+	mock.recorder = &MockStaticAuthServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockStaticAuthService) EXPECT() *MockStaticAuthServiceMockRecorder {
+	return m.recorder
+}
+
+// GetSession mocks base method.
+func (m *MockStaticAuthService) GetSession(ctx context.Context, sessionID string) (domain.Session, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSession", ctx, sessionID)
+	ret0, _ := ret[0].(domain.Session)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSession indicates an expected call of GetSession.
+func (mr *MockStaticAuthServiceMockRecorder) GetSession(ctx, sessionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSession", reflect.TypeOf((*MockStaticAuthService)(nil).GetSession), ctx, sessionID)
+}
+
+// Login mocks base method.
+func (m *MockStaticAuthService) Login(ctx context.Context, username, password string) (domain.Session, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Login", ctx, username, password)
+	ret0, _ := ret[0].(domain.Session)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Login indicates an expected call of Login.
+func (mr *MockStaticAuthServiceMockRecorder) Login(ctx, username, password any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Login", reflect.TypeOf((*MockStaticAuthService)(nil).Login), ctx, username, password)
+}
+
+// Logout mocks base method.
+func (m *MockStaticAuthService) Logout(ctx context.Context, sessionID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Logout", ctx, sessionID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Logout indicates an expected call of Logout.
+func (mr *MockStaticAuthServiceMockRecorder) Logout(ctx, sessionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logout", reflect.TypeOf((*MockStaticAuthService)(nil).Logout), ctx, sessionID)
+}

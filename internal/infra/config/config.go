@@ -73,6 +73,7 @@ func LoadConfig() AppConfig {
 			ExecutionWorker: ExecutionWorkerConfig{
 				TickerInterval: viper.GetDuration("execution_worker.ticker_interval"),
 			},
+			Medicines: loadMedicinesConfig(),
 		}
 	})
 
@@ -163,7 +164,11 @@ func loadMetricsConfig() []MetricWorkerConfig {
 }
 
 func loadPushNotificationsConfig() []PushNotificationWorkerConfig {
-	notificationsInterface := viper.Get("push_notifications")
+	return loadPushNotificationsList("push_notifications")
+}
+
+func loadPushNotificationsList(key string) []PushNotificationWorkerConfig {
+	notificationsInterface := viper.Get(key)
 	if notificationsSlice, ok := notificationsInterface.([]interface{}); ok {
 		var notifications []PushNotificationWorkerConfig
 		for _, item := range notificationsSlice {
@@ -210,6 +215,9 @@ func loadModulesConfig() ModulesConfig {
 		Victron: ModuleConfig{
 			Enabled: viper.GetBool("modules.victron.enabled"),
 		},
+		Medicines: ModuleConfig{
+			Enabled: viper.GetBool("modules.medicines.enabled"),
+		},
 	}
 }
 
@@ -230,6 +238,7 @@ type AppConfig struct {
 	PushNotifications PushNotificationsConfig
 	Modules           ModulesConfig
 	ExecutionWorker   ExecutionWorkerConfig
+	Medicines         MedicinesConfig
 }
 
 type GeneralConfig struct {
@@ -337,6 +346,7 @@ type ModulesConfig struct {
 	Permaculture ModuleConfig
 	Maintenance  ModuleConfig
 	Victron      ModuleConfig
+	Medicines    ModuleConfig
 }
 
 type VictronConfig struct {
@@ -365,4 +375,25 @@ type ModuleConfig struct {
 
 type ExecutionWorkerConfig struct {
 	TickerInterval time.Duration
+}
+
+// MedicinesConfig holds the settings of the medicines module. Its push
+// notification list is separate from the top level one so the module owns its
+// own notifications and starts them under its own enable flag.
+type MedicinesConfig struct {
+	Worker            MedicineWorkerConfig
+	PushNotifications PushNotificationsConfig
+}
+
+type MedicineWorkerConfig struct {
+	TickerInterval time.Duration
+}
+
+func loadMedicinesConfig() MedicinesConfig {
+	return MedicinesConfig{
+		Worker: MedicineWorkerConfig{
+			TickerInterval: viper.GetDuration("medicines.worker.ticker_interval"),
+		},
+		PushNotifications: loadPushNotificationsList("medicines.push_notifications"),
+	}
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Building2, Cpu, Wrench } from 'lucide-react'
+import { Building2, Cpu, Wrench, Pill } from 'lucide-react'
 import { getApiUrl } from '../config/api'
 
 const PortalShell = ({ children }) => {
@@ -56,6 +56,13 @@ const PortalShell = ({ children }) => {
           >
             <Wrench size={20} />
             Maintenance
+          </NavLink>
+          <NavLink
+            to={`/portal/${tenantId}/medicines`}
+            className={({ isActive }) => `portal-sidebar-link${isActive ? ' active' : ''}`}
+          >
+            <Pill size={20} />
+            Medicines
           </NavLink>
         </nav>
       </aside>

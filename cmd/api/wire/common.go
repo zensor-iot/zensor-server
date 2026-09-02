@@ -6,6 +6,7 @@ package wire
 import (
 	"context"
 	"zensor-server/internal/control_plane/usecases"
+	"zensor-server/internal/infra/async"
 	"zensor-server/internal/infra/config"
 	"zensor-server/internal/infra/notification"
 
@@ -113,6 +114,26 @@ func InitializeWebPushController() (*sharedHTTPAPI.WebPushController, error) {
 	wire.Build(
 		provideAppConfig,
 		provideWebPushController,
+	)
+	return nil, nil
+}
+
+func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*sharedUsecases.PushNotificationWorkerFactory, error) {
+	wire.Build(
+		provideAppConfig,
+		provideCompositeNotificationClient,
+		provideDatabase,
+		sharedPersistence.NewPushTokenRepository,
+		wire.Bind(new(sharedUsecases.PushTokenRepository), new(*sharedPersistence.SimplePushTokenRepository)),
+		sharedUsecases.NewPushTokenService,
+		wire.Bind(new(sharedUsecases.PushTokenService), new(*sharedUsecases.SimplePushTokenService)),
+		sharedPersistence.NewUserRepository,
+		wire.Bind(new(sharedUsecases.UserRepository), new(*sharedPersistence.SimpleUserRepository)),
+		sharedPersistence.NewTenantRepository,
+		wire.Bind(new(sharedUsecases.TenantRepository), new(*sharedPersistence.SimpleTenantRepository)),
+		sharedUsecases.NewUserService,
+		wire.Bind(new(sharedUsecases.UserService), new(*sharedUsecases.SimpleUserService)),
+		sharedUsecases.NewPushNotificationWorkerFactory,
 	)
 	return nil, nil
 }
