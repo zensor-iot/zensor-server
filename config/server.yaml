@@ -119,8 +119,10 @@ push_notifications:
     title: "Execution Reminder"
     title_template: "Execution Reminder: {{activity_name}}"
     body: "Scheduled execution is due soon"
-    deeplink: "/maintenance/executions"
-    deeplink_template: "/maintenance/executions/%s"
+    # The SPA is mounted at /ui (BrowserRouter basename) and the service worker
+    # opens this path verbatim, so the prefix has to be part of it.
+    deeplink: "/ui/portal"
+    deeplink_template: "/ui/maintenance/executions/{{execution_id}}"
   - name: "execution_overdue"
     topic: "maintenance_executions"
     event_type: "execution_overdue"
@@ -129,5 +131,5 @@ push_notifications:
     title: "Execution Overdue"
     title_template: "Execution Overdue: {{activity_name}}"
     body: "Scheduled execution is overdue"
-    deeplink: "/maintenance/executions"
-    deeplink_template: "/maintenance/executions/%s"
+    deeplink: "/ui/portal"
+    deeplink_template: "/ui/maintenance/executions/{{execution_id}}"

@@ -52,7 +52,30 @@ func NewPushNotificationWorker(
 		return nil, fmt.Errorf("initializing metrics: %w", err)
 	}
 
+	worker.warnOnUnsupportedTemplates()
+
 	return worker, nil
+}
+
+// warnOnUnsupportedTemplates reports a template still written with the %s
+// placeholder that this worker used to support. Only {{key}} is interpolated
+// now, so a stale template would reach the user as a literal "%s"; saying so at
+// startup turns a silent wrong notification into a visible misconfiguration.
+func (w *PushNotificationWorker) warnOnUnsupportedTemplates() {
+	templates := map[string]string{
+		"title_template":    w.config.TitleTemplate,
+		"body_template":     w.config.BodyTemplate,
+		"deeplink_template": w.config.DeepLinkTemplate,
+	}
+
+	for field, template := range templates {
+		if strings.Contains(template, "%s") {
+			slog.Warn("push notification template uses an unsupported %s placeholder, use {{key}} instead",
+				slog.String("notification", w.config.Name),
+				slog.String("field", field),
+				slog.String("template", template))
+		}
+	}
 }
 
 var _ async.Worker = (*PushNotificationWorker)(nil)
@@ -212,7 +235,7 @@ func (w *PushNotificationWorker) sendToTenantUsers(ctx context.Context, tenantID
 func (w *PushNotificationWorker) buildTitle(msg async.BrokerMessage) string {
 	if w.config.TitleTemplate != "" {
 		interpolated := w.interpolateTemplate(w.config.TitleTemplate, msg.Value)
-		if !strings.Contains(interpolated, "{{") && !strings.Contains(interpolated, "%s") {
+		if !strings.Contains(interpolated, "{{") {
 			return interpolated
 		}
 	}
@@ -220,48 +243,47 @@ func (w *PushNotificationWorker) buildTitle(msg async.BrokerMessage) string {
 }
 
 func (w *PushNotificationWorker) buildBody(msg async.BrokerMessage) string {
-	if w.config.BodyTemplate != "" {
-		return w.interpolateTemplate(w.config.BodyTemplate, msg.Value)
-	}
-	return w.config.Body
+	return w.buildFromTemplate(w.config.BodyTemplate, w.config.Body, msg)
 }
 
 func (w *PushNotificationWorker) buildDeepLink(msg async.BrokerMessage) string {
-	if w.config.DeepLinkTemplate != "" {
-		return w.interpolateTemplate(w.config.DeepLinkTemplate, msg.Value)
-	}
-	return w.config.DeepLink
+	return w.buildFromTemplate(w.config.DeepLinkTemplate, w.config.DeepLink, msg)
 }
 
+// buildFromTemplate falls back to the static value when the payload did not
+// supply every placeholder, so a missing key never reaches the user as a raw
+// "{{key}}" in the notification body or as a broken deep link.
+func (w *PushNotificationWorker) buildFromTemplate(template, fallback string, msg async.BrokerMessage) string {
+	if template == "" {
+		return fallback
+	}
+
+	interpolated := w.interpolateTemplate(template, msg.Value)
+	if strings.Contains(interpolated, "{{") {
+		slog.Warn("push notification template left a placeholder unresolved, falling back",
+			slog.String("notification", w.config.Name),
+			slog.String("result", interpolated))
+		return fallback
+	}
+
+	return interpolated
+}
+
+// interpolateTemplate replaces every {{key}} placeholder with the matching value
+// from the message payload. A placeholder with no matching key is left in place,
+// which is how the caller detects an incomplete interpolation.
 func (w *PushNotificationWorker) interpolateTemplate(template string, data any) string {
 	result := template
 
-	if mapData, ok := data.(map[string]any); ok {
-		for key, value := range mapData {
-			placeholder := "{{" + key + "}}"
-			if strings.Contains(result, placeholder) {
-				result = strings.ReplaceAll(result, placeholder, fmt.Sprintf("%v", value))
-			}
-		}
-	}
-
-	if strings.Contains(result, "{{") {
+	mapData, ok := data.(map[string]any)
+	if !ok {
 		return result
 	}
 
-	executionID := utils.ExtractStringValue(data, "execution_id")
-	activityID := utils.ExtractStringValue(data, "activity_id")
-	activityName := utils.ExtractStringValue(data, "activity_name")
-
-	if strings.Contains(result, "%s") {
-		if executionID != "" {
-			return fmt.Sprintf(result, executionID)
-		}
-		if activityID != "" {
-			return fmt.Sprintf(result, activityID)
-		}
-		if activityName != "" {
-			return fmt.Sprintf(result, activityName)
+	for key, value := range mapData {
+		placeholder := "{{" + key + "}}"
+		if strings.Contains(result, placeholder) {
+			result = strings.ReplaceAll(result, placeholder, fmt.Sprintf("%v", value))
 		}
 	}
 

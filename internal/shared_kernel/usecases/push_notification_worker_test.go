@@ -165,8 +165,8 @@ var _ = Describe("PushNotificationWorker", func() {
 				Title:            "Execution Reminder",
 				TitleTemplate:    "Execution Reminder: {{activity_name}}",
 				Body:             "Scheduled execution is due soon",
-				DeepLink:         "/maintenance/executions",
-				DeepLinkTemplate: "/maintenance/executions/%s",
+				DeepLink:         "/ui/portal",
+				DeepLinkTemplate: "/ui/maintenance/executions/{{execution_id}}",
 			}
 
 			var err error
@@ -222,7 +222,44 @@ var _ = Describe("PushNotificationWorker", func() {
 				var req notification.PushNotificationRequest
 				Eventually(sent).Should(Receive(&req))
 				Expect(req.Title).To(Equal("Execution Reminder: Filter Replacement"))
-				Expect(req.DeepLink).To(Equal("/maintenance/executions/execution-1"))
+				Expect(req.DeepLink).To(Equal("/ui/maintenance/executions/execution-1"))
+			})
+		})
+
+		When("the deep link template needs a key the payload does not carry", func() {
+			It("should fall back to the static deep link rather than leak the placeholder", func() {
+				tokens := []domain.PushToken{
+					{ID: "tok-a", UserID: "user-1", Token: "fcm-token", Platform: "android"},
+				}
+				pushTokenService.EXPECT().
+					ListTokensByUserID(gomock.Any(), domain.ID("user-1")).
+					Return(tokens, nil)
+
+				sent := make(chan notification.PushNotificationRequest, 1)
+				notificationClient.EXPECT().
+					SendPushNotification(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, req notification.PushNotificationRequest) error {
+						sent <- req
+						return nil
+					}).
+					Times(1)
+
+				msg := async.BrokerMessage{
+					Event: "execution_ready_for_notification",
+					Value: map[string]any{
+						"tenant_id":     "tenant-1",
+						"user_id":       "user-1",
+						"activity_name": "Filter Replacement",
+					},
+				}
+				Eventually(func() error {
+					return broker.Publish(context.Background(), "maintenance_executions", msg)
+				}).Should(Succeed())
+
+				var req notification.PushNotificationRequest
+				Eventually(sent).Should(Receive(&req))
+				Expect(req.DeepLink).To(Equal("/ui/portal"))
+				Expect(req.DeepLink).NotTo(ContainSubstring("{{"))
 			})
 		})
 
