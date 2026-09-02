@@ -88,26 +88,6 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*maintenanceUsecase
 	return nil, nil
 }
 
-func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*maintenanceUsecases.PushNotificationWorkerFactory, error) {
-	wire.Build(
-		provideAppConfig,
-		provideCompositeNotificationClient,
-		provideDatabase,
-		sharedPersistence.NewPushTokenRepository,
-		wire.Bind(new(sharedUsecases.PushTokenRepository), new(*sharedPersistence.SimplePushTokenRepository)),
-		sharedUsecases.NewPushTokenService,
-		wire.Bind(new(sharedUsecases.PushTokenService), new(*sharedUsecases.SimplePushTokenService)),
-		sharedPersistence.NewUserRepository,
-		wire.Bind(new(sharedUsecases.UserRepository), new(*sharedPersistence.SimpleUserRepository)),
-		sharedPersistence.NewTenantRepository,
-		wire.Bind(new(sharedUsecases.TenantRepository), new(*sharedPersistence.SimpleTenantRepository)),
-		sharedUsecases.NewUserService,
-		wire.Bind(new(sharedUsecases.UserService), new(*sharedUsecases.SimpleUserService)),
-		maintenanceUsecases.NewPushNotificationWorkerFactory,
-	)
-	return nil, nil
-}
-
 func provideExecutionWorkerTicker(appConfig config.AppConfig) *time.Ticker {
 	interval := appConfig.ExecutionWorker.TickerInterval
 	if interval == 0 {

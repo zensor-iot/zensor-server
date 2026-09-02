@@ -19,7 +19,7 @@ import (
 	"zensor-server/internal/infra/node"
 	"zensor-server/internal/infra/o11y"
 
-	maintenanceUsecases "zensor-server/internal/maintenance/usecases"
+	sharedUsecases "zensor-server/internal/shared_kernel/usecases"
 	victronHTTPAPI "zensor-server/internal/victron/httpapi"
 	victronUsecases "zensor-server/internal/victron/usecases"
 
@@ -150,23 +150,34 @@ func main() {
 		go asWorker(handleWireInjector(wire.InitializeNotificationWorker(internalBroker))).Run(appCtx, wg.Done)
 	}
 
-	if appConfig.Modules.Maintenance.Enabled {
-		wg.Add(1)
-		go asWorker(handleWireInjector(wire.InitializeExecutionWorker(internalBroker))).Run(appCtx, wg.Done)
-
-		// Initialize push notification workers based on configuration
-		pushNotificationWorkerFactory := asComponents[maintenanceUsecases.PushNotificationWorkerFactory](handleWireInjector(wire.InitializePushNotificationWorkerFactory(internalBroker)))
-		pushNotificationWorkers, err := pushNotificationWorkerFactory.CreateWorkers(appConfig.PushNotifications)
+	// Push notification workers are module-agnostic: each module owns its own
+	// configuration list and starts the workers under its own enable flag.
+	var pushNotificationWorkerFactory *sharedUsecases.PushNotificationWorkerFactory
+	startPushNotificationWorkers := func(notifications config.PushNotificationsConfig, module string) {
+		if len(notifications) == 0 {
+			return
+		}
+		if pushNotificationWorkerFactory == nil {
+			pushNotificationWorkerFactory = asComponents[sharedUsecases.PushNotificationWorkerFactory](handleWireInjector(wire.InitializePushNotificationWorkerFactory(internalBroker)))
+		}
+		workers, err := pushNotificationWorkerFactory.CreateWorkers(notifications)
 		if err != nil {
-			slog.Error("failed to create push notification workers", slog.Any("error", err))
+			slog.Error("failed to create push notification workers", slog.String("module", module), slog.Any("error", err))
 			panic(err)
 		}
-
-		// Start all push notification workers
-		for _, worker := range pushNotificationWorkers {
+		for _, worker := range workers {
 			wg.Add(1)
 			go worker.Run(appCtx, wg.Done)
 		}
+	}
+
+	if appConfig.Modules.Maintenance.Enabled {
+		// Subscribers start before the publishing worker: the internal broker drops
+		// a publish with ErrTopicNotFound when nobody has subscribed yet.
+		startPushNotificationWorkers(appConfig.PushNotifications, "maintenance")
+
+		wg.Add(1)
+		go asWorker(handleWireInjector(wire.InitializeExecutionWorker(internalBroker))).Run(appCtx, wg.Done)
 	}
 
 	// Initialize metric workers based on configuration

@@ -111,6 +111,28 @@ func InitializeWebPushController() (*httpapi.WebPushController, error) {
 	return webPushController, nil
 }
 
+func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usecases.PushNotificationWorkerFactory, error) {
+	appConfig := provideAppConfig()
+	notificationClient := provideCompositeNotificationClient(appConfig)
+	orm := provideDatabase(appConfig)
+	simplePushTokenRepository, err := persistence.NewPushTokenRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simplePushTokenService := usecases.NewPushTokenService(simplePushTokenRepository)
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	pushNotificationWorkerFactory := usecases.NewPushNotificationWorkerFactory(broker, notificationClient, simplePushTokenService, simpleUserService)
+	return pushNotificationWorkerFactory, nil
+}
+
 // Injectors from control_plane.go:
 
 func InitializeEvaluationRuleController() (*httpapi2.EvaluationRuleController, error) {
@@ -433,28 +455,6 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
 	executionWorker := usecases3.NewExecutionWorker(ticker, simpleActivityRepository, simpleExecutionRepository, simpleExecutionService, simpleTenantService, simpleTenantConfigurationService, broker)
 	return executionWorker, nil
-}
-
-func InitializePushNotificationWorkerFactory(broker async.InternalBroker) (*usecases3.PushNotificationWorkerFactory, error) {
-	appConfig := provideAppConfig()
-	notificationClient := provideCompositeNotificationClient(appConfig)
-	orm := provideDatabase(appConfig)
-	simplePushTokenRepository, err := persistence.NewPushTokenRepository(orm)
-	if err != nil {
-		return nil, err
-	}
-	simplePushTokenService := usecases.NewPushTokenService(simplePushTokenRepository)
-	simpleUserRepository, err := persistence.NewUserRepository(orm)
-	if err != nil {
-		return nil, err
-	}
-	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
-	if err != nil {
-		return nil, err
-	}
-	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
-	pushNotificationWorkerFactory := usecases3.NewPushNotificationWorkerFactory(broker, notificationClient, simplePushTokenService, simpleUserService)
-	return pushNotificationWorkerFactory, nil
 }
 
 // common.go:
