@@ -316,3 +316,166 @@ export const metricsApi = {
 }
 
 export default config 
+// Medicines API functions
+export const medicinesApi = {
+    async listPatients(tenantId, page = 1, limit = 50) {
+        const response = await fetch(getApiUrl(`/medicines/patients?tenant_id=${tenantId}&page=${page}&limit=${limit}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch patients: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async getPatient(patientId) {
+        const response = await fetch(getApiUrl(`/medicines/patients/${patientId}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch patient: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async createPatient(patient) {
+        const response = await fetch(getApiUrl('/medicines/patients'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patient)
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to create patient: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async updatePatient(patientId, updates) {
+        const response = await fetch(getApiUrl(`/medicines/patients/${patientId}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to update patient: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async deletePatient(patientId) {
+        const response = await fetch(getApiUrl(`/medicines/patients/${patientId}`), { method: 'DELETE' })
+        if (!response.ok) {
+            // A patient under treatment cannot be removed; surface that as-is.
+            const detail = await response.text()
+            throw new Error(detail.trim() || `Failed to delete patient: ${response.status}`)
+        }
+    },
+
+    async listTreatmentsByPatient(patientId, page = 1, limit = 50) {
+        const response = await fetch(getApiUrl(`/medicines/treatments?patient_id=${patientId}&page=${page}&limit=${limit}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch treatments: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async getTreatment(treatmentId) {
+        const response = await fetch(getApiUrl(`/medicines/treatments/${treatmentId}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch treatment: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async createTreatment(treatment) {
+        const response = await fetch(getApiUrl('/medicines/treatments'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(treatment)
+        })
+        if (!response.ok) {
+            const detail = await response.text()
+            throw new Error(detail.trim() || `Failed to create treatment: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async updateTreatment(treatmentId, updates) {
+        const response = await fetch(getApiUrl(`/medicines/treatments/${treatmentId}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        })
+        if (!response.ok) {
+            throw new Error(`Failed to update treatment: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async deleteTreatment(treatmentId) {
+        const response = await fetch(getApiUrl(`/medicines/treatments/${treatmentId}`), { method: 'DELETE' })
+        if (!response.ok) {
+            throw new Error(`Failed to delete treatment: ${response.status}`)
+        }
+    },
+
+    async activateTreatment(treatmentId) {
+        const response = await fetch(getApiUrl(`/medicines/treatments/${treatmentId}/activate`), { method: 'POST' })
+        if (!response.ok) {
+            throw new Error(`Failed to activate treatment: ${response.status}`)
+        }
+    },
+
+    async deactivateTreatment(treatmentId) {
+        const response = await fetch(getApiUrl(`/medicines/treatments/${treatmentId}/deactivate`), { method: 'POST' })
+        if (!response.ok) {
+            throw new Error(`Failed to deactivate treatment: ${response.status}`)
+        }
+    },
+
+    async listDoses(treatmentId, page = 1, limit = 20) {
+        const response = await fetch(getApiUrl(`/medicines/doses?treatment_id=${treatmentId}&page=${page}&limit=${limit}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch doses: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async getDose(doseId) {
+        const response = await fetch(getApiUrl(`/medicines/doses/${doseId}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch dose: ${response.status}`)
+        }
+        return response.json()
+    },
+
+    async administerDose(doseId, notes) {
+        return resolveDose(doseId, 'administer', notes)
+    },
+
+    async skipDose(doseId, notes) {
+        return resolveDose(doseId, 'skip', notes)
+    },
+
+    // The agenda is resolved server-side, so the page needs one request rather
+    // than one per treatment.
+    async listAgenda(tenantId, from, to) {
+        const params = new URLSearchParams({ tenant_id: tenantId })
+        if (from) params.set('from', from)
+        if (to) params.set('to', to)
+        const response = await fetch(getApiUrl(`/medicines/agenda?${params.toString()}`))
+        if (!response.ok) {
+            throw new Error(`Failed to fetch agenda: ${response.status}`)
+        }
+        return response.json()
+    }
+}
+
+async function resolveDose(doseId, action, notes) {
+    const response = await fetch(getApiUrl(`/medicines/doses/${doseId}/${action}`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notes || null })
+    })
+    if (!response.ok) {
+        const detail = await response.text()
+        throw new Error(detail.trim() || `Failed to ${action} dose: ${response.status}`)
+    }
+    return response.json()
+}

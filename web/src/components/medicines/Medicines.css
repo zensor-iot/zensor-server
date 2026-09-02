@@ -1,0 +1,480 @@
+.medicines-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.medicines-page h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 4px;
+    font-size: 24px;
+}
+
+.medicines-subtitle {
+    margin: 0 0 20px;
+    color: #667085;
+    font-size: 14px;
+}
+
+.medicines-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.medicines-header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.medicines-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 12px;
+    color: #667085;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.medicines-back:hover {
+    color: #344054;
+}
+
+/* Buttons */
+
+.medicines-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d0d5dd;
+    background: #fff;
+    color: #344054;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.medicines-button:hover:not(:disabled) {
+    background: #f4f6f8;
+}
+
+.medicines-button.primary {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.medicines-button.primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+
+.medicines-button.small {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+.medicines-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.medicines-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #d0d5dd;
+    background: #fff;
+    color: #667085;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.medicines-icon-button:hover {
+    background: #f4f6f8;
+    color: #344054;
+}
+
+.medicines-icon-button.danger:hover {
+    background: #fef3f2;
+    border-color: #fda29b;
+    color: #b42318;
+}
+
+/* Lists */
+
+.medicines-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.medicines-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid #eaecf0;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.medicines-card.inactive {
+    opacity: 0.6;
+}
+
+.medicines-card.overdue {
+    border-color: #fda29b;
+    background: #fffbfa;
+}
+
+.medicines-card-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.medicines-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.medicines-card-text strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+}
+
+.medicines-card-notes {
+    color: #667085;
+    font-size: 13px;
+}
+
+.medicines-kind {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.medicines-kind-human {
+    background: #eff8ff;
+    color: #1570ef;
+}
+
+.medicines-kind-animal {
+    background: #fdf4ff;
+    color: #9333ea;
+}
+
+.medicines-agenda-time {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 92px;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    color: #344054;
+}
+
+.medicines-overdue-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #b42318;
+}
+
+.medicines-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.medicines-status-administered {
+    background: #ecfdf3;
+    color: #027a48;
+}
+
+.medicines-status-skipped {
+    background: #f2f4f7;
+    color: #475467;
+}
+
+.medicines-status-pending {
+    background: #fffaeb;
+    color: #b54708;
+}
+
+/* Empty and loading */
+
+.medicines-empty,
+.medicines-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 24px;
+    color: #667085;
+    text-align: center;
+}
+
+.medicines-loading {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.spin {
+    animation: medicines-spin 1s linear infinite;
+}
+
+@keyframes medicines-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Forms */
+
+.medicines-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 520px;
+}
+
+.medicines-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: none;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+
+.medicines-field > span,
+.medicines-field > legend {
+    font-size: 13px;
+    font-weight: 500;
+    color: #344054;
+    padding: 0;
+}
+
+.medicines-field input[type="text"],
+.medicines-field input[type="number"],
+.medicines-field input[type="datetime-local"],
+.medicines-field select {
+    padding: 9px 12px;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: #101828;
+}
+
+.medicines-field-row {
+    display: flex;
+    gap: 12px;
+}
+
+.medicines-field-row .medicines-field {
+    flex: 1;
+}
+
+.medicines-radio-group {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.medicines-radio-group.column {
+    flex-direction: column;
+    gap: 10px;
+}
+
+.medicines-radio-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #344054;
+}
+
+.medicines-inline-input {
+    width: 70px;
+    padding: 5px 8px;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.medicines-inline-input.wide {
+    width: auto;
+}
+
+.medicines-inline-input:disabled {
+    background: #f9fafb;
+    color: #98a2b3;
+}
+
+.medicines-hint {
+    color: #667085;
+    font-size: 13px;
+}
+
+.medicines-preview {
+    padding: 12px 14px;
+    border: 1px dashed #d0d5dd;
+    border-radius: 8px;
+    background: #f9fafb;
+}
+
+.medicines-preview-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475467;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.medicines-preview ul {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #344054;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Tabs */
+
+.medicines-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #eaecf0;
+}
+
+.medicines-tab {
+    padding: 9px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: #667085;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.medicines-tab.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    font-weight: 500;
+}
+
+/* Dialog */
+
+.medicines-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 24, 40, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.medicines-dialog {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    border-radius: 12px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.medicines-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.medicines-dialog-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.medicines-dialog-dose {
+    margin: 0;
+    font-size: 15px;
+    color: #344054;
+}
+
+.medicines-dialog-time {
+    margin: 0;
+    color: #667085;
+    font-size: 13px;
+}
+
+.medicines-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.medicines-footnote {
+    margin-top: 18px;
+    color: #98a2b3;
+    font-size: 12px;
+    text-align: center;
+}
+
+@media (max-width: 640px) {
+    .medicines-card {
+        flex-wrap: wrap;
+    }
+
+    .medicines-field-row {
+        flex-direction: column;
+    }
+}

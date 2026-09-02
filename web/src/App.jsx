@@ -15,6 +15,12 @@ import MaintenanceActivityCreate from './components/maintenance/MaintenanceActiv
 import MaintenanceActivityDetail from './components/maintenance/MaintenanceActivityDetail'
 import MaintenanceUpNext from './components/maintenance/MaintenanceUpNext'
 import ExecutionDeeplink from './components/maintenance/ExecutionDeeplink'
+import MedicinePatients from './components/medicines/MedicinePatients'
+import PatientForm from './components/medicines/PatientForm'
+import PatientDetail from './components/medicines/PatientDetail'
+import TreatmentForm from './components/medicines/TreatmentForm'
+import MedicineAgenda from './components/medicines/MedicineAgenda'
+import DoseDeeplink from './components/medicines/DoseDeeplink'
 import Profile from './components/Profile'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AdminTenants from './components/admin/AdminTenants'
@@ -70,6 +76,12 @@ function AppContent() {
       <Route path="/portal/:tenantId/maintenance/activities/:activityId" element={<MaintenanceActivityDetail />} />
       <Route path="/portal/:tenantId/maintenance/up-next" element={<MaintenanceUpNext />} />
       <Route path="/maintenance/executions/:executionId" element={<ExecutionDeeplink />} />
+      <Route path="/portal/:tenantId/medicines" element={<MedicinePatients />} />
+      <Route path="/portal/:tenantId/medicines/agenda" element={<MedicineAgenda />} />
+      <Route path="/portal/:tenantId/medicines/patients/new" element={<PatientForm />} />
+      <Route path="/portal/:tenantId/medicines/patients/:patientId" element={<PatientDetail />} />
+      <Route path="/portal/:tenantId/medicines/patients/:patientId/treatments/new" element={<TreatmentForm />} />
+      <Route path="/medicines/doses/:doseId" element={<DoseDeeplink />} />
       <Route path="/live-messages" element={<DeviceMessagesLive />} />
       <Route path="/energy" element={<VictronDashboard />} />
       <Route path="/profile" element={<Profile />} />

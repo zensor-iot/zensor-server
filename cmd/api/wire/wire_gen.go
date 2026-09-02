@@ -26,6 +26,9 @@ import (
 	httpapi3 "zensor-server/internal/maintenance/httpapi"
 	persistence3 "zensor-server/internal/maintenance/persistence"
 	usecases3 "zensor-server/internal/maintenance/usecases"
+	httpapi4 "zensor-server/internal/medicines/httpapi"
+	persistence4 "zensor-server/internal/medicines/persistence"
+	usecases4 "zensor-server/internal/medicines/usecases"
 	"zensor-server/internal/shared_kernel/httpapi"
 	"zensor-server/internal/shared_kernel/persistence"
 	"zensor-server/internal/shared_kernel/usecases"
@@ -457,6 +460,110 @@ func InitializeExecutionWorker(broker async.InternalBroker) (*usecases3.Executio
 	return executionWorker, nil
 }
 
+// Injectors from medicines.go:
+
+func InitializeMedicinePatientController() (*httpapi4.PatientController, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	simplePatientRepository, err := persistence4.NewPatientRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTreatmentRepository, err := persistence4.NewTreatmentRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases2.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	simplePatientService := usecases4.NewPatientService(simplePatientRepository, simpleTreatmentRepository, simpleTenantService)
+	patientController := httpapi4.NewPatientController(simplePatientService)
+	return patientController, nil
+}
+
+func InitializeMedicineTreatmentController() (*httpapi4.TreatmentController, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	simpleTreatmentRepository, err := persistence4.NewTreatmentRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simplePatientRepository, err := persistence4.NewPatientRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDoseRepository, err := persistence4.NewDoseRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTreatmentService := usecases4.NewTreatmentService(simpleTreatmentRepository, simplePatientRepository, simpleDoseRepository)
+	treatmentController := httpapi4.NewTreatmentController(simpleTreatmentService)
+	return treatmentController, nil
+}
+
+func InitializeMedicineDoseController() (*httpapi4.DoseController, error) {
+	appConfig := provideAppConfig()
+	orm := provideDatabase(appConfig)
+	simpleDoseRepository, err := persistence4.NewDoseRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDoseService := usecases4.NewDoseService(simpleDoseRepository)
+	doseController := httpapi4.NewDoseController(simpleDoseService)
+	return doseController, nil
+}
+
+func InitializeMedicineWorker(broker async.InternalBroker) (*usecases4.MedicineWorker, error) {
+	appConfig := provideAppConfig()
+	ticker := provideMedicineWorkerTicker(appConfig)
+	orm := provideDatabase(appConfig)
+	simpleTreatmentRepository, err := persistence4.NewTreatmentRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDoseRepository, err := persistence4.NewDoseRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleTenantRepository, err := persistence.NewTenantRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceRepository, err := persistence2.NewDeviceRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandRepository, err := persistence2.NewCommandRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleDeviceService := usecases2.NewDeviceService(simpleDeviceRepository, simpleCommandRepository)
+	simpleTenantService := usecases.NewTenantService(simpleTenantRepository, simpleDeviceService)
+	simpleTenantConfigurationRepository, err := persistence.NewTenantConfigurationRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserRepository, err := persistence.NewUserRepository(orm)
+	if err != nil {
+		return nil, err
+	}
+	simpleUserService := usecases.NewUserService(simpleUserRepository, simpleTenantRepository)
+	simpleTenantConfigurationService := usecases.NewTenantConfigurationService(simpleTenantConfigurationRepository, simpleUserService)
+	medicineWorker := usecases4.NewMedicineWorker(ticker, simpleTreatmentRepository, simpleDoseRepository, simpleTenantService, simpleTenantConfigurationService, broker)
+	return medicineWorker, nil
+}
+
 // common.go:
 
 func provideCompositeNotificationClient(cfg config.AppConfig) notification.NotificationClient {
@@ -583,6 +690,19 @@ func provideExecutionWorkerTicker(appConfig config.AppConfig) *time.Ticker {
 	interval := appConfig.ExecutionWorker.TickerInterval
 	if interval == 0 {
 		interval = 5 * time.Minute
+	}
+	return time.NewTicker(interval)
+}
+
+// medicines.go:
+
+// provideMedicineWorkerTicker defaults to a minute. The reminder lead time in
+// the worker has to stay strictly greater than this interval, or a dose can
+// fall between two windows and its reminder is lost.
+func provideMedicineWorkerTicker(appConfig config.AppConfig) *time.Ticker {
+	interval := appConfig.Medicines.Worker.TickerInterval
+	if interval == 0 {
+		interval = time.Minute
 	}
 	return time.NewTicker(interval)
 }

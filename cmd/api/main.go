@@ -82,6 +82,15 @@ func main() {
 		)
 	}
 
+	if appConfig.Modules.Medicines.Enabled {
+		slog.Info("module enabled and will be wired", slog.String("module", "medicines"))
+		controllers = append(controllers,
+			asController(handleWireInjector(wire.InitializeMedicinePatientController())),
+			asController(handleWireInjector(wire.InitializeMedicineTreatmentController())),
+			asController(handleWireInjector(wire.InitializeMedicineDoseController())),
+		)
+	}
+
 	if appConfig.Modules.Permaculture.Enabled {
 		slog.Info("module enabled and will be wired", slog.String("module", "permaculture"))
 	}
@@ -178,6 +187,15 @@ func main() {
 
 		wg.Add(1)
 		go asWorker(handleWireInjector(wire.InitializeExecutionWorker(internalBroker))).Run(appCtx, wg.Done)
+	}
+
+	if appConfig.Modules.Medicines.Enabled {
+		// Subscribers first: the internal broker drops a publish with
+		// ErrTopicNotFound when nobody has subscribed to the topic yet.
+		startPushNotificationWorkers(appConfig.Medicines.PushNotifications, "medicines")
+
+		wg.Add(1)
+		go asWorker(handleWireInjector(wire.InitializeMedicineWorker(internalBroker))).Run(appCtx, wg.Done)
 	}
 
 	// Initialize metric workers based on configuration
