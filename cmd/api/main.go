@@ -29,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -330,7 +329,7 @@ func startLogsProvider(ctx context.Context) (ShutdownFunc, error) {
 		sdklog.WithProcessor(sdklog.NewBatchProcessor(exp)),
 		sdklog.WithResource(newOTelResource()),
 	)
-	global.SetLoggerProvider(lp)
+	otel.SetLoggerProvider(lp)
 
 	return func() error {
 		return lp.Shutdown(ctx)
