@@ -1,0 +1,269 @@
+/* Zensor design tokens v1.0.0 — derivado de tokens.json. No editar a mano: regenera desde tokens.json. */
+/* Uso: en componentes usa SOLO variables semánticas (--zs-bg-*, --zs-text-*, --zs-status-*...). La paleta cruda (--zs-color-*) es para definir semánticos. */
+
+:root {
+  --zs-color-moss-950: #151D14;
+  --zs-color-moss-900: #1F2B1E;
+  --zs-color-moss-850: #243022;
+  --zs-color-moss-800: #2B3A2A;
+  --zs-color-moss-750: #2F4029;
+  --zs-color-moss-700: #34462F;
+  --zs-color-moss-650: #3F5238;
+  --zs-color-moss-600: #4D6445;
+  --zs-color-moss-550: #5E6B52;
+  --zs-color-moss-500: #6B8160;
+  --zs-color-moss-400: #8A9A78;
+  --zs-color-moss-300: #A9B598;
+  --zs-color-moss-200: #CBD0B6;
+  --zs-color-moss-150: #DCE5CF;
+  --zs-color-moss-100: #E6EBDA;
+  --zs-color-sand-50: #FBF8F0;
+  --zs-color-sand-100: #F2ECDF;
+  --zs-color-sand-200: #E6DFCC;
+  --zs-color-sand-300: #E2DAC4;
+  --zs-color-sand-400: #B8B197;
+  --zs-color-clay-900: #3B2A20;
+  --zs-color-clay-700: #6E3A1E;
+  --zs-color-clay-600: #8A4A27;
+  --zs-color-clay-500: #B9683E;
+  --zs-color-clay-400: #E39A6B;
+  --zs-color-clay-100: #F1DCCB;
+  --zs-color-water-900: #1F3A3A;
+  --zs-color-water-700: #245A57;
+  --zs-color-water-500: #5F8F8B;
+  --zs-color-water-300: #9CC7C3;
+  --zs-color-water-100: #D5E6E4;
+  --zs-font-display: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', system-ui, sans-serif;
+  --zs-font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --zs-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --zs-text-xs: 0.75rem;
+  --zs-text-sm: 0.8125rem;
+  --zs-text-md: 0.875rem;
+  --zs-text-base: 1rem;
+  --zs-text-lg: 1.125rem;
+  --zs-text-xl: 1.375rem;
+  --zs-text-2xl: 1.75rem;
+  --zs-text-3xl: 2rem;
+  --zs-text-4xl: 2.75rem;
+  --zs-text-display: 4rem;
+  --zs-weight-regular: 400;
+  --zs-weight-medium: 500;
+  --zs-weight-bold: 700;
+  --zs-leading-tight: 1.1;
+  --zs-leading-snug: 1.25;
+  --zs-leading-normal: 1.45;
+  --zs-leading-relaxed: 1.55;
+  --zs-tracking-display: -0.02em;
+  --zs-tracking-heading: -0.01em;
+  --zs-tracking-normal: 0;
+  --zs-tracking-wide: 0.04em;
+  --zs-space-0: 0;
+  --zs-space-1: 0.25rem;
+  --zs-space-2: 0.5rem;
+  --zs-space-3: 0.75rem;
+  --zs-space-4: 1rem;
+  --zs-space-5: 1.25rem;
+  --zs-space-6: 1.5rem;
+  --zs-space-8: 2rem;
+  --zs-space-10: 2.5rem;
+  --zs-space-12: 3rem;
+  --zs-space-16: 4rem;
+  --zs-radius-sm: 8px;
+  --zs-radius-md: 16px;
+  --zs-radius-lg: 20px;
+  --zs-radius-xl: 24px;
+  --zs-radius-2xl: 28px;
+  --zs-radius-pill: 999px;
+  --zs-size-touch-min: 2.75rem;
+  --zs-size-control: 3.25rem;
+  --zs-size-icon-sm: 1.125rem;
+  --zs-size-icon-md: 1.25rem;
+  --zs-size-icon-lg: 1.5rem;
+  --zs-size-bar: 0.5rem;
+  --zs-size-switch-w: 2.75rem;
+  --zs-size-switch-h: 1.625rem;
+  --zs-size-drawer: 31.25rem;
+  --zs-size-sidebar: 16.25rem;
+  --zs-size-content-max: 90rem;
+  --zs-size-device-card-min: 27.5rem;
+  --zs-border-hairline: 1px;
+  --zs-border-control: 1.5px;
+  --zs-border-focus: 2px;
+  --zs-z-base: 0;
+  --zs-z-sticky: 10;
+  --zs-z-scrim: 40;
+  --zs-z-drawer: 50;
+  --zs-z-toast: 60;
+  --zs-opacity-offline: 0.82;
+  --zs-opacity-disabled: 0.45;
+  --zs-duration-instant: 80ms;
+  --zs-duration-fast: 140ms;
+  --zs-duration-base: 200ms;
+  --zs-duration-slow: 240ms;
+  --zs-duration-slower: 400ms;
+  --zs-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --zs-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --zs-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --zs-ease-linear: linear;
+  color-scheme: light;
+  --zs-bg-canvas: #F2ECDF;
+  --zs-bg-surface: #FBF8F0;
+  --zs-bg-sunken: #E6DFCC;
+  --zs-bg-inverse: #2B3A2A;
+  --zs-bg-inverse-raised: #3F5238;
+  --zs-bg-scrim: rgba(43, 58, 42, 0.38);
+  --zs-border-default: #E2DAC4;
+  --zs-border-strong: #B8B197;
+  --zs-text-primary: #2B3A2A;
+  --zs-text-secondary: #5E6B52;
+  --zs-text-inverse: #F2ECDF;
+  --zs-text-inverse-muted: #CBD0B6;
+  --zs-text-attention: #8A4A27;
+  --zs-brand-ink: #2B3A2A;
+  --zs-accent: #B9683E;
+  --zs-accent-on-inverse: #E39A6B;
+  --zs-accent-on-inverse-fg: #2B3A2A;
+  --zs-action-primary-bg: #2B3A2A;
+  --zs-action-primary-fg: #F2ECDF;
+  --zs-action-primary-hover: #1F2B1E;
+  --zs-focus-ring: #5F8F8B;
+  --zs-status-ok-bg: #DCE5CF;
+  --zs-status-ok-fg: #34462F;
+  --zs-status-ok-fill: #4D6445;
+  --zs-status-attention-bg: #F1DCCB;
+  --zs-status-attention-fg: #8A4A27;
+  --zs-status-attention-fill: #B9683E;
+  --zs-status-live-bg: #D5E6E4;
+  --zs-status-live-fg: #245A57;
+  --zs-status-live-fill: #5F8F8B;
+  --zs-track: #E6DFCC;
+  --zs-shadow-flat: none;
+  --zs-shadow-raised: 0 1px 2px rgba(43, 58, 42, 0.08);
+  --zs-shadow-overlay: 0 12px 32px -12px rgba(43, 58, 42, 0.28);
+  --zs-shadow-drawer: -24px 0 60px rgba(43, 58, 42, 0.28);
+  --zs-shadow-modal: 0 24px 80px rgba(43, 58, 42, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  color-scheme: dark;
+    --zs-bg-canvas: #1F2B1E;
+    --zs-bg-surface: #243022;
+    --zs-bg-sunken: #151D14;
+    --zs-bg-inverse: #34462F;
+    --zs-bg-inverse-raised: #3F5238;
+    --zs-bg-scrim: rgba(0, 0, 0, 0.55);
+    --zs-border-default: #34462F;
+    --zs-border-strong: #4D6445;
+    --zs-text-primary: #F2ECDF;
+    --zs-text-secondary: #A9B598;
+    --zs-text-inverse: #F2ECDF;
+    --zs-text-inverse-muted: #A9B598;
+    --zs-text-attention: #E39A6B;
+    --zs-brand-ink: #F2ECDF;
+    --zs-accent: #E39A6B;
+    --zs-accent-on-inverse: #E39A6B;
+    --zs-accent-on-inverse-fg: #2B3A2A;
+    --zs-action-primary-bg: #F2ECDF;
+    --zs-action-primary-fg: #2B3A2A;
+    --zs-action-primary-hover: #FBF8F0;
+    --zs-focus-ring: #9CC7C3;
+    --zs-status-ok-bg: #2F4029;
+    --zs-status-ok-fg: #CBD0B6;
+    --zs-status-ok-fill: #8A9A78;
+    --zs-status-attention-bg: #3B2A20;
+    --zs-status-attention-fg: #E39A6B;
+    --zs-status-attention-fill: #E39A6B;
+    --zs-status-live-bg: #1F3A3A;
+    --zs-status-live-fg: #9CC7C3;
+    --zs-status-live-fill: #5F8F8B;
+    --zs-track: #34462F;
+    --zs-shadow-flat: none;
+    --zs-shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --zs-shadow-overlay: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+    --zs-shadow-drawer: -24px 0 60px rgba(0, 0, 0, 0.55);
+    --zs-shadow-modal: 0 24px 80px rgba(0, 0, 0, 0.65);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --zs-bg-canvas: #1F2B1E;
+  --zs-bg-surface: #243022;
+  --zs-bg-sunken: #151D14;
+  --zs-bg-inverse: #34462F;
+  --zs-bg-inverse-raised: #3F5238;
+  --zs-bg-scrim: rgba(0, 0, 0, 0.55);
+  --zs-border-default: #34462F;
+  --zs-border-strong: #4D6445;
+  --zs-text-primary: #F2ECDF;
+  --zs-text-secondary: #A9B598;
+  --zs-text-inverse: #F2ECDF;
+  --zs-text-inverse-muted: #A9B598;
+  --zs-text-attention: #E39A6B;
+  --zs-brand-ink: #F2ECDF;
+  --zs-accent: #E39A6B;
+  --zs-accent-on-inverse: #E39A6B;
+  --zs-accent-on-inverse-fg: #2B3A2A;
+  --zs-action-primary-bg: #F2ECDF;
+  --zs-action-primary-fg: #2B3A2A;
+  --zs-action-primary-hover: #FBF8F0;
+  --zs-focus-ring: #9CC7C3;
+  --zs-status-ok-bg: #2F4029;
+  --zs-status-ok-fg: #CBD0B6;
+  --zs-status-ok-fill: #8A9A78;
+  --zs-status-attention-bg: #3B2A20;
+  --zs-status-attention-fg: #E39A6B;
+  --zs-status-attention-fill: #E39A6B;
+  --zs-status-live-bg: #1F3A3A;
+  --zs-status-live-fg: #9CC7C3;
+  --zs-status-live-fill: #5F8F8B;
+  --zs-track: #34462F;
+  --zs-shadow-flat: none;
+  --zs-shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --zs-shadow-overlay: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --zs-shadow-drawer: -24px 0 60px rgba(0, 0, 0, 0.55);
+  --zs-shadow-modal: 0 24px 80px rgba(0, 0, 0, 0.65);
+}
+
+/* ---------- Roles tipográficos (clases utilitarias) ---------- */
+.zs-text-display { font-family: var(--zs-font-display); font-size: var(--zs-text-display); font-weight: var(--zs-weight-bold); line-height: var(--zs-leading-tight); letter-spacing: var(--zs-tracking-display); }
+.zs-text-h1 { font-family: var(--zs-font-display); font-size: var(--zs-text-4xl); font-weight: var(--zs-weight-bold); line-height: var(--zs-leading-tight); letter-spacing: var(--zs-tracking-heading); }
+.zs-text-h1-mobile { font-family: var(--zs-font-display); font-size: var(--zs-text-3xl); font-weight: var(--zs-weight-bold); line-height: var(--zs-leading-tight); letter-spacing: var(--zs-tracking-heading); }
+.zs-text-h2 { font-family: var(--zs-font-display); font-size: var(--zs-text-2xl); font-weight: var(--zs-weight-bold); line-height: var(--zs-leading-tight); letter-spacing: var(--zs-tracking-heading); }
+.zs-text-title { font-family: var(--zs-font-display); font-size: var(--zs-text-xl); font-weight: var(--zs-weight-bold); line-height: var(--zs-leading-snug); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-h3 { font-family: var(--zs-font-display); font-size: var(--zs-text-lg); font-weight: var(--zs-weight-bold); line-height: var(--zs-leading-snug); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-body { font-family: var(--zs-font-body); font-size: var(--zs-text-base); font-weight: var(--zs-weight-regular); line-height: var(--zs-leading-normal); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-body-sm { font-family: var(--zs-font-body); font-size: var(--zs-text-md); font-weight: var(--zs-weight-regular); line-height: var(--zs-leading-normal); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-label { font-family: var(--zs-font-body); font-size: var(--zs-text-md); font-weight: var(--zs-weight-medium); line-height: var(--zs-leading-snug); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-caption { font-family: var(--zs-font-body); font-size: var(--zs-text-sm); font-weight: var(--zs-weight-regular); line-height: var(--zs-leading-normal); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-data-lg { font-family: var(--zs-font-mono); font-size: var(--zs-text-2xl); font-weight: var(--zs-weight-medium); line-height: var(--zs-leading-tight); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-data-md { font-family: var(--zs-font-mono); font-size: var(--zs-text-xl); font-weight: var(--zs-weight-medium); line-height: var(--zs-leading-tight); letter-spacing: var(--zs-tracking-normal); }
+.zs-text-data-sm { font-family: var(--zs-font-mono); font-size: var(--zs-text-md); font-weight: var(--zs-weight-medium); line-height: var(--zs-leading-tight); letter-spacing: var(--zs-tracking-normal); }
+
+/* ---------- Foco visible (accesibilidad) ---------- */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: var(--zs-border-focus) solid var(--zs-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Movimiento ---------- */
+@keyframes zs-drawer-in { from { transform: translateX(48px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes zs-drawer-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(48px); opacity: 0; } }
+@keyframes zs-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+.zs-anim-drawer-in { animation: zs-drawer-in var(--zs-duration-slow) var(--zs-ease-decelerate) both; }
+.zs-anim-drawer-out { animation: zs-drawer-out var(--zs-duration-fast) var(--zs-ease-accelerate) both; }
+.zs-anim-scrim-in { animation: zs-scrim-in var(--zs-duration-base) var(--zs-ease-standard) both; }
+.zs-press { transition: transform var(--zs-duration-instant) var(--zs-ease-standard); }
+.zs-press:active { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --zs-duration-instant: 0.01ms;
+    --zs-duration-fast: 0.01ms;
+    --zs-duration-base: 0.01ms;
+    --zs-duration-slow: 0.01ms;
+    --zs-duration-slower: 0.01ms;
+  }
+  .zs-anim-drawer-in, .zs-anim-drawer-out { animation-name: zs-scrim-in; }
+}
