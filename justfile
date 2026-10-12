@@ -124,6 +124,11 @@ dev: build
     fi
 
     HTTP_PORT=$(just _http_port)
+    if PORT_OWNER=$(lsof -nP -iTCP:"${HTTP_PORT}" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1 " (PID " $2 ")"}') && [ -n "$PORT_OWNER" ]; then
+        echo "❌ port ${HTTP_PORT} is already in use by ${PORT_OWNER}."
+        echo "   Stop it or pick another port: ZENSOR_SERVER_HTTP_PORT=3002 just dev"
+        exit 1
+    fi
     LOG_FILE=$(mktemp -t zensor-dev-XXXX.log)
     echo "🚀 starting zensor server (log: ${LOG_FILE}, port: ${HTTP_PORT})..."
     ./server > "$LOG_FILE" 2>&1 &
