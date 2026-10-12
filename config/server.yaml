@@ -118,9 +118,9 @@ push_notifications:
     event_type: "execution_ready_for_notification"
     tenant_id_path: "tenant_id"
     user_id_path: ""
-    title: "Execution Reminder"
-    title_template: "Execution Reminder: {{activity_name}}"
-    body: "Scheduled execution is due soon"
+    title: "Actividad por vencer"
+    title_template: "{{activity_name}}"
+    body: "Esta actividad vence pronto"
     # The SPA is mounted at /ui (BrowserRouter basename) and the service worker
     # opens this path verbatim, so the prefix has to be part of it.
     deeplink: "/ui/portal"
@@ -130,9 +130,9 @@ push_notifications:
     event_type: "execution_overdue"
     tenant_id_path: "tenant_id"
     user_id_path: ""
-    title: "Execution Overdue"
-    title_template: "Execution Overdue: {{activity_name}}"
-    body: "Scheduled execution is overdue"
+    title: "Actividad vencida"
+    title_template: "{{activity_name}}"
+    body: "Esta actividad está vencida"
     deeplink: "/ui/portal"
     deeplink_template: "/ui/maintenance/executions/{{execution_id}}"
 
