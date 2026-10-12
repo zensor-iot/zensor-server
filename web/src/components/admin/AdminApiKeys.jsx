@@ -1,246 +1,293 @@
-import { useState, useEffect } from 'react'
-import { KeyRound, Plus, Trash2, AlertTriangle, Copy, Check } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Check, Copy, Plus, Trash2 } from 'lucide-react'
 import { useNotification } from '../../hooks/useNotification'
+import {
+  Button,
+  ConfirmDialog,
+  Drawer,
+  EmptyState,
+  ErrorState,
+  Field,
+  Form,
+  IconButton,
+  Input,
+  KeyValue,
+  LoadingState,
+  Notice,
+  Page,
+  PageHeader,
+  Table,
+} from '../../ui'
+import { formatDateTime } from '../../lib/zensor'
 import { createAPIKey, listAPIKeys, revokeAPIKey } from '../../utils/apiKeys'
-import './AdminApiKeys.css'
 
-const createErrorMessages = {
-    duplicate_name: 'An API key with that name already exists',
-    name_required: 'Name is required',
+const FORM_ID = 'admin-api-key-form'
+
+const CREATE_ERRORS = {
+  duplicate_name: 'Ya existe una clave con ese nombre. Usa otro nombre.',
+  name_required: 'Escribe un nombre para la clave.',
 }
 
 const AdminApiKeys = () => {
-    const { showSuccess, showError } = useNotification()
-    const [apiKeys, setApiKeys] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [showCreateForm, setShowCreateForm] = useState(false)
-    const [creating, setCreating] = useState(false)
-    const [name, setName] = useState('')
-    const [createdKey, setCreatedKey] = useState(null)
-    const [copied, setCopied] = useState(false)
+  const { showSuccess, showError } = useNotification()
+  const [apiKeys, setApiKeys] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [step, setStep] = useState(null)
+  const [name, setName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createdKey, setCreatedKey] = useState(null)
+  const [copied, setCopied] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [toRevoke, setToRevoke] = useState(null)
+  const [revoking, setRevoking] = useState(false)
 
-    useEffect(() => {
-        fetchApiKeys()
-    }, [])
-
-    const fetchApiKeys = async () => {
-        try {
-            setLoading(true)
-            setApiKeys(await listAPIKeys())
-        } catch (error) {
-            console.error('Failed to fetch api keys:', error)
-            showError('Failed to load API keys', 'Error')
-            setApiKeys([])
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleCreate = async (event) => {
-        event.preventDefault()
-        try {
-            setCreating(true)
-            const created = await createAPIKey(name.trim())
-            setShowCreateForm(false)
-            setName('')
-            setCreatedKey(created)
-        } catch (error) {
-            console.error('Failed to create api key:', error)
-            showError(createErrorMessages[error.code] || 'Failed to create API key', 'Error')
-        } finally {
-            setCreating(false)
-        }
-    }
-
-    const handleCopy = async () => {
-        try {
-            await copyToClipboard(createdKey.key)
-            setCopied(true)
-        } catch (error) {
-            console.error('Failed to copy api key:', error)
-            showError('Failed to copy — select the key and copy it manually', 'Error')
-        }
-    }
-
-    const handleAcknowledge = () => {
-        setCreatedKey(null)
-        setCopied(false)
-        showSuccess('API key created', 'Success')
-        fetchApiKeys()
-    }
-
-    const handleRevoke = async (apiKey) => {
-        if (!window.confirm(`Revoke "${apiKey.name}"? Any client using it will immediately start getting 401s.`)) {
-            return
-        }
-
-        try {
-            await revokeAPIKey(apiKey.id)
-            showSuccess('API key revoked', 'Success')
-            fetchApiKeys()
-        } catch (error) {
-            console.error('Failed to revoke api key:', error)
-            showError('Failed to revoke API key', 'Error')
-        }
-    }
-
-    const formatCreatedAt = (value) => {
-        if (!value) return '—'
-        return new Date(value).toLocaleString()
-    }
-
-    return (
-        <div className="admin-api-keys">
-            <div className="admin-header">
-                <div className="admin-title">
-                    <KeyRound size={32} />
-                    <h1>API Keys</h1>
-                </div>
-                <p className="admin-subtitle">Grant non-human clients access to the API</p>
-            </div>
-
-            <div className="admin-actions">
-                <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
-                    <Plus size={16} />
-                    New API Key
-                </button>
-            </div>
-
-            {showCreateForm && (
-                <div className="form-overlay">
-                    <div className="form-card">
-                        <h2>Create API Key</h2>
-                        <form onSubmit={handleCreate}>
-                            <div className="form-group">
-                                <label htmlFor="name">Name</label>
-                                <input
-                                    id="name"
-                                    type="text"
-                                    required
-                                    autoFocus
-                                    placeholder="grafana-sync"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
-                                <p className="form-hint">A label to identify this key later. It cannot be changed.</p>
-                            </div>
-                            <div className="form-actions">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => setShowCreateForm(false)}
-                                    disabled={creating}
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn btn-primary" disabled={creating}>
-                                    {creating ? 'Creating...' : 'Create Key'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {createdKey && (
-                <div className="form-overlay">
-                    <div className="form-card reveal-card">
-                        <div className="reveal-title">
-                            <AlertTriangle size={20} />
-                            <h2>Copy your API key now</h2>
-                        </div>
-                        <p className="reveal-warning">
-                            This is the only time it will be shown. Once you close this dialog it cannot be
-                            retrieved — you would have to create a new key.
-                        </p>
-                        <div className="reveal-key">
-                            <input type="text" readOnly value={createdKey.key} onFocus={(e) => e.target.select()} />
-                            <button type="button" className="btn btn-secondary" onClick={handleCopy}>
-                                {copied ? <Check size={16} /> : <Copy size={16} />}
-                                {copied ? 'Copied' : 'Copy'}
-                            </button>
-                        </div>
-                        <dl className="reveal-meta">
-                            <dt>Name</dt>
-                            <dd>{createdKey.name}</dd>
-                            <dt>Usage</dt>
-                            <dd><code>Authorization: Bearer &lt;key&gt;</code></dd>
-                        </dl>
-                        <div className="form-actions">
-                            <button type="button" className="btn btn-primary" onClick={handleAcknowledge}>
-                                I&apos;ve saved it — close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {loading ? (
-                <div className="loading">Loading API keys...</div>
-            ) : (
-                <div className="api-keys-table-wrapper">
-                    <table className="api-keys-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Key Prefix</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {apiKeys.map((apiKey) => (
-                                <tr key={apiKey.id}>
-                                    <td>{apiKey.name}</td>
-                                    <td><code className="key-prefix">{apiKey.key_prefix}…</code></td>
-                                    <td>{formatCreatedAt(apiKey.created_at)}</td>
-                                    <td>
-                                        <div className="api-key-actions">
-                                            <button
-                                                className="btn-icon danger"
-                                                onClick={() => handleRevoke(apiKey)}
-                                                title="Revoke key"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {apiKeys.length === 0 && (
-                                <tr>
-                                    <td colSpan="4" className="empty-state">No API keys yet</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
-    )
-}
-
-async function copyToClipboard(value) {
-    if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(value)
-        return
-    }
-
-    const textarea = document.createElement('textarea')
-    textarea.value = value
-    textarea.setAttribute('readonly', '')
-    textarea.style.position = 'absolute'
-    textarea.style.left = '-9999px'
-    document.body.appendChild(textarea)
-    textarea.select()
-
+  const fetchApiKeys = useCallback(async () => {
     try {
-        if (!document.execCommand('copy')) {
-            throw new Error('copy command was rejected')
-        }
+      setLoading(true)
+      setLoadError(false)
+      const keys = await listAPIKeys()
+      setApiKeys(Array.isArray(keys) ? keys : [])
+    } catch {
+      setLoadError(true)
+      setApiKeys([])
     } finally {
-        document.body.removeChild(textarea)
+      setLoading(false)
     }
+  }, [])
+
+  useEffect(() => {
+    fetchApiKeys()
+  }, [fetchApiKeys])
+
+  const openCreate = () => {
+    setName('')
+    setStep('create')
+  }
+
+  const finishReveal = () => {
+    setConfirmClose(false)
+    setStep(null)
+    setCreatedKey(null)
+    setCopied(false)
+    fetchApiKeys()
+  }
+
+  const closeDrawer = () => {
+    if (step === 'reveal') {
+      if (copied) finishReveal()
+      else setConfirmClose(true)
+      return
+    }
+    if (!creating) setStep(null)
+  }
+
+  const handleCreate = async event => {
+    event.preventDefault()
+    try {
+      setCreating(true)
+      const created = await createAPIKey(name.trim())
+      setCreatedKey(created)
+      setCopied(false)
+      setStep('reveal')
+      showSuccess('Clave creada')
+    } catch (error) {
+      showError(CREATE_ERRORS[error.code] || 'No se pudo crear la clave. Vuelve a intentarlo.')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(createdKey.key)
+      setCopied(true)
+    } catch {
+      showError('No se pudo copiar la clave. Selecciónala en el campo y cópiala a mano.')
+    }
+  }
+
+  const handleRevoke = async () => {
+    try {
+      setRevoking(true)
+      await revokeAPIKey(toRevoke.id)
+      showSuccess('Clave revocada')
+      setToRevoke(null)
+      fetchApiKeys()
+    } catch (error) {
+      showError(
+        error.code === 'not_found'
+          ? 'Esa clave ya no existe. La lista se actualizó.'
+          : 'No se pudo revocar la clave. Vuelve a intentarlo.',
+      )
+      if (error.code === 'not_found') {
+        setToRevoke(null)
+        fetchApiKeys()
+      }
+    } finally {
+      setRevoking(false)
+    }
+  }
+
+  const revealing = step === 'reveal' && createdKey
+
+  return (
+    <Page>
+      <PageHeader
+        title="Claves de API"
+        description="Da acceso a la API a integraciones y scripts que no inician sesión."
+        back={{ to: '/admin', label: 'Administración' }}
+        actions={
+          <Button icon={Plus} onClick={openCreate}>
+            Crear clave
+          </Button>
+        }
+      />
+
+      {loading && <LoadingState>Cargando claves…</LoadingState>}
+
+      {!loading && loadError && (
+        <ErrorState title="No se pudieron cargar las claves" onRetry={fetchApiKeys}>
+          Revisa tu conexión y vuelve a intentarlo.
+        </ErrorState>
+      )}
+
+      {!loading && !loadError && apiKeys.length === 0 && (
+        <EmptyState title="Aún no hay claves">
+          Crea una clave cuando una integración necesite leer o escribir datos sin iniciar sesión.
+        </EmptyState>
+      )}
+
+      {!loading && !loadError && apiKeys.length > 0 && (
+        <Table caption="Claves de API">
+          <thead>
+            <tr>
+              <th scope="col">Nombre</th>
+              <th scope="col">Prefijo</th>
+              <th scope="col">Creada</th>
+              <th scope="col">
+                <span className="sr-only">Acciones</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {apiKeys.map(apiKey => (
+              <tr key={apiKey.id}>
+                <td className="font-bold">{apiKey.name}</td>
+                <td className="font-mono">{apiKey.key_prefix}…</td>
+                <td>{apiKey.created_at ? formatDateTime(apiKey.created_at) : '—'}</td>
+                <td>
+                  <div className="flex justify-end">
+                    <IconButton
+                      icon={Trash2}
+                      variant="danger"
+                      label={`Revocar la clave ${apiKey.name}`}
+                      onClick={() => setToRevoke(apiKey)}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
+      <Drawer
+        open={!!step && !confirmClose}
+        onClose={closeDrawer}
+        title={revealing ? 'Copia la clave ahora' : 'Crear clave'}
+        subtitle={revealing ? createdKey.name : undefined}
+        footer={
+          revealing ? (
+            <Button onClick={finishReveal}>Ya guardé la clave</Button>
+          ) : (
+            <>
+              <Button type="submit" form={FORM_ID} disabled={creating}>
+                {creating ? 'Creando…' : 'Crear clave'}
+              </Button>
+              <Button variant="ghost" onClick={closeDrawer} disabled={creating}>
+                Cancelar
+              </Button>
+            </>
+          )
+        }
+      >
+        {revealing ? (
+          <div className="flex flex-col gap-6">
+            <Notice tone="attention">
+              Esta es la única vez que verás la clave completa. Cópiala y guárdala en un lugar seguro: si cierras este
+              panel sin hacerlo, tendrás que crear una nueva.
+            </Notice>
+            <Field label="Clave de API">
+              {props => (
+                <Input
+                  {...props}
+                  type="text"
+                  readOnly
+                  value={createdKey.key}
+                  onFocus={event => event.target.select()}
+                  className="font-mono"
+                />
+              )}
+            </Field>
+            <div>
+              <Button variant="secondary" icon={copied ? Check : Copy} onClick={handleCopy}>
+                {copied ? 'Clave copiada' : 'Copiar clave'}
+              </Button>
+              <span role="status" className="sr-only">
+                {copied ? 'Clave copiada al portapapeles' : ''}
+              </span>
+            </div>
+            <KeyValue
+              items={[
+                { label: 'Nombre', value: createdKey.name },
+                { label: 'Uso', value: 'Authorization: Bearer <clave>', mono: true },
+              ]}
+            />
+          </div>
+        ) : (
+          <Form id={FORM_ID} onSubmit={handleCreate}>
+            <Field label="Nombre" hint="Sirve para reconocer la clave después. No se puede cambiar." required>
+              {props => (
+                <Input
+                  {...props}
+                  type="text"
+                  autoComplete="off"
+                  placeholder="grafana-sync"
+                  value={name}
+                  onChange={event => setName(event.target.value)}
+                />
+              )}
+            </Field>
+          </Form>
+        )}
+      </Drawer>
+
+      <ConfirmDialog
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        onConfirm={finishReveal}
+        title="¿Cerrar sin copiar la clave?"
+        confirmLabel="Cerrar sin copiar"
+        cancelLabel="Volver a la clave"
+        destructive
+      >
+        No podrás ver esta clave otra vez. Si no la guardaste, tendrás que crear una nueva.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!toRevoke}
+        onClose={() => !revoking && setToRevoke(null)}
+        onConfirm={handleRevoke}
+        title={toRevoke ? `¿Revocar la clave ${toRevoke.name}?` : ''}
+        confirmLabel={revoking ? 'Revocando…' : 'Revocar clave'}
+        destructive
+        busy={revoking}
+      >
+        Las integraciones que la usen dejan de tener acceso de inmediato.
+      </ConfirmDialog>
+    </Page>
+  )
 }
 
 export default AdminApiKeys

@@ -3,12 +3,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import LoginPage from './components/LoginPage'
 import AccessDenied from './components/AccessDenied'
 import AppShell from './components/AppShell'
-import PortalShell from './components/PortalShell'
 import AdminUsers from './components/admin/AdminUsers'
 import VictronDashboard from './components/VictronDashboard'
 import TenantList from './components/TenantList'
 import TenantDevices from './components/TenantDevices'
-import TenantPortal from './components/TenantPortal'
+import DevicesPage from './components/devices/DevicesPage'
 import DeviceMessagesLive from './components/DeviceMessagesLive'
 import MaintenanceActivities from './components/maintenance/MaintenanceActivities'
 import MaintenanceActivityCreate from './components/maintenance/MaintenanceActivityCreate'
@@ -31,7 +30,8 @@ import AdminCommands from './components/admin/AdminCommands'
 import AdminHealth from './components/admin/AdminHealth'
 import AdminApiKeys from './components/admin/AdminApiKeys'
 import { NotificationProvider } from './components/NotificationSystem'
-import './App.css'
+import { TenantProvider } from './contexts/TenantContext'
+import { LoadingState } from './ui'
 
 function AuthGate({ children }) {
   const { user, loading } = useAuth()
@@ -42,7 +42,7 @@ function AuthGate({ children }) {
   }
 
   if (loading) {
-    return <div className="auth-loading">Loading...</div>
+    return <LoadingState className="justify-center py-16" />
   }
 
   if (!user) {
@@ -63,14 +63,11 @@ function App() {
 }
 
 function AppContent() {
-  const location = useLocation()
-  const isPortalPage = location.pathname.startsWith('/portal/')
-
   const routes = (
     <Routes>
       <Route path="/" element={<TenantList />} />
       <Route path="/tenants/:tenantId/devices" element={<TenantDevices />} />
-      <Route path="/portal/:tenantId" element={<TenantPortal />} />
+      <Route path="/portal/:tenantId" element={<DevicesPage />} />
       <Route path="/portal/:tenantId/maintenance" element={<MaintenanceActivities />} />
       <Route path="/portal/:tenantId/maintenance/new" element={<MaintenanceActivityCreate />} />
       <Route path="/portal/:tenantId/maintenance/activities/:activityId" element={<MaintenanceActivityDetail />} />
@@ -101,9 +98,9 @@ function AppContent() {
 
   return (
     <NotificationProvider>
-      <AppShell>
-        {isPortalPage ? <PortalShell>{routes}</PortalShell> : routes}
-      </AppShell>
+      <TenantProvider>
+        <AppShell>{routes}</AppShell>
+      </TenantProvider>
     </NotificationProvider>
   )
 }

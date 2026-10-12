@@ -73,8 +73,8 @@ export const useNotification = () => {
      */
     const showApiNotification = async (
         promise,
-        successMessage = 'Operation completed successfully',
-        errorMessage = 'An error occurred',
+        successMessage = 'Listo',
+        errorMessage = 'No se pudo completar la acción. Vuelve a intentarlo.',
         successTitle = null,
         errorTitle = null
     ) => {

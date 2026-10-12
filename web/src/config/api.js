@@ -56,7 +56,6 @@ export const scheduledTasksApi = {
     async getScheduledTasks(tenantId, deviceId, page = 1, limit = 10) {
         const url = buildApiEndpoint('scheduledTasks', tenantId, deviceId)
         const fullUrl = `${url}?page=${page}&limit=${limit}`
-        console.log('🌐 API call to:', fullUrl)
 
         const response = await fetch(fullUrl)
 
@@ -65,7 +64,6 @@ export const scheduledTasksApi = {
         }
 
         const data = await response.json()
-        console.log('🌐 API response:', data)
         return data
     },
 

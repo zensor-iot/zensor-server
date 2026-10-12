@@ -13,7 +13,7 @@ export const isWebPushSupported = () =>
 
 export class PermissionDeniedError extends Error {
     constructor() {
-        super('Notification permission denied')
+        super('el navegador no tiene permiso para mostrar notificaciones')
         this.name = 'PermissionDeniedError'
     }
 }
@@ -32,7 +32,7 @@ function urlBase64ToUint8Array(base64String) {
 async function fetchVapidPublicKey() {
     const response = await fetch('/v1/push/vapid-public-key')
     if (!response.ok) {
-        throw new Error('Web push is not configured on the server')
+        throw new Error('el servidor no tiene configuradas las notificaciones push')
     }
     const data = await response.json()
     return data.public_key
@@ -73,7 +73,7 @@ export async function enableBrowserNotifications(userId) {
     })
     if (!response.ok) {
         await subscription.unsubscribe()
-        throw new Error(`Failed to register push token: HTTP ${response.status}`)
+        throw new Error(`no se pudo registrar este navegador (HTTP ${response.status})`)
     }
 
     return subscription
@@ -94,6 +94,6 @@ export async function disableBrowserNotifications(userId) {
         body: JSON.stringify({ token })
     })
     if (!response.ok && response.status !== 404) {
-        throw new Error(`Failed to unregister push token: HTTP ${response.status}`)
+        throw new Error(`no se pudo quitar este navegador (HTTP ${response.status})`)
     }
 }

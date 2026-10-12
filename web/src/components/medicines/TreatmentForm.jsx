@@ -1,242 +1,230 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ChevronLeft, Loader2 } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { medicinesApi } from '../../config/api'
 import { useNotification } from '../../hooks/useNotification'
+import { Button, Field, Form, FormActions, Input, Page, PageHeader, Section, Select } from '../../ui'
 import {
-    DOSE_UNITS,
-    INTERVAL_UNITS,
-    previewOccurrences,
-    totalDosesForDuration,
-    formatDateTime
+  DOSE_UNITS,
+  INTERVAL_UNITS,
+  dayLabel,
+  formatTime,
+  previewOccurrences,
+  totalDosesForDuration,
 } from '../../utils/medicineSchedule'
-import './Medicines.css'
 
-// The value an <input type="datetime-local"> expects, defaulted to the next
-// whole hour so the common case needs no typing.
+const END_MODES = [
+  { value: 'none', label: 'Sin fecha de término' },
+  { value: 'doses', label: 'Durante unos días' },
+  { value: 'date', label: 'Hasta una fecha' },
+]
+
 function defaultStartAt() {
-    const next = new Date()
-    next.setMinutes(0, 0, 0)
-    next.setHours(next.getHours() + 1)
-    const offset = next.getTimezoneOffset() * 60000
-    return new Date(next.getTime() - offset).toISOString().slice(0, 16)
+  const next = new Date()
+  next.setMinutes(0, 0, 0)
+  next.setHours(next.getHours() + 1)
+  const offset = next.getTimezoneOffset() * 60000
+  return new Date(next.getTime() - offset).toISOString().slice(0, 16)
 }
 
 const TreatmentForm = () => {
-    const { tenantId, patientId } = useParams()
-    const navigate = useNavigate()
-    const { showSuccess, showError } = useNotification()
+  const { tenantId, patientId } = useParams()
+  const navigate = useNavigate()
+  const { showSuccess, showError } = useNotification()
+  const patientPath = `/portal/${tenantId}/medicines/patients/${patientId}`
 
-    const [medicineName, setMedicineName] = useState('')
-    const [quantity, setQuantity] = useState('1')
-    const [unit, setUnit] = useState('pill')
-    const [every, setEvery] = useState('8')
-    const [intervalUnit, setIntervalUnit] = useState('hour')
-    const [startAt, setStartAt] = useState(defaultStartAt)
-    const [endMode, setEndMode] = useState('none')
-    const [durationDays, setDurationDays] = useState('7')
-    const [endDate, setEndDate] = useState('')
-    const [notes, setNotes] = useState('')
-    const [saving, setSaving] = useState(false)
+  const [medicineName, setMedicineName] = useState('')
+  const [quantity, setQuantity] = useState('1')
+  const [unit, setUnit] = useState('pill')
+  const [every, setEvery] = useState('8')
+  const [intervalUnit, setIntervalUnit] = useState('hour')
+  const [startAt, setStartAt] = useState(defaultStartAt)
+  const [endMode, setEndMode] = useState('none')
+  const [durationDays, setDurationDays] = useState('7')
+  const [endDate, setEndDate] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
-    const schedule = {
-        start_at: startAt ? new Date(startAt).toISOString() : '',
-        every: Number(every),
-        unit: intervalUnit
+  const schedule = {
+    start_at: startAt ? new Date(startAt).toISOString() : '',
+    every: Number(every),
+    unit: intervalUnit,
+  }
+  const preview = previewOccurrences(schedule, 3)
+  const derivedTotalDoses = totalDosesForDuration(durationDays, every, intervalUnit)
+
+  const handleSubmit = async event => {
+    event.preventDefault()
+
+    const payload = {
+      tenant_id: tenantId,
+      patient_id: patientId,
+      medicine_name: medicineName.trim(),
+      quantity: Number(quantity),
+      unit,
+      schedule,
+      notes: notes.trim(),
     }
-    const preview = previewOccurrences(schedule, 3)
-    const derivedTotalDoses = totalDosesForDuration(durationDays, every, intervalUnit)
+    if (endMode === 'doses' && derivedTotalDoses) payload.total_doses = derivedTotalDoses
+    if (endMode === 'date' && endDate) payload.end_at = new Date(endDate).toISOString()
 
-    const handleSubmit = async (event) => {
-        event.preventDefault()
-
-        const payload = {
-            tenant_id: tenantId,
-            patient_id: patientId,
-            medicine_name: medicineName.trim(),
-            quantity: Number(quantity),
-            unit,
-            schedule,
-            notes: notes.trim()
-        }
-
-        if (endMode === 'doses' && derivedTotalDoses) {
-            payload.total_doses = derivedTotalDoses
-        }
-        if (endMode === 'date' && endDate) {
-            payload.end_at = new Date(endDate).toISOString()
-        }
-
-        try {
-            setSaving(true)
-            await medicinesApi.createTreatment(payload)
-            showSuccess(`Tratamiento de ${payload.medicine_name} creado`)
-            navigate(`/portal/${tenantId}/medicines/patients/${patientId}`)
-        } catch (err) {
-            showError(err.message, 'No se pudo crear el tratamiento')
-        } finally {
-            setSaving(false)
-        }
+    try {
+      setSaving(true)
+      await medicinesApi.createTreatment(payload)
+      showSuccess(`Las dosis de ${payload.medicine_name} ya están en la agenda.`, 'Tratamiento guardado')
+      navigate(patientPath)
+    } catch {
+      showError('Revisa los datos y tu conexión, y vuelve a intentarlo.', 'No se pudo guardar el tratamiento')
+    } finally {
+      setSaving(false)
     }
+  }
 
-    return (
-        <div className="medicines-page">
-            <Link to={`/portal/${tenantId}/medicines/patients/${patientId}`} className="medicines-back">
-                <ChevronLeft size={16} /> Paciente
-            </Link>
-            <h1>Nuevo tratamiento</h1>
+  return (
+    <Page>
+      <PageHeader
+        title="Nuevo tratamiento"
+        description="Qué medicina, cuánto y cada cuánto."
+        back={{ to: patientPath, label: 'Paciente' }}
+      />
+      <Form onSubmit={handleSubmit} className="w-full max-w-[36rem]">
+        <Field label="Medicina" required>
+          {props => (
+            <Input
+              {...props}
+              type="text"
+              value={medicineName}
+              onChange={e => setMedicineName(e.target.value)}
+              placeholder="Amoxicilina"
+            />
+          )}
+        </Field>
 
-            <form className="medicines-form" onSubmit={handleSubmit}>
-                <label className="medicines-field">
-                    <span>Medicina</span>
-                    <input
-                        type="text"
-                        value={medicineName}
-                        onChange={e => setMedicineName(e.target.value)}
-                        required
-                        placeholder="Amoxicilina"
-                    />
-                </label>
-
-                <div className="medicines-field-row">
-                    <label className="medicines-field">
-                        <span>Cantidad</span>
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            value={quantity}
-                            onChange={e => setQuantity(e.target.value)}
-                            required
-                        />
-                    </label>
-                    <label className="medicines-field">
-                        <span>Unidad</span>
-                        <select value={unit} onChange={e => setUnit(e.target.value)}>
-                            {DOSE_UNITS.map(u => (
-                                <option key={u.value} value={u.value}>{u.label}</option>
-                            ))}
-                        </select>
-                    </label>
-                </div>
-
-                <div className="medicines-field-row">
-                    <label className="medicines-field">
-                        <span>Cada</span>
-                        <input
-                            type="number"
-                            min="1"
-                            value={every}
-                            onChange={e => setEvery(e.target.value)}
-                            required
-                        />
-                    </label>
-                    <label className="medicines-field">
-                        <span>&nbsp;</span>
-                        <select value={intervalUnit} onChange={e => setIntervalUnit(e.target.value)}>
-                            {INTERVAL_UNITS.map(u => (
-                                <option key={u.value} value={u.value}>{u.label}</option>
-                            ))}
-                        </select>
-                    </label>
-                </div>
-
-                <label className="medicines-field">
-                    <span>Primera dosis</span>
-                    <input
-                        type="datetime-local"
-                        value={startAt}
-                        onChange={e => setStartAt(e.target.value)}
-                        required
-                    />
-                </label>
-
-                <fieldset className="medicines-field">
-                    <legend>Hasta cuándo</legend>
-                    <div className="medicines-radio-group column">
-                        <label>
-                            <input
-                                type="radio"
-                                name="endMode"
-                                value="none"
-                                checked={endMode === 'none'}
-                                onChange={e => setEndMode(e.target.value)}
-                            />
-                            Sin fin definido
-                        </label>
-                        <label>
-                            <input
-                                type="radio"
-                                name="endMode"
-                                value="doses"
-                                checked={endMode === 'doses'}
-                                onChange={e => setEndMode(e.target.value)}
-                            />
-                            Durante
-                            <input
-                                type="number"
-                                min="1"
-                                className="medicines-inline-input"
-                                value={durationDays}
-                                onChange={e => setDurationDays(e.target.value)}
-                                disabled={endMode !== 'doses'}
-                            />
-                            días
-                            {endMode === 'doses' && derivedTotalDoses && (
-                                <span className="medicines-hint">({derivedTotalDoses} dosis)</span>
-                            )}
-                        </label>
-                        <label>
-                            <input
-                                type="radio"
-                                name="endMode"
-                                value="date"
-                                checked={endMode === 'date'}
-                                onChange={e => setEndMode(e.target.value)}
-                            />
-                            Hasta el
-                            <input
-                                type="datetime-local"
-                                className="medicines-inline-input wide"
-                                value={endDate}
-                                onChange={e => setEndDate(e.target.value)}
-                                disabled={endMode !== 'date'}
-                            />
-                        </label>
-                    </div>
-                </fieldset>
-
-                <label className="medicines-field">
-                    <span>Notas</span>
-                    <input
-                        type="text"
-                        value={notes}
-                        onChange={e => setNotes(e.target.value)}
-                        placeholder="con comida"
-                    />
-                </label>
-
-                {preview.length > 0 && (
-                    <div className="medicines-preview">
-                        <span className="medicines-preview-title">Primeras dosis</span>
-                        <ul>
-                            {preview.map((occurrence, index) => (
-                                <li key={index}>{formatDateTime(occurrence)}</li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                <button
-                    type="submit"
-                    className="medicines-button primary"
-                    disabled={saving || !medicineName.trim()}
-                >
-                    {saving ? <><Loader2 size={16} className="spin" /> Guardando…</> : 'Crear tratamiento'}
-                </button>
-            </form>
+        <div className="flex flex-wrap gap-4 [&>*]:min-w-[160px] [&>*]:flex-1">
+          <Field label="Cantidad" required>
+            {props => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.5"
+                value={quantity}
+                onChange={e => setQuantity(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label="Unidad">
+            {props => (
+              <Select {...props} value={unit} onChange={e => setUnit(e.target.value)}>
+                {DOSE_UNITS.map(u => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
         </div>
-    )
+
+        <div className="flex flex-wrap gap-4 [&>*]:min-w-[160px] [&>*]:flex-1">
+          <Field label="Cada" required>
+            {props => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="numeric"
+                min="1"
+                value={every}
+                onChange={e => setEvery(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label="Intervalo">
+            {props => (
+              <Select {...props} value={intervalUnit} onChange={e => setIntervalUnit(e.target.value)}>
+                {INTERVAL_UNITS.map(u => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </div>
+
+        <Field label="Primera dosis" required>
+          {props => (
+            <Input {...props} type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} />
+          )}
+        </Field>
+
+        <Field label="Hasta cuándo">
+          {props => (
+            <Select {...props} value={endMode} onChange={e => setEndMode(e.target.value)}>
+              {END_MODES.map(mode => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+
+        {endMode === 'doses' && (
+          <Field
+            label="Días de tratamiento"
+            required
+            hint={derivedTotalDoses ? `${derivedTotalDoses} dosis en total.` : 'Ingresa un número de días mayor que cero.'}
+          >
+            {props => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="numeric"
+                min="1"
+                value={durationDays}
+                onChange={e => setDurationDays(e.target.value)}
+              />
+            )}
+          </Field>
+        )}
+
+        {endMode === 'date' && (
+          <Field label="Última dosis hasta" required>
+            {props => (
+              <Input {...props} type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            )}
+          </Field>
+        )}
+
+        <Field label="Notas" hint="Opcional. Por ejemplo: con comida.">
+          {props => <Input {...props} type="text" value={notes} onChange={e => setNotes(e.target.value)} />}
+        </Field>
+
+        {preview.length > 0 && (
+          <Section title="Primeras dosis" className="rounded-lg border border-line bg-surface p-4">
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {preview.map(occurrence => (
+                <li key={occurrence.getTime()} className="flex items-baseline gap-3">
+                  <span className="text-data-sm">{formatTime(occurrence)}</span>
+                  <span className="text-body-sm text-muted">{dayLabel(occurrence)}</span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
+
+        <FormActions>
+          <Button type="submit" disabled={saving || !medicineName.trim()}>
+            {saving ? 'Guardando…' : 'Guardar tratamiento'}
+          </Button>
+          <Button variant="ghost" to={patientPath}>
+            Cancelar
+          </Button>
+        </FormActions>
+      </Form>
+    </Page>
+  )
 }
 
 export default TreatmentForm

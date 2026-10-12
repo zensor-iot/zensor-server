@@ -16,6 +16,13 @@ Reglas mínimas que no se negocian:
 - Patrón principal: lista de tarjetas compactas + drawer derecho con el detalle.
 - Copy en español de Chile, tuteo, sentence case, sin emojis ni datos inventados.
 
+Implementación en `web/`:
+
+- Tailwind v3 usa `docs/design-system/tailwind.preset.js` (reemplaza la escala por defecto) y `tokens.css` se importa en `web/src/main.jsx`. Vite resuelve `@design-system` → `docs/design-system`; los logos se sirven en `/ui/logos/`.
+- Construye pantallas con el kit de `web/src/ui` (Button, Drawer, ConfirmDialog, StatusPill, Notice, EmptyState, FilterChips, Switch, Field/Input/Select, Table, SensorTile, HumidityGauge…) y los helpers de `web/src/lib/zensor.js` (formato es-CL, `humidityState`, tema). No agregues archivos `.css` por pantalla.
+- `web/src/components/AppShell.jsx` es el único shell (sidebar con selector de cuenta). Las páginas empiezan con `<Page>` + `<PageHeader>`.
+- Referencia del patrón lista + drawer: `web/src/components/devices/`.
+
 ## Project Overview
 
 Zensor Server is a Go 1.23+ IoT backend service for managing tenants, devices, tasks, commands, and scheduled tasks. It follows clean architecture with PostgreSQL persistence (direct reads and writes), Redis caching, and MQTT device communication.

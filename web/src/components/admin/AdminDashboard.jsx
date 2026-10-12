@@ -1,197 +1,101 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building, Cpu, Play, Shield, Activity, Users, Database, RefreshCw, KeyRound } from 'lucide-react'
-import { useNotification } from '../../hooks/useNotification'
-import './AdminDashboard.css'
+import { Activity, Building, ChevronRight, KeyRound, Play, Users } from 'lucide-react'
+import { Card, CardGrid, Page, PageHeader } from '../../ui'
+import { formatNumber } from '../../lib/zensor'
+import { totalOf } from '../../utils/adminData'
+
+const plural = (count, one, many) => `${formatNumber(count)} ${count === 1 ? one : many}`
+
+const AREAS = [
+  {
+    key: 'tenants',
+    title: 'Cuentas',
+    description: 'Crea y edita cuentas, y revisa sus dispositivos.',
+    icon: Building,
+    to: '/admin/tenants',
+  },
+  {
+    key: 'commands',
+    title: 'Comandos',
+    description: 'Revisa los comandos enviados a los dispositivos y su estado.',
+    icon: Play,
+    to: '/admin/commands',
+  },
+  {
+    key: 'health',
+    title: 'Salud del sistema',
+    description: 'Comprueba que el servidor y sus servicios respondan.',
+    icon: Activity,
+    to: '/admin/health',
+  },
+  {
+    key: 'users',
+    title: 'Usuarios',
+    description: 'Decide qué correos pueden iniciar sesión y quién administra.',
+    icon: Users,
+    to: '/admin/users',
+  },
+  {
+    key: 'api-keys',
+    title: 'Claves de API',
+    description: 'Da acceso a integraciones y scripts, y revoca claves que ya no uses.',
+    icon: KeyRound,
+    to: '/admin/api-keys',
+  },
+]
 
 const AdminDashboard = () => {
-    const { showError } = useNotification()
-    const [stats, setStats] = useState({
-        totalTenants: 0,
-        totalDevices: 0,
-        systemHealth: 'healthy'
-    })
-    const [loading, setLoading] = useState(true)
+  const [counts, setCounts] = useState(null)
 
-    useEffect(() => {
-        fetchSystemStats()
-    }, [])
-
-    const fetchSystemStats = async () => {
-        try {
-            setLoading(true)
-
-            // Fetch system-wide statistics
-            const [tenantsResponse, devicesResponse] = await Promise.all([
-                fetch('/v1/tenants'),
-                fetch('/v1/devices')
-            ])
-
-            if (!tenantsResponse.ok || !devicesResponse.ok) {
-                throw new Error('Failed to fetch basic system data')
-            }
-
-            const tenantsData = await tenantsResponse.json()
-            const devicesData = await devicesResponse.json()
-
-            // Handle paginated response format
-            const tenants = Array.isArray(tenantsData) ? tenantsData : (tenantsData.data || [])
-            const devices = Array.isArray(devicesData) ? devicesData : (devicesData.data || [])
-
-            console.log('Admin Dashboard - Tenants:', tenants.length, 'Devices:', devices.length)
-
-            setStats({
-                totalTenants: tenants.length || 0,
-                totalDevices: devices.length || 0,
-                systemHealth: 'healthy'
-            })
-        } catch (error) {
-            console.error('Failed to fetch system stats:', error)
-            showError('Failed to load system statistics', 'Error')
-        } finally {
-            setLoading(false)
-        }
+  const fetchCounts = useCallback(async () => {
+    try {
+      const [tenantsResponse, devicesResponse] = await Promise.all([
+        fetch('/v1/tenants?limit=1'),
+        fetch('/v1/devices?limit=1'),
+      ])
+      if (!tenantsResponse.ok || !devicesResponse.ok) return
+      const [tenants, devices] = await Promise.all([tenantsResponse.json(), devicesResponse.json()])
+      setCounts({ tenants: totalOf(tenants), devices: totalOf(devices) })
+    } catch {
+      setCounts(null)
     }
+  }, [])
 
-    const quickActions = [
-        {
-            title: 'Manage Tenants',
-            description: 'View and manage all tenant organizations',
-            icon: Building,
-            link: '/admin/tenants',
-            color: 'blue'
-        },
-        {
-            title: 'System Commands',
-            description: 'Monitor and manage system-wide commands',
-            icon: Play,
-            link: '/admin/commands',
-            color: 'green'
-        },
-        {
-            title: 'System Health',
-            description: 'Monitor system performance and health',
-            icon: Activity,
-            link: '/admin/health',
-            color: 'orange'
-        },
-        {
-            title: 'User Access',
-            description: 'Manage which accounts can sign in',
-            icon: Users,
-            link: '/admin/users',
-            color: 'purple'
-        },
-        {
-            title: 'API Keys',
-            description: 'Issue and revoke keys for non-human clients',
-            icon: KeyRound,
-            link: '/admin/api-keys',
-            color: 'teal'
-        }
-    ]
+  useEffect(() => {
+    fetchCounts()
+  }, [fetchCounts])
 
-    const statCards = [
-        {
-            title: 'Total Tenants',
-            value: stats.totalTenants,
-            icon: Building,
-            color: 'blue'
-        },
-        {
-            title: 'Total Devices',
-            value: stats.totalDevices,
-            icon: Cpu,
-            color: 'green'
-        }
-    ]
+  const metaFor = key => {
+    if (key !== 'tenants' || !counts) return null
+    return `${plural(counts.tenants, 'cuenta', 'cuentas')} · ${plural(counts.devices, 'dispositivo', 'dispositivos')}`
+  }
 
-    return (
-        <div className="admin-dashboard">
-            <div className="admin-header">
-                <div className="admin-title">
-                    <Shield size={32} />
-                    <h1>Admin Dashboard</h1>
-                </div>
-                <div className="admin-header-actions">
-                    <button
-                        className="refresh-button"
-                        onClick={fetchSystemStats}
-                        disabled={loading}
-                        title="Refresh statistics"
-                    >
-                        <RefreshCw size={16} className={loading ? 'spinning' : ''} />
-                        Refresh
-                    </button>
-                </div>
-                <p className="admin-subtitle">System-wide management and monitoring</p>
-            </div>
+  return (
+    <Page>
+      <PageHeader title="Administración" description="Gestiona cuentas, accesos y el estado del servidor." />
 
-            {loading ? (
-                <div className="loading">Loading system statistics...</div>
-            ) : (
-                <>
-                    {/* Statistics Cards */}
-                    <div className="stats-grid">
-                        {statCards.map((stat, index) => (
-                            <div key={index} className={`stat-card ${stat.color}`}>
-                                <div className="stat-icon">
-                                    <stat.icon size={24} />
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-value">{stat.value}</div>
-                                    <div className="stat-title">{stat.title}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="quick-actions">
-                        <h2>Quick Actions</h2>
-                        <div className="actions-grid">
-                            {quickActions.map((action, index) => (
-                                <Link key={index} to={action.link} className={`action-card ${action.color}`}>
-                                    <div className="action-icon">
-                                        <action.icon size={24} />
-                                    </div>
-                                    <div className="action-content">
-                                        <h3>{action.title}</h3>
-                                        <p>{action.description}</p>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* System Health */}
-                    <div className="system-health">
-                        <h2>System Health</h2>
-                        <div className="health-card">
-                            <div className="health-status">
-                                <div className={`health-indicator ${stats.systemHealth}`}></div>
-                                <span className="health-text">System Status: {stats.systemHealth}</span>
-                            </div>
-                            <div className="health-details">
-                                <div className="health-item">
-                                    <Database size={16} />
-                                    <span>Database: Connected</span>
-                                </div>
-                                <div className="health-item">
-                                    <Activity size={16} />
-                                    <span>API: Operational</span>
-                                </div>
-                                <div className="health-item">
-                                    <Users size={16} />
-                                    <span>WebSocket: Active</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
-    )
+      <nav aria-label="Áreas de administración">
+        <CardGrid>
+          {AREAS.map(area => {
+            const Icon = area.icon
+            const meta = metaFor(area.key)
+            return (
+              <Card key={area.key} as={Link} to={area.to} interactive row className="items-start no-underline">
+                <Icon size={20} strokeWidth={1.8} aria-hidden="true" className="mt-1 shrink-0 text-muted" />
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="text-h3">{area.title}</span>
+                  <span className="text-body-sm text-muted">{area.description}</span>
+                  {meta && <span className="text-caption text-muted">{meta}</span>}
+                </span>
+                <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" className="mt-1 shrink-0 text-muted" />
+              </Card>
+            )
+          })}
+        </CardGrid>
+      </nav>
+    </Page>
+  )
 }
 
 export default AdminDashboard

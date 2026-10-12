@@ -1,61 +1,75 @@
 import { useState } from 'react'
-import { Activity, LogIn } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import './LoginPage.css'
+import { Button, Field, Form, Input, Lockup, Notice } from '../ui'
+
+export function AuthLayout({ title, children }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-canvas px-4 py-10 text-ink">
+      <div className="flex w-full max-w-[26rem] flex-col items-center gap-8">
+        <Lockup className="h-10 w-[150px]" />
+        <section className="flex w-full flex-col gap-6 rounded-xl border border-line bg-surface p-6 sm:p-8">
+          <h1 className="m-0 text-h2">{title}</h1>
+          {children}
+        </section>
+      </div>
+    </main>
+  )
+}
 
 const LoginPage = () => {
-    const { mode, login, loginWithCredentials, loginError } = useAuth()
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
-    const [submitting, setSubmitting] = useState(false)
+  const { mode, login, loginWithCredentials, loginError } = useAuth()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-    const handleStaticSubmit = async (event) => {
-        event.preventDefault()
-        setSubmitting(true)
-        await loginWithCredentials(username, password)
-        setSubmitting(false)
-    }
+  const handleCredentialsSubmit = async event => {
+    event.preventDefault()
+    setSubmitting(true)
+    await loginWithCredentials(username, password)
+    setSubmitting(false)
+  }
 
-    return (
-        <div className="login-page">
-            <div className="login-card">
-                <div className="login-logo">
-                    <Activity size={40} />
-                    <h1>Zensor Portal</h1>
-                </div>
-                <p className="login-subtitle">Sign in to access your dashboards and devices</p>
-                {mode === 'static' ? (
-                    <form className="login-form" onSubmit={handleStaticSubmit}>
-                        <input
-                            className="login-input"
-                            type="text"
-                            placeholder="Username"
-                            value={username}
-                            onChange={(event) => setUsername(event.target.value)}
-                            autoFocus
-                        />
-                        <input
-                            className="login-input"
-                            type="password"
-                            placeholder="Password"
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                        />
-                        {loginError && <p className="login-error">{loginError}</p>}
-                        <button className="login-button" type="submit" disabled={submitting}>
-                            <LogIn size={18} />
-                            {submitting ? 'Signing in…' : 'Sign in'}
-                        </button>
-                    </form>
-                ) : (
-                    <button className="login-button" onClick={login}>
-                        <LogIn size={18} />
-                        Sign in with Google
-                    </button>
-                )}
-            </div>
-        </div>
-    )
+  return (
+    <AuthLayout title="Iniciar sesión">
+      <p className="m-0 text-body text-muted">Entra para ver tus dispositivos, programas y avisos.</p>
+      {loginError && <Notice>{loginError}</Notice>}
+      {mode === 'google' ? (
+        <Button icon={LogIn} size="lg" block onClick={login}>
+          Continuar con Google
+        </Button>
+      ) : (
+        <Form onSubmit={handleCredentialsSubmit}>
+          <Field label="Usuario">
+            {props => (
+              <Input
+                {...props}
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={event => setUsername(event.target.value)}
+                autoFocus
+              />
+            )}
+          </Field>
+          <Field label="Contraseña">
+            {props => (
+              <Input
+                {...props}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+              />
+            )}
+          </Field>
+          <Button type="submit" icon={LogIn} size="lg" block disabled={submitting}>
+            {submitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
+          </Button>
+        </Form>
+      )}
+    </AuthLayout>
+  )
 }
 
 export default LoginPage

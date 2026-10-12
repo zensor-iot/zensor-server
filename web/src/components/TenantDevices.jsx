@@ -1,19 +1,14 @@
-import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Cpu,
-  Building,
-  Loader2,
-  AlertCircle,
-  Plus,
-  Activity,
-  Wifi,
-  Battery,
-  Circle
-} from 'lucide-react'
-import DeviceCard from './DeviceCard'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import DeviceCard, { DeviceDetailDrawer } from './DeviceCard'
 import { getApiUrl } from '../config/api'
+import { EmptyState, ErrorState, FilterChips, List, LoadingState, Notice, Page, PageHeader, StatusPill } from '../ui'
+
+const FILTERS = {
+  all: () => true,
+  online: device => device.status === 'online',
+  offline: device => device.status !== 'online',
+}
 
 const TenantDevices = () => {
   const { tenantId } = useParams()
@@ -21,190 +16,113 @@ const TenantDevices = () => {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [filter, setFilter] = useState('all')
+  const [selectedId, setSelectedId] = useState(null)
 
-  useEffect(() => {
-    fetchTenantInfo()
-    fetchTenantDevices()
-  }, [tenantId])
-
-  const fetchTenantInfo = async () => {
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      const response = await fetch(getApiUrl(`/tenants/${tenantId}`))
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tenant: ${response.statusText}`)
-      }
-      const data = await response.json()
-      setTenant(data)
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-
-  const fetchTenantDevices = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch(getApiUrl(`/tenants/${tenantId}/devices`))
-      if (!response.ok) {
-        throw new Error(`Failed to fetch devices: ${response.statusText}`)
-      }
-      const data = await response.json()
-      // Simulate some device metrics for demo
-      const devicesWithMetrics = (data.data || []).map(device => ({
-        ...device,
-        batteryLevel: Math.floor(Math.random() * 100),
-        signalStrength: Math.floor(Math.random() * 100),
-        status: Math.random() > 0.3 ? 'online' : 'offline',
-        lastSeen: new Date(Date.now() - Math.random() * 86400000) // Random within last 24h
-      }))
-      setDevices(devicesWithMetrics)
+      const [tenantResponse, devicesResponse] = await Promise.all([
+        fetch(getApiUrl(`/tenants/${tenantId}`)),
+        fetch(getApiUrl(`/tenants/${tenantId}/devices`)),
+      ])
+      if (!tenantResponse.ok) throw new Error(`no se pudo cargar la cuenta (HTTP ${tenantResponse.status})`)
+      if (!devicesResponse.ok) throw new Error(`no se pudieron cargar los dispositivos (HTTP ${devicesResponse.status})`)
+      setTenant(await tenantResponse.json())
+      const body = await devicesResponse.json()
+      setDevices(body.data || [])
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId])
 
+  useEffect(() => {
+    load()
+  }, [load])
 
+  const counts = useMemo(
+    () => ({
+      all: devices.length,
+      online: devices.filter(FILTERS.online).length,
+      offline: devices.filter(FILTERS.offline).length,
+    }),
+    [devices],
+  )
 
-  const handleViewDetails = (device) => {
-    console.log('View device details:', device)
-    // TODO: Navigate to device details page
-  }
+  const visible = devices.filter(FILTERS[filter])
+  const selected = devices.find(device => device.id === selectedId) || null
 
-  const handleSendCommand = (device) => {
-    console.log('Send command to device:', device)
-    // TODO: Open command send modal
-  }
+  const header = (
+    <PageHeader
+      title={tenant ? `Dispositivos de ${tenant.name}` : 'Dispositivos'}
+      description={[tenant?.email, tenant?.description].filter(Boolean).join(' · ') || undefined}
+      back={{ to: '/', label: 'Cuentas' }}
+      actions={tenant?.is_active === false && <StatusPill tone="neutral">Cuenta inactiva</StatusPill>}
+    />
+  )
 
   if (error) {
     return (
-      <div className="error-container">
-        <AlertCircle className="error-icon" />
-        <p className="error-message">Error: {error}</p>
-        <div className="error-actions">
-          <button onClick={() => {
-            setError(null)
-            fetchTenantInfo()
-            fetchTenantDevices()
-          }} className="retry-button">
-            Retry
-          </button>
-          <Link to="/" className="back-button">
-            <ArrowLeft size={16} />
-            Back to Tenants
-          </Link>
-        </div>
-      </div>
+      <Page>
+        {header}
+        <ErrorState title="No se pudo cargar esta cuenta" onRetry={load}>
+          {`Error: ${error}. Revisa tu conexión y vuelve a intentarlo.`}
+        </ErrorState>
+      </Page>
     )
   }
 
   return (
-    <div className="tenant-devices">
-      <div className="page-header">
-        <div className="breadcrumb">
-          <Link to="/" className="breadcrumb-link">
-            <ArrowLeft size={16} />
-            Back to Tenants
-          </Link>
-        </div>
+    <Page>
+      {header}
 
-        {tenant && (
-          <div className="tenant-header">
-            <div className="tenant-header-info">
-              <h2>
-                <Building className="page-icon" />
-                {tenant.name} - Devices
-              </h2>
-              <p className="page-description">
-                {tenant.email} • {tenant.description}
-              </p>
-            </div>
-            <div className="tenant-header-actions">
-              <span className={`status-badge ${tenant.is_active ? 'active' : 'inactive'}`}>
-                {tenant.is_active ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Device Stats */}
-      <div className="device-stats">
-        <div className="stat-card">
-          <div className="stat-icon">
-            <Cpu className="icon" />
-          </div>
-          <div className="stat-content">
-            <h3>Total Devices</h3>
-            <p className="stat-number">{devices.length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card online">
-          <div className="stat-icon">
-            <Activity className="icon" />
-          </div>
-          <div className="stat-content">
-            <h3>Online</h3>
-            <p className="stat-number">{devices.filter(d => d.status === 'online').length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card offline">
-          <div className="stat-icon">
-            <Circle className="icon" />
-          </div>
-          <div className="stat-content">
-            <h3>Offline</h3>
-            <p className="stat-number">{devices.filter(d => d.status === 'offline').length}</p>
-          </div>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="loading-container">
-          <Loader2 className="loading-spinner" />
-          <p>Loading devices...</p>
-        </div>
+      {loading && devices.length === 0 ? (
+        <LoadingState>Cargando dispositivos…</LoadingState>
+      ) : devices.length === 0 ? (
+        <EmptyState title="Esta cuenta aún no tiene dispositivos">
+          Pídele a un administrador que adopte tus dispositivos en esta cuenta para verlos aquí.
+        </EmptyState>
       ) : (
-        <div className="devices-section">
-          <div className="devices-header">
-            <h3>
-              <Cpu className="section-icon" />
-              Device Fleet ({devices.length})
-            </h3>
-            <button className="add-device-button">
-              <Plus size={16} />
-              Adopt Device
-            </button>
-          </div>
-
-          {devices.length === 0 ? (
-            <div className="empty-state">
-              <Cpu size={64} className="empty-icon" />
-              <h3>No devices found</h3>
-              <p>This tenant doesn't have any devices yet. Adopt some devices to get started.</p>
-              <button className="primary-button">
-                <Plus size={16} />
-                Adopt First Device
-              </button>
-            </div>
-          ) : (
-            <div className="devices-grid">
-              {devices.map((device) => (
-                <DeviceCard
-                  key={device.id}
-                  device={device}
-                  onViewDetails={handleViewDetails}
-                  onSendCommand={handleSendCommand}
-                />
-              ))}
-            </div>
+        <>
+          {counts.offline > 0 && filter !== 'offline' && (
+            <Notice action="Ver" onAction={() => setFilter('offline')}>
+              {counts.offline === 1 ? '1 dispositivo sin conexión.' : `${counts.offline} dispositivos sin conexión.`}
+            </Notice>
           )}
-        </div>
+          <FilterChips
+            label="Filtrar dispositivos"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'all', label: 'Todos', count: counts.all },
+              { value: 'online', label: 'En línea', count: counts.online },
+              { value: 'offline', label: 'Sin conexión', count: counts.offline },
+            ]}
+          />
+          {visible.length === 0 ? (
+            <EmptyState>
+              {filter === 'online'
+                ? 'Ningún dispositivo está en línea. Revisa su alimentación y la cobertura del gateway.'
+                : 'Todos los dispositivos están en línea.'}
+            </EmptyState>
+          ) : (
+            <List>
+              {visible.map(device => (
+                <li key={device.id}>
+                  <DeviceCard device={device} onOpen={next => setSelectedId(next.id)} />
+                </li>
+              ))}
+            </List>
+          )}
+        </>
       )}
-    </div>
+
+      <DeviceDetailDrawer device={selected} onClose={() => setSelectedId(null)} />
+    </Page>
   )
 }
 
-export default TenantDevices 
+export default TenantDevices

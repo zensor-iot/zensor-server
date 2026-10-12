@@ -1,169 +1,109 @@
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
-import { X, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
-import './NotificationSystem.css';
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react'
+import { AlertTriangle, CheckCircle2, CircleAlert, X } from 'lucide-react'
+import { cx } from '../lib/zensor'
 
-// Notification types
 export const NOTIFICATION_TYPES = {
-    SUCCESS: 'success',
-    ERROR: 'error',
-    WARNING: 'warning'
-};
+  SUCCESS: 'success',
+  ERROR: 'error',
+  WARNING: 'warning',
+}
 
-// Notification context
-const NotificationContext = createContext();
+const NotificationContext = createContext(null)
 
-// Reducer for managing notifications
 const notificationReducer = (state, action) => {
-    switch (action.type) {
-        case 'ADD_NOTIFICATION':
-            return {
-                ...state,
-                notifications: [...state.notifications, {
-                    id: Date.now() + Math.random(),
-                    ...action.payload,
-                    createdAt: Date.now()
-                }]
-            };
-        case 'REMOVE_NOTIFICATION':
-            return {
-                ...state,
-                notifications: state.notifications.filter(notification => notification.id !== action.payload)
-            };
-        case 'CLEAR_ALL':
-            return {
-                ...state,
-                notifications: []
-            };
-        default:
-            return state;
-    }
-};
+  switch (action.type) {
+    case 'ADD_NOTIFICATION':
+      return [...state, { id: Date.now() + Math.random(), ...action.payload }]
+    case 'REMOVE_NOTIFICATION':
+      return state.filter(notification => notification.id !== action.payload)
+    case 'CLEAR_ALL':
+      return []
+    default:
+      return state
+  }
+}
 
-// Notification provider component
 export const NotificationProvider = ({ children }) => {
-    const [state, dispatch] = useReducer(notificationReducer, {
-        notifications: []
-    });
+  const [notifications, dispatch] = useReducer(notificationReducer, [])
 
-    const addNotification = (notification) => {
-        dispatch({
-            type: 'ADD_NOTIFICATION',
-            payload: notification
-        });
-    };
+  const addNotification = useCallback(notification => dispatch({ type: 'ADD_NOTIFICATION', payload: notification }), [])
+  const removeNotification = useCallback(id => dispatch({ type: 'REMOVE_NOTIFICATION', payload: id }), [])
+  const clearAllNotifications = useCallback(() => dispatch({ type: 'CLEAR_ALL' }), [])
 
-    const removeNotification = (id) => {
-        dispatch({
-            type: 'REMOVE_NOTIFICATION',
-            payload: id
-        });
-    };
+  const value = useMemo(
+    () => ({ notifications, addNotification, removeNotification, clearAllNotifications }),
+    [notifications, addNotification, removeNotification, clearAllNotifications],
+  )
 
-    const clearAllNotifications = () => {
-        dispatch({ type: 'CLEAR_ALL' });
-    };
+  return (
+    <NotificationContext.Provider value={value}>
+      {children}
+      <NotificationContainer notifications={notifications} onRemove={removeNotification} />
+    </NotificationContext.Provider>
+  )
+}
 
-    return (
-        <NotificationContext.Provider value={{
-            notifications: state.notifications,
-            addNotification,
-            removeNotification,
-            clearAllNotifications
-        }}>
-            {children}
-            <NotificationContainer />
-        </NotificationContext.Provider>
-    );
-};
-
-// Hook to use notifications
 export const useNotifications = () => {
-    const context = useContext(NotificationContext);
-    if (!context) {
-        throw new Error('useNotifications must be used within a NotificationProvider');
-    }
-    return context;
-};
+  const context = useContext(NotificationContext)
+  if (!context) {
+    throw new Error('useNotifications must be used within a NotificationProvider')
+  }
+  return context
+}
 
-// Individual notification component
+const TONES = {
+  [NOTIFICATION_TYPES.SUCCESS]: { icon: CheckCircle2, className: 'bg-ok-bg text-ok-fg' },
+  [NOTIFICATION_TYPES.ERROR]: { icon: CircleAlert, className: 'bg-warn-bg text-warn-fg' },
+  [NOTIFICATION_TYPES.WARNING]: { icon: AlertTriangle, className: 'bg-warn-bg text-warn-fg' },
+}
+
 const Notification = ({ notification, onRemove }) => {
-    const [isHovered, setIsHovered] = useState(false);
-    const [isVisible, setIsVisible] = useState(false);
+  const [paused, setPaused] = useState(false)
+  const tone = TONES[notification.type] || TONES[NOTIFICATION_TYPES.SUCCESS]
+  const Icon = tone.icon
 
-    useEffect(() => {
-        // Animate in
-        const timer = setTimeout(() => setIsVisible(true), 10);
-        return () => clearTimeout(timer);
-    }, []);
+  useEffect(() => {
+    if (paused || notification.autoHide === false) return undefined
+    const timer = setTimeout(() => onRemove(notification.id), notification.duration || 5000)
+    return () => clearTimeout(timer)
+  }, [paused, notification, onRemove])
 
-    useEffect(() => {
-        if (!isHovered && notification.autoHide !== false) {
-            const timer = setTimeout(() => {
-                onRemove(notification.id);
-            }, notification.duration || 5000);
+  return (
+    <div
+      role={notification.type === NOTIFICATION_TYPES.SUCCESS ? 'status' : 'alert'}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      className={cx(
+        'pointer-events-auto flex w-full items-start gap-3 rounded-lg py-3 pl-4 pr-1 shadow-overlay animate-scrim-in',
+        tone.className,
+      )}
+    >
+      <Icon size={20} strokeWidth={1.8} aria-hidden="true" className="mt-[2px] shrink-0" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1 py-[2px]">
+        {notification.title && <p className="m-0 font-bold">{notification.title}</p>}
+        <p className="m-0 text-body-sm">{notification.message}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(notification.id)}
+        aria-label="Cerrar aviso"
+        className="-my-2 inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-pill text-current"
+      >
+        <X size={18} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
 
-            return () => clearTimeout(timer);
-        }
-    }, [isHovered, notification, onRemove]);
-
-    const getIcon = () => {
-        switch (notification.type) {
-            case NOTIFICATION_TYPES.SUCCESS:
-                return <CheckCircle size={20} />;
-            case NOTIFICATION_TYPES.ERROR:
-                return <AlertCircle size={20} />;
-            case NOTIFICATION_TYPES.WARNING:
-                return <AlertTriangle size={20} />;
-            default:
-                return <CheckCircle size={20} />;
-        }
-    };
-
-    const handleRemove = () => {
-        setIsVisible(false);
-        setTimeout(() => onRemove(notification.id), 200);
-    };
-
-    return (
-        <div
-            className={`notification ${notification.type} ${isVisible ? 'visible' : ''}`}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            <div className="notification-icon">
-                {getIcon()}
-            </div>
-            <div className="notification-content">
-                {notification.title && (
-                    <div className="notification-title">{notification.title}</div>
-                )}
-                <div className="notification-message">{notification.message}</div>
-            </div>
-            <button
-                className="notification-close"
-                onClick={handleRemove}
-                aria-label="Close notification"
-            >
-                <X size={16} />
-            </button>
-        </div>
-    );
-};
-
-// Notification container component
-const NotificationContainer = () => {
-    const { notifications, removeNotification } = useNotifications();
-
-    return (
-        <div className="notification-container">
-            {notifications.map(notification => (
-                <Notification
-                    key={notification.id}
-                    notification={notification}
-                    onRemove={removeNotification}
-                />
-            ))}
-        </div>
-    );
-};
-
+const NotificationContainer = ({ notifications, onRemove }) => (
+  <div
+    aria-live="polite"
+    className="pointer-events-none fixed bottom-4 right-4 z-toast flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3"
+  >
+    {notifications.map(notification => (
+      <Notification key={notification.id} notification={notification} onRemove={onRemove} />
+    ))}
+  </div>
+)

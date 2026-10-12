@@ -57,14 +57,14 @@ install-otelcol:
     mv tmp/otelcol .
     rm -rf tmp
 
-# Fingerprint of web/ sources (used to skip redundant pnpm builds).
+# Fingerprint of web/ and design-system sources (used to skip redundant pnpm builds).
 _compute-web-build-hash:
     #!/usr/bin/env bash
     set -euo pipefail
     {
         while IFS= read -r f; do
             shasum -a 256 "$f"
-        done < <(git ls-files -co --exclude-standard -- web/ | sort)
+        done < <(git ls-files -co --exclude-standard -- web/ docs/design-system/ | sort)
     } | shasum -a 256 | awk '{print $1}'
 
 # Vite output for //go:embed (required before any go build or ./internal/... tests).
