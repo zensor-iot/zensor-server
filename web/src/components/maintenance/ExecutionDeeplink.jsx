@@ -1,60 +1,52 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Button, ErrorState, LoadingState, Page } from '../../ui'
 import { maintenanceApi } from '../../config/api'
-import './Maintenance.css'
 
-// Deeplink target for push notifications: resolves the execution and
-// redirects to its activity's history tab in the tenant portal.
+/**
+ * Deeplink target for push notifications: resolves the execution and redirects to its
+ * activity (history included) in the tenant portal.
+ */
 const ExecutionDeeplink = () => {
-    const { executionId } = useParams()
-    const navigate = useNavigate()
-    const [error, setError] = useState(null)
+  const { executionId } = useParams()
+  const navigate = useNavigate()
+  const [failed, setFailed] = useState(false)
 
-    useEffect(() => {
-        let cancelled = false
-        const resolve = async () => {
-            try {
-                const execution = await maintenanceApi.getExecution(executionId)
-                const activity = await maintenanceApi.getActivity(execution.activity_id)
-                if (!cancelled) {
-                    navigate(
-                        `/portal/${activity.tenant_id}/maintenance/activities/${activity.id}?tab=history`,
-                        { replace: true }
-                    )
-                }
-            } catch (err) {
-                if (!cancelled) {
-                    setError(err.message)
-                }
-            }
+  useEffect(() => {
+    let cancelled = false
+    const resolve = async () => {
+      try {
+        const execution = await maintenanceApi.getExecution(executionId)
+        const activity = await maintenanceApi.getActivity(execution.activity_id)
+        if (!cancelled) {
+          navigate(`/portal/${activity.tenant_id}/maintenance/activities/${activity.id}?tab=history`, { replace: true })
         }
-        resolve()
-        return () => {
-            cancelled = true
-        }
-    }, [executionId, navigate])
-
-    if (error) {
-        return (
-            <div className="maintenance-page">
-                <div className="maintenance-empty">
-                    <h3>Could not open this maintenance execution</h3>
-                    <p>{error}</p>
-                    <Link to="/" className="maintenance-btn">Go home</Link>
-                </div>
-            </div>
-        )
+      } catch {
+        if (!cancelled) setFailed(true)
+      }
     }
+    resolve()
+    return () => {
+      cancelled = true
+    }
+  }, [executionId, navigate])
 
-    return (
-        <div className="maintenance-page">
-            <div className="maintenance-empty">
-                <Loader2 className="loading-spinner" />
-                <p>Opening maintenance execution...</p>
-            </div>
-        </div>
-    )
+  return (
+    <Page>
+      {failed ? (
+        <>
+          <ErrorState title="No se pudo abrir esta mantención">
+            Puede que la actividad se haya eliminado o que no haya conexión. Vuelve al inicio y búscala en Mantención.
+          </ErrorState>
+          <Button variant="secondary" to="/" className="self-start">
+            Ir al inicio
+          </Button>
+        </>
+      ) : (
+        <LoadingState>Abriendo la mantención…</LoadingState>
+      )}
+    </Page>
+  )
 }
 
 export default ExecutionDeeplink

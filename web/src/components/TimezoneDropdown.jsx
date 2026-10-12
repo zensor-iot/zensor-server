@@ -1,213 +1,241 @@
-import { useState, useRef, useEffect } from 'react'
-import { Search, Clock, ChevronDown } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Check, ChevronDown } from 'lucide-react'
+import { cx } from '../lib/zensor'
 
-// Comprehensive list of major IANA timezones
 const TIMEZONES = [
-    { value: 'America/New_York', label: 'Eastern Time (US & Canada)' },
-    { value: 'America/Chicago', label: 'Central Time (US & Canada)' },
-    { value: 'America/Denver', label: 'Mountain Time (US & Canada)' },
-    { value: 'America/Los_Angeles', label: 'Pacific Time (US & Canada)' },
-    { value: 'America/Phoenix', label: 'Arizona' },
-    { value: 'America/Anchorage', label: 'Alaska' },
-    { value: 'America/Toronto', label: 'Toronto' },
-    { value: 'America/Mexico_City', label: 'Mexico City' },
-    { value: 'America/Sao_Paulo', label: 'São Paulo' },
-    { value: 'America/Buenos_Aires', label: 'Buenos Aires' },
-    { value: 'America/Santiago', label: 'Santiago' },
-    { value: 'America/Lima', label: 'Lima' },
-    { value: 'Europe/London', label: 'London' },
-    { value: 'Europe/Paris', label: 'Paris' },
-    { value: 'Europe/Berlin', label: 'Berlin' },
-    { value: 'Europe/Madrid', label: 'Madrid' },
-    { value: 'Europe/Rome', label: 'Rome' },
-    { value: 'Europe/Amsterdam', label: 'Amsterdam' },
-    { value: 'Europe/Brussels', label: 'Brussels' },
-    { value: 'Europe/Stockholm', label: 'Stockholm' },
-    { value: 'Europe/Vienna', label: 'Vienna' },
-    { value: 'Europe/Zurich', label: 'Zurich' },
-    { value: 'Europe/Athens', label: 'Athens' },
-    { value: 'Europe/Dublin', label: 'Dublin' },
-    { value: 'Europe/Prague', label: 'Prague' },
-    { value: 'Europe/Warsaw', label: 'Warsaw' },
-    { value: 'Europe/Moscow', label: 'Moscow' },
-    { value: 'Europe/Istanbul', label: 'Istanbul' },
-    { value: 'Asia/Dubai', label: 'Dubai' },
-    { value: 'Asia/Tokyo', label: 'Tokyo' },
-    { value: 'Asia/Shanghai', label: 'Shanghai' },
-    { value: 'Asia/Hong_Kong', label: 'Hong Kong' },
-    { value: 'Asia/Singapore', label: 'Singapore' },
-    { value: 'Asia/Bangkok', label: 'Bangkok' },
-    { value: 'Asia/Seoul', label: 'Seoul' },
-    { value: 'Asia/Delhi', label: 'India' },
-    { value: 'Asia/Karachi', label: 'Karachi' },
-    { value: 'Asia/Jakarta', label: 'Jakarta' },
-    { value: 'Asia/Manila', label: 'Manila' },
-    { value: 'Asia/Dhaka', label: 'Dhaka' },
-    { value: 'Asia/Jerusalem', label: 'Jerusalem' },
-    { value: 'Asia/Baghdad', label: 'Baghdad' },
-    { value: 'Australia/Sydney', label: 'Sydney' },
-    { value: 'Australia/Melbourne', label: 'Melbourne' },
-    { value: 'Australia/Brisbane', label: 'Brisbane' },
-    { value: 'Australia/Perth', label: 'Perth' },
-    { value: 'Pacific/Auckland', label: 'Auckland' },
-    { value: 'Pacific/Fiji', label: 'Fiji' },
-    { value: 'Pacific/Honolulu', label: 'Honolulu' },
-    { value: 'UTC', label: 'UTC' }
+  { value: 'America/Santiago', label: 'Santiago' },
+  { value: 'America/Buenos_Aires', label: 'Buenos Aires' },
+  { value: 'America/Lima', label: 'Lima' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo' },
+  { value: 'America/Mexico_City', label: 'Ciudad de México' },
+  { value: 'America/New_York', label: 'Hora del este (EE. UU. y Canadá)' },
+  { value: 'America/Chicago', label: 'Hora central (EE. UU. y Canadá)' },
+  { value: 'America/Denver', label: 'Hora de la montaña (EE. UU. y Canadá)' },
+  { value: 'America/Los_Angeles', label: 'Hora del Pacífico (EE. UU. y Canadá)' },
+  { value: 'America/Phoenix', label: 'Arizona' },
+  { value: 'America/Anchorage', label: 'Alaska' },
+  { value: 'America/Toronto', label: 'Toronto' },
+  { value: 'Europe/London', label: 'Londres' },
+  { value: 'Europe/Paris', label: 'París' },
+  { value: 'Europe/Berlin', label: 'Berlín' },
+  { value: 'Europe/Madrid', label: 'Madrid' },
+  { value: 'Europe/Rome', label: 'Roma' },
+  { value: 'Europe/Amsterdam', label: 'Ámsterdam' },
+  { value: 'Europe/Brussels', label: 'Bruselas' },
+  { value: 'Europe/Stockholm', label: 'Estocolmo' },
+  { value: 'Europe/Vienna', label: 'Viena' },
+  { value: 'Europe/Zurich', label: 'Zúrich' },
+  { value: 'Europe/Athens', label: 'Atenas' },
+  { value: 'Europe/Dublin', label: 'Dublín' },
+  { value: 'Europe/Prague', label: 'Praga' },
+  { value: 'Europe/Warsaw', label: 'Varsovia' },
+  { value: 'Europe/Moscow', label: 'Moscú' },
+  { value: 'Europe/Istanbul', label: 'Estambul' },
+  { value: 'Asia/Dubai', label: 'Dubái' },
+  { value: 'Asia/Tokyo', label: 'Tokio' },
+  { value: 'Asia/Shanghai', label: 'Shanghái' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong' },
+  { value: 'Asia/Singapore', label: 'Singapur' },
+  { value: 'Asia/Bangkok', label: 'Bangkok' },
+  { value: 'Asia/Seoul', label: 'Seúl' },
+  { value: 'Asia/Delhi', label: 'India' },
+  { value: 'Asia/Karachi', label: 'Karachi' },
+  { value: 'Asia/Jakarta', label: 'Yakarta' },
+  { value: 'Asia/Manila', label: 'Manila' },
+  { value: 'Asia/Dhaka', label: 'Daca' },
+  { value: 'Asia/Jerusalem', label: 'Jerusalén' },
+  { value: 'Asia/Baghdad', label: 'Bagdad' },
+  { value: 'Australia/Sydney', label: 'Sídney' },
+  { value: 'Australia/Melbourne', label: 'Melbourne' },
+  { value: 'Australia/Brisbane', label: 'Brisbane' },
+  { value: 'Australia/Perth', label: 'Perth' },
+  { value: 'Pacific/Auckland', label: 'Auckland' },
+  { value: 'Pacific/Fiji', label: 'Fiyi' },
+  { value: 'Pacific/Honolulu', label: 'Honolulu' },
+  { value: 'UTC', label: 'UTC' },
 ]
 
-const TimezoneDropdown = ({ value, onChange, placeholder = 'Select timezone...' }) => {
-    const [isOpen, setIsOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState('')
-    const [highlightedIndex, setHighlightedIndex] = useState(0)
-    const dropdownRef = useRef(null)
-    const inputRef = useRef(null)
+const normalize = text =>
+  text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
 
-    // Filter timezones based on search term
-    const filteredTimezones = TIMEZONES.filter(tz =>
-        tz.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tz.label.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+const timezoneLabel = value => TIMEZONES.find(tz => tz.value === value)?.label
 
-    // Get current timezone label
-    const currentTimezone = TIMEZONES.find(tz => tz.value === value)
-    const displayValue = currentTimezone ? currentTimezone.label : value || placeholder
+/**
+ * Searchable timezone combobox (WAI-ARIA combobox + listbox). Calls onChange with the IANA name.
+ * Accepts the input props a Field passes (id, aria-describedby…).
+ */
+const TimezoneDropdown = ({ value, onChange, placeholder = 'Busca una zona horaria', ...inputProps }) => {
+  const listId = useId()
+  const optionId = index => `${listId}-option-${index}`
+  const rootRef = useRef(null)
+  const inputRef = useRef(null)
+  const listRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [highlighted, setHighlighted] = useState(-1)
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false)
-                setSearchTerm('')
-                setHighlightedIndex(0)
-            }
-        }
+  const selectedLabel = value ? (timezoneLabel(value) ?? value) : ''
 
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
+  const options = useMemo(() => {
+    const term = normalize(query.trim())
+    if (!term) return TIMEZONES
+    return TIMEZONES.filter(tz => normalize(tz.label).includes(term) || normalize(tz.value).includes(term))
+  }, [query])
 
-    useEffect(() => {
-        if (isOpen && inputRef.current) {
-            inputRef.current.focus()
-        }
-    }, [isOpen])
-
-    useEffect(() => {
-        setHighlightedIndex(0)
-    }, [searchTerm])
-
-    const handleSelect = (timezoneValue) => {
-        onChange(timezoneValue)
-        setIsOpen(false)
-        setSearchTerm('')
-        setHighlightedIndex(0)
+  useEffect(() => {
+    if (!open) return undefined
+    const onPointerDown = event => {
+      if (rootRef.current?.contains(event.target)) return
+      setOpen(false)
+      setQuery('')
+      setHighlighted(-1)
     }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [open])
 
-    const handleKeyDown = (e) => {
-        if (!isOpen) {
-            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
-                e.preventDefault()
-                setIsOpen(true)
-            }
-            return
-        }
+  useEffect(() => {
+    if (!open || highlighted < 0) return
+    listRef.current?.querySelector(`[data-index="${highlighted}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [open, highlighted])
 
-        switch (e.key) {
-            case 'ArrowDown':
-                e.preventDefault()
-                setHighlightedIndex(prev =>
-                    prev < filteredTimezones.length - 1 ? prev + 1 : prev
-                )
-                break
-            case 'ArrowUp':
-                e.preventDefault()
-                setHighlightedIndex(prev => prev > 0 ? prev - 1 : 0)
-                break
-            case 'Enter':
-                e.preventDefault()
-                if (filteredTimezones[highlightedIndex]) {
-                    handleSelect(filteredTimezones[highlightedIndex].value)
-                }
-                break
-            case 'Escape':
-                e.preventDefault()
-                setIsOpen(false)
-                setSearchTerm('')
-                break
-            default:
-                break
+  const openList = () => {
+    if (open) return
+    setOpen(true)
+    setQuery('')
+    setHighlighted(Math.max(0, TIMEZONES.findIndex(tz => tz.value === value)))
+  }
+
+  const close = () => {
+    setOpen(false)
+    setQuery('')
+    setHighlighted(-1)
+  }
+
+  const select = timezone => {
+    onChange(timezone.value)
+    close()
+    inputRef.current?.focus()
+  }
+
+  const handleKeyDown = event => {
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault()
+        if (!open) openList()
+        else setHighlighted(index => Math.min(options.length - 1, index + 1))
+        break
+      case 'ArrowUp':
+        event.preventDefault()
+        if (!open) openList()
+        else setHighlighted(index => Math.max(0, index - 1))
+        break
+      case 'Home':
+        if (open) {
+          event.preventDefault()
+          setHighlighted(0)
         }
+        break
+      case 'End':
+        if (open) {
+          event.preventDefault()
+          setHighlighted(options.length - 1)
+        }
+        break
+      case 'Enter':
+        if (open && options[highlighted]) {
+          event.preventDefault()
+          select(options[highlighted])
+        }
+        break
+      case 'Escape':
+        if (open) {
+          event.preventDefault()
+          event.stopPropagation()
+          close()
+        }
+        break
+      case 'Tab':
+        close()
+        break
+      default:
     }
+  }
 
-    // Scroll highlighted item into view
-    useEffect(() => {
-        if (isOpen && highlightedIndex >= 0 && highlightedIndex < filteredTimezones.length) {
-            const element = document.getElementById(`timezone-option-${highlightedIndex}`)
-            if (element) {
-                element.scrollIntoView({ block: 'nearest' })
-            }
-        }
-    }, [highlightedIndex, isOpen, filteredTimezones.length])
-
-    return (
-        <div className="timezone-dropdown" ref={dropdownRef}>
-            <div
-                className={`timezone-dropdown-trigger ${isOpen ? 'open' : ''}`}
-                onClick={() => setIsOpen(!isOpen)}
-                onKeyDown={handleKeyDown}
-                tabIndex={0}
-                role="combobox"
-                aria-expanded={isOpen}
-                aria-haspopup="listbox"
-                aria-label="Timezone selector"
-            >
-                <Clock size={16} />
-                <span className="timezone-dropdown-value">
-                    {displayValue}
-                </span>
-                <ChevronDown size={16} className={`timezone-dropdown-chevron ${isOpen ? 'open' : ''}`} />
-            </div>
-
-            {isOpen && (
-                <div className="timezone-dropdown-menu">
-                    <div className="timezone-dropdown-search">
-                        <Search size={16} />
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            placeholder="Search timezones..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="timezone-dropdown-input"
-                            autoComplete="off"
-                        />
-                    </div>
-
-                    <div className="timezone-dropdown-list">
-                        {filteredTimezones.length === 0 ? (
-                            <div className="timezone-dropdown-empty">
-                                No timezones found
-                            </div>
-                        ) : (
-                            filteredTimezones.map((timezone, index) => (
-                                <div
-                                    key={timezone.value}
-                                    id={`timezone-option-${index}`}
-                                    className={`timezone-dropdown-item ${index === highlightedIndex ? 'highlighted' : ''
-                                        } ${value === timezone.value ? 'selected' : ''}`}
-                                    onClick={() => handleSelect(timezone.value)}
-                                    onMouseEnter={() => setHighlightedIndex(index)}
-                                >
-                                    <div className="timezone-dropdown-item-value">{timezone.value}</div>
-                                    <div className="timezone-dropdown-item-label">{timezone.label}</div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    )
+  return (
+    <div ref={rootRef} className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={open && highlighted >= 0 && options[highlighted] ? optionId(highlighted) : undefined}
+        autoComplete="off"
+        spellCheck={false}
+        className="zs-control pr-12"
+        placeholder={placeholder}
+        value={open ? query : selectedLabel}
+        onChange={event => {
+          if (!open) setOpen(true)
+          setQuery(event.target.value)
+          setHighlighted(0)
+        }}
+        onClick={openList}
+        onKeyDown={handleKeyDown}
+        {...inputProps}
+      />
+      <ChevronDown
+        size={18}
+        strokeWidth={1.8}
+        aria-hidden="true"
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted"
+      />
+      {open && (
+        <ul
+          ref={listRef}
+          id={listId}
+          role="listbox"
+          aria-label="Zonas horarias"
+          className="absolute inset-x-0 top-full z-sticky m-0 mt-2 max-h-[18rem] list-none overflow-y-auto rounded-md border border-line bg-surface p-1 shadow-overlay"
+        >
+          {options.length === 0 ? (
+            <li className="px-4 py-3 text-body-sm text-muted">Sin resultados. Prueba con el nombre de una ciudad.</li>
+          ) : (
+            options.map((timezone, index) => {
+              const selected = timezone.value === value
+              return (
+                <li
+                  key={timezone.value}
+                  id={optionId(index)}
+                  data-index={index}
+                  role="option"
+                  aria-selected={selected}
+                  onMouseDown={event => event.preventDefault()}
+                  onClick={() => select(timezone)}
+                  onMouseEnter={() => setHighlighted(index)}
+                  className={cx(
+                    'flex min-h-touch cursor-pointer items-center gap-3 rounded-sm px-3 py-2',
+                    index === highlighted && 'bg-sunken',
+                  )}
+                >
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-body-sm">{timezone.label}</span>
+                    <span className="font-mono text-xs text-muted">{timezone.value}</span>
+                  </span>
+                  {selected && <Check size={20} strokeWidth={1.8} aria-hidden="true" className="text-ok-fg" />}
+                </li>
+              )
+            })
+          )}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 export default TimezoneDropdown
-

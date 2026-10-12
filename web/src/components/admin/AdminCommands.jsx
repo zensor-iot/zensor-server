@@ -1,349 +1,336 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Play, ArrowLeft, Send, Clock, CheckCircle, XCircle, AlertCircle, Building, Cpu } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Send } from 'lucide-react'
 import { useNotification } from '../../hooks/useNotification'
 import { deviceCommandsApi } from '../../config/api'
-import './AdminCommands.css'
+import {
+  Button,
+  Drawer,
+  EmptyState,
+  ErrorState,
+  Field,
+  FilterChips,
+  Form,
+  Input,
+  KeyValue,
+  LoadingState,
+  Notice,
+  Page,
+  PageHeader,
+  Section,
+  Select,
+  StatusPill,
+  Table,
+} from '../../ui'
+import { formatDateTime, formatNumber, formatRelative } from '../../lib/zensor'
+import { commandSequencePayload, isValidWaitFor, listData } from '../../utils/adminOperations'
 
-const AdminCommands = () => {
-    const { showSuccess, showError, showApiNotification } = useNotification()
-    const [devices, setDevices] = useState([])
-    const [recentCommands, setRecentCommands] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [showCommandForm, setShowCommandForm] = useState(false)
-    const [formData, setFormData] = useState({
-        device_id: '',
-        index: 1,
-        value: 0,
-        priority: 'NORMAL',
-        wait_for: '0s',
-        description: ''
-    })
-
-    useEffect(() => {
-        fetchData()
-    }, [])
-
-    const fetchData = async () => {
-        try {
-            setLoading(true)
-
-            // Fetch all devices
-            const devicesResponse = await fetch('/v1/devices')
-            if (devicesResponse.ok) {
-                const devicesData = await devicesResponse.json()
-                setDevices(devicesData)
-            }
-
-            // TODO: Fetch recent commands from a system-wide endpoint
-            // For now, we'll use an empty array
-            setRecentCommands([])
-        } catch (error) {
-            console.error('Failed to fetch data:', error)
-            showError('Failed to load system data', 'Error')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleSendCommand = async (e) => {
-        e.preventDefault()
-
-        if (!formData.device_id) {
-            showError('Please select a device', 'Validation Error')
-            return
-        }
-
-        const commandData = {
-            index: parseInt(formData.index),
-            value: parseInt(formData.value),
-            priority: formData.priority,
-            wait_for: formData.wait_for,
-            description: formData.description
-        }
-
-        const result = await showApiNotification(
-            deviceCommandsApi.sendCommand(formData.device_id, commandData),
-            'Command sent successfully',
-            'Failed to send command',
-            'Success',
-            'Error'
-        )
-
-        if (result.success) {
-            setShowCommandForm(false)
-            setFormData({
-                device_id: '',
-                index: 1,
-                value: 0,
-                priority: 'NORMAL',
-                wait_for: '0s',
-                description: ''
-            })
-            fetchData()
-        }
-    }
-
-    const getStatusIcon = (status) => {
-        switch (status) {
-            case 'completed':
-                return <CheckCircle size={16} className="status-icon completed" />
-            case 'failed':
-                return <XCircle size={16} className="status-icon failed" />
-            case 'running':
-                return <Play size={16} className="status-icon running" />
-            default:
-                return <AlertCircle size={16} className="status-icon unknown" />
-        }
-    }
-
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'completed':
-                return '#10b981'
-            case 'failed':
-                return '#ef4444'
-            case 'running':
-                return '#3b82f6'
-            default:
-                return '#6b7280'
-        }
-    }
-
-    return (
-        <div className="admin-commands">
-            <div className="admin-header">
-                <div className="header-top">
-                    <Link to="/admin" className="back-link">
-                        <ArrowLeft size={20} />
-                        Back to Dashboard
-                    </Link>
-                </div>
-                <div className="admin-title">
-                    <Play size={32} />
-                    <h1>System Commands</h1>
-                </div>
-                <p className="admin-subtitle">Send commands to any device in the system</p>
-            </div>
-
-            <div className="admin-actions">
-                <button
-                    className="btn btn-primary"
-                    onClick={() => setShowCommandForm(true)}
-                >
-                    <Send size={20} />
-                    Send Command
-                </button>
-            </div>
-
-            {/* Command Form */}
-            {showCommandForm && (
-                <div className="form-overlay">
-                    <div className="form-card">
-                        <h2>Send Device Command</h2>
-                        <form onSubmit={handleSendCommand}>
-                            <div className="form-group">
-                                <label htmlFor="device_id">Device *</label>
-                                <select
-                                    id="device_id"
-                                    value={formData.device_id}
-                                    onChange={(e) => setFormData({ ...formData, device_id: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Select a device</option>
-                                    {devices.map((device) => (
-                                        <option key={device.id} value={device.id}>
-                                            {device.name} ({device.device_type}) - {device.tenant?.name || 'Unknown Tenant'}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label htmlFor="index">Index</label>
-                                    <input
-                                        type="number"
-                                        id="index"
-                                        value={formData.index}
-                                        onChange={(e) => setFormData({ ...formData, index: parseInt(e.target.value) || 1 })}
-                                        min="1"
-                                        max="10"
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label htmlFor="value">Value</label>
-                                    <input
-                                        type="number"
-                                        id="value"
-                                        value={formData.value}
-                                        onChange={(e) => setFormData({ ...formData, value: parseInt(e.target.value) || 0 })}
-                                        min="0"
-                                        max="100"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label htmlFor="priority">Priority</label>
-                                    <select
-                                        id="priority"
-                                        value={formData.priority}
-                                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                                    >
-                                        <option value="LOW">Low</option>
-                                        <option value="NORMAL">Normal</option>
-                                        <option value="HIGH">High</option>
-                                        <option value="URGENT">Urgent</option>
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label htmlFor="wait_for">Wait For</label>
-                                    <input
-                                        type="text"
-                                        id="wait_for"
-                                        value={formData.wait_for}
-                                        onChange={(e) => setFormData({ ...formData, wait_for: e.target.value })}
-                                        placeholder="0s, 5m, 1h"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="description">Description</label>
-                                <textarea
-                                    id="description"
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    rows={3}
-                                    placeholder="Optional description for this command"
-                                />
-                            </div>
-
-                            <div className="form-actions">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowCommandForm(false)}>
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn btn-primary">
-                                    Send Command
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* System Overview */}
-            <div className="system-overview">
-                <h2>System Overview</h2>
-                <div className="overview-cards">
-                    <div className="overview-card">
-                        <div className="card-icon">
-                            <Cpu size={24} />
-                        </div>
-                        <div className="card-content">
-                            <div className="card-value">{devices.length}</div>
-                            <div className="card-label">Total Devices</div>
-                        </div>
-                    </div>
-
-                    <div className="overview-card">
-                        <div className="card-icon">
-                            <Play size={24} />
-                        </div>
-                        <div className="card-content">
-                            <div className="card-value">{recentCommands.length}</div>
-                            <div className="card-label">Recent Commands</div>
-                        </div>
-                    </div>
-
-                    <div className="overview-card">
-                        <div className="card-icon">
-                            <CheckCircle size={24} />
-                        </div>
-                        <div className="card-content">
-                            <div className="card-value">
-                                {recentCommands.filter(c => c.status === 'completed').length}
-                            </div>
-                            <div className="card-label">Completed</div>
-                        </div>
-                    </div>
-
-                    <div className="overview-card">
-                        <div className="card-icon">
-                            <XCircle size={24} />
-                        </div>
-                        <div className="card-content">
-                            <div className="card-value">
-                                {recentCommands.filter(c => c.status === 'failed').length}
-                            </div>
-                            <div className="card-label">Failed</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Recent Commands */}
-            <div className="recent-commands">
-                <h2>Recent Commands</h2>
-                {recentCommands.length > 0 ? (
-                    <div className="commands-list">
-                        {recentCommands.map((command) => (
-                            <div key={command.id} className="command-card">
-                                <div className="command-header">
-                                    <div className="command-info">
-                                        <div className="command-status">
-                                            {getStatusIcon(command.status)}
-                                            <span className="status-text" style={{ color: getStatusColor(command.status) }}>
-                                                {command.status}
-                                            </span>
-                                        </div>
-                                        <div className="command-time">
-                                            {new Date(command.created_at).toLocaleString()}
-                                        </div>
-                                    </div>
-                                    <div className="command-device">
-                                        <Cpu size={16} />
-                                        {command.device?.name || 'Unknown Device'}
-                                    </div>
-                                </div>
-
-                                <div className="command-details">
-                                    <div className="detail-row">
-                                        <span className="detail-label">Index:</span>
-                                        <span className="detail-value">{command.index}</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span className="detail-label">Value:</span>
-                                        <span className="detail-value">{command.value}</span>
-                                    </div>
-                                    <div className="detail-row">
-                                        <span className="detail-label">Priority:</span>
-                                        <span className="detail-value">{command.priority}</span>
-                                    </div>
-                                    {command.description && (
-                                        <div className="detail-row">
-                                            <span className="detail-label">Description:</span>
-                                            <span className="detail-value">{command.description}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="empty-state">
-                        <Play size={48} />
-                        <h3>No Recent Commands</h3>
-                        <p>Commands sent through the admin panel will appear here.</p>
-                    </div>
-                )}
-            </div>
-        </div>
-    )
+const DEVICE_LIMIT = 100
+const EMPTY_FORM = { deviceId: '', index: 1, value: 0, priority: 'NORMAL', waitFor: '0s' }
+const PRIORITIES = [
+  { value: 'LOW', label: 'Baja' },
+  { value: 'NORMAL', label: 'Normal' },
+  { value: 'HIGH', label: 'Alta' },
+  { value: 'URGENT', label: 'Urgente' },
+]
+const LOG_STATUS = {
+  queued: { label: 'En cola', tone: 'live' },
+  failed: { label: 'Falló', tone: 'attention' },
 }
 
-export default AdminCommands
+const nameOf = device => device?.display_name || device?.name || device?.id || ''
+const priorityLabel = value => PRIORITIES.find(priority => priority.value === value)?.label || value
+
+export default function AdminCommands() {
+  const { showSuccess, showError } = useNotification()
+  const [devices, setDevices] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [formOpen, setFormOpen] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [formError, setFormError] = useState(null)
+  const [sending, setSending] = useState(false)
+  const [log, setLog] = useState([])
+  const [filter, setFilter] = useState('all')
+  const [selected, setSelected] = useState(null)
+
+  const fetchDevices = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/v1/devices?limit=${DEVICE_LIMIT}`)
+      if (!response.ok) throw new Error(String(response.status))
+      setDevices(listData(await response.json(), 'devices'))
+    } catch {
+      setError('Revisa tu conexión y vuelve a intentarlo.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDevices()
+  }, [fetchDevices])
+
+  const openForm = () => {
+    setForm(EMPTY_FORM)
+    setFormError(null)
+    setFormOpen(true)
+  }
+
+  const handleSend = async event => {
+    event.preventDefault()
+    if (!form.deviceId) {
+      setFormError({ deviceId: 'Elige el dispositivo que recibirá el comando.' })
+      return
+    }
+    if (!isValidWaitFor(form.waitFor)) {
+      setFormError({ waitFor: 'Usa un formato como 0s, 30s, 5m o 1h.' })
+      return
+    }
+    setFormError(null)
+
+    const device = devices.find(item => item.id === form.deviceId)
+    const payload = commandSequencePayload(form)
+    const entry = {
+      id: `${Date.now()}-${log.length}`,
+      deviceId: form.deviceId,
+      deviceName: nameOf(device),
+      createdAt: new Date().toISOString(),
+      payload,
+    }
+
+    setSending(true)
+    try {
+      await deviceCommandsApi.sendCommand(form.deviceId, payload)
+      setLog(current => [{ ...entry, status: 'queued' }, ...current])
+      showSuccess(`Comando en cola para ${entry.deviceName}`)
+      setFormOpen(false)
+    } catch (sendError) {
+      setLog(current => [{ ...entry, status: 'failed', error: sendError.message }, ...current])
+      showError(`No se pudo enviar el comando a ${entry.deviceName}. Revisa los datos y vuelve a intentarlo.`)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const failedCount = log.filter(entry => entry.status === 'failed').length
+  const queuedCount = log.length - failedCount
+  const visibleLog = filter === 'all' ? log : log.filter(entry => entry.status === filter)
+
+  return (
+    <Page>
+      <PageHeader
+        title="Comandos"
+        description="Envía un comando a cualquier dispositivo del sistema. Úsalo para pruebas y soporte."
+        back={{ to: '/admin', label: 'Administración' }}
+        actions={
+          <Button icon={Send} onClick={openForm} disabled={loading || devices.length === 0}>
+            Enviar comando
+          </Button>
+        }
+      />
+
+      {loading && devices.length === 0 ? (
+        <LoadingState>Cargando dispositivos…</LoadingState>
+      ) : error ? (
+        <ErrorState title="No se pudieron cargar los dispositivos" onRetry={fetchDevices}>
+          {error}
+        </ErrorState>
+      ) : devices.length === 0 ? (
+        <EmptyState title="Aún no hay dispositivos">
+          Registra o adopta un dispositivo para poder enviarle comandos.
+        </EmptyState>
+      ) : (
+        <Section
+          title="Enviados en esta sesión"
+          description="El servidor aún no guarda un historial de comandos: aquí ves solo los que enviaste desde esta página, hasta que la recargues."
+        >
+          {log.length === 0 ? (
+            <EmptyState>Envía un comando con “Enviar comando” y verás aquí su resultado.</EmptyState>
+          ) : (
+            <>
+              {failedCount > 0 && filter !== 'failed' && (
+                <Notice action="Ver" onAction={() => setFilter('failed')}>
+                  {failedCount === 1
+                    ? '1 comando no llegó a la cola.'
+                    : `${formatNumber(failedCount)} comandos no llegaron a la cola.`}
+                </Notice>
+              )}
+              <FilterChips
+                label="Filtro de comandos"
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: 'all', label: 'Todos', count: log.length },
+                  { value: 'queued', label: 'En cola', count: queuedCount },
+                  { value: 'failed', label: 'Fallidos', count: failedCount },
+                ]}
+              />
+              {visibleLog.length === 0 ? (
+                <EmptyState>No hay comandos con este estado. Elige “Todos” para ver la lista completa.</EmptyState>
+              ) : (
+                <Table caption="Comandos enviados en esta sesión">
+                  <thead>
+                    <tr>
+                      <th scope="col">Enviado</th>
+                      <th scope="col">Dispositivo</th>
+                      <th scope="col" className="text-right">Relé</th>
+                      <th scope="col" className="text-right">Valor</th>
+                      <th scope="col">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleLog.map(entry => {
+                      const [command] = entry.payload.sequence
+                      const status = LOG_STATUS[entry.status]
+                      return (
+                        <tr key={entry.id}>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => setSelected(entry)}
+                              className="flex min-h-touch flex-col items-start justify-center bg-transparent p-0 text-left text-ink underline-offset-4 hover:underline"
+                            >
+                              <span className="font-mono">{formatDateTime(entry.createdAt)}</span>
+                              <span className="text-caption text-muted">{formatRelative(entry.createdAt)}</span>
+                            </button>
+                          </td>
+                          <td>{entry.deviceName}</td>
+                          <td className="zs-num">{formatNumber(command.index)}</td>
+                          <td className="zs-num">{formatNumber(command.value)}</td>
+                          <td>
+                            <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </Table>
+              )}
+            </>
+          )}
+        </Section>
+      )}
+
+      <Drawer
+        open={formOpen}
+        onClose={() => !sending && setFormOpen(false)}
+        title="Enviar comando"
+        subtitle="El comando entra a la cola y se despacha al dispositivo."
+        footer={
+          <>
+            <Button type="submit" form="admin-command-form" icon={Send} disabled={sending}>
+              {sending ? 'Enviando…' : 'Enviar comando'}
+            </Button>
+            <Button variant="ghost" onClick={() => setFormOpen(false)} disabled={sending}>
+              Cancelar
+            </Button>
+          </>
+        }
+      >
+        <Form id="admin-command-form" onSubmit={handleSend} noValidate>
+          <Field label="Dispositivo" required error={formError?.deviceId}>
+            {props => (
+              <Select {...props} value={form.deviceId} onChange={event => setForm({ ...form, deviceId: event.target.value })}>
+                <option value="">Elige un dispositivo</option>
+                {devices.map(device => (
+                  <option key={device.id} value={device.id}>
+                    {nameOf(device)}
+                    {device.tenant_id ? '' : ' · sin cuenta'}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Relé (índice)" hint="Del 1 al 10.">
+              {props => (
+                <Input
+                  {...props}
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  max="10"
+                  className="font-mono"
+                  value={form.index}
+                  onChange={event => setForm({ ...form, index: parseInt(event.target.value, 10) || 1 })}
+                />
+              )}
+            </Field>
+            <Field label="Valor" hint="1 abre, 0 cierra.">
+              {props => (
+                <Input
+                  {...props}
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  max="100"
+                  className="font-mono"
+                  value={form.value}
+                  onChange={event => setForm({ ...form, value: parseInt(event.target.value, 10) || 0 })}
+                />
+              )}
+            </Field>
+            <Field label="Prioridad">
+              {props => (
+                <Select {...props} value={form.priority} onChange={event => setForm({ ...form, priority: event.target.value })}>
+                  {PRIORITIES.map(priority => (
+                    <option key={priority.value} value={priority.value}>
+                      {priority.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="Esperar antes de enviar" hint="Ejemplos: 0s, 30s, 5m, 1h." error={formError?.waitFor}>
+              {props => (
+                <Input
+                  {...props}
+                  className="font-mono"
+                  value={form.waitFor}
+                  onChange={event => setForm({ ...form, waitFor: event.target.value })}
+                  placeholder="0s"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              )}
+            </Field>
+          </div>
+        </Form>
+      </Drawer>
+
+      <Drawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title="Comando"
+        subtitle={
+          selected && (
+            <>
+              <span>{selected.deviceName}</span>
+              <StatusPill tone={LOG_STATUS[selected.status].tone}>{LOG_STATUS[selected.status].label}</StatusPill>
+            </>
+          )
+        }
+      >
+        {selected && (
+          <>
+            <KeyValue
+              items={[
+                { label: 'Enviado', value: formatDateTime(selected.createdAt), mono: true },
+                { label: 'Dispositivo', value: selected.deviceName },
+                { label: 'ID del dispositivo', value: selected.deviceId, mono: true },
+                { label: 'Prioridad', value: priorityLabel(selected.payload.priority) },
+                { label: 'Error', value: selected.error },
+              ]}
+            />
+            <Section title="Datos enviados">
+              <pre className="m-0 overflow-x-auto rounded-md border border-line bg-sunken p-4 font-mono text-sm">
+                {JSON.stringify(selected.payload, null, 2)}
+              </pre>
+            </Section>
+          </>
+        )}
+      </Drawer>
+    </Page>
+  )
+}

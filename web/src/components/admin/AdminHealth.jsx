@@ -1,346 +1,196 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Activity, Database, Server, Wifi, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react'
-import { useNotification } from '../../hooks/useNotification'
-import './AdminHealth.css'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { Button, KeyValue, Notice, Page, PageHeader, Section, StatusPill, Table } from '../../ui'
+import { formatTime, formatUnit } from '../../lib/zensor'
 
-const AdminHealth = () => {
-    const { showError } = useNotification()
-    const [healthData, setHealthData] = useState({
-        api: { status: 'checking', responseTime: 0, lastCheck: null },
-        database: { status: 'checking', responseTime: 0, lastCheck: null },
-        websocket: { status: 'checking', responseTime: 0, lastCheck: null }
-    })
-    const [loading, setLoading] = useState(true)
-    const [lastRefresh, setLastRefresh] = useState(null)
+const TIMEOUT_MS = 5000
 
-    useEffect(() => {
-        checkSystemHealth()
-    }, [])
+const COMPONENTS = [
+  { key: 'api', label: 'Servidor' },
+  { key: 'database', label: 'Base de datos' },
+  { key: 'websocket', label: 'Mensajes en vivo' },
+]
 
-    const checkSystemHealth = async () => {
-        try {
-            setLoading(true)
-            const startTime = Date.now()
-
-            // Check API health
-            const apiStartTime = Date.now()
-            try {
-                const apiResponse = await fetch('/health', { timeout: 5000 })
-                const apiResponseTime = Date.now() - apiStartTime
-
-                if (apiResponse.ok) {
-                    const apiData = await apiResponse.json()
-                    setHealthData(prev => ({
-                        ...prev,
-                        api: {
-                            status: 'healthy',
-                            responseTime: apiResponseTime,
-                            lastCheck: new Date(),
-                            details: apiData
-                        }
-                    }))
-                } else {
-                    setHealthData(prev => ({
-                        ...prev,
-                        api: {
-                            status: 'unhealthy',
-                            responseTime: apiResponseTime,
-                            lastCheck: new Date(),
-                            error: `HTTP ${apiResponse.status}`
-                        }
-                    }))
-                }
-            } catch (error) {
-                const apiResponseTime = Date.now() - apiStartTime
-                setHealthData(prev => ({
-                    ...prev,
-                    api: {
-                        status: 'unhealthy',
-                        responseTime: apiResponseTime,
-                        lastCheck: new Date(),
-                        error: error.message
-                    }
-                }))
-            }
-
-            // Check database health (via API)
-            const dbStartTime = Date.now()
-            try {
-                const dbResponse = await fetch('/v1/tenants', { timeout: 5000 })
-                const dbResponseTime = Date.now() - dbStartTime
-
-                if (dbResponse.ok) {
-                    setHealthData(prev => ({
-                        ...prev,
-                        database: {
-                            status: 'healthy',
-                            responseTime: dbResponseTime,
-                            lastCheck: new Date()
-                        }
-                    }))
-                } else {
-                    setHealthData(prev => ({
-                        ...prev,
-                        database: {
-                            status: 'unhealthy',
-                            responseTime: dbResponseTime,
-                            lastCheck: new Date(),
-                            error: `HTTP ${dbResponse.status}`
-                        }
-                    }))
-                }
-            } catch (error) {
-                const dbResponseTime = Date.now() - dbStartTime
-                setHealthData(prev => ({
-                    ...prev,
-                    database: {
-                        status: 'unhealthy',
-                        responseTime: dbResponseTime,
-                        lastCheck: new Date(),
-                        error: error.message
-                    }
-                }))
-            }
-
-            // Check WebSocket health (simplified check)
-            const wsStartTime = Date.now()
-            try {
-                // Try to create a WebSocket connection
-                const wsUrl = window.location.origin.replace(/^http/, 'ws') + '/ws/device-messages'
-                const ws = new WebSocket(wsUrl)
-
-                const wsPromise = new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        ws.close()
-                        reject(new Error('WebSocket connection timeout'))
-                    }, 5000)
-
-                    ws.onopen = () => {
-                        clearTimeout(timeout)
-                        ws.close()
-                        resolve(true)
-                    }
-
-                    ws.onerror = (error) => {
-                        clearTimeout(timeout)
-                        reject(error)
-                    }
-                })
-
-                await wsPromise
-                const wsResponseTime = Date.now() - wsStartTime
-
-                setHealthData(prev => ({
-                    ...prev,
-                    websocket: {
-                        status: 'healthy',
-                        responseTime: wsResponseTime,
-                        lastCheck: new Date()
-                    }
-                }))
-            } catch (error) {
-                const wsResponseTime = Date.now() - wsStartTime
-                setHealthData(prev => ({
-                    ...prev,
-                    websocket: {
-                        status: 'unhealthy',
-                        responseTime: wsResponseTime,
-                        lastCheck: new Date(),
-                        error: error.message
-                    }
-                }))
-            }
-
-            setLastRefresh(new Date())
-        } catch (error) {
-            console.error('Failed to check system health:', error)
-            showError('Failed to check system health', 'Error')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const getStatusIcon = (status) => {
-        switch (status) {
-            case 'healthy':
-                return <CheckCircle size={20} className="status-icon healthy" />
-            case 'unhealthy':
-                return <XCircle size={20} className="status-icon unhealthy" />
-            case 'checking':
-                return <AlertCircle size={20} className="status-icon checking" />
-            default:
-                return <AlertCircle size={20} className="status-icon unknown" />
-        }
-    }
-
-    const getStatusText = (status) => {
-        switch (status) {
-            case 'healthy':
-                return 'Healthy'
-            case 'unhealthy':
-                return 'Unhealthy'
-            case 'checking':
-                return 'Checking...'
-            default:
-                return 'Unknown'
-        }
-    }
-
-    const overallStatus = Object.values(healthData).every(service => service.status === 'healthy')
-        ? 'healthy'
-        : Object.values(healthData).some(service => service.status === 'unhealthy')
-            ? 'unhealthy'
-            : 'checking'
-
-    return (
-        <div className="admin-health">
-            <div className="admin-header">
-                <div className="header-top">
-                    <Link to="/admin" className="back-link">
-                        <ArrowLeft size={20} />
-                        Back to Dashboard
-                    </Link>
-                </div>
-                <div className="admin-title">
-                    <Activity size={32} />
-                    <h1>System Health</h1>
-                </div>
-                <p className="admin-subtitle">Monitor system performance and health status</p>
-            </div>
-
-            <div className="health-actions">
-                <button
-                    className="btn btn-primary"
-                    onClick={checkSystemHealth}
-                    disabled={loading}
-                >
-                    <RefreshCw size={20} className={loading ? 'spinning' : ''} />
-                    {loading ? 'Checking...' : 'Refresh Health'}
-                </button>
-                {lastRefresh && (
-                    <span className="last-refresh">
-                        Last checked: {lastRefresh.toLocaleTimeString()}
-                    </span>
-                )}
-            </div>
-
-            {/* Overall System Status */}
-            <div className="overall-status">
-                <div className={`status-card ${overallStatus}`}>
-                    <div className="status-header">
-                        {getStatusIcon(overallStatus)}
-                        <h2>Overall System Status</h2>
-                    </div>
-                    <div className="status-details">
-                        <span className="status-text">{getStatusText(overallStatus)}</span>
-                        {overallStatus === 'healthy' && (
-                            <p>All systems are operational</p>
-                        )}
-                        {overallStatus === 'unhealthy' && (
-                            <p>Some systems are experiencing issues</p>
-                        )}
-                        {overallStatus === 'checking' && (
-                            <p>Checking system status...</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Individual Service Status */}
-            <div className="services-grid">
-                <div className="service-card">
-                    <div className="service-header">
-                        <Server size={24} />
-                        <h3>API Server</h3>
-                    </div>
-                    <div className="service-status">
-                        {getStatusIcon(healthData.api.status)}
-                        <span>{getStatusText(healthData.api.status)}</span>
-                    </div>
-                    {healthData.api.responseTime > 0 && (
-                        <div className="service-metrics">
-                            <div className="metric">
-                                <span className="metric-label">Response Time:</span>
-                                <span className="metric-value">{healthData.api.responseTime}ms</span>
-                            </div>
-                            {healthData.api.lastCheck && (
-                                <div className="metric">
-                                    <span className="metric-label">Last Check:</span>
-                                    <span className="metric-value">{healthData.api.lastCheck.toLocaleTimeString()}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {healthData.api.error && (
-                        <div className="service-error">
-                            <span className="error-text">{healthData.api.error}</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="service-card">
-                    <div className="service-header">
-                        <Database size={24} />
-                        <h3>Database</h3>
-                    </div>
-                    <div className="service-status">
-                        {getStatusIcon(healthData.database.status)}
-                        <span>{getStatusText(healthData.database.status)}</span>
-                    </div>
-                    {healthData.database.responseTime > 0 && (
-                        <div className="service-metrics">
-                            <div className="metric">
-                                <span className="metric-label">Response Time:</span>
-                                <span className="metric-value">{healthData.database.responseTime}ms</span>
-                            </div>
-                            {healthData.database.lastCheck && (
-                                <div className="metric">
-                                    <span className="metric-label">Last Check:</span>
-                                    <span className="metric-value">{healthData.database.lastCheck.toLocaleTimeString()}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {healthData.database.error && (
-                        <div className="service-error">
-                            <span className="error-text">{healthData.database.error}</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="service-card">
-                    <div className="service-header">
-                        <Wifi size={24} />
-                        <h3>WebSocket</h3>
-                    </div>
-                    <div className="service-status">
-                        {getStatusIcon(healthData.websocket.status)}
-                        <span>{getStatusText(healthData.websocket.status)}</span>
-                    </div>
-                    {healthData.websocket.responseTime > 0 && (
-                        <div className="service-metrics">
-                            <div className="metric">
-                                <span className="metric-label">Response Time:</span>
-                                <span className="metric-value">{healthData.websocket.responseTime}ms</span>
-                            </div>
-                            {healthData.websocket.lastCheck && (
-                                <div className="metric">
-                                    <span className="metric-label">Last Check:</span>
-                                    <span className="metric-value">{healthData.websocket.lastCheck.toLocaleTimeString()}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {healthData.websocket.error && (
-                        <div className="service-error">
-                            <span className="error-text">{healthData.websocket.error}</span>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    )
+const STATUS = {
+  checking: { label: 'Revisando', tone: 'neutral' },
+  healthy: { label: 'Operativo', tone: 'ok' },
+  unhealthy: { label: 'Sin respuesta', tone: 'attention' },
 }
 
-export default AdminHealth
+const initialHealth = () =>
+  Object.fromEntries(COMPONENTS.map(({ key }) => [key, { status: 'checking', responseTime: null, lastCheck: null }]))
+
+class CheckError extends Error {}
+
+const timeoutSignal = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT_MS) : undefined)
+
+const describeError = error => {
+  if (error instanceof CheckError) return error.message
+  if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return `No respondió en ${formatUnit(TIMEOUT_MS / 1000, 's')}`
+  return 'No se pudo conectar'
+}
+
+async function checkHttp(path, parseBody) {
+  const response = await fetch(path, { signal: timeoutSignal() })
+  if (!response.ok) throw new CheckError(`Respondió con error ${response.status}`)
+  if (!parseBody) return undefined
+  try {
+    return await response.json()
+  } catch {
+    throw new CheckError('Respondió con un formato inesperado')
+  }
+}
+
+function checkWebSocket() {
+  return new Promise((resolve, reject) => {
+    const url = `${window.location.origin.replace(/^http/, 'ws')}/ws/device-messages`
+    let ws
+    try {
+      ws = new WebSocket(url)
+    } catch {
+      reject(new CheckError('No se pudo abrir la conexión'))
+      return
+    }
+    const timer = setTimeout(() => {
+      ws.close()
+      reject(new CheckError(`No respondió en ${formatUnit(TIMEOUT_MS / 1000, 's')}`))
+    }, TIMEOUT_MS)
+    ws.onopen = () => {
+      clearTimeout(timer)
+      ws.close()
+      resolve()
+    }
+    ws.onerror = () => {
+      clearTimeout(timer)
+      reject(new CheckError('No se pudo abrir la conexión'))
+    }
+  })
+}
+
+const CHECKS = {
+  api: () => checkHttp('/healthz', true),
+  database: () => checkHttp('/v1/tenants', false),
+  websocket: checkWebSocket,
+}
+
+export default function AdminHealth() {
+  const [health, setHealth] = useState(initialHealth)
+  const [checking, setChecking] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState(null)
+  const mounted = useRef(true)
+
+  const runChecks = useCallback(async () => {
+    setChecking(true)
+    setHealth(current =>
+      Object.fromEntries(Object.entries(current).map(([key, value]) => [key, { ...value, status: 'checking' }])),
+    )
+
+    await Promise.all(
+      COMPONENTS.map(async ({ key }) => {
+        const started = Date.now()
+        let result
+        try {
+          const details = await CHECKS[key]()
+          result = { status: 'healthy', details }
+        } catch (error) {
+          result = { status: 'unhealthy', error: describeError(error) }
+        }
+        if (!mounted.current) return
+        setHealth(current => ({
+          ...current,
+          [key]: { ...result, responseTime: Date.now() - started, lastCheck: new Date() },
+        }))
+      }),
+    )
+
+    if (!mounted.current) return
+    setLastRefresh(new Date())
+    setChecking(false)
+  }, [])
+
+  useEffect(() => {
+    mounted.current = true
+    runChecks()
+    return () => {
+      mounted.current = false
+    }
+  }, [runChecks])
+
+  const down = COMPONENTS.filter(({ key }) => health[key].status === 'unhealthy')
+  const apiDetails = health.api.details
+
+  return (
+    <Page>
+      <PageHeader
+        title="Salud del sistema"
+        description={
+          lastRefresh
+            ? `Estado de los componentes del servidor. Última revisión a las ${formatTime(lastRefresh)}.`
+            : 'Estado de los componentes del servidor.'
+        }
+        back={{ to: '/admin', label: 'Administración' }}
+        actions={
+          <Button variant="secondary" icon={RefreshCw} onClick={runChecks} disabled={checking}>
+            {checking ? 'Revisando…' : 'Revisar de nuevo'}
+          </Button>
+        }
+      />
+
+      {!checking && down.length > 0 && (
+        <Notice>
+          {down.length === 1
+            ? `${down[0].label} no responde. Revisa el servidor y vuelve a revisar.`
+            : `${down.map(({ label }) => label).join(', ')} no responden. Revisa el servidor y vuelve a revisar.`}
+        </Notice>
+      )}
+
+      <Table caption="Estado de los componentes">
+        <thead>
+          <tr>
+            <th scope="col">Componente</th>
+            <th scope="col">Estado</th>
+            <th scope="col" className="text-right">Respuesta</th>
+            <th scope="col">Revisado</th>
+            <th scope="col">Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {COMPONENTS.map(({ key, label }) => {
+            const item = health[key]
+            const status = STATUS[item.status]
+            return (
+              <tr key={key}>
+                <th scope="row" className="font-medium text-ink">
+                  {label}
+                </th>
+                <td>
+                  <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                </td>
+                <td className="zs-num">
+                  {item.responseTime === null || item.status === 'checking'
+                    ? '—'
+                    : formatUnit(item.responseTime, 'ms')}
+                </td>
+                <td className="whitespace-nowrap font-mono">{item.lastCheck ? formatTime(item.lastCheck) : '—'}</td>
+                <td className={item.error ? 'text-attention' : 'text-muted'}>{item.error || '—'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </Table>
+
+      {apiDetails && (apiDetails.version || apiDetails.commit_hash) && (
+        <Section title="Servidor">
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <KeyValue
+              items={[
+                { label: 'Versión', value: apiDetails.version, mono: true },
+                { label: 'Commit', value: apiDetails.commit_hash, mono: true },
+              ]}
+            />
+          </div>
+        </Section>
+      )}
+    </Page>
+  )
+}

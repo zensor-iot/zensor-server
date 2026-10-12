@@ -1,6 +1,7 @@
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 RUN corepack enable
 WORKDIR /src/web
+COPY docs/design-system/ /src/docs/design-system/
 COPY web/ .
 RUN pnpm install --frozen-lockfile && pnpm run build
 

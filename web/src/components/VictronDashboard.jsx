@@ -1,600 +1,472 @@
-import { useState, useEffect } from 'react';
-import useWebSocket from '../hooks/useWebSocket';
-import useMetricHistory from '../hooks/useMetricHistory';
-import useCumulativeEnergyToday from '../hooks/useCumulativeEnergyToday';
-import { getWebSocketUrl } from '../config/api';
+import { useEffect, useState } from 'react'
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import useWebSocket from '../hooks/useWebSocket'
+import useMetricHistory from '../hooks/useMetricHistory'
+import useCumulativeEnergyToday from '../hooks/useCumulativeEnergyToday'
+import { getWebSocketUrl } from '../config/api'
+import { connectionState } from '../utils/connectionState'
 import {
-  Sun, Battery, Zap, Gauge, Thermometer, Activity,
-  Wifi, WifiOff, RefreshCw, Power, Droplets, TrendingUp
-} from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine
-} from 'recharts';
+  Card,
+  CardGrid,
+  DataValue,
+  EmptyState,
+  FilterChips,
+  KeyValue,
+  LoadingState,
+  Meter,
+  Notice,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+} from '../ui'
+import { cx, formatDateTime, formatNumber, formatRelative, formatTime, formatUnit, prefersReducedMotion } from '../lib/zensor'
 
-const SOC_METRIC_NAME = 'zensor_server_victron_battery_soc';
-const LOAD_METRIC_NAME = 'zensor_server_victron_system_load_power';
-const SOLAR_POWER_METRIC_NAME = 'zensor_server_victron_solar_power';
+const SOC_METRIC_NAME = 'zensor_server_victron_battery_soc'
+const LOAD_METRIC_NAME = 'zensor_server_victron_system_load_power'
+const SOLAR_POWER_METRIC_NAME = 'zensor_server_victron_solar_power'
+
+const LOW_SOC = 20
+const DAY_MS = 24 * 60 * 60 * 1000
 
 const TIME_RANGES = [
-  { value: '1h', label: '1h', ms: 60 * 60 * 1000, step: '30s' },
-  { value: '6h', label: '6h', ms: 6 * 60 * 60 * 1000, step: '60s' },
-  { value: '24h', label: '24h', ms: 24 * 60 * 60 * 1000, step: '300s' },
-  { value: '7d', label: '7d', ms: 7 * 24 * 60 * 60 * 1000, step: '3600s' },
-];
+  { value: '1h', label: '1 h', ms: 60 * 60 * 1000, step: '30s' },
+  { value: '6h', label: '6 h', ms: 6 * 60 * 60 * 1000, step: '60s' },
+  { value: '24h', label: '24 h', ms: DAY_MS, step: '300s' },
+  { value: '7d', label: '7 d', ms: 7 * DAY_MS, step: '3600s' },
+]
+
+const VEBUS_STATES = {
+  0: 'Apagado',
+  1: 'Bajo consumo',
+  2: 'Falla',
+  3: 'Carga inicial',
+  4: 'Absorción',
+  5: 'Flotación',
+  6: 'Almacenamiento',
+  7: 'Ecualización',
+  8: 'Paso directo',
+  9: 'Invirtiendo',
+  10: 'Asistencia de potencia',
+  11: 'Fuente de poder',
+  252: 'Control externo',
+}
+
+const EQUIPMENT_KEYS = ['batteries', 'solar_chargers', 'ac_loads', 'vebus', 'temperatures', 'tanks']
+
+const isNumber = value => typeof value === 'number' && Number.isFinite(value)
+const unitOrEmpty = (value, unit, digits = 0) => (isNumber(value) ? formatUnit(value, unit, digits) : undefined)
+
+const shortDay = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' })
+
+function vebusState(state) {
+  if (!isNumber(state)) return undefined
+  return VEBUS_STATES[state] ?? `Desconocido (${state})`
+}
+
+function useNow(intervalMs) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), intervalMs)
+    return () => clearInterval(id)
+  }, [intervalMs])
+  return now
+}
+
+function summarize(history, unit, digits) {
+  const values = history.map(point => point.value).filter(isNumber)
+  if (values.length === 0) return ''
+  const last = values[values.length - 1]
+  return `último ${formatUnit(last, unit, digits)}, mínimo ${formatUnit(Math.min(...values), unit, digits)}, máximo ${formatUnit(Math.max(...values), unit, digits)}`
+}
+
+function ChartTooltip({ active, payload, label, unit, digits, seriesLabel }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="flex flex-col gap-1 rounded-md border border-line bg-surface px-3 py-2 text-ink shadow-overlay">
+      <span className="text-caption text-muted">{formatDateTime(label)}</span>
+      <span className="text-body-sm">
+        {seriesLabel}{' '}
+        <span className="font-mono font-medium">{formatUnit(payload[0].value, unit, digits)}</span>
+      </span>
+    </div>
+  )
+}
+
+function MetricChart({ title, history, loading, error, unit, digits, spanMs, domain, reference, emptyText, headline }) {
+  const tickTime = ts => (spanMs > DAY_MS ? shortDay.format(new Date(ts)) : formatTime(ts))
+  const description = `${title}: ${summarize(history, unit, digits)}`
+
+  let body
+  if (history.length > 0) {
+    body = (
+      <div
+        role="img"
+        aria-label={description}
+        className="h-[240px] w-full [&_.recharts-cartesian-axis-tick-value]:fill-muted [&_.recharts-cartesian-axis-tick-value]:font-mono [&_.recharts-cartesian-axis-tick-value]:text-xs"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={history} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+            <CartesianGrid vertical={false} stroke="var(--zs-border-default)" />
+            <XAxis
+              dataKey="time"
+              type="number"
+              scale="time"
+              domain={['dataMin', 'dataMax']}
+              tickFormatter={tickTime}
+              axisLine={false}
+              tickLine={false}
+              minTickGap={32}
+            />
+            <YAxis
+              domain={domain}
+              tickFormatter={value => formatUnit(value, unit, digits > 1 ? 1 : 0)}
+              axisLine={false}
+              tickLine={false}
+              width={72}
+            />
+            <Tooltip
+              cursor={{ stroke: 'var(--zs-border-strong)', strokeWidth: 1 }}
+              content={<ChartTooltip unit={unit} digits={digits} seriesLabel={title} />}
+            />
+            {reference && (
+              <ReferenceLine y={reference.y} stroke="var(--zs-status-attention-fill)" strokeDasharray="4 4" />
+            )}
+            <Area
+              type="monotone"
+              dataKey="value"
+              name={title}
+              stroke="var(--zs-brand-ink)"
+              strokeWidth={2}
+              fill="var(--zs-brand-ink)"
+              fillOpacity={0.12}
+              dot={false}
+              activeDot={{ r: 4, stroke: 'var(--zs-bg-surface)', strokeWidth: 2, fill: 'var(--zs-brand-ink)' }}
+              isAnimationActive={!prefersReducedMotion()}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  } else if (loading) {
+    body = <LoadingState>Cargando historial…</LoadingState>
+  } else if (error) {
+    body = (
+      <p role="alert" className="m-0 py-8 text-body-sm text-attention">
+        No se pudo cargar el historial ({error}). Se volverá a intentar en 30 segundos.
+      </p>
+    )
+  } else {
+    body = <p className="m-0 py-8 text-body-sm text-muted">{emptyText}</p>
+  }
+
+  return (
+    <Card as="figure" className="m-0">
+      <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-h3">{title}</span>
+        {headline}
+      </figcaption>
+      {body}
+      {reference && history.length > 0 && (
+        <p className="m-0 text-caption text-muted">La línea punteada marca {reference.label}.</p>
+      )}
+    </Card>
+  )
+}
+
+function Tile({ label, value, unit, digits = 0, children }) {
+  return (
+    <div className="flex min-w-[190px] flex-1 flex-col gap-2 rounded-md border border-line bg-surface p-4">
+      <span className="text-body-sm text-muted">{label}</span>
+      {isNumber(value) ? (
+        <DataValue value={value} unit={unit} digits={digits} />
+      ) : (
+        <span className="text-body-sm text-muted">Sin datos recientes</span>
+      )}
+      {children}
+    </div>
+  )
+}
+
+function BatteryTile({ summary }) {
+  const soc = summary.battery_soc
+  const low = isNumber(soc) && soc < LOW_SOC
+  const power = summary.battery_power
+  return (
+    <Tile label="Batería" value={soc} unit="%">
+      {isNumber(soc) && (
+        <Meter
+          value={soc}
+          fill={low ? 'var(--zs-status-attention-fill)' : 'var(--zs-status-ok-fill)'}
+          label={`Estado de carga ${formatNumber(soc, 0)} %${low ? ', bajo' : ''}`}
+        />
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-caption text-muted">
+        {low && <span className="text-attention">Carga baja</span>}
+        {isNumber(summary.battery_voltage) && (
+          <span className="font-mono">{formatUnit(summary.battery_voltage, 'V', 1)}</span>
+        )}
+        {isNumber(power) && (
+          <span className="font-mono">
+            {power > 0 ? '+' : ''}
+            {formatUnit(power, 'W')}
+          </span>
+        )}
+      </div>
+      {(summary.is_charging || summary.is_inverting) && (
+        <div className="flex flex-wrap gap-2">
+          {summary.is_charging && <StatusPill tone="ok">Cargando</StatusPill>}
+          {summary.is_inverting && <StatusPill tone="neutral">Invirtiendo</StatusPill>}
+        </div>
+      )}
+    </Tile>
+  )
+}
+
+function EquipmentCard({ title, items }) {
+  const visible = items.filter(item => item.value !== undefined)
+  return (
+    <Card className="min-w-[220px] flex-1 basis-[240px]">
+      <h3 className="m-0 text-label">{title}</h3>
+      {visible.length > 0 ? (
+        <KeyValue items={visible.map(item => ({ ...item, mono: item.mono ?? true }))} />
+      ) : (
+        <p className="m-0 text-body-sm text-muted">Sin datos recientes</p>
+      )}
+    </Card>
+  )
+}
+
+function EquipmentGroup({ title, entries, render }) {
+  if (!entries?.length) return null
+  return (
+    <Section title={title} as="div">
+      <div className="flex flex-wrap gap-4">
+        {entries.map((entry, index) => (
+          <EquipmentCard key={`${entry.instance}-${index}`} {...render(entry)} />
+        ))}
+      </div>
+    </Section>
+  )
+}
 
 const VictronDashboard = () => {
-  const [systemStatus, setSystemStatus] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [timeAgo, setTimeAgo] = useState('');
-  const [socRange, setSocRange] = useState('6h');
-  const [loadRange, setLoadRange] = useState('6h');
+  const [systemStatus, setSystemStatus] = useState(null)
+  const [lastUpdate, setLastUpdate] = useState(null)
+  const [range, setRange] = useState('6h')
+  const now = useNow(15000)
 
-  const wsUrl = getWebSocketUrl('/ws/victron/status');
+  const wsUrl = getWebSocketUrl('/ws/victron/status')
+  const { isConnected, lastMessage, connectionError, connectionStatus, retry } = useWebSocket(wsUrl)
+  const connection = connectionState({ isConnected, connectionStatus })
 
-  const { isConnected, lastMessage, connectionError, connectionStatus } = useWebSocket(wsUrl);
-
-  const socRangeConfig = TIME_RANGES.find((r) => r.value === socRange) ?? TIME_RANGES[1];
-  const { history: socHistory, loading: socLoading, error: socError } = useMetricHistory(SOC_METRIC_NAME, socRangeConfig);
-
-  const loadRangeConfig = TIME_RANGES.find((r) => r.value === loadRange) ?? TIME_RANGES[1];
-  const { history: loadHistory, loading: loadHistoryLoading, error: loadHistoryError } = useMetricHistory(LOAD_METRIC_NAME, loadRangeConfig);
-
-  const {
-    history: solarEnergyHistory,
-    totalKWh: solarEnergyTotalKWh,
-    loading: solarEnergyLoading,
-    error: solarEnergyError,
-  } = useCumulativeEnergyToday(SOLAR_POWER_METRIC_NAME);
-
-  const {
-    history: loadEnergyHistory,
-    totalKWh: loadEnergyTotalKWh,
-    loading: loadEnergyLoading,
-    error: loadEnergyError,
-  } = useCumulativeEnergyToday(LOAD_METRIC_NAME);
+  const rangeConfig = TIME_RANGES.find(r => r.value === range) ?? TIME_RANGES[1]
+  const soc = useMetricHistory(SOC_METRIC_NAME, rangeConfig)
+  const load = useMetricHistory(LOAD_METRIC_NAME, rangeConfig)
+  const solarToday = useCumulativeEnergyToday(SOLAR_POWER_METRIC_NAME)
+  const loadToday = useCumulativeEnergyToday(LOAD_METRIC_NAME)
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'victron_status') {
-      setSystemStatus(lastMessage);
-      setLastUpdate(new Date());
+      setSystemStatus(lastMessage)
+      setLastUpdate(new Date())
     }
-  }, [lastMessage]);
+  }, [lastMessage])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (lastUpdate) {
-        const seconds = Math.floor((new Date() - lastUpdate) / 1000);
-        if (seconds < 5) setTimeAgo('just now');
-        else if (seconds < 60) setTimeAgo(`${seconds}s ago`);
-        else setTimeAgo(`${Math.floor(seconds / 60)}m ago`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [lastUpdate]);
+  const summary = systemStatus?.system
+  const data = systemStatus?.data
+  const hasEquipment = EQUIPMENT_KEYS.some(key => data?.[key]?.length > 0)
 
-  const statusColor = isConnected ? '#10b981' : '#ef4444';
-  const summary = systemStatus?.system;
-  const data = systemStatus?.data;
-
-  const solarPower = summary?.solar_power ?? 0;
-  const batteryPower = summary?.battery_power ?? 0;
-  const loadPower = summary?.ac_load_power ?? 0;
-  const gridPower = summary?.grid_power ?? 0;
+  const todayHeadline = (history, total) =>
+    history.length > 0 ? <DataValue value={total} unit="kWh" digits={2} size="sm" /> : null
 
   return (
-    <div className="victron-dashboard">
-      <div className="victron-header">
-        <div className="victron-title-section">
-          <Activity size={28} className="victron-logo-icon" />
-          <h1>Energy System</h1>
-        </div>
-        <div className="victron-connection-status">
-          <span className="connection-indicator" style={{ backgroundColor: statusColor }} />
-          <span className="connection-text">{isConnected ? 'Connected' : 'Disconnected'}</span>
-          {!isConnected && (
-            <RefreshCw size={16} className="reconnect-icon" onClick={() => window.location.reload()} />
-          )}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Energía"
+        description="Producción solar, batería y consumo del sistema Victron, en vivo."
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            {lastUpdate && (
+              <span className="text-caption text-muted">
+                Actualizado {formatRelative(lastUpdate, now)} · {formatTime(lastUpdate)}
+              </span>
+            )}
+            <StatusPill tone={connection.tone}>{connection.label}</StatusPill>
+          </div>
+        }
+      />
 
-      {connectionError && (
-        <div className="victron-error-banner">
-          <WifiOff size={20} />
-          <span>Connection error: {connectionError}</span>
-        </div>
+      {connectionError && !isConnected && (
+        <Notice action="Reintentar conexión" onAction={retry}>
+          Se perdió la conexión con el sistema de energía. Revisa tu red y vuelve a intentarlo.
+        </Notice>
       )}
 
-      <div className="victron-layout">
-        <div className="victron-main">
-          {!systemStatus ? (
-            <div className="victron-loading">
-              <Activity size={48} className="loading-spinner" />
-              <p>Connecting to energy system...</p>
-            </div>
+      <Section title="Ahora">
+        {!summary ? (
+          connection.tone === 'attention' ? (
+            <EmptyState title="Sin datos recientes">
+              No llegan lecturas del sistema de energía. Cuando se restablezca la conexión, verás aquí la producción
+              solar, la batería y el consumo.
+            </EmptyState>
           ) : (
-            <>
-              <div className="victron-summary-cards">
-            <div className="victron-card solar">
-              <div className="card-icon"><Sun size={32} /></div>
-              <div className="card-content">
-                <span className="card-label">Solar</span>
-                <span className="card-value">{solarPower.toFixed(0)} <small>W</small></span>
-              </div>
-            </div>
-            <div className="victron-card battery">
-              <div className="card-icon"><Battery size={32} /></div>
-              <div className="card-content">
-                <span className="card-label">Battery</span>
-                <span className="card-value">{summary?.battery_soc?.toFixed(0) ?? '--'} <small>%</small></span>
-                <span className="card-sub">{summary?.battery_voltage?.toFixed(1) ?? '--'} V</span>
-              </div>
-            </div>
-            <div className="victron-card load">
-              <div className="card-icon"><Zap size={32} /></div>
-              <div className="card-content">
-                <span className="card-label">Load</span>
-                <span className="card-value">{loadPower.toFixed(0)} <small>W</small></span>
-              </div>
-            </div>
-            <div className="victron-card grid">
-              <div className="card-icon"><Power size={32} /></div>
-              <div className="card-content">
-                <span className="card-label">Grid</span>
-                <span className="card-value">{gridPower.toFixed(0)} <small>W</small></span>
-              </div>
-            </div>
+            <LoadingState>Esperando lecturas del sistema de energía…</LoadingState>
+          )
+        ) : (
+          <div className={cx('flex flex-wrap gap-4', !isConnected && 'opacity-offline')}>
+            <Tile label="Solar" value={summary.solar_power} unit="W" />
+            <BatteryTile summary={summary} />
+            <Tile label="Consumo" value={summary.ac_load_power} unit="W" />
+            <Tile label="Red" value={summary.grid_power} unit="W">
+              {typeof summary.ac_input_connected === 'boolean' && (
+                <span className="text-caption text-muted">
+                  {summary.ac_input_connected ? 'Entrada de red conectada' : 'Entrada de red desconectada'}
+                </span>
+              )}
+            </Tile>
           </div>
+        )}
+      </Section>
 
-          <div className="victron-power-flow">
-            <h2>Power Flow</h2>
-            <div className="flow-diagram">
-              <div className="flow-node solar-node">
-                <Sun size={24} />
-                <span>Solar</span>
-                <strong>{solarPower.toFixed(0)} W</strong>
-              </div>
-              <div className="flow-arrow">
-                <Zap size={20} />
-              </div>
-              <div className="flow-node battery-node">
-                <Battery size={24} />
-                <span>Battery</span>
-                <strong>{summary?.battery_soc?.toFixed(0) ?? '--'}%</strong>
-                <small>{batteryPower >= 0 ? `+${batteryPower.toFixed(0)} W` : `${batteryPower.toFixed(0)} W`}</small>
-                {summary?.is_charging && <span className="badge charging">Charging</span>}
-                {summary?.is_inverting && <span className="badge inverting">Inverting</span>}
-              </div>
-              <div className="flow-arrow">
-                <Zap size={20} />
-              </div>
-              <div className="flow-node load-node">
-                <Zap size={24} />
-                <span>Load</span>
-                <strong>{loadPower.toFixed(0)} W</strong>
-              </div>
-            </div>
-          </div>
+      <Section
+        title="Historial"
+        actions={
+          <FilterChips
+            label="Rango del historial"
+            options={TIME_RANGES.map(r => ({ value: r.value, label: r.label }))}
+            value={range}
+            onChange={setRange}
+          />
+        }
+      >
+        <CardGrid>
+          <MetricChart
+            title="Carga de batería"
+            history={soc.history}
+            loading={soc.loading}
+            error={soc.error}
+            unit="%"
+            digits={1}
+            spanMs={rangeConfig.ms}
+            domain={[0, 100]}
+            reference={{ y: LOW_SOC, label: `carga baja (${LOW_SOC} %)` }}
+            emptyText="Sin datos recientes en este rango."
+          />
+          <MetricChart
+            title="Consumo"
+            history={load.history}
+            loading={load.loading}
+            error={load.error}
+            unit="W"
+            digits={0}
+            spanMs={rangeConfig.ms}
+            domain={[0, 'auto']}
+            emptyText="Sin datos recientes en este rango."
+          />
+        </CardGrid>
+      </Section>
 
-          {data?.batteries && data.batteries.length > 0 && (
-            <div className="victron-section">
-              <h2><Battery size={20} /> Batteries</h2>
-              <div className="victron-detail-cards">
-                {data.batteries.map((b, i) => (
-                  <div key={i} className="detail-card">
-                    <div className="detail-title">Battery #{b.instance}</div>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <Gauge size={16} />
-                        <div><small>SOC</small><strong>{b.soc?.toFixed(0) ?? '--'}%</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Zap size={16} />
-                        <div><small>Voltage</small><strong>{b.voltage?.toFixed(2) ?? '--'}V</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Activity size={16} />
-                        <div><small>Current</small><strong>{b.current?.toFixed(1) ?? '--'}A</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Zap size={16} />
-                        <div><small>Power</small><strong>{b.power?.toFixed(0) ?? '--'}W</strong></div>
-                      </div>
-                      {b.temperature > 0 && (
-                        <div className="detail-item">
-                          <Thermometer size={16} />
-                          <div><small>Temp</small><strong>{b.temperature?.toFixed(1)}°C</strong></div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <Section title="Energía de hoy" description="Acumulada desde la medianoche.">
+        <CardGrid>
+          <MetricChart
+            title="Generación solar"
+            history={solarToday.history}
+            loading={solarToday.loading}
+            error={solarToday.error}
+            unit="kWh"
+            digits={2}
+            spanMs={DAY_MS}
+            domain={[0, 'auto']}
+            emptyText="Sin datos recientes hoy."
+            headline={todayHeadline(solarToday.history, solarToday.totalKWh)}
+          />
+          <MetricChart
+            title="Consumo"
+            history={loadToday.history}
+            loading={loadToday.loading}
+            error={loadToday.error}
+            unit="kWh"
+            digits={2}
+            spanMs={DAY_MS}
+            domain={[0, 'auto']}
+            emptyText="Sin datos recientes hoy."
+            headline={todayHeadline(loadToday.history, loadToday.totalKWh)}
+          />
+        </CardGrid>
+      </Section>
 
-          {data?.solar_chargers && data.solar_chargers.length > 0 && (
-            <div className="victron-section">
-              <h2><Sun size={20} /> Solar Chargers</h2>
-              <div className="victron-detail-cards">
-                {data.solar_chargers.map((s, i) => (
-                  <div key={i} className="detail-card">
-                    <div className="detail-title">Solar Charger #{s.instance}</div>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <Zap size={16} />
-                        <div><small>Power</small><strong>{s.power?.toFixed(0) ?? '--'}W</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Gauge size={16} />
-                        <div><small>Voltage</small><strong>{s.voltage?.toFixed(1) ?? '--'}V</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Activity size={16} />
-                        <div><small>Current</small><strong>{s.current?.toFixed(1) ?? '--'}A</strong></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {data?.ac_loads && data.ac_loads.length > 0 && (
-            <div className="victron-section">
-              <h2><Zap size={20} /> AC Loads</h2>
-              <div className="victron-detail-cards">
-                {data.ac_loads.map((l, i) => (
-                  <div key={i} className="detail-card">
-                    <div className="detail-title">AC Load #{l.instance}</div>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <Zap size={16} />
-                        <div><small>Power</small><strong>{l.power?.toFixed(0) ?? '--'}W</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Gauge size={16} />
-                        <div><small>Voltage</small><strong>{l.voltage?.toFixed(1) ?? '--'}V</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Activity size={16} />
-                        <div><small>Current</small><strong>{l.current?.toFixed(1) ?? '--'}A</strong></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {data?.vebus && data.vebus.length > 0 && (
-            <div className="victron-section">
-              <h2><Activity size={20} /> Inverter / Charger</h2>
-              <div className="victron-detail-cards">
-                {data.vebus.map((v, i) => (
-                  <div key={i} className="detail-card">
-                    <div className="detail-title">VE.Bus #{v.instance}</div>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <Zap size={16} />
-                        <div><small>Power</small><strong>{v.power?.toFixed(0) ?? '--'}W</strong></div>
-                      </div>
-                      <div className="detail-item">
-                        <Gauge size={16} />
-                        <div><small>State</small><strong>{getVebusState(v.state)}</strong></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {data?.temperatures && data.temperatures.length > 0 && (
-            <div className="victron-section">
-              <h2><Thermometer size={20} /> Temperatures</h2>
-              <div className="victron-detail-cards">
-                {data.temperatures.map((t, i) => (
-                  <div key={i} className="detail-card">
-                    <div className="detail-title">Sensor #{t.instance}</div>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <Thermometer size={16} />
-                        <div><strong>{t.temperature?.toFixed(1)}°C</strong></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {data?.tanks && data.tanks.length > 0 && (
-            <div className="victron-section">
-              <h2><Droplets size={20} /> Tanks</h2>
-              <div className="victron-detail-cards">
-                {data.tanks.map((t, i) => (
-                  <div key={i} className="detail-card">
-                    <div className="detail-title">Tank #{t.instance}</div>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <Gauge size={16} />
-                        <div><small>Level</small><strong>{t.level?.toFixed(0) ?? '--'}%</strong></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-          )}
-        </div>
-
-        <aside className="victron-sidebar">
-          <div className="victron-section">
-            <div className="victron-section-header">
-              <h2><TrendingUp size={20} /> Battery SOC History</h2>
-              <div className="time-range-selector">
-                {TIME_RANGES.map((range) => (
-                  <button
-                    key={range.value}
-                    className={`range-btn ${socRange === range.value ? 'active' : ''}`}
-                    onClick={() => setSocRange(range.value)}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="victron-chart-card">
-              {socLoading && socHistory.length === 0 && (
-                <div className="chart-placeholder">Loading SOC history...</div>
-              )}
-              {!socLoading && socError && (
-                <div className="chart-error">Metrics unavailable: {socError}</div>
-              )}
-              {!socLoading && !socError && socHistory.length === 0 && (
-                <div className="chart-placeholder">No SOC data in this time range.</div>
-              )}
-              {socHistory.length > 0 && (
-                <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart data={socHistory}>
-                    <defs>
-                      <linearGradient id="socGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="time"
-                      type="number"
-                      scale="time"
-                      domain={['dataMin', 'dataMax']}
-                      tickFormatter={formatChartTime}
-                      tick={{ fontSize: 12 }}
-                      stroke="#9ca3af"
-                    />
-                    <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                    <Tooltip
-                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
-                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'SOC']}
-                    />
-                    <ReferenceLine y={20} stroke="#ef4444" strokeDasharray="4 4" />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      fill="url(#socGradient)"
-                      dot={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="victron-section">
-            <div className="victron-section-header">
-              <h2><TrendingUp size={20} /> System Load History</h2>
-              <div className="time-range-selector">
-                {TIME_RANGES.map((range) => (
-                  <button
-                    key={range.value}
-                    className={`range-btn ${loadRange === range.value ? 'active' : ''}`}
-                    onClick={() => setLoadRange(range.value)}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="victron-chart-card">
-              {loadHistoryLoading && loadHistory.length === 0 && (
-                <div className="chart-placeholder">Loading load history...</div>
-              )}
-              {!loadHistoryLoading && loadHistoryError && (
-                <div className="chart-error">Metrics unavailable: {loadHistoryError}</div>
-              )}
-              {!loadHistoryLoading && !loadHistoryError && loadHistory.length === 0 && (
-                <div className="chart-placeholder">No load data in this time range.</div>
-              )}
-              {loadHistory.length > 0 && (
-                <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart data={loadHistory}>
-                    <defs>
-                      <linearGradient id="loadGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="time"
-                      type="number"
-                      scale="time"
-                      domain={['dataMin', 'dataMax']}
-                      tickFormatter={formatChartTime}
-                      tick={{ fontSize: 12 }}
-                      stroke="#9ca3af"
-                    />
-                    <YAxis unit="W" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                    <Tooltip
-                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
-                      formatter={(value) => [`${Number(value).toFixed(0)} W`, 'Load']}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      fill="url(#loadGradient)"
-                      dot={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="victron-section">
-            <div className="victron-section-header">
-              <h2><Sun size={20} /> Solar Energy Today{solarEnergyHistory.length > 0 ? ` — ${solarEnergyTotalKWh.toFixed(2)} kWh` : ''}</h2>
-            </div>
-            <div className="victron-chart-card">
-              {solarEnergyLoading && solarEnergyHistory.length === 0 && (
-                <div className="chart-placeholder">Loading today's solar energy...</div>
-              )}
-              {!solarEnergyLoading && solarEnergyError && (
-                <div className="chart-error">Metrics unavailable: {solarEnergyError}</div>
-              )}
-              {!solarEnergyLoading && !solarEnergyError && solarEnergyHistory.length === 0 && (
-                <div className="chart-placeholder">No solar data yet today.</div>
-              )}
-              {solarEnergyHistory.length > 0 && (
-                <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart data={solarEnergyHistory}>
-                    <defs>
-                      <linearGradient id="solarEnergyGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#eab308" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#eab308" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="time"
-                      type="number"
-                      scale="time"
-                      domain={['dataMin', 'dataMax']}
-                      tickFormatter={formatChartTime}
-                      tick={{ fontSize: 12 }}
-                      stroke="#9ca3af"
-                    />
-                    <YAxis unit="kWh" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                    <Tooltip
-                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
-                      formatter={(value) => [`${Number(value).toFixed(2)} kWh`, 'Solar energy']}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#eab308"
-                      strokeWidth={2}
-                      fill="url(#solarEnergyGradient)"
-                      dot={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="victron-section">
-            <div className="victron-section-header">
-              <h2><Zap size={20} /> Load Energy Today{loadEnergyHistory.length > 0 ? ` — ${loadEnergyTotalKWh.toFixed(2)} kWh` : ''}</h2>
-            </div>
-            <div className="victron-chart-card">
-              {loadEnergyLoading && loadEnergyHistory.length === 0 && (
-                <div className="chart-placeholder">Loading today's load energy...</div>
-              )}
-              {!loadEnergyLoading && loadEnergyError && (
-                <div className="chart-error">Metrics unavailable: {loadEnergyError}</div>
-              )}
-              {!loadEnergyLoading && !loadEnergyError && loadEnergyHistory.length === 0 && (
-                <div className="chart-placeholder">No load data yet today.</div>
-              )}
-              {loadEnergyHistory.length > 0 && (
-                <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart data={loadEnergyHistory}>
-                    <defs>
-                      <linearGradient id="loadEnergyGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="time"
-                      type="number"
-                      scale="time"
-                      domain={['dataMin', 'dataMax']}
-                      tickFormatter={formatChartTime}
-                      tick={{ fontSize: 12 }}
-                      stroke="#9ca3af"
-                    />
-                    <YAxis unit="kWh" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                    <Tooltip
-                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
-                      formatter={(value) => [`${Number(value).toFixed(2)} kWh`, 'Load energy']}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      fill="url(#loadEnergyGradient)"
-                      dot={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      <div className="victron-footer">
-        <span>Last update: {timeAgo || 'waiting...'}</span>
-        <span className="connection-status-badge">
-          <span className="dot" style={{ backgroundColor: statusColor }} />
-          {connectionStatus}
-        </span>
-      </div>
-    </div>
-  );
-};
-
-function formatChartTime(timestamp) {
-  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      {hasEquipment && (
+        <Section title="Equipos" className={cx(!isConnected && 'opacity-offline')}>
+          <EquipmentGroup
+            title="Baterías"
+            entries={data.batteries}
+            render={b => ({
+              title: `Batería ${b.instance}`,
+              items: [
+                { label: 'Carga', value: unitOrEmpty(b.soc, '%') },
+                { label: 'Voltaje', value: unitOrEmpty(b.voltage, 'V', 2) },
+                { label: 'Corriente', value: unitOrEmpty(b.current, 'A', 1) },
+                { label: 'Potencia', value: unitOrEmpty(b.power, 'W') },
+                { label: 'Temperatura', value: unitOrEmpty(b.temperature, '°C', 1) },
+              ],
+            })}
+          />
+          <EquipmentGroup
+            title="Cargadores solares"
+            entries={data.solar_chargers}
+            render={s => ({
+              title: `Cargador solar ${s.instance}`,
+              items: [
+                { label: 'Potencia', value: unitOrEmpty(s.power, 'W') },
+                { label: 'Voltaje', value: unitOrEmpty(s.voltage, 'V', 1) },
+                { label: 'Corriente', value: unitOrEmpty(s.current, 'A', 1) },
+              ],
+            })}
+          />
+          <EquipmentGroup
+            title="Cargas de corriente alterna"
+            entries={data.ac_loads}
+            render={l => ({
+              title: `Carga ${l.instance}`,
+              items: [
+                { label: 'Potencia', value: unitOrEmpty(l.power, 'W') },
+                { label: 'Voltaje', value: unitOrEmpty(l.voltage, 'V', 1) },
+                { label: 'Corriente', value: unitOrEmpty(l.current, 'A', 1) },
+              ],
+            })}
+          />
+          <EquipmentGroup
+            title="Inversor y cargador"
+            entries={data.vebus}
+            render={v => ({
+              title: `Inversor ${v.instance}`,
+              items: [
+                { label: 'Potencia', value: unitOrEmpty(v.power, 'W') },
+                { label: 'Estado', value: vebusState(v.state), mono: false },
+              ],
+            })}
+          />
+          <EquipmentGroup
+            title="Temperaturas"
+            entries={data.temperatures}
+            render={t => ({
+              title: `Sensor ${t.instance}`,
+              items: [{ label: 'Temperatura', value: unitOrEmpty(t.temperature, '°C', 1) }],
+            })}
+          />
+          <EquipmentGroup
+            title="Estanques"
+            entries={data.tanks}
+            render={t => ({
+              title: `Estanque ${t.instance}`,
+              items: [{ label: 'Nivel', value: unitOrEmpty(t.level, '%') }],
+            })}
+          />
+        </Section>
+      )}
+    </Page>
+  )
 }
 
-function getVebusState(state) {
-  const states = {
-    0: 'Off',
-    1: 'Low Power',
-    2: 'Inverting',
-    3: 'Charging',
-    4: 'Equalizing',
-    5: 'Float',
-    6: 'Absorption',
-    7: 'Bulk',
-    9: 'Passthrough',
-    10: 'Inverting & Charging',
-    11: 'Power Assist',
-  };
-  return states[state] ?? `Unknown (${state})`;
-}
-
-export default VictronDashboard;
+export default VictronDashboard

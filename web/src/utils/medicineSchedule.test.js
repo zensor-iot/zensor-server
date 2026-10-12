@@ -3,7 +3,12 @@ import {
     describeDose,
     describeFrequency,
     totalDosesForDuration,
-    previewOccurrences
+    previewOccurrences,
+    formatTime,
+    formatDateTime,
+    doseState,
+    dayLabel,
+    groupByDay
 } from './medicineSchedule'
 
 describe('describeDose', () => {
@@ -14,7 +19,7 @@ describe('describeDose', () => {
 
     it('uses the singular at one or below', () => {
         expect(describeDose(1, 'pill')).toBe('1 pastilla')
-        expect(describeDose(0.5, 'pill')).toBe('0.5 pastilla')
+        expect(describeDose(0.5, 'pill')).toBe('0,5 pastilla')
     })
 
     it('falls back to the raw unit when unknown', () => {
@@ -77,5 +82,54 @@ describe('previewOccurrences', () => {
     it('returns nothing for an incomplete schedule', () => {
         expect(previewOccurrences(null)).toEqual([])
         expect(previewOccurrences({ every: 8, unit: 'hour' })).toEqual([])
+    })
+})
+
+describe('formatTime', () => {
+    it('uses a 24 hour clock', () => {
+        expect(formatTime(new Date(2026, 2, 1, 20, 5))).toBe('20:05')
+    })
+
+    it('returns nothing for an invalid date', () => {
+        expect(formatTime('nope')).toBe('')
+        expect(formatDateTime('nope')).toBe('')
+    })
+})
+
+describe('doseState', () => {
+    it('marks an overdue pending dose as late', () => {
+        expect(doseState({ status: 'pending', is_overdue: true })).toMatchObject({ label: 'Atrasada', tone: 'attention' })
+    })
+
+    it('marks an administered dose as ok', () => {
+        expect(doseState({ status: 'administered', is_overdue: false })).toMatchObject({ label: 'Administrada', tone: 'ok' })
+    })
+
+    it('keeps upcoming and skipped doses neutral', () => {
+        expect(doseState({ status: 'pending', is_overdue: false })).toMatchObject({ label: 'Pendiente', tone: 'neutral' })
+        expect(doseState({ status: 'skipped' })).toMatchObject({ label: 'Saltada', tone: 'neutral' })
+    })
+})
+
+describe('dayLabel', () => {
+    const now = new Date(2026, 9, 12, 10, 0)
+
+    it('names nearby days', () => {
+        expect(dayLabel(new Date(2026, 9, 12, 23, 0), now)).toBe('Hoy')
+        expect(dayLabel(new Date(2026, 9, 13, 1, 0), now)).toBe('Mañana')
+        expect(dayLabel(new Date(2026, 9, 11, 22, 0), now)).toBe('Ayer')
+    })
+})
+
+describe('groupByDay', () => {
+    it('groups consecutive entries of the same day', () => {
+        const now = new Date(2026, 9, 12, 10, 0)
+        const entry = date => ({ dose: { scheduled_at: date.toISOString() } })
+        const groups = groupByDay([
+            entry(new Date(2026, 9, 12, 8, 0)),
+            entry(new Date(2026, 9, 12, 16, 0)),
+            entry(new Date(2026, 9, 13, 0, 0))
+        ], now)
+        expect(groups.map(g => [g.label, g.entries.length])).toEqual([['Hoy', 2], ['Mañana', 1]])
     })
 })

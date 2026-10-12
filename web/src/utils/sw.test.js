@@ -35,7 +35,7 @@ describe('service worker push notifications', () => {
         await listeners.push(pushEvent({ title: 'T', body: 'B' }))
 
         const [, options] = showNotification.mock.calls[0]
-        expect(options.icon).toBe('/ui/vite.svg')
+        expect(options.icon).toBe('/ui/logos/app-icon-512.png')
     })
 
     it('defaults the deeplink to the worker base path', async () => {

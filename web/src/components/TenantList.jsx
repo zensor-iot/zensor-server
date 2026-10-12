@@ -1,98 +1,55 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Building, Loader2, AlertCircle, ChevronRight } from 'lucide-react'
-import { getApiUrl } from '../config/api'
+import { ChevronRight } from 'lucide-react'
+import { useTenants } from '../contexts/TenantContext'
+import { buttonClass, Card, EmptyState, ErrorState, List, LoadingState, Page, PageHeader, StatusPill } from '../ui'
 
 const TenantList = () => {
-  const [tenants, setTenants] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    fetchTenants()
-  }, [])
-
-  const fetchTenants = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch(getApiUrl('/tenants'))
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tenants: ${response.status}`)
-      }
-      const data = await response.json()
-      setTenants(data.data || [])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (error) {
-    return (
-      <div className="page-container">
-        <div className="error-container">
-          <AlertCircle className="error-icon" />
-          <h2>Unable to load tenants</h2>
-          <p className="error-message">{error}</p>
-          <button onClick={fetchTenants} className="retry-button">
-            Try Again
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const { tenants, loading, error, reload } = useTenants()
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <Building className="page-icon" />
-        <div>
-          <h2>Tenant Organizations</h2>
-          <p className="page-description">
-            Select a tenant to manage their devices and infrastructure
-          </p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader title="Cuentas" description="Elige una cuenta para ver sus dispositivos y programas." />
 
-      {loading ? (
-        <div className="loading-container">
-          <Loader2 className="loading-spinner" />
-          <p>Loading tenants...</p>
-        </div>
+      {error ? (
+        <ErrorState title="No se pudieron cargar las cuentas" onRetry={reload}>
+          {`Error: ${error}. Revisa tu conexión y vuelve a intentarlo.`}
+        </ErrorState>
+      ) : loading && tenants.length === 0 ? (
+        <LoadingState>Cargando cuentas…</LoadingState>
       ) : tenants.length === 0 ? (
-        <div className="empty-state">
-          <Building size={64} className="empty-icon" />
-          <h3>No tenants found</h3>
-          <p>Contact your administrator to set up tenant organizations</p>
-        </div>
+        <EmptyState title="Aún no tienes cuentas">
+          Pídele a un administrador que te agregue a una cuenta para empezar a ver tus dispositivos.
+        </EmptyState>
       ) : (
-        <div className="tenant-grid">
-          {tenants.map((tenant) => (
-            <Link
-              key={tenant.id}
-              to={`/portal/${tenant.id}`}
-              className="tenant-card"
-            >
-              <div className="tenant-card-header">
-                <h3 className="tenant-name">{tenant.name}</h3>
-                <p className="tenant-email">{tenant.email}</p>
-              </div>
-              {tenant.description && (
-                <p className="tenant-description">{tenant.description}</p>
-              )}
-              <div className="tenant-card-footer">
-                <div className="tenant-meta">
-                  <span className="status-badge active">Active</span>
+        <List>
+          {tenants.map(tenant => (
+            <li key={tenant.id}>
+              <Card
+                as={Link}
+                to={`/portal/${tenant.id}`}
+                interactive
+                row
+                className="no-underline"
+              >
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="m-0 break-words text-title">{tenant.name}</h2>
+                    {tenant.is_active === false && <StatusPill tone="neutral">Inactiva</StatusPill>}
+                  </div>
+                  {tenant.email && <p className="m-0 break-words text-body-sm text-muted">{tenant.email}</p>}
+                  {tenant.description && <p className="zs-prose m-0 text-body-sm text-muted">{tenant.description}</p>}
                 </div>
-                <ChevronRight className="nav-arrow" />
-              </div>
-            </Link>
+                <span className={buttonClass({ variant: 'ghost', size: 'sm', className: 'pointer-events-none shrink-0' })}>
+                  <span className="hidden sm:inline">Ver dispositivos</span>
+                  <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
+                </span>
+              </Card>
+            </li>
           ))}
-        </div>
+        </List>
       )}
-    </div>
+    </Page>
   )
 }
 
-export default TenantList 
+export default TenantList

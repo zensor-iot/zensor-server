@@ -15,7 +15,7 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'Zensor'
     const options = {
         body: payload.body || '',
-        icon: `${workerBasePath}vite.svg`,
+        icon: `${workerBasePath}logos/app-icon-512.png`,
         data: { deeplink: payload.deeplink || workerBasePath }
     }
 

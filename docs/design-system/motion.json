@@ -1,0 +1,95 @@
+{
+  "$description": "Movimiento Zensor: responde a una acción, nunca decora.",
+  "duration": {
+    "instant": {
+      "$value": "80ms",
+      "$type": "duration"
+    },
+    "fast": {
+      "$value": "140ms",
+      "$type": "duration"
+    },
+    "base": {
+      "$value": "200ms",
+      "$type": "duration"
+    },
+    "slow": {
+      "$value": "240ms",
+      "$type": "duration"
+    },
+    "slower": {
+      "$value": "400ms",
+      "$type": "duration"
+    }
+  },
+  "easing": {
+    "standard": {
+      "$value": "cubic-bezier(0.2, 0, 0, 1)",
+      "$type": "cubicBezier"
+    },
+    "decelerate": {
+      "$value": "cubic-bezier(0, 0, 0.2, 1)",
+      "$type": "cubicBezier"
+    },
+    "accelerate": {
+      "$value": "cubic-bezier(0.4, 0, 1, 1)",
+      "$type": "cubicBezier"
+    },
+    "linear": {
+      "$value": "linear",
+      "$type": "cubicBezier"
+    }
+  },
+  "patterns": {
+    "drawer-enter": {
+      "duration": "{duration.slow}",
+      "easing": "{easing.decelerate}",
+      "from": "translateX(48px); opacity: 0",
+      "to": "translateX(0); opacity: 1",
+      "$description": "Panel de detalle entra desde la derecha."
+    },
+    "drawer-exit": {
+      "duration": "{duration.fast}",
+      "easing": "{easing.accelerate}",
+      "from": "translateX(0); opacity: 1",
+      "to": "translateX(48px); opacity: 0",
+      "$description": "Sale más rápido de lo que entra."
+    },
+    "scrim": {
+      "duration": "{duration.base}",
+      "easing": "{easing.standard}",
+      "from": "opacity: 0",
+      "to": "opacity: 1",
+      "$description": "Velo detrás del drawer."
+    },
+    "press": {
+      "duration": "{duration.instant}",
+      "easing": "{easing.standard}",
+      "from": "scale(1)",
+      "to": "scale(0.98)",
+      "$description": "Feedback al presionar botones y tarjetas."
+    },
+    "toggle": {
+      "duration": "{duration.fast}",
+      "easing": "{easing.standard}",
+      "from": "left: 3px",
+      "to": "left: 21px",
+      "$description": "Switch de programas."
+    },
+    "gauge-fill": {
+      "duration": "{duration.slower}",
+      "easing": "{easing.standard}",
+      "from": "stroke-dasharray: 0",
+      "to": "stroke-dasharray: value",
+      "$description": "Cambio de valor del gauge ensō."
+    }
+  },
+  "rules": [
+    "El movimiento responde a una acción de la persona (abrir, activar, confirmar). No hay animaciones decorativas ni entradas escalonadas.",
+    "Respetar prefers-reduced-motion: duraciones a ~0 y sin desplazamiento.",
+    "Un solo movimiento destacado por interacción."
+  ],
+  "reducedMotion": {
+    "$description": "Con prefers-reduced-motion: reduce, animaciones a ~0 ms y sin translate."
+  }
+}

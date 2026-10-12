@@ -67,14 +67,14 @@ export const AuthProvider = ({ children }) => {
                 body: JSON.stringify({ username, password }),
             })
             if (!response.ok) {
-                setLoginError('Invalid username or password')
+                setLoginError('Usuario o contraseña incorrectos. Revísalos y vuelve a intentarlo.')
                 return false
             }
             setUser(await response.json())
             return true
         } catch (err) {
             console.error('Login request failed:', err)
-            setLoginError('Login failed')
+            setLoginError('No se pudo iniciar sesión. Revisa tu conexión y vuelve a intentarlo.')
             return false
         }
     }

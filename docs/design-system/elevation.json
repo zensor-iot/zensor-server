@@ -1,0 +1,78 @@
+{
+  "$description": "Elevación Zensor. Las tarjetas son planas (borde). Solo capas flotantes llevan sombra.",
+  "shadow": {
+    "light": {
+      "flat": {
+        "$value": "none",
+        "$type": "shadow"
+      },
+      "raised": {
+        "$value": "0 1px 2px rgba(43, 58, 42, 0.08)",
+        "$type": "shadow"
+      },
+      "overlay": {
+        "$value": "0 12px 32px -12px rgba(43, 58, 42, 0.28)",
+        "$type": "shadow"
+      },
+      "drawer": {
+        "$value": "-24px 0 60px rgba(43, 58, 42, 0.28)",
+        "$type": "shadow"
+      },
+      "modal": {
+        "$value": "0 24px 80px rgba(43, 58, 42, 0.35)",
+        "$type": "shadow"
+      }
+    },
+    "dark": {
+      "flat": {
+        "$value": "none",
+        "$type": "shadow"
+      },
+      "raised": {
+        "$value": "0 1px 2px rgba(0, 0, 0, 0.4)",
+        "$type": "shadow"
+      },
+      "overlay": {
+        "$value": "0 12px 32px -12px rgba(0, 0, 0, 0.6)",
+        "$type": "shadow"
+      },
+      "drawer": {
+        "$value": "-24px 0 60px rgba(0, 0, 0, 0.55)",
+        "$type": "shadow"
+      },
+      "modal": {
+        "$value": "0 24px 80px rgba(0, 0, 0, 0.65)",
+        "$type": "shadow"
+      }
+    }
+  },
+  "usage": {
+    "flat": "Tarjetas, filas y paneles en página: se separan con borde, no con sombra.",
+    "raised": "Controles flotantes pequeños (menús compactos).",
+    "overlay": "Menús y popovers.",
+    "drawer": "Panel lateral derecho de detalle.",
+    "modal": "Diálogos centrados (poco frecuentes)."
+  },
+  "zIndex": {
+    "base": {
+      "$value": 0,
+      "$type": "number"
+    },
+    "sticky": {
+      "$value": 10,
+      "$type": "number"
+    },
+    "scrim": {
+      "$value": 40,
+      "$type": "number"
+    },
+    "drawer": {
+      "$value": 50,
+      "$type": "number"
+    },
+    "toast": {
+      "$value": 60,
+      "$type": "number"
+    }
+  }
+}

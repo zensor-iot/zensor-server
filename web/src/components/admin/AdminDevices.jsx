@@ -1,792 +1,467 @@
-import { useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { Cpu, ArrowLeft, Eye, Edit, Trash2, Plus, Building, Clock, Activity, Calendar } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { Pencil, Plus } from 'lucide-react'
 import { useNotification } from '../../hooks/useNotification'
-import './AdminDevices.css'
+import {
+  Button,
+  Drawer,
+  EmptyState,
+  ErrorState,
+  Field,
+  Form,
+  IconButton,
+  Input,
+  KeyValue,
+  List,
+  LoadingState,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  Table,
+} from '../../ui'
+import { formatDateTime, formatNumber, formatRelative } from '../../lib/zensor'
+import { jsonOrThrow, listOf, taskStatus, totalOf } from '../../utils/adminData'
+import { describeSchedule } from '../../utils/irrigationSchedule'
+
+const EMPTY_CREATE = { name: '', display_name: '', dev_eui: '', app_eui: '', app_key: '' }
+const FORM_ID = 'admin-device-form'
+const RECENT_TASKS = 10
+
+const STATUS = {
+  online: { label: 'En línea', tone: 'ok' },
+  offline: { label: 'Sin conexión', tone: 'attention' },
+}
+
+const statusOf = device => STATUS[device?.status] || { label: 'Sin datos', tone: 'neutral' }
+const nameOf = device => device?.display_name || device?.name || 'Dispositivo sin nombre'
+const lastSeen = device => (device?.last_message_received_at ? formatRelative(device.last_message_received_at) : 'Nunca')
+const countLabel = value => (typeof value === 'number' ? formatNumber(value) : '—')
+
+const fetchTotal = async url => {
+  try {
+    const response = await fetch(url)
+    return response.ok ? totalOf(await response.json()) : null
+  } catch {
+    return null
+  }
+}
 
 const AdminDevices = () => {
-    const { tenantId } = useParams()
-    const { showSuccess, showError, showApiNotification } = useNotification()
-    const [devices, setDevices] = useState([])
-    const [tenant, setTenant] = useState(null)
-    const [taskCounts, setTaskCounts] = useState({})
-    const [scheduledTaskCounts, setScheduledTaskCounts] = useState({})
-    const [loading, setLoading] = useState(true)
-    const [selectedDevice, setSelectedDevice] = useState(null)
-    const [selectedAction, setSelectedAction] = useState(null)
-    const [rightPanelData, setRightPanelData] = useState(null)
-    const [showCreateForm, setShowCreateForm] = useState(false)
-    const [editingDevice, setEditingDevice] = useState(null)
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        device_type: 'sensor',
-        location: '',
-        status: 'active'
+  const { tenantId } = useParams()
+  const { showSuccess, showError } = useNotification()
+  const [tenant, setTenant] = useState(null)
+  const [devices, setDevices] = useState([])
+  const [counts, setCounts] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [drawer, setDrawer] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [formData, setFormData] = useState(EMPTY_CREATE)
+  const [saving, setSaving] = useState(false)
+
+  const fetchCounts = useCallback(
+    async deviceList => {
+      const entries = await Promise.all(
+        deviceList.map(async device => {
+          const [tasks, programs] = await Promise.all([
+            fetchTotal(`/v1/devices/${device.id}/tasks?limit=1`),
+            fetchTotal(`/v1/tenants/${tenantId}/devices/${device.id}/scheduled-tasks?limit=1`),
+          ])
+          return [device.id, { tasks, programs }]
+        }),
+      )
+      setCounts(Object.fromEntries(entries))
+    },
+    [tenantId],
+  )
+
+  const fetchTenantAndDevices = useCallback(async () => {
+    try {
+      setLoading(true)
+      setLoadError(false)
+      const [tenantResponse, devicesResponse] = await Promise.all([
+        fetch(`/v1/tenants/${tenantId}`),
+        fetch(`/v1/tenants/${tenantId}/devices?limit=100`),
+      ])
+      if (tenantResponse.ok) setTenant(await tenantResponse.json())
+      const list = listOf(await jsonOrThrow(devicesResponse, 'No se pudieron cargar los dispositivos'))
+      setDevices(list)
+      fetchCounts(list)
+    } catch {
+      setLoadError(true)
+      setDevices([])
+    } finally {
+      setLoading(false)
+    }
+  }, [tenantId, fetchCounts])
+
+  useEffect(() => {
+    if (tenantId) fetchTenantAndDevices()
+  }, [tenantId, fetchTenantAndDevices])
+
+  const loadDetail = useCallback(
+    async device => {
+      setDetail({ loading: true })
+      try {
+        const [programsResponse, tasksResponse] = await Promise.all([
+          fetch(`/v1/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`),
+          fetch(`/v1/devices/${device.id}/tasks?limit=${RECENT_TASKS}`),
+        ])
+        const [programs, tasks] = await Promise.all([
+          jsonOrThrow(programsResponse, 'programs'),
+          jsonOrThrow(tasksResponse, 'tasks'),
+        ])
+        setDetail({ programs: listOf(programs), tasks: listOf(tasks), tasksTotal: totalOf(tasks) })
+      } catch {
+        setDetail({ error: true })
+      }
+    },
+    [tenantId],
+  )
+
+  const openDetail = device => {
+    setDrawer({ mode: 'detail', device })
+    loadDetail(device)
+  }
+
+  const openEdit = device => {
+    setFormData({ ...EMPTY_CREATE, display_name: device.display_name || device.name || '' })
+    setDrawer({ mode: 'edit', device })
+  }
+
+  const openCreate = () => {
+    setFormData(EMPTY_CREATE)
+    setDrawer({ mode: 'create' })
+  }
+
+  const closeDrawer = () => {
+    if (saving) return
+    setDrawer(null)
+    setDetail(null)
+  }
+
+  const handleCreate = async () => {
+    const payload = { name: formData.name.trim(), display_name: formData.display_name.trim() }
+    for (const field of ['dev_eui', 'app_eui', 'app_key']) {
+      const value = formData[field].trim()
+      if (value) payload[field] = value
+    }
+
+    const createResponse = await fetch('/v1/devices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     })
-
-    useEffect(() => {
-        if (tenantId) {
-            fetchTenantAndDevices()
-        }
-    }, [tenantId])
-
-    const fetchTenantAndDevices = async () => {
-        try {
-            setLoading(true)
-
-            // Fetch tenant info and devices in parallel
-            const [tenantResponse, devicesResponse] = await Promise.all([
-                fetch(`/v1/tenants/${tenantId}`),
-                fetch(`/v1/tenants/${tenantId}/devices`)
-            ])
-
-            if (tenantResponse.ok) {
-                const tenantData = await tenantResponse.json()
-                setTenant(tenantData)
-            }
-
-            if (devicesResponse.ok) {
-                const devicesData = await devicesResponse.json()
-                console.log('Devices API response:', devicesData) // Debug log
-
-                // Handle paginated response format (data.data) or direct array
-                const devicesArray = Array.isArray(devicesData) ? devicesData : (devicesData.data || [])
-                console.log('Devices count:', devicesArray.length)
-                setDevices(devicesArray)
-
-                // Fetch task counts and scheduled task counts for each device
-                fetchTaskCounts(devicesArray)
-                fetchScheduledTaskCounts(devicesArray)
-            } else {
-                throw new Error(`HTTP ${devicesResponse.status}`)
-            }
-        } catch (error) {
-            console.error('Failed to fetch tenant and devices:', error)
-            showError('Failed to load tenant and devices', 'Error')
-            setDevices([]) // Ensure devices is always an array
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const fetchTaskCounts = async (devicesArray) => {
-        try {
-            const taskCountPromises = devicesArray.map(async (device) => {
-                try {
-                    const response = await fetch(`/v1/devices/${device.id}/tasks`)
-                    if (response.ok) {
-                        const data = await response.json()
-                        // Use pagination.total for accurate count across all pages
-                        const totalCount = data.pagination?.total || 0
-                        return { deviceId: device.id, count: totalCount }
-                    }
-                    return { deviceId: device.id, count: 0 }
-                } catch (error) {
-                    console.warn(`Failed to fetch tasks for device ${device.id}:`, error)
-                    return { deviceId: device.id, count: 0 }
-                }
-            })
-
-            const counts = await Promise.all(taskCountPromises)
-            const taskCountMap = {}
-            counts.forEach(({ deviceId, count }) => {
-                taskCountMap[deviceId] = count
-            })
-
-            setTaskCounts(taskCountMap)
-            console.log('Task counts:', taskCountMap)
-        } catch (error) {
-            console.error('Failed to fetch task counts:', error)
-        }
-    }
-
-    const fetchScheduledTaskCounts = async (devicesArray) => {
-        try {
-            const scheduledTaskCountPromises = devicesArray.map(async (device) => {
-                try {
-                    const response = await fetch(`/v1/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`)
-                    if (response.ok) {
-                        const data = await response.json()
-                        // Use pagination.total for accurate count across all pages
-                        const totalCount = data.pagination?.total || 0
-                        return { deviceId: device.id, count: totalCount }
-                    }
-                    return { deviceId: device.id, count: 0 }
-                } catch (error) {
-                    console.warn(`Failed to fetch scheduled tasks for device ${device.id}:`, error)
-                    return { deviceId: device.id, count: 0 }
-                }
-            })
-
-            const counts = await Promise.all(scheduledTaskCountPromises)
-            const scheduledTaskCountMap = {}
-            counts.forEach(({ deviceId, count }) => {
-                scheduledTaskCountMap[deviceId] = count
-            })
-
-            setScheduledTaskCounts(scheduledTaskCountMap)
-            console.log('Scheduled task counts:', scheduledTaskCountMap)
-        } catch (error) {
-            console.error('Failed to fetch scheduled task counts:', error)
-        }
-    }
-
-    const formatCronSchedule = (scheduling) => {
-        try {
-            if (!scheduling) return 'No schedule defined';
-
-            // Debug logging
-            console.log('formatCronSchedule input:', scheduling, 'type:', typeof scheduling);
-
-            // Handle object format
-            if (typeof scheduling === 'object' && scheduling !== null) {
-                const { type, initial_day, day_interval, execution_time, next_execution } = scheduling;
-
-                if (type === 'interval') {
-                    // Format initial day
-                    const initialDate = new Date(initial_day);
-                    const formattedInitialDate = initialDate.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric'
-                    });
-
-                    // Format execution time
-                    const timeStr = execution_time || '00:00';
-
-                    // Handle different intervals
-                    if (day_interval === 1) {
-                        return `Every day at ${timeStr} since ${formattedInitialDate}`;
-                    } else if (day_interval > 1) {
-                        return `Every ${day_interval} days at ${timeStr} since ${formattedInitialDate}`;
-                    } else {
-                        return `Interval schedule at ${timeStr} since ${formattedInitialDate}`;
-                    }
-                }
-
-                // Handle other types if needed
-                return `Schedule type: ${type}`;
-            }
-
-            // Handle string format (cron expressions)
-            if (typeof scheduling === 'string') {
-                const cronStr = String(scheduling);
-                const parts = cronStr.split(' ');
-                if (parts.length !== 6) {
-                    return cronStr;
-                }
-
-                const [second, minute, hour, day, month, dayOfWeek] = parts;
-
-                // Handle common patterns
-                if (second === '0' && minute !== '*' && hour !== '*' && day === '*' && month === '*' && dayOfWeek === '*') {
-                    // Daily at specific time
-                    const timeStr = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
-                    return `Every day at ${timeStr}`;
-                }
-
-                if (second === '0' && minute === '0' && hour !== '*' && day === '*' && month === '*' && dayOfWeek === '*') {
-                    // Daily at specific hour
-                    return `Every day at ${hour.padStart(2, '0')}:00`;
-                }
-
-                if (second === '0' && minute !== '*' && hour !== '*' && day !== '*' && day !== '*' && month === '*' && dayOfWeek === '*') {
-                    // Specific day of month
-                    const timeStr = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
-                    return `Every ${day} of the month at ${timeStr}`;
-                }
-
-                if (second === '0' && minute !== '*' && hour !== '*' && day === '*' && month === '*' && dayOfWeek !== '*') {
-                    // Specific day of week
-                    const timeStr = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
-                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                    const dayName = dayNames[parseInt(dayOfWeek)] || dayOfWeek;
-                    return `Every ${dayName} at ${timeStr}`;
-                }
-
-                // Handle intervals (e.g., every 3 days)
-                if (day.startsWith('*/') && month === '*' && dayOfWeek === '*') {
-                    const interval = day.substring(2);
-                    const timeStr = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
-                    return `Every ${interval} days at ${timeStr}`;
-                }
-
-                // Default fallback for string
-                return cronStr;
-            }
-
-            // Default fallback
-            return String(scheduling || 'Invalid schedule');
-        } catch (error) {
-            console.error('Error formatting schedule:', error, 'input:', scheduling);
-            return String(scheduling || 'Invalid schedule');
-        }
-    };
-
-    const handleDeviceAction = async (device, action) => {
-        setSelectedDevice(device)
-        setSelectedAction(action)
-
-        try {
-            switch (action) {
-                case 'view-scheduled-tasks':
-                    const scheduledTasksResponse = await fetch(`/v1/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`)
-                    if (scheduledTasksResponse.ok) {
-                        const data = await scheduledTasksResponse.json()
-                        setRightPanelData({
-                            type: 'scheduled-tasks',
-                            data: data.data || [],
-                            pagination: data.pagination
-                        })
-                    }
-                    break
-
-                case 'view-tasks':
-                    const tasksResponse = await fetch(`/v1/devices/${device.id}/tasks`)
-                    if (tasksResponse.ok) {
-                        const data = await tasksResponse.json()
-                        setRightPanelData({
-                            type: 'tasks',
-                            data: data.data || [],
-                            pagination: data.pagination
-                        })
-                    }
-                    break
-
-                case 'edit':
-                    setRightPanelData({
-                        type: 'edit-form',
-                        device: device
-                    })
-                    break
-
-                case 'view-details':
-                    setRightPanelData({
-                        type: 'device-details',
-                        device: device
-                    })
-                    break
-
-                default:
-                    setRightPanelData(null)
-            }
-        } catch (error) {
-            console.error(`Failed to fetch data for ${action}:`, error)
-            showError(`Failed to load ${action} data`, 'Error')
-        }
-    }
-
-    const handleCreateDevice = async (e) => {
-        e.preventDefault()
-
-        const result = await showApiNotification(
-            fetch(`/v1/tenants/${tenantId}/devices`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            }).then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                return res.json()
-            }),
-            'Device created successfully',
-            'Failed to create device',
-            'Success',
-            'Error'
-        )
-
-        if (result.success) {
-            setShowCreateForm(false)
-            setFormData({ name: '', description: '', device_type: 'sensor', location: '', status: 'active' })
-            fetchTenantAndDevices()
-            setRightPanelData(null) // Clear the right panel
-        }
-    }
-
-    const handleUpdateDevice = async (e) => {
-        e.preventDefault()
-
-        const result = await showApiNotification(
-            fetch(`/v1/devices/${editingDevice.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            }).then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                return res.json()
-            }),
-            'Device updated successfully',
-            'Failed to update device',
-            'Success',
-            'Error'
-        )
-
-        if (result.success) {
-            setEditingDevice(null)
-            setFormData({ name: '', description: '', device_type: 'sensor', location: '', status: 'active' })
-            fetchTenantAndDevices()
-            setRightPanelData(null) // Clear the right panel
-        }
-    }
-
-    const handleDeleteDevice = async (deviceId) => {
-        if (!window.confirm('Are you sure you want to delete this device? This action cannot be undone.')) {
-            return
-        }
-
-        const result = await showApiNotification(
-            fetch(`/v1/devices/${deviceId}`, {
-                method: 'DELETE'
-            }).then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                return res.json()
-            }),
-            'Device deleted successfully',
-            'Failed to delete device',
-            'Success',
-            'Error'
-        )
-
-        if (result.success) {
-            fetchTenantAndDevices()
-        }
-    }
-
-    const startEdit = (device) => {
-        setEditingDevice(device)
-        setFormData({
-            name: device.name || '',
-            description: device.description || '',
-            device_type: device.device_type || 'sensor',
-            location: device.location || '',
-            status: device.status || 'active'
-        })
-        // Also set the right panel data for the edit form
-        setRightPanelData({
-            type: 'edit-form',
-            device: device
-        })
-    }
-
-    const cancelEdit = () => {
-        setEditingDevice(null)
-        setFormData({ name: '', description: '', device_type: 'sensor', location: '', status: 'active' })
-    }
-
-    return (
-        <div className="admin-devices">
-            <div className="admin-header">
-                <div className="header-top">
-                    <Link to="/admin/tenants" className="back-link">
-                        <ArrowLeft size={20} />
-                        Back to Tenants
-                    </Link>
-                </div>
-                <div className="admin-title">
-                    <Cpu size={32} />
-                    <div>
-                        <h1>Device Management</h1>
-                        {tenant && (
-                            <p className="tenant-info">
-                                <Building size={16} />
-                                {tenant.name}
-                            </p>
-                        )}
-                    </div>
-                </div>
-                <p className="admin-subtitle">Manage devices for this tenant</p>
-            </div>
-
-            <div className="admin-actions">
-                <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                        setShowCreateForm(true)
-                        setRightPanelData({
-                            type: 'create-form'
-                        })
-                    }}
-                >
-                    <Plus size={20} />
-                    Add Device
-                </button>
-            </div>
-
-
-            {/* Main Content Area - 40/60 Split */}
-            <div className="main-content">
-                {/* Left Section - Device Cards (40%) */}
-                <div className="devices-section">
-                    {loading ? (
-                        <div className="loading">Loading devices...</div>
-                    ) : (
-                        <div className="devices-list">
-                            {Array.isArray(devices) && devices.map((device) => (
-                                <div
-                                    key={device.id}
-                                    className={`device-card ${selectedDevice?.id === device.id ? 'selected' : ''}`}
-                                >
-                                    <div className="device-header">
-                                        <div className="device-info">
-                                            <h3>{device.name}</h3>
-                                            <span className={`status-badge ${device.status}`}>
-                                                {device.status}
-                                            </span>
-                                        </div>
-                                        <div className="device-actions">
-                                            <button
-                                                className="btn-icon"
-                                                onClick={() => handleDeviceAction(device, 'view-scheduled-tasks')}
-                                                title="View Scheduled Tasks"
-                                            >
-                                                <Clock size={16} />
-                                            </button>
-                                            <button
-                                                className="btn-icon"
-                                                onClick={() => handleDeviceAction(device, 'view-tasks')}
-                                                title="View Tasks"
-                                            >
-                                                <Activity size={16} />
-                                            </button>
-                                            <button
-                                                className="btn-icon"
-                                                onClick={() => handleDeviceAction(device, 'view-details')}
-                                                title="View Details"
-                                            >
-                                                <Eye size={16} />
-                                            </button>
-                                            <button
-                                                className="btn-icon"
-                                                onClick={() => handleDeviceAction(device, 'edit')}
-                                                title="Edit Device"
-                                            >
-                                                <Edit size={16} />
-                                            </button>
-                                            <button
-                                                className="btn-icon danger"
-                                                onClick={() => handleDeleteDevice(device.id)}
-                                                title="Delete Device"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="device-details">
-                                        {device.description && (
-                                            <p className="device-description">{device.description}</p>
-                                        )}
-                                        {device.location && (
-                                            <p className="device-location">
-                                                <strong>Location:</strong> {device.location}
-                                            </p>
-                                        )}
-                                        <p className="device-type">
-                                            <strong>Type:</strong> {device.device_type}
-                                        </p>
-                                    </div>
-
-                                    <div className="device-stats">
-                                        <div className="stat">
-                                            <Clock size={16} />
-                                            <span>Tasks: {taskCounts[device.id] || 0}</span>
-                                        </div>
-                                        <div className="stat">
-                                            <Calendar size={16} />
-                                            <span>Scheduled: {scheduledTaskCounts[device.id] || 0}</span>
-                                        </div>
-                                        <div className="stat">
-                                            <Activity size={16} />
-                                            <span>Last Seen: {device.last_message_received_at ? new Date(device.last_message_received_at).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                                hour12: false
-                                            }) : 'Never'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-
-                            {(!Array.isArray(devices) || devices.length === 0) && (
-                                <div className="empty-state">
-                                    <Cpu size={48} />
-                                    <h3>No Devices Found</h3>
-                                    <p>Add your first device to get started.</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Right Section - Details Panel (60%) */}
-                <div className="details-section">
-                    {rightPanelData ? (
-                        <div className="details-content">
-                            {rightPanelData.type === 'scheduled-tasks' && (
-                                <div className="scheduled-tasks-panel">
-                                    <h3>Scheduled Tasks</h3>
-                                    <div className="tasks-list">
-                                        {rightPanelData.data.map((task) => (
-                                            <div key={task.id} className="task-item">
-                                                <div className="task-header">
-                                                    <span className={`status-badge ${task.is_active ? 'active' : 'inactive'}`}>
-                                                        {task.is_active ? 'Active' : 'Inactive'}
-                                                    </span>
-                                                </div>
-
-                                                <div className="task-details">
-                                                    <div className="task-detail-item">
-                                                        <strong>Scheduling:</strong> {formatCronSchedule(task.scheduling)}
-                                                    </div>
-
-                                                    <div className="task-detail-item">
-                                                        <strong>Commands:</strong>
-                                                        <ul className="commands-list">
-                                                            {task.commands && task.commands.map((command, index) => (
-                                                                <li key={index} className="command-item">
-                                                                    <span className="command-index">Index: {command.index}</span>
-                                                                    <span className="command-value">Value: {command.value}</span>
-                                                                    <span className="command-wait">Wait: {command.wait_for || '0s'}</span>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {rightPanelData.data.length === 0 && (
-                                            <p className="no-data">No scheduled tasks found</p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {rightPanelData.type === 'tasks' && (
-                                <div className="tasks-panel">
-                                    <h3>Tasks</h3>
-                                    <div className="tasks-table">
-                                        <table>
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th>Status</th>
-                                                    <th>Created</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {rightPanelData.data.map((task) => (
-                                                    <tr key={task.id}>
-                                                        <td>{task.name || 'Unnamed Task'}</td>
-                                                        <td>
-                                                            <span className={`status-badge ${task.status || 'unknown'}`}>
-                                                                {task.status || 'Unknown'}
-                                                            </span>
-                                                        </td>
-                                                        <td>{task.created_at ? new Date(task.created_at).toLocaleDateString() : 'N/A'}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                        {rightPanelData.data.length === 0 && (
-                                            <p className="no-data">No tasks found</p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {rightPanelData.type === 'device-details' && (
-                                <div className="device-details-panel">
-                                    <h3>Device Details</h3>
-                                    <div className="details-grid">
-                                        <div className="detail-item">
-                                            <strong>Name:</strong> {rightPanelData.device.name}
-                                        </div>
-                                        <div className="detail-item">
-                                            <strong>Type:</strong> {rightPanelData.device.device_type}
-                                        </div>
-                                        <div className="detail-item">
-                                            <strong>Status:</strong>
-                                            <span className={`status-badge ${rightPanelData.device.status}`}>
-                                                {rightPanelData.device.status}
-                                            </span>
-                                        </div>
-                                        <div className="detail-item">
-                                            <strong>Device EUI:</strong> {rightPanelData.device.dev_eui || 'N/A'}
-                                        </div>
-                                        <div className="detail-item">
-                                            <strong>App EUI:</strong> {rightPanelData.device.app_eui || 'N/A'}
-                                        </div>
-                                        <div className="detail-item">
-                                            <strong>Last Message:</strong> {rightPanelData.device.last_message_received_at ? new Date(rightPanelData.device.last_message_received_at).toLocaleString() : 'Never'}
-                                        </div>
-                                        {rightPanelData.device.description && (
-                                            <div className="detail-item full-width">
-                                                <strong>Description:</strong> {rightPanelData.device.description}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {rightPanelData.type === 'create-form' && (
-                                <div className="create-form-panel">
-                                    <h3>Add New Device</h3>
-                                    <form onSubmit={handleCreateDevice}>
-                                        <div className="form-group">
-                                            <label htmlFor="create-name">Device Name *</label>
-                                            <input
-                                                type="text"
-                                                id="create-name"
-                                                value={formData.name}
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-description">Description</label>
-                                            <textarea
-                                                id="create-description"
-                                                value={formData.description}
-                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                                rows={3}
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-device_type">Device Type</label>
-                                            <select
-                                                id="create-device_type"
-                                                value={formData.device_type}
-                                                onChange={(e) => setFormData({ ...formData, device_type: e.target.value })}
-                                            >
-                                                <option value="sensor">Sensor</option>
-                                                <option value="actuator">Actuator</option>
-                                                <option value="gateway">Gateway</option>
-                                                <option value="controller">Controller</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-location">Location</label>
-                                            <input
-                                                type="text"
-                                                id="create-location"
-                                                value={formData.location}
-                                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="create-status">Status</label>
-                                            <select
-                                                id="create-status"
-                                                value={formData.status}
-                                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                            >
-                                                <option value="active">Active</option>
-                                                <option value="inactive">Inactive</option>
-                                                <option value="maintenance">Maintenance</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-actions">
-                                            <button type="button" className="btn btn-secondary" onClick={() => {
-                                                setRightPanelData(null)
-                                                setShowCreateForm(false)
-                                            }}>
-                                                Cancel
-                                            </button>
-                                            <button type="submit" className="btn btn-primary">
-                                                Add Device
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            )}
-
-                            {rightPanelData.type === 'edit-form' && (
-                                <div className="edit-form-panel">
-                                    <h3>Edit Device</h3>
-                                    <form onSubmit={handleUpdateDevice}>
-                                        <div className="form-group">
-                                            <label htmlFor="edit-name">Device Name *</label>
-                                            <input
-                                                type="text"
-                                                id="edit-name"
-                                                value={formData.name}
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="edit-description">Description</label>
-                                            <textarea
-                                                id="edit-description"
-                                                value={formData.description}
-                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                                rows={3}
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="edit-device_type">Device Type</label>
-                                            <select
-                                                id="edit-device_type"
-                                                value={formData.device_type}
-                                                onChange={(e) => setFormData({ ...formData, device_type: e.target.value })}
-                                            >
-                                                <option value="sensor">Sensor</option>
-                                                <option value="actuator">Actuator</option>
-                                                <option value="gateway">Gateway</option>
-                                                <option value="controller">Controller</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="edit-location">Location</label>
-                                            <input
-                                                type="text"
-                                                id="edit-location"
-                                                value={formData.location}
-                                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label htmlFor="edit-status">Status</label>
-                                            <select
-                                                id="edit-status"
-                                                value={formData.status}
-                                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                            >
-                                                <option value="active">Active</option>
-                                                <option value="inactive">Inactive</option>
-                                                <option value="maintenance">Maintenance</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-actions">
-                                            <button type="button" className="btn btn-secondary" onClick={() => setRightPanelData(null)}>
-                                                Cancel
-                                            </button>
-                                            <button type="submit" className="btn btn-primary">
-                                                Update Device
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="placeholder">
-                            <div className="placeholder-content">
-                                <Eye size={48} />
-                                <h3>Select an action to display details</h3>
-                                <p>Choose a device action to view information in this panel</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+    const created = await jsonOrThrow(
+      createResponse,
+      createResponse.status === 409
+        ? 'Ya existe un dispositivo con ese nombre técnico. Usa otro nombre.'
+        : 'No se pudo crear el dispositivo. Revisa los datos y vuelve a intentarlo.',
     )
+
+    const adoptResponse = await fetch(`/v1/tenants/${tenantId}/adopt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_id: created.id }),
+    })
+    if (!adoptResponse.ok) {
+      throw new Error('El dispositivo se creó, pero no se pudo asignar a esta cuenta. Vuelve a intentarlo.')
+    }
+    showSuccess('Dispositivo agregado')
+  }
+
+  const handleUpdate = async () => {
+    const response = await fetch(`/v1/devices/${drawer.device.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: formData.display_name.trim() }),
+    })
+    await jsonOrThrow(response, 'No se pudo guardar el dispositivo. Vuelve a intentarlo.')
+    showSuccess('Dispositivo guardado')
+  }
+
+  const handleSubmit = async event => {
+    event.preventDefault()
+    try {
+      setSaving(true)
+      if (drawer.mode === 'create') await handleCreate()
+      else await handleUpdate()
+      setDrawer(null)
+      setDetail(null)
+      fetchTenantAndDevices()
+    } catch (error) {
+      showError(error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const setField = field => event => setFormData(current => ({ ...current, [field]: event.target.value }))
+
+  const device = drawer?.device
+  const isForm = drawer?.mode === 'create' || drawer?.mode === 'edit'
+  const drawerTitle = drawer?.mode === 'create' ? 'Agregar dispositivo' : drawer?.mode === 'edit' ? 'Editar dispositivo' : nameOf(device)
+
+  const drawerSubtitle =
+    drawer?.mode === 'detail' ? (
+      <>
+        <StatusPill tone={statusOf(device).tone}>{statusOf(device).label}</StatusPill>
+        <span>Última señal: {lastSeen(device)}</span>
+      </>
+    ) : drawer?.mode === 'edit' ? (
+      nameOf(device)
+    ) : undefined
+
+  const drawerFooter = isForm ? (
+    <>
+      <Button type="submit" form={FORM_ID} disabled={saving}>
+        {saving ? 'Guardando…' : drawer.mode === 'create' ? 'Agregar dispositivo' : 'Guardar cambios'}
+      </Button>
+      <Button variant="ghost" onClick={closeDrawer} disabled={saving}>
+        Cancelar
+      </Button>
+    </>
+  ) : drawer?.mode === 'detail' ? (
+    <Button variant="secondary" icon={Pencil} onClick={() => openEdit(device)}>
+      Editar dispositivo
+    </Button>
+  ) : undefined
+
+  return (
+    <Page>
+      <PageHeader
+        title={tenant?.name ? `Dispositivos de ${tenant.name}` : 'Dispositivos'}
+        description="Revisa el estado de cada dispositivo de la cuenta, sus programas y sus tareas recientes."
+        back={{ to: '/admin/tenants', label: 'Cuentas' }}
+        actions={
+          <Button icon={Plus} onClick={openCreate}>
+            Agregar dispositivo
+          </Button>
+        }
+      />
+
+      {loading && <LoadingState>Cargando dispositivos…</LoadingState>}
+
+      {!loading && loadError && (
+        <ErrorState title="No se pudieron cargar los dispositivos" onRetry={fetchTenantAndDevices}>
+          Revisa tu conexión y vuelve a intentarlo.
+        </ErrorState>
+      )}
+
+      {!loading && !loadError && devices.length === 0 && (
+        <EmptyState title="Esta cuenta aún no tiene dispositivos">
+          Agrega un dispositivo para empezar a recibir sus lecturas.
+        </EmptyState>
+      )}
+
+      {!loading && !loadError && devices.length > 0 && (
+        <Table caption="Dispositivos de la cuenta">
+          <thead>
+            <tr>
+              <th scope="col">Dispositivo</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Última señal</th>
+              <th scope="col" className="zs-num">
+                Programas
+              </th>
+              <th scope="col" className="zs-num">
+                Tareas
+              </th>
+              <th scope="col">
+                <span className="sr-only">Acciones</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {devices.map(item => {
+              const status = statusOf(item)
+              const itemCounts = counts[item.id] || {}
+              return (
+                <tr key={item.id}>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => openDetail(item)}
+                      className="min-h-touch bg-transparent p-0 text-left font-bold text-ink underline-offset-4 hover:underline"
+                    >
+                      {nameOf(item)}
+                    </button>
+                    {item.display_name && item.name && item.display_name !== item.name && (
+                      <p className="m-0 font-mono text-caption text-muted">{item.name}</p>
+                    )}
+                  </td>
+                  <td>
+                    <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                  </td>
+                  <td>{lastSeen(item)}</td>
+                  <td className="zs-num">{countLabel(itemCounts.programs)}</td>
+                  <td className="zs-num">{countLabel(itemCounts.tasks)}</td>
+                  <td>
+                    <div className="flex justify-end">
+                      <IconButton icon={Pencil} label={`Editar ${nameOf(item)}`} onClick={() => openEdit(item)} />
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </Table>
+      )}
+
+      <Drawer open={!!drawer} onClose={closeDrawer} title={drawerTitle} subtitle={drawerSubtitle} footer={drawerFooter}>
+        {drawer?.mode === 'detail' && (
+          <DeviceDetail tenantId={tenantId} device={device} detail={detail} onRetry={() => loadDetail(device)} />
+        )}
+
+        {drawer?.mode === 'edit' && (
+          <Form id={FORM_ID} onSubmit={handleSubmit}>
+            <Field label="Nombre visible" hint="Es el nombre que ven las personas de la cuenta." required>
+              {props => (
+                <Input {...props} type="text" maxLength={100} value={formData.display_name} onChange={setField('display_name')} />
+              )}
+            </Field>
+            <KeyValue items={[{ label: 'Nombre técnico', value: device?.name, mono: true }]} />
+          </Form>
+        )}
+
+        {drawer?.mode === 'create' && (
+          <Form id={FORM_ID} onSubmit={handleSubmit}>
+            <Field label="Nombre técnico" hint="Identifica al dispositivo en la red. No se puede cambiar después." required>
+              {props => (
+                <Input {...props} type="text" autoComplete="off" value={formData.name} onChange={setField('name')} />
+              )}
+            </Field>
+            <Field label="Nombre visible" hint="Si lo dejas vacío, se usa el nombre técnico.">
+              {props => (
+                <Input {...props} type="text" maxLength={100} value={formData.display_name} onChange={setField('display_name')} />
+              )}
+            </Field>
+            <Field label="Dev EUI">
+              {props => (
+                <Input {...props} type="text" autoComplete="off" className="font-mono" value={formData.dev_eui} onChange={setField('dev_eui')} />
+              )}
+            </Field>
+            <Field label="App EUI">
+              {props => (
+                <Input {...props} type="text" autoComplete="off" className="font-mono" value={formData.app_eui} onChange={setField('app_eui')} />
+              )}
+            </Field>
+            <Field label="App key">
+              {props => (
+                <Input {...props} type="text" autoComplete="off" className="font-mono" value={formData.app_key} onChange={setField('app_key')} />
+              )}
+            </Field>
+          </Form>
+        )}
+      </Drawer>
+    </Page>
+  )
+}
+
+function DeviceDetail({ tenantId, device, detail, onRetry }) {
+  const programsUrl = `/admin/tenants/${tenantId}/devices/${device.id}/scheduled-tasks`
+
+  return (
+    <>
+      <Section title="Dispositivo">
+        <KeyValue
+          items={[
+            { label: 'Nombre técnico', value: device.name, mono: true },
+            { label: 'Nombre visible', value: device.display_name },
+            { label: 'Dev EUI', value: device.dev_eui, mono: true },
+            { label: 'App EUI', value: device.app_eui, mono: true },
+            {
+              label: 'Última señal',
+              value: device.last_message_received_at ? formatDateTime(device.last_message_received_at) : 'Nunca',
+            },
+            { label: 'ID', value: device.id, mono: true },
+          ]}
+        />
+      </Section>
+
+      {(!detail || detail.loading) && <LoadingState>Cargando programas y tareas…</LoadingState>}
+
+      {detail?.error && (
+        <ErrorState title="No se pudieron cargar los programas y tareas" onRetry={onRetry}>
+          Revisa tu conexión y vuelve a intentarlo.
+        </ErrorState>
+      )}
+
+      {detail?.programs && (
+        <Section
+          title="Programas"
+          actions={
+            <Button variant="secondary" size="sm" to={programsUrl}>
+              Administrar programas
+            </Button>
+          }
+        >
+          {detail.programs.length === 0 ? (
+            <EmptyState>Este dispositivo no tiene programas. Créalos desde Administrar programas.</EmptyState>
+          ) : (
+            <List>
+              {detail.programs.map(program => (
+                <li
+                  key={program.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3"
+                >
+                  <span className="flex min-w-0 flex-col gap-1">
+                    <span>{describeSchedule(program)}</span>
+                    <span className="text-caption text-muted">
+                      {program.commands?.length === 1 ? '1 comando' : `${formatNumber(program.commands?.length || 0)} comandos`}
+                    </span>
+                  </span>
+                  <StatusPill tone={program.is_active ? 'ok' : 'neutral'}>{program.is_active ? 'Activo' : 'Pausado'}</StatusPill>
+                </li>
+              ))}
+            </List>
+          )}
+        </Section>
+      )}
+
+      {detail?.tasks && (
+        <Section
+          title="Tareas recientes"
+          description={
+            detail.tasksTotal > detail.tasks.length
+              ? `Últimas ${formatNumber(detail.tasks.length)} de ${formatNumber(detail.tasksTotal)}`
+              : undefined
+          }
+        >
+          {detail.tasks.length === 0 ? (
+            <EmptyState>Este dispositivo aún no ha recibido tareas.</EmptyState>
+          ) : (
+            <Table caption="Tareas recientes">
+              <thead>
+                <tr>
+                  <th scope="col">Creada</th>
+                  <th scope="col" className="zs-num">
+                    Comandos
+                  </th>
+                  <th scope="col">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.tasks.map(task => {
+                  const status = taskStatus(task)
+                  return (
+                    <tr key={task.id}>
+                      <td>{task.created_at ? formatDateTime(task.created_at) : '—'}</td>
+                      <td className="zs-num">{formatNumber(task.commands?.length || 0)}</td>
+                      <td>
+                        <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </Table>
+          )}
+        </Section>
+      )}
+    </>
+  )
 }
 
 export default AdminDevices

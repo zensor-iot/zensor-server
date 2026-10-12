@@ -20,7 +20,6 @@ const useWebSocket = (url) => {
     const connect = useCallback(() => {
         // Don't connect if we already have a connection
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-            console.log('WebSocket already connected, skipping connection attempt');
             return;
         }
 
@@ -38,7 +37,6 @@ const useWebSocket = (url) => {
             socketRef.current = ws;
 
             ws.onopen = () => {
-                console.log('WebSocket connected');
                 setIsConnected(true);
                 setConnectionStatus('Connected');
                 setConnectionError(null);
@@ -74,7 +72,6 @@ const useWebSocket = (url) => {
             };
 
             ws.onclose = (event) => {
-                console.log('WebSocket disconnected:', event.code, event.reason);
                 setIsConnected(false);
                 socketRef.current = null;
 

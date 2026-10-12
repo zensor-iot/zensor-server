@@ -1,13 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es-CL">
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self' http: https: data: blob: 'unsafe-inline'; connect-src 'self' http: https: wss: ws: data: blob:;">
-  <title>Zensor Portal</title>
+  <meta name="theme-color" content="#2B3A2A" />
+  <link rel="icon" href="/ui/logos/zensor-favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/ui/logos/favicon.ico" sizes="48x48" />
+  <link rel="apple-touch-icon" href="/ui/logos/apple-touch-icon-180.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <script>
+    try {
+      var mode = localStorage.getItem('zensor-theme')
+      if (mode === 'light' || mode === 'dark') document.documentElement.setAttribute('data-theme', mode)
+    } catch (e) { /* sin almacenamiento: se usa el tema del sistema */ }
+  </script>
+  <title>Zensor</title>
 </head>
 
 <body>

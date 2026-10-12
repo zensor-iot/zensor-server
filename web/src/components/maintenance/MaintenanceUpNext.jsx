@@ -1,137 +1,110 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { CalendarClock, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
-import { maintenanceApi } from '../../config/api'
-import { relativeDateLabel } from '../../utils/maintenanceSchedule'
+import { useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { Check } from 'lucide-react'
+import { Button, Card, EmptyState, ErrorState, List, LoadingState, Notice, Page, PageHeader, StatusPill } from '../../ui'
+import { formatDateTime } from '../../lib/zensor'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNotification } from '../../hooks/useNotification'
+import { dueLabel, executionStatus, isDue, upNext } from '../../utils/maintenanceSchedule'
+import { useMaintenanceOverview } from './useMaintenanceOverview'
 import CompleteExecutionDialog from './CompleteExecutionDialog'
-import './Maintenance.css'
 
-// Up Next: the earliest pending execution per active activity, soonest first.
+/** Up next: the earliest pending execution of every activity, soonest first. */
 const MaintenanceUpNext = () => {
-    const { tenantId } = useParams()
-    const { user } = useAuth()
-    const { showError } = useNotification()
-    const [items, setItems] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [completing, setCompleting] = useState(null)
+  const { tenantId } = useParams()
+  const { user } = useAuth()
+  const { items, loading, error, reload } = useMaintenanceOverview(tenantId)
+  const [completing, setCompleting] = useState(null)
 
-    const fetchUpNext = useCallback(async () => {
-        try {
-            setLoading(true)
-            const activities = await maintenanceApi.listAllActivities(tenantId)
+  const basePath = `/portal/${tenantId}/maintenance`
+  const rows = useMemo(() => upNext(items || []), [items])
+  const overdue = rows.filter(r => r.execution.is_overdue)
 
-            const executionLists = await Promise.all(
-                activities.map(activity =>
-                    maintenanceApi.listExecutions(activity.id, 1, 100)
-                        .then(data => ({ activity, executions: data.data || [] }))
-                        .catch(() => ({ activity, executions: [] }))
-                )
-            )
-
-            const upNext = executionLists
-                .map(({ activity, executions }) => {
-                    const pending = executions
-                        .filter(e => !e.completed_at)
-                        .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date))
-                    return pending.length > 0 ? { activity, execution: pending[0] } : null
-                })
-                .filter(Boolean)
-                .sort((a, b) => new Date(a.execution.scheduled_date) - new Date(b.execution.scheduled_date))
-
-            setItems(upNext)
-        } catch (err) {
-            showError(err.message, 'Failed to load upcoming maintenance')
-        } finally {
-            setLoading(false)
-        }
-    }, [tenantId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-    useEffect(() => {
-        fetchUpNext()
-    }, [fetchUpNext])
-
-    const isFuture = (execution) => new Date(execution.scheduled_date) > new Date()
-
-    return (
-        <div className="maintenance-page">
-            <div className="maintenance-header">
-                <h2>
-                    <CalendarClock size={22} />
-                    Up Next
-                </h2>
-                <Link to={`/portal/${tenantId}/maintenance`} className="maintenance-btn">
-                    <ArrowLeft size={16} />
-                    All activities
-                </Link>
-            </div>
-
-            {loading ? (
-                <div className="maintenance-empty">
-                    <Loader2 className="loading-spinner" />
-                    <p>Loading upcoming maintenance...</p>
-                </div>
-            ) : items.length === 0 ? (
-                <div className="maintenance-empty">
-                    <CheckCircle size={48} />
-                    <h3>All caught up</h3>
-                    <p>No pending maintenance executions.</p>
-                </div>
-            ) : (
-                items.map(({ activity, execution }) => (
-                    <div key={execution.id} className="maintenance-card">
-                        <div className="maintenance-card-row">
-                            <div>
-                                <h3 className="maintenance-card-title">
-                                    <Link to={`/portal/${tenantId}/maintenance/activities/${activity.id}?tab=history`}>
-                                        {activity.name}
-                                    </Link>
-                                    {execution.is_overdue && (
-                                        <span className="maintenance-badge overdue">
-                                            {execution.overdue_days > 0
-                                                ? `Overdue ${execution.overdue_days}d`
-                                                : 'Overdue'}
-                                        </span>
-                                    )}
-                                </h3>
-                                <span className="maintenance-card-schedule">
-                                    <CalendarClock size={14} />
-                                    {relativeDateLabel(execution.scheduled_date)}
-                                    {' · '}
-                                    {new Date(execution.scheduled_date).toLocaleDateString()}
-                                </span>
-                            </div>
-                            <div className="maintenance-card-actions">
-                                {!isFuture(execution) && (
-                                    <button
-                                        className="maintenance-btn primary"
-                                        onClick={() => setCompleting({ activity, execution })}
-                                    >
-                                        <CheckCircle size={16} />
-                                        Complete
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ))
-            )}
-
-            {completing && (
-                <CompleteExecutionDialog
-                    activity={completing.activity}
-                    execution={completing.execution}
-                    userEmail={user?.email}
-                    onClose={() => setCompleting(null)}
-                    onCompleted={() => {
-                        setCompleting(null)
-                        fetchUpNext()
-                    }}
-                />
-            )}
-        </div>
+  let content
+  if (!items && loading) {
+    content = <LoadingState>Cargando próximas mantenciones…</LoadingState>
+  } else if (!items && error) {
+    content = (
+      <ErrorState title="No se pudieron cargar las próximas mantenciones" onRetry={reload}>
+        Revisa tu conexión y vuelve a intentarlo.
+      </ErrorState>
     )
+  } else if (rows.length === 0) {
+    content = (
+      <EmptyState title="Todo al día">
+        No hay mantenciones pendientes. Cuando se acerque la próxima fecha de una actividad, aparecerá aquí.
+      </EmptyState>
+    )
+  } else {
+    content = (
+      <>
+        {overdue.length > 0 && (
+          <Notice>
+            {overdue.length === 1
+              ? `“${overdue[0].activity.name}” está atrasada.`
+              : `${overdue.length} mantenciones atrasadas. La más antigua es “${overdue[0].activity.name}”.`}
+          </Notice>
+        )}
+        <List>
+          {rows.map(({ activity, execution }) => {
+            const status = executionStatus(execution)
+            return (
+              <li key={execution.id}>
+                <Card>
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                          to={`${basePath}/activities/${activity.id}`}
+                          className="inline-flex min-h-touch items-center break-words text-title text-ink underline-offset-4 hover:underline"
+                        >
+                          {activity.name}
+                        </Link>
+                        <StatusPill tone={status.tone}>
+                          {status.key === 'overdue' && execution.overdue_days > 0
+                            ? `${status.label} · ${execution.overdue_days} d`
+                            : status.label}
+                        </StatusPill>
+                      </div>
+                      <span className={status.key === 'overdue' ? 'text-body-sm text-attention' : 'text-body-sm text-muted'}>
+                        {dueLabel(execution.scheduled_date)} · {formatDateTime(execution.scheduled_date)}
+                      </span>
+                    </div>
+                    {isDue(execution) && (
+                      <Button variant="secondary" icon={Check} onClick={() => setCompleting({ activity, execution })}>
+                        Marcar como hecha
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              </li>
+            )
+          })}
+        </List>
+      </>
+    )
+  }
+
+  return (
+    <Page>
+      <PageHeader
+        title="Próximas mantenciones"
+        description="Lo siguiente que toca en cada actividad, de lo más urgente a lo más lejano."
+        back={{ to: basePath, label: 'Mantención' }}
+      />
+
+      {content}
+
+      <CompleteExecutionDialog
+        target={completing}
+        userEmail={user?.email}
+        onClose={() => setCompleting(null)}
+        onCompleted={() => {
+          setCompleting(null)
+          reload()
+        }}
+      />
+    </Page>
+  )
 }
 
 export default MaintenanceUpNext

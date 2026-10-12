@@ -1,363 +1,357 @@
 import { useState } from 'react'
-import { Plus, X, Trash2 } from 'lucide-react'
+import { Plus, Trash2, X } from 'lucide-react'
+import { Button, Checkbox, Field, Form, FormActions, Input, Section, Select, Textarea } from '../../ui'
 import {
-    UNITS,
-    buildSchedule
+  ACTIVITY_TYPES,
+  FIELD_TYPES,
+  UNITS,
+  buildSchedule,
+  toLocalInputValue,
+  toSchedulePayload,
+  unitLabel,
 } from '../../utils/maintenanceSchedule'
 import { maintenanceApi } from '../../config/api'
 import { useNotification } from '../../hooks/useNotification'
-import './Maintenance.css'
 
-const ACTIVITY_TYPES = [
-    { value: 'water_system', label: 'Water System' },
-    { value: 'car', label: 'Car' },
-    { value: 'pets', label: 'Pets' },
-    { value: 'custom', label: 'Custom' }
-]
+const toFieldPayload = f => ({
+  name: f.name,
+  display_name: f.display_name,
+  type: f.type,
+  is_required: f.is_required,
+  ...(f.default_value != null && f.default_value !== '' ? { default_value: String(f.default_value) } : {}),
+})
 
-const FIELD_TYPES = ['text', 'number', 'date', 'boolean']
-
-const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1)
-
-// Create/edit form for a maintenance activity. In edit mode the type is
-// read-only and only changed fields are sent, matching the server contract.
+/**
+ * Create/edit form for a maintenance activity. In edit mode the type is read-only and
+ * only changed fields are sent, matching the server contract.
+ */
 const ActivityForm = ({ tenantId, activity = null, onSaved, onCancel }) => {
-    const isEdit = Boolean(activity)
-    const { showSuccess, showError } = useNotification()
+  const isEdit = Boolean(activity)
+  const { showSuccess, showError } = useNotification()
 
-    const [name, setName] = useState(activity?.name || '')
-    const [description, setDescription] = useState(activity?.description || '')
-    const [typeName, setTypeName] = useState(activity?.type_name || 'water_system')
-    const [customTypeName, setCustomTypeName] = useState(activity?.custom_type_name || '')
-    const [schedule, setSchedule] = useState({
-        startDate: activity?.schedule?.start_date ? new Date(activity.schedule.start_date).toISOString().slice(0, 16) : '',
-        every: activity?.schedule?.every || 1,
-        unit: activity?.schedule?.unit || 'month'
+  const [name, setName] = useState(activity?.name || '')
+  const [description, setDescription] = useState(activity?.description || '')
+  const [typeName, setTypeName] = useState(activity?.type_name || 'water_system')
+  const [customTypeName, setCustomTypeName] = useState(activity?.custom_type_name || '')
+  const [schedule, setSchedule] = useState({
+    startDate: toLocalInputValue(activity?.schedule?.start_date),
+    every: activity?.schedule?.every || 1,
+    unit: activity?.schedule?.unit || 'month',
+  })
+  const [reminderDays, setReminderDays] = useState(activity?.notification_days_before || [1])
+  const [reminderDayInput, setReminderDayInput] = useState('')
+  const [fields, setFields] = useState(
+    (activity?.fields || []).map(f => ({
+      name: f.name,
+      display_name: f.display_name,
+      type: f.type,
+      is_required: f.is_required,
+      default_value: f.default_value ?? '',
+    })),
+  )
+  const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  const updateSchedule = patch => setSchedule(prev => ({ ...prev, ...patch }))
+
+  const addReminderDay = () => {
+    const day = parseInt(reminderDayInput, 10)
+    if (Number.isNaN(day) || day < 0) {
+      setErrors(prev => ({ ...prev, reminder: 'Escribe un número de días, 0 o más.' }))
+      return
+    }
+    setErrors(prev => ({ ...prev, reminder: undefined }))
+    if (!reminderDays.includes(day)) setReminderDays([...reminderDays, day].sort((a, b) => a - b))
+    setReminderDayInput('')
+  }
+
+  const addField = () =>
+    setFields([...fields, { name: '', display_name: '', type: 'text', is_required: false, default_value: '' }])
+  const updateField = (index, patch) => setFields(fields.map((f, i) => (i === index ? { ...f, ...patch } : f)))
+  const removeField = index => setFields(fields.filter((_, i) => i !== index))
+
+  const validate = schedulePayload => {
+    const next = {}
+    if (!name.trim()) next.name = 'Escribe un nombre para la actividad.'
+    if (!isEdit && typeName === 'custom' && !customTypeName.trim()) next.customTypeName = 'Escribe el nombre del tipo.'
+    if (!schedulePayload) next.startDate = 'Elige cuándo toca la primera vez.'
+    fields.forEach((f, i) => {
+      if (!f.name.trim()) next[`field-${i}-name`] = 'Escribe una clave.'
+      if (!f.display_name.trim()) next[`field-${i}-display`] = 'Escribe cómo se muestra.'
     })
-    const [reminderDays, setReminderDays] = useState(activity?.notification_days_before || [1])
-    const [reminderDayInput, setReminderDayInput] = useState('')
-    const [fields, setFields] = useState(
-        (activity?.fields || []).map(f => ({
-            name: f.name,
-            display_name: f.display_name,
-            type: f.type,
-            is_required: f.is_required,
-            default_value: f.default_value ?? ''
-        }))
-    )
-    const [saving, setSaving] = useState(false)
+    return next
+  }
 
+  const handleSubmit = async e => {
+    e.preventDefault()
     const schedulePayload = buildSchedule(schedule)
+    const nextErrors = validate(schedulePayload)
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
 
-    const updateSchedule = (patch) => setSchedule(prev => ({ ...prev, ...patch }))
-
-    const addReminderDay = () => {
-        const day = parseInt(reminderDayInput, 10)
-        if (Number.isNaN(day) || day < 0 || reminderDays.includes(day)) {
-            return
+    const fieldsPayload = fields.map(toFieldPayload)
+    setSaving(true)
+    try {
+      if (isEdit) {
+        const updates = {}
+        if (name !== activity.name) updates.name = name
+        if (description !== activity.description) updates.description = description
+        if (JSON.stringify(schedulePayload) !== JSON.stringify(toSchedulePayload(activity.schedule))) {
+          updates.schedule = schedulePayload
         }
-        setReminderDays([...reminderDays, day].sort((a, b) => a - b))
-        setReminderDayInput('')
-    }
-
-    const removeReminderDay = (day) => {
-        setReminderDays(reminderDays.filter(d => d !== day))
-    }
-
-    const addField = () => {
-        setFields([...fields, { name: '', display_name: '', type: 'text', is_required: false, default_value: '' }])
-    }
-
-    const updateField = (index, patch) => {
-        setFields(fields.map((f, i) => (i === index ? { ...f, ...patch } : f)))
-    }
-
-    const removeField = (index) => {
-        setFields(fields.filter((_, i) => i !== index))
-    }
-
-    const buildFieldsPayload = () =>
-        fields.map(f => {
-            const field = {
-                name: f.name,
-                display_name: f.display_name,
-                type: f.type,
-                is_required: f.is_required
-            }
-            if (f.default_value !== '') {
-                field.default_value = String(f.default_value)
-            }
-            return field
-        })
-
-    const handleSubmit = async (e) => {
-        e.preventDefault()
-
-        if (!name.trim()) {
-            showError('Name is required')
-            return
+        if (JSON.stringify(reminderDays) !== JSON.stringify(activity.notification_days_before || [])) {
+          updates.notification_days_before = reminderDays
         }
-        if (!isEdit && typeName === 'custom' && !customTypeName.trim()) {
-            showError('Custom type name is required')
-            return
-        }
-        if (!schedulePayload) {
-            showError('A start date is required')
-            return
-        }
-        if (fields.some(f => !f.name.trim() || !f.display_name.trim())) {
-            showError('Every custom field needs a name and a display name')
-            return
+        if (JSON.stringify(fieldsPayload) !== JSON.stringify((activity.fields || []).map(toFieldPayload))) {
+          updates.fields = fieldsPayload
         }
 
-        setSaving(true)
-        try {
-            if (isEdit) {
-                const updates = {}
-                if (name !== activity.name) updates.name = name
-                if (description !== activity.description) updates.description = description
-                if (JSON.stringify(schedulePayload) !== JSON.stringify(activity.schedule)) {
-                    updates.schedule = schedulePayload
-                }
-                const originalReminders = activity.notification_days_before || []
-                if (JSON.stringify(reminderDays) !== JSON.stringify(originalReminders)) {
-                    updates.notification_days_before = reminderDays
-                }
-                const fieldsPayload = buildFieldsPayload()
-                const originalFields = (activity.fields || []).map(f => ({
-                    name: f.name,
-                    display_name: f.display_name,
-                    type: f.type,
-                    is_required: f.is_required,
-                    ...(f.default_value != null ? { default_value: f.default_value } : {})
-                }))
-                if (JSON.stringify(fieldsPayload) !== JSON.stringify(originalFields)) {
-                    updates.fields = fieldsPayload
-                }
-
-                if (Object.keys(updates).length === 0) {
-                    showSuccess('Nothing to save')
-                } else {
-                    await maintenanceApi.updateActivity(activity.id, updates)
-                    showSuccess('Activity updated')
-                }
-            } else {
-                const payload = {
-                    tenant_id: tenantId,
-                    type_name: typeName,
-                    name,
-                    description,
-                    schedule: schedulePayload,
-                    notification_days_before: reminderDays,
-                    fields: buildFieldsPayload()
-                }
-                if (typeName === 'custom') {
-                    payload.custom_type_name = customTypeName
-                }
-                await maintenanceApi.createActivity(payload)
-                showSuccess('Activity created')
-            }
-            onSaved()
-        } catch (err) {
-            showError(err.message, isEdit ? 'Failed to update activity' : 'Failed to create activity')
-        } finally {
-            setSaving(false)
+        if (Object.keys(updates).length === 0) {
+          showSuccess('No había cambios que guardar')
+        } else {
+          await maintenanceApi.updateActivity(activity.id, updates)
+          showSuccess('Cambios guardados')
         }
+      } else {
+        const payload = {
+          tenant_id: tenantId,
+          type_name: typeName,
+          name,
+          description,
+          schedule: schedulePayload,
+          notification_days_before: reminderDays,
+          fields: fieldsPayload,
+        }
+        if (typeName === 'custom') payload.custom_type_name = customTypeName
+        await maintenanceApi.createActivity(payload)
+        showSuccess('Actividad creada')
+      }
+      onSaved()
+    } catch {
+      showError(
+        'Revisa tu conexión y vuelve a intentarlo.',
+        isEdit ? 'No se pudieron guardar los cambios' : 'No se pudo crear la actividad',
+      )
+    } finally {
+      setSaving(false)
     }
+  }
 
-    return (
-        <form className="maintenance-form" onSubmit={handleSubmit}>
-            <div className="maintenance-form-row">
-                <div className="maintenance-form-field">
-                    <label htmlFor="activity-type">Type</label>
-                    <select
-                        id="activity-type"
-                        value={typeName}
-                        onChange={(e) => setTypeName(e.target.value)}
-                        disabled={isEdit}
-                    >
-                        {ACTIVITY_TYPES.map(t => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                        ))}
-                    </select>
-                </div>
-                {typeName === 'custom' && (
-                    <div className="maintenance-form-field">
-                        <label htmlFor="custom-type-name">Custom type name</label>
-                        <input
-                            id="custom-type-name"
-                            type="text"
-                            value={customTypeName}
-                            onChange={(e) => setCustomTypeName(e.target.value)}
-                            disabled={isEdit}
-                            placeholder="e.g., Greenhouse"
-                        />
-                    </div>
-                )}
-            </div>
+  return (
+    <Form onSubmit={handleSubmit} noValidate>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Tipo" hint={isEdit ? 'El tipo no se puede cambiar.' : undefined}>
+          {props => (
+            <Select {...props} value={typeName} onChange={e => setTypeName(e.target.value)} disabled={isEdit}>
+              {ACTIVITY_TYPES.map(t => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        {typeName === 'custom' && (
+          <Field label="Nombre del tipo" required={!isEdit} error={errors.customTypeName}>
+            {props => (
+              <Input
+                {...props}
+                type="text"
+                value={customTypeName}
+                onChange={e => setCustomTypeName(e.target.value)}
+                disabled={isEdit}
+                placeholder="Por ejemplo, Invernadero"
+              />
+            )}
+          </Field>
+        )}
+      </div>
 
-            <div className="maintenance-form-field">
-                <label htmlFor="activity-name">Name</label>
-                <input
-                    id="activity-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., Water Filter Replacement"
-                />
-            </div>
+      <Field label="Nombre" required error={errors.name}>
+        {props => (
+          <Input
+            {...props}
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Por ejemplo, Cambio de filtro de agua"
+          />
+        )}
+      </Field>
 
-            <div className="maintenance-form-field">
-                <label htmlFor="activity-description">Description</label>
-                <textarea
-                    id="activity-description"
-                    rows={3}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What does this maintenance involve?"
-                />
-            </div>
+      <Field label="Descripción" hint="Opcional. Qué hay que hacer y con qué.">
+        {props => <Textarea {...props} rows={3} value={description} onChange={e => setDescription(e.target.value)} />}
+      </Field>
 
-            <div className="maintenance-form-field">
-                <label>Schedule</label>
-                <div className="maintenance-form-row">
-                    <div className="maintenance-form-field">
-                        <label htmlFor="schedule-start">Start date and time</label>
-                        <input
-                            id="schedule-start"
-                            type="datetime-local"
-                            value={schedule.startDate}
-                            onChange={(e) => updateSchedule({ startDate: e.target.value })}
-                        />
-                    </div>
-                    <div className="maintenance-form-field">
-                        <label htmlFor="schedule-every">Repeat every</label>
-                        <input
-                            id="schedule-every"
-                            type="number"
-                            min="1"
-                            value={schedule.every}
-                            onChange={(e) => updateSchedule({ every: Math.max(1, Number(e.target.value) || 1) })}
-                        />
-                    </div>
-                    <div className="maintenance-form-field">
-                        <label htmlFor="schedule-unit">Unit</label>
-                        <select
-                            id="schedule-unit"
-                            value={schedule.unit}
-                            onChange={(e) => updateSchedule({ unit: e.target.value })}
-                        >
-                            {UNITS.map(u => (
-                                <option key={u.value} value={u.value}>{u.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div className="maintenance-form-field">
-                <label>Remind me (days before)</label>
-                <div className="maintenance-chip-list">
-                    {reminderDays.map(day => (
-                        <span key={day} className="maintenance-chip">
-                            {day} {day === 1 ? 'day' : 'days'}
-                            <button type="button" onClick={() => removeReminderDay(day)} aria-label={`Remove ${day} days`}>
-                                <X size={14} />
-                            </button>
-                        </span>
-                    ))}
-                    <input
-                        type="number"
-                        min="0"
-                        style={{ width: '80px' }}
-                        value={reminderDayInput}
-                        onChange={(e) => setReminderDayInput(e.target.value)}
-                        placeholder="days"
-                    />
-                    <button type="button" className="maintenance-btn" onClick={addReminderDay}>
-                        <Plus size={14} />
-                        Add
-                    </button>
-                </div>
-            </div>
-
-            <div className="maintenance-form-field">
-                <label>Custom fields (captured on completion)</label>
-                {fields.map((field, index) => (
-                    <div key={index} className="maintenance-field-def">
-                        <div className="maintenance-form-row">
-                            <div className="maintenance-form-field">
-                                <label>Name</label>
-                                <input
-                                    type="text"
-                                    value={field.name}
-                                    onChange={(e) => updateField(index, { name: e.target.value })}
-                                    placeholder="filter_type"
-                                />
-                            </div>
-                            <div className="maintenance-form-field">
-                                <label>Display name</label>
-                                <input
-                                    type="text"
-                                    value={field.display_name}
-                                    onChange={(e) => updateField(index, { display_name: e.target.value })}
-                                    placeholder="Filter Type"
-                                />
-                            </div>
-                            <div className="maintenance-form-field">
-                                <label>Type</label>
-                                <select
-                                    value={field.type}
-                                    onChange={(e) => updateField(index, { type: e.target.value })}
-                                >
-                                    {FIELD_TYPES.map(t => (
-                                        <option key={t} value={t}>{capitalize(t)}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="maintenance-form-field">
-                                <label>Default value</label>
-                                <input
-                                    type="text"
-                                    value={field.default_value}
-                                    onChange={(e) => updateField(index, { default_value: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="maintenance-form-row" style={{ alignItems: 'center' }}>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={field.is_required}
-                                    onChange={(e) => updateField(index, { is_required: e.target.checked })}
-                                />
-                                Required
-                            </label>
-                            <button type="button" className="maintenance-btn danger" onClick={() => removeField(index)}>
-                                <Trash2 size={14} />
-                                Remove field
-                            </button>
-                        </div>
-                    </div>
+      <Section title="Calendario">
+        <Field label="Primera vez" required error={errors.startDate}>
+          {props => (
+            <Input
+              {...props}
+              type="datetime-local"
+              value={schedule.startDate}
+              onChange={e => updateSchedule({ startDate: e.target.value })}
+            />
+          )}
+        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Repetir cada">
+            {props => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="numeric"
+                min="1"
+                value={schedule.every}
+                onChange={e => updateSchedule({ every: Math.max(1, Number(e.target.value) || 1) })}
+                className="font-mono"
+              />
+            )}
+          </Field>
+          <Field label="Unidad">
+            {props => (
+              <Select {...props} value={schedule.unit} onChange={e => updateSchedule({ unit: e.target.value })}>
+                {UNITS.map(u => (
+                  <option key={u.value} value={u.value}>
+                    {unitLabel(u.value, schedule.every)}
+                  </option>
                 ))}
-                <div>
-                    <button type="button" className="maintenance-btn" onClick={addField}>
-                        <Plus size={14} />
-                        Add field
-                    </button>
-                </div>
-            </div>
+              </Select>
+            )}
+          </Field>
+        </div>
+      </Section>
 
-            <div className="maintenance-form-actions">
-                <button type="button" className="maintenance-btn" onClick={onCancel} disabled={saving}>
-                    Cancel
+      <Section
+        title="Avisos"
+        description="Zensor te avisa estos días antes de que toque. Usa 0 para el mismo día."
+      >
+        {reminderDays.length > 0 ? (
+          <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+            {reminderDays.map(day => (
+              <li key={day} className="inline-flex items-center gap-1 rounded-pill bg-sunken pl-4 text-label">
+                {day === 0 ? 'El mismo día' : `${day} ${day === 1 ? 'día' : 'días'} antes`}
+                <button
+                  type="button"
+                  onClick={() => setReminderDays(reminderDays.filter(d => d !== day))}
+                  aria-label={day === 0 ? 'Quitar aviso del mismo día' : `Quitar aviso de ${day} ${day === 1 ? 'día' : 'días'} antes`}
+                  className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-pill text-muted hover:text-ink"
+                >
+                  <X size={20} strokeWidth={1.8} aria-hidden="true" />
                 </button>
-                <button type="submit" className="maintenance-btn primary" disabled={saving}>
-                    {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create activity'}
-                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="m-0 text-body-sm text-muted">Sin avisos. Agrega al menos uno para recibir recordatorios.</p>
+        )}
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label="Días antes" error={errors.reminder} className="w-[140px]">
+            {props => (
+              <Input
+                {...props}
+                type="number"
+                inputMode="numeric"
+                min="0"
+                value={reminderDayInput}
+                onChange={e => setReminderDayInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addReminderDay()
+                  }
+                }}
+                className="font-mono"
+              />
+            )}
+          </Field>
+          <Button variant="secondary" icon={Plus} onClick={addReminderDay}>
+            Agregar aviso
+          </Button>
+        </div>
+      </Section>
+
+      <Section
+        title="Datos al completar"
+        description="Lo que quieres anotar cada vez que la marques como hecha, como el tipo de filtro o el kilometraje."
+      >
+        {fields.map((field, index) => (
+          <div key={index} className="flex flex-col gap-4 rounded-md border border-line bg-surface p-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Nombre visible" required error={errors[`field-${index}-display`]}>
+                {props => (
+                  <Input
+                    {...props}
+                    type="text"
+                    value={field.display_name}
+                    onChange={e => updateField(index, { display_name: e.target.value })}
+                    placeholder="Tipo de filtro"
+                  />
+                )}
+              </Field>
+              <Field label="Clave" required hint="Sin espacios ni tildes." error={errors[`field-${index}-name`]}>
+                {props => (
+                  <Input
+                    {...props}
+                    type="text"
+                    value={field.name}
+                    onChange={e => updateField(index, { name: e.target.value })}
+                    placeholder="tipo_filtro"
+                    className="font-mono"
+                  />
+                )}
+              </Field>
+              <Field label="Tipo de dato">
+                {props => (
+                  <Select {...props} value={field.type} onChange={e => updateField(index, { type: e.target.value })}>
+                    {FIELD_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label="Valor por defecto" hint="Opcional.">
+                {props => (
+                  <Input
+                    {...props}
+                    type="text"
+                    value={field.default_value}
+                    onChange={e => updateField(index, { default_value: e.target.value })}
+                  />
+                )}
+              </Field>
             </div>
-        </form>
-    )
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Checkbox
+                label="Obligatorio"
+                checked={field.is_required}
+                onChange={e => updateField(index, { is_required: e.target.checked })}
+              />
+              <Button variant="danger" size="sm" icon={Trash2} onClick={() => removeField(index)}>
+                Quitar dato
+              </Button>
+            </div>
+          </div>
+        ))}
+        <div>
+          <Button variant="secondary" icon={Plus} onClick={addField}>
+            Agregar dato
+          </Button>
+        </div>
+      </Section>
+
+      <FormActions>
+        <Button type="submit" disabled={saving}>
+          {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear actividad'}
+        </Button>
+        <Button variant="ghost" onClick={onCancel} disabled={saving}>
+          Cancelar
+        </Button>
+      </FormActions>
+    </Form>
+  )
 }
 
 export default ActivityForm
