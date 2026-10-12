@@ -6,7 +6,7 @@ Instrucciones para agentes de código (Claude Code, Codex, Cursor, etc.) que tra
 
 **Cada vez que crees o modifiques UI** (cualquier archivo en `web/`, componentes, estilos, copy, íconos o assets), primero lee la guía de estilo:
 
-- [`docs/design-system/STYLEGUIDE.md`](docs/design-system/STYLEGUIDE.md) — guía completa del sistema de diseño. Lee la **sección 1 (reglas duras)** antes de escribir código y valida el resultado con el **checklist de la sección 13** antes de entregar.
+- [`docs/design-system/STYLE.md`](docs/design-system/STYLE.md) — guía completa del sistema de diseño. Lee la **sección 1 (reglas duras)** antes de escribir código y valida el resultado con el **checklist de la sección 13** antes de entregar.
 
 Reglas mínimas que no se negocian:
 
