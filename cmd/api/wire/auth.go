@@ -40,9 +40,11 @@ func InitializeAuthComponents() (*AuthComponents, error) {
 	}
 
 	var sessionStore usecases.SessionStore
+	var handoffStore usecases.AuthHandoffStore
 	var provider usecases.OAuthProvider
 	if env == "local" {
 		sessionStore = auth.NewMemorySessionStore()
+		handoffStore = auth.NewMemoryAuthHandoffStore()
 		provider = auth.NewFakeOAuthProvider("http://localhost:3000/auth/callback")
 	} else {
 		client := redis.NewClient(&redis.Options{
@@ -51,6 +53,7 @@ func InitializeAuthComponents() (*AuthComponents, error) {
 			DB:       appConfig.Redis.DB,
 		})
 		sessionStore = auth.NewRedisSessionStore(client)
+		handoffStore = auth.NewRedisAuthHandoffStore(client)
 		provider = auth.NewGoogleOAuthProvider(auth.GoogleOAuthProviderConfig{
 			ClientID:     appConfig.Auth.Google.ClientID,
 			ClientSecret: appConfig.Auth.Google.ClientSecret,
@@ -58,7 +61,7 @@ func InitializeAuthComponents() (*AuthComponents, error) {
 		})
 	}
 
-	service := usecases.NewAuthService(repository, sessionStore, provider, appConfig.Auth.SessionTTL)
+	service := usecases.NewAuthService(repository, sessionStore, handoffStore, provider, appConfig.Auth.SessionTTL)
 
 	ctx := context.Background()
 	if err := service.BootstrapAdmin(ctx, appConfig.Auth.BootstrapAdminEmail); err != nil {
@@ -72,7 +75,7 @@ func InitializeAuthComponents() (*AuthComponents, error) {
 	}
 
 	return &AuthComponents{
-		Controller: httpapi.NewAuthController(service),
+		Controller: httpapi.NewAuthController(service, appConfig.Auth.MobileRedirectURI),
 		Service:    service,
 	}, nil
 }

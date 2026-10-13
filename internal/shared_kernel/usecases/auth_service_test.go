@@ -19,6 +19,7 @@ var _ = ginkgo.Describe("SimpleAuthService", func() {
 		ctrl     *gomock.Controller
 		repo     *mockusecases.MockAllowedUserRepository
 		sessions *mockusecases.MockSessionStore
+		handoffs *mockusecases.MockAuthHandoffStore
 		provider *mockusecases.MockOAuthProvider
 		svc      *usecases.SimpleAuthService
 		ctx      context.Context
@@ -28,8 +29,9 @@ var _ = ginkgo.Describe("SimpleAuthService", func() {
 		ctrl = gomock.NewController(ginkgo.GinkgoT())
 		repo = mockusecases.NewMockAllowedUserRepository(ctrl)
 		sessions = mockusecases.NewMockSessionStore(ctrl)
+		handoffs = mockusecases.NewMockAuthHandoffStore(ctrl)
 		provider = mockusecases.NewMockOAuthProvider(ctrl)
-		svc = usecases.NewAuthService(repo, sessions, provider, time.Hour)
+		svc = usecases.NewAuthService(repo, sessions, handoffs, provider, time.Hour)
 		ctx = context.Background()
 	})
 
@@ -119,6 +121,106 @@ var _ = ginkgo.Describe("SimpleAuthService", func() {
 				_, err := svc.HandleCallback(ctx, "bad-code")
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
+			})
+		})
+	})
+
+	ginkgo.Context("HandleMobileCallback", func() {
+		ginkgo.When("the email is on the allowlist", func() {
+			ginkgo.BeforeEach(func() {
+				identity := usecases.OAuthIdentity{Email: "user@example.com", Name: "User Name", EmailVerified: true}
+				allowedUser := domain.AllowedUser{ID: "user-1", Email: "user@example.com", IsAdmin: true}
+
+				provider.EXPECT().ExchangeCode(gomock.Any(), "code-1").Return(identity, nil)
+				repo.EXPECT().GetByEmail(gomock.Any(), "user@example.com").Return(allowedUser, nil)
+				repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
+			})
+
+			ginkgo.It("should store a handoff under the code hash and create no session yet", func() {
+				var savedHash string
+				var saved domain.AuthHandoff
+				handoffs.EXPECT().Save(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+					func(_ context.Context, hash string, h domain.AuthHandoff) error {
+						savedHash, saved = hash, h
+						return nil
+					})
+
+				code, err := svc.HandleMobileCallback(ctx, "code-1")
+
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(code).NotTo(gomega.BeEmpty())
+				gomega.Expect(savedHash).To(gomega.Equal(domain.HashAuthHandoffCode(code)))
+				gomega.Expect(savedHash).NotTo(gomega.Equal(code))
+				gomega.Expect(saved.UserID).To(gomega.Equal(domain.ID("user-1")))
+				gomega.Expect(saved.Name).To(gomega.Equal("User Name"))
+				gomega.Expect(saved.IsAdmin).To(gomega.BeTrue())
+				gomega.Expect(saved.ExpiresAt).To(gomega.BeTemporally("~", time.Now().Add(domain.AuthHandoffTTL), time.Second))
+			})
+		})
+
+		ginkgo.When("the email is not on the allowlist", func() {
+			ginkgo.It("should return ErrEmailNotAllowed and store nothing", func() {
+				identity := usecases.OAuthIdentity{Email: "intruder@example.com", EmailVerified: true}
+				provider.EXPECT().ExchangeCode(gomock.Any(), "code-1").Return(identity, nil)
+				repo.EXPECT().GetByEmail(gomock.Any(), "intruder@example.com").Return(domain.AllowedUser{}, usecases.ErrAllowedUserNotFound)
+
+				_, err := svc.HandleMobileCallback(ctx, "code-1")
+
+				gomega.Expect(err).To(gomega.MatchError(usecases.ErrEmailNotAllowed))
+			})
+		})
+	})
+
+	ginkgo.Context("ExchangeMobileCode", func() {
+		ginkgo.When("the code has a pending handoff", func() {
+			ginkgo.It("should consume it and open a session for that user", func() {
+				handoff := domain.AuthHandoff{
+					UserID:    "user-1",
+					Email:     "user@example.com",
+					Name:      "User Name",
+					IsAdmin:   true,
+					ExpiresAt: time.Now().Add(time.Minute),
+				}
+				handoffs.EXPECT().Consume(gomock.Any(), domain.HashAuthHandoffCode("handoff-code")).Return(handoff, nil)
+				sessions.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+
+				session, err := svc.ExchangeMobileCode(ctx, "handoff-code")
+
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(session.ID).To(gomega.HaveLen(64))
+				gomega.Expect(session.UserID).To(gomega.Equal(domain.ID("user-1")))
+				gomega.Expect(session.Email).To(gomega.Equal("user@example.com"))
+				gomega.Expect(session.IsAdmin).To(gomega.BeTrue())
+				gomega.Expect(session.ExpiresAt).To(gomega.BeTemporally("~", time.Now().Add(time.Hour), time.Minute))
+			})
+		})
+
+		ginkgo.When("the code is unknown or already used", func() {
+			ginkgo.It("should return ErrAuthHandoffNotFound", func() {
+				handoffs.EXPECT().Consume(gomock.Any(), gomock.Any()).Return(domain.AuthHandoff{}, usecases.ErrAuthHandoffNotFound)
+
+				_, err := svc.ExchangeMobileCode(ctx, "used-code")
+
+				gomega.Expect(err).To(gomega.MatchError(usecases.ErrAuthHandoffNotFound))
+			})
+		})
+
+		ginkgo.When("the handoff has expired", func() {
+			ginkgo.It("should return ErrAuthHandoffNotFound and create no session", func() {
+				expired := domain.AuthHandoff{UserID: "user-1", ExpiresAt: time.Now().Add(-time.Second)}
+				handoffs.EXPECT().Consume(gomock.Any(), gomock.Any()).Return(expired, nil)
+
+				_, err := svc.ExchangeMobileCode(ctx, "old-code")
+
+				gomega.Expect(err).To(gomega.MatchError(usecases.ErrAuthHandoffNotFound))
+			})
+		})
+
+		ginkgo.When("the code is empty", func() {
+			ginkgo.It("should return ErrAuthHandoffNotFound without touching the store", func() {
+				_, err := svc.ExchangeMobileCode(ctx, "")
+
+				gomega.Expect(err).To(gomega.MatchError(usecases.ErrAuthHandoffNotFound))
 			})
 		})
 	})

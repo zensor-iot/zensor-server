@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 	"zensor-server/internal/infra/httpserver"
 	"zensor-server/internal/shared_kernel/domain"
@@ -17,28 +19,39 @@ import (
 // StateCookieName is the short-lived cookie carrying the OAuth CSRF state.
 const StateCookieName = "zensor_oauth_state"
 
+// ClientCookieName is the short-lived cookie recording which client started the
+// login. The callback comes back from Google carrying nothing that says so.
+const ClientCookieName = "zensor_oauth_client"
+
 const (
 	stateCookieTTL          = 10 * time.Minute
 	accessDeniedRedirectURL = "/ui/access-denied"
 	appRedirectURL          = "/ui/"
 )
 
-func NewAuthController(service usecases.AuthService) *AuthController {
+// NewAuthController builds the Google OAuth controller. mobileRedirectURI is
+// where the mobile app is sent back to after login (e.g. zensor://auth/callback);
+// it comes from configuration and is never read from the request, so no other
+// app can ask to receive somebody else's login. Empty turns mobile login off.
+func NewAuthController(service usecases.AuthService, mobileRedirectURI string) *AuthController {
 	return &AuthController{
-		service: service,
+		service:           service,
+		mobileRedirectURI: strings.TrimSpace(mobileRedirectURI),
 	}
 }
 
 var _ httpserver.Controller = &AuthController{}
 
 type AuthController struct {
-	service usecases.AuthService
+	service           usecases.AuthService
+	mobileRedirectURI string
 }
 
 func (c *AuthController) AddRoutes(router *http.ServeMux) {
 	router.Handle("GET /auth/mode", c.mode())
 	router.Handle("GET /auth/login", c.login())
 	router.Handle("GET /auth/callback", c.callback())
+	router.Handle("POST /auth/mobile/exchange", c.exchangeMobileCode())
 	router.Handle("POST /auth/logout", c.logout())
 	router.Handle("GET /v1/me", c.currentUser())
 	router.Handle("GET /v1/admin/allowed-users", c.listAllowedUsers())
@@ -55,6 +68,12 @@ func (c *AuthController) mode() http.HandlerFunc {
 
 func (c *AuthController) login() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		client := domain.ParseAuthClient(r.URL.Query().Get("client"))
+		if client == domain.AuthClientMobile && c.mobileRedirectURI == "" {
+			http.Error(w, "mobile login is not configured", http.StatusServiceUnavailable)
+			return
+		}
+
 		state, err := generateState()
 		if err != nil {
 			slog.Error("generating oauth state", slog.String("error", err.Error()))
@@ -72,16 +91,35 @@ func (c *AuthController) login() http.HandlerFunc {
 			SameSite: http.SameSiteLaxMode,
 		})
 
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is set conditionally on TLS/X-Forwarded-Proto
+			Name:     ClientCookieName,
+			Value:    string(client),
+			Path:     "/",
+			MaxAge:   int(stateCookieTTL.Seconds()),
+			HttpOnly: true,
+			Secure:   isRequestSecure(r),
+			SameSite: http.SameSiteLaxMode,
+		})
+
 		http.Redirect(w, r, c.service.AuthCodeURL(state), http.StatusFound)
 	}
 }
 
 func (c *AuthController) callback() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		client := domain.AuthClientWeb
+		if clientCookie, err := r.Cookie(ClientCookieName); err == nil {
+			client = domain.ParseAuthClient(clientCookie.Value)
+		}
+		clearCookie(w, ClientCookieName, isRequestSecure(r))
+		if client == domain.AuthClientMobile && c.mobileRedirectURI == "" {
+			client = domain.AuthClientWeb
+		}
+
 		stateCookie, err := r.Cookie(StateCookieName)
 		if err != nil || stateCookie.Value == "" {
 			slog.Warn("oauth callback without state cookie")
-			http.Error(w, "invalid oauth state", http.StatusBadRequest)
+			c.fail(w, r, client, http.StatusBadRequest, "invalid_state", "invalid oauth state")
 			return
 		}
 
@@ -89,13 +127,24 @@ func (c *AuthController) callback() http.HandlerFunc {
 
 		if r.URL.Query().Get("state") != stateCookie.Value {
 			slog.Warn("oauth callback state mismatch")
-			http.Error(w, "invalid oauth state", http.StatusBadRequest)
+			c.fail(w, r, client, http.StatusBadRequest, "invalid_state", "invalid oauth state")
+			return
+		}
+
+		// Google reports a refused consent as a query parameter, not a status.
+		if providerErr := r.URL.Query().Get("error"); providerErr != "" && client == domain.AuthClientMobile {
+			c.redirectToApp(w, r, url.Values{"error": {"cancelled"}})
 			return
 		}
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
-			http.Error(w, "missing authorization code", http.StatusBadRequest)
+			c.fail(w, r, client, http.StatusBadRequest, "invalid_request", "missing authorization code")
+			return
+		}
+
+		if client == domain.AuthClientMobile {
+			c.completeMobileLogin(w, r, code)
 			return
 		}
 
@@ -124,11 +173,73 @@ func (c *AuthController) callback() http.HandlerFunc {
 	}
 }
 
+// completeMobileLogin sends the browser back into the app with a single-use
+// code instead of a cookie: the cookie would only live in the throwaway
+// browser the login ran in.
+func (c *AuthController) completeMobileLogin(w http.ResponseWriter, r *http.Request, code string) {
+	handoffCode, err := c.service.HandleMobileCallback(r.Context(), code)
+	if errors.Is(err, usecases.ErrEmailNotAllowed) || errors.Is(err, usecases.ErrEmailNotVerified) {
+		c.redirectToApp(w, r, url.Values{"error": {"access_denied"}})
+		return
+	}
+	if err != nil {
+		slog.Error("handling mobile oauth callback", slog.String("error", err.Error()))
+		c.redirectToApp(w, r, url.Values{"error": {"sign_in_failed"}})
+		return
+	}
+
+	c.redirectToApp(w, r, url.Values{"code": {handoffCode}})
+}
+
+// exchangeMobileCode trades the single-use code from the redirect for the
+// bearer session token. It is public by definition: the code stands in for
+// authentication, and it is worth one exchange.
+func (c *AuthController) exchangeMobileCode() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body internal.MobileExchangeRequest
+		if err := httpserver.DecodeJSONBody(r, &body); err != nil {
+			httpserver.ReplyWithError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		session, err := c.service.ExchangeMobileCode(r.Context(), strings.TrimSpace(body.Code))
+		if errors.Is(err, usecases.ErrAuthHandoffNotFound) {
+			httpserver.ReplyWithError(w, http.StatusUnauthorized, "invalid or expired code")
+			return
+		}
+		if err != nil {
+			slog.Error("exchanging mobile code", slog.String("error", err.Error()))
+			httpserver.ReplyWithError(w, http.StatusInternalServerError, "login failed")
+			return
+		}
+
+		httpserver.ReplyJSONResponse(w, http.StatusOK, internal.ToMobileSessionResponse(session))
+	}
+}
+
+// fail ends a callback that cannot continue: the app is sent back with the
+// reason so it is not left on a web page it cannot act on.
+func (c *AuthController) fail(w http.ResponseWriter, r *http.Request, client domain.AuthClient, status int, reason, message string) {
+	if client == domain.AuthClientMobile {
+		c.redirectToApp(w, r, url.Values{"error": {reason}})
+		return
+	}
+	http.Error(w, message, status)
+}
+
+// redirectToApp appends the outcome to the configured mobile redirect URI.
+func (c *AuthController) redirectToApp(w http.ResponseWriter, r *http.Request, params url.Values) {
+	separator := "?"
+	if strings.Contains(c.mobileRedirectURI, "?") {
+		separator = "&"
+	}
+	http.Redirect(w, r, c.mobileRedirectURI+separator+params.Encode(), http.StatusFound)
+}
+
 func (c *AuthController) logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		sessionCookie, err := r.Cookie(httpserver.SessionCookieName)
-		if err == nil && sessionCookie.Value != "" {
-			if err := c.service.Logout(r.Context(), sessionCookie.Value); err != nil {
+		if token := httpserver.SessionTokenFrom(r); token != "" {
+			if err := c.service.Logout(r.Context(), token); err != nil {
 				slog.Error("logging out", slog.String("error", err.Error()))
 			}
 		}
@@ -239,12 +350,12 @@ func (c *AuthController) removeAllowedUser() http.HandlerFunc {
 }
 
 func (c *AuthController) sessionFromRequest(r *http.Request) (domain.Session, bool) {
-	sessionCookie, err := r.Cookie(httpserver.SessionCookieName)
-	if err != nil || sessionCookie.Value == "" {
+	token := httpserver.SessionTokenFrom(r)
+	if token == "" {
 		return domain.Session{}, false
 	}
 
-	session, err := c.service.GetSession(r.Context(), sessionCookie.Value)
+	session, err := c.service.GetSession(r.Context(), token)
 	if err != nil {
 		return domain.Session{}, false
 	}

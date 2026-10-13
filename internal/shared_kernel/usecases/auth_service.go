@@ -14,12 +14,14 @@ import (
 func NewAuthService(
 	repository AllowedUserRepository,
 	sessions SessionStore,
+	handoffs AuthHandoffStore,
 	provider OAuthProvider,
 	sessionTTL time.Duration,
 ) *SimpleAuthService {
 	return &SimpleAuthService{
 		repository: repository,
 		sessions:   sessions,
+		handoffs:   handoffs,
 		provider:   provider,
 		sessionTTL: sessionTTL,
 	}
@@ -30,6 +32,7 @@ var _ AuthService = (*SimpleAuthService)(nil)
 type SimpleAuthService struct {
 	repository AllowedUserRepository
 	sessions   SessionStore
+	handoffs   AuthHandoffStore
 	provider   OAuthProvider
 	sessionTTL time.Duration
 }
@@ -39,30 +42,91 @@ func (s *SimpleAuthService) AuthCodeURL(state string) string {
 }
 
 func (s *SimpleAuthService) HandleCallback(ctx context.Context, code string) (domain.Session, error) {
+	user, name, err := s.authenticate(ctx, code)
+	if err != nil {
+		return domain.Session{}, err
+	}
+
+	return s.openSession(ctx, user.ID, user.Email, name, user.IsAdmin)
+}
+
+func (s *SimpleAuthService) HandleMobileCallback(ctx context.Context, code string) (string, error) {
+	user, name, err := s.authenticate(ctx, code)
+	if err != nil {
+		return "", err
+	}
+
+	handoffCode, err := domain.NewAuthHandoffCode()
+	if err != nil {
+		return "", fmt.Errorf("generating handoff code: %w", err)
+	}
+
+	handoff := domain.AuthHandoff{
+		UserID:    user.ID,
+		Email:     user.Email,
+		Name:      name,
+		IsAdmin:   user.IsAdmin,
+		ExpiresAt: time.Now().Add(domain.AuthHandoffTTL),
+	}
+	if err := s.handoffs.Save(ctx, domain.HashAuthHandoffCode(handoffCode), handoff); err != nil {
+		return "", fmt.Errorf("saving auth handoff: %w", err)
+	}
+
+	return handoffCode, nil
+}
+
+func (s *SimpleAuthService) ExchangeMobileCode(ctx context.Context, code string) (domain.Session, error) {
+	if code == "" {
+		return domain.Session{}, ErrAuthHandoffNotFound
+	}
+
+	handoff, err := s.handoffs.Consume(ctx, domain.HashAuthHandoffCode(code))
+	if errors.Is(err, ErrAuthHandoffNotFound) {
+		return domain.Session{}, ErrAuthHandoffNotFound
+	}
+	if err != nil {
+		return domain.Session{}, fmt.Errorf("consuming auth handoff: %w", err)
+	}
+
+	if handoff.IsExpired(time.Now()) {
+		return domain.Session{}, ErrAuthHandoffNotFound
+	}
+
+	return s.openSession(ctx, handoff.UserID, handoff.Email, handoff.Name, handoff.IsAdmin)
+}
+
+// authenticate exchanges the provider code and checks the identity against the
+// allowlist, recording the login. It returns the allowed user and the display
+// name the provider reported.
+func (s *SimpleAuthService) authenticate(ctx context.Context, code string) (domain.AllowedUser, string, error) {
 	identity, err := s.provider.ExchangeCode(ctx, code)
 	if err != nil {
-		return domain.Session{}, fmt.Errorf("exchanging authorization code: %w", err)
+		return domain.AllowedUser{}, "", fmt.Errorf("exchanging authorization code: %w", err)
 	}
 
 	if !identity.EmailVerified {
-		return domain.Session{}, ErrEmailNotVerified
+		return domain.AllowedUser{}, "", ErrEmailNotVerified
 	}
 
 	email := domain.NormalizeEmail(identity.Email)
 	user, err := s.repository.GetByEmail(ctx, email)
 	if errors.Is(err, ErrAllowedUserNotFound) {
 		slog.Warn("login denied for email not on allowlist", slog.String("email", email))
-		return domain.Session{}, ErrEmailNotAllowed
+		return domain.AllowedUser{}, "", ErrEmailNotAllowed
 	}
 	if err != nil {
-		return domain.Session{}, fmt.Errorf("looking up allowed user: %w", err)
+		return domain.AllowedUser{}, "", fmt.Errorf("looking up allowed user: %w", err)
 	}
 
 	user.RecordLogin(identity.Name)
 	if err := s.repository.Update(ctx, user); err != nil {
-		return domain.Session{}, fmt.Errorf("recording login: %w", err)
+		return domain.AllowedUser{}, "", fmt.Errorf("recording login: %w", err)
 	}
 
+	return user, identity.Name, nil
+}
+
+func (s *SimpleAuthService) openSession(ctx context.Context, userID domain.ID, email, name string, isAdmin bool) (domain.Session, error) {
 	sessionID, err := generateSessionID()
 	if err != nil {
 		return domain.Session{}, fmt.Errorf("generating session id: %w", err)
@@ -71,10 +135,10 @@ func (s *SimpleAuthService) HandleCallback(ctx context.Context, code string) (do
 	now := time.Now()
 	session := domain.Session{
 		ID:        sessionID,
-		UserID:    user.ID,
-		Email:     user.Email,
-		Name:      identity.Name,
-		IsAdmin:   user.IsAdmin,
+		UserID:    userID,
+		Email:     email,
+		Name:      name,
+		IsAdmin:   isAdmin,
 		CreatedAt: now,
 		ExpiresAt: now.Add(s.sessionTTL),
 	}
@@ -83,7 +147,7 @@ func (s *SimpleAuthService) HandleCallback(ctx context.Context, code string) (do
 		return domain.Session{}, fmt.Errorf("creating session: %w", err)
 	}
 
-	slog.Info("user logged in", slog.String("email", user.Email), slog.String("user_id", user.ID.String()))
+	slog.Info("user logged in", slog.String("email", email), slog.String("user_id", userID.String()))
 
 	return session, nil
 }

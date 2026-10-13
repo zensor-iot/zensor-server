@@ -102,11 +102,17 @@ func loadAuthConfig() AuthConfig {
 		mode = AuthModeGoogle
 	}
 
+	mobileRedirectURI := viper.GetString("auth.mobile_redirect_uri")
+	if mobileRedirectURI == "" {
+		mobileRedirectURI = DefaultMobileRedirectURI
+	}
+
 	return AuthConfig{
 		Enabled:             viper.GetBool("auth.enabled"),
 		Mode:                mode,
 		SessionTTL:          sessionTTL,
 		BootstrapAdminEmail: viper.GetString("auth.bootstrap_admin_email"),
+		MobileRedirectURI:   mobileRedirectURI,
 		Google: GoogleOAuthConfig{
 			ClientID:     viper.GetString("auth.google.client_id"),
 			ClientSecret: viper.GetString("auth.google.client_secret"),
@@ -256,6 +262,10 @@ const (
 	AuthModeStatic = "static"
 )
 
+// DefaultMobileRedirectURI is where the Zensor mobile app expects to be sent
+// back after a Google login; its scheme is registered by the app.
+const DefaultMobileRedirectURI = "zensor://auth/callback"
+
 type AuthConfig struct {
 	Enabled             bool
 	Mode                string
@@ -263,6 +273,7 @@ type AuthConfig struct {
 	Static              StaticAuthConfig
 	SessionTTL          time.Duration
 	BootstrapAdminEmail string
+	MobileRedirectURI   string
 }
 
 type GoogleOAuthConfig struct {
