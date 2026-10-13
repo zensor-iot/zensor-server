@@ -30,7 +30,7 @@ var _ = ginkgo.Describe("AuthController", func() {
 		ctrl = gomock.NewController(ginkgo.GinkgoT())
 		service = mockusecases.NewMockAuthService(ctrl)
 		router = http.NewServeMux()
-		httpapi.NewAuthController(service).AddRoutes(router)
+		httpapi.NewAuthController(service, "zensor://auth/callback").AddRoutes(router)
 	})
 
 	ginkgo.AfterEach(func() {
@@ -151,6 +151,162 @@ var _ = ginkgo.Describe("AuthController", func() {
 
 				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusFound))
 				gomega.Expect(rec.Header().Get("Location")).To(gomega.Equal("/ui/access-denied"))
+			})
+		})
+	})
+
+	ginkgo.Context("Mobile login", func() {
+		mobileCallback := func(query url.Values, client, cookieState string) *httptest.ResponseRecorder {
+			req := httptest.NewRequest(http.MethodGet, "/auth/callback?"+query.Encode(), nil)
+			if cookieState != "" {
+				req.AddCookie(&http.Cookie{Name: httpapi.StateCookieName, Value: cookieState})
+			}
+			if client != "" {
+				req.AddCookie(&http.Cookie{Name: httpapi.ClientCookieName, Value: client})
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			return rec
+		}
+
+		ginkgo.When("starting a login with client=mobile", func() {
+			ginkgo.It("should remember the client in a cookie and redirect to the provider", func() {
+				service.EXPECT().AuthCodeURL(gomock.Any()).Return("https://accounts.google.com/auth")
+
+				req := httptest.NewRequest(http.MethodGet, "/auth/login?client=mobile", nil)
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusFound))
+				clientCookie := cookieByName(rec, httpapi.ClientCookieName)
+				gomega.Expect(clientCookie).NotTo(gomega.BeNil())
+				gomega.Expect(clientCookie.Value).To(gomega.Equal("mobile"))
+				gomega.Expect(clientCookie.HttpOnly).To(gomega.BeTrue())
+			})
+		})
+
+		ginkgo.When("mobile login is not configured", func() {
+			ginkgo.It("should refuse to start it", func() {
+				router = http.NewServeMux()
+				httpapi.NewAuthController(service, "").AddRoutes(router)
+
+				req := httptest.NewRequest(http.MethodGet, "/auth/login?client=mobile", nil)
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusServiceUnavailable))
+			})
+		})
+
+		ginkgo.When("the callback completes a mobile login", func() {
+			ginkgo.It("should redirect to the app with a handoff code and set no session cookie", func() {
+				service.EXPECT().HandleMobileCallback(gomock.Any(), "code-1").Return("handoff-1", nil)
+
+				rec := mobileCallback(url.Values{"state": {"s"}, "code": {"code-1"}}, "mobile", "s")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusFound))
+				gomega.Expect(rec.Header().Get("Location")).To(gomega.Equal("zensor://auth/callback?code=handoff-1"))
+				gomega.Expect(cookieByName(rec, httpserver.SessionCookieName)).To(gomega.BeNil())
+			})
+		})
+
+		ginkgo.When("the mobile user is not on the allowlist", func() {
+			ginkgo.It("should redirect to the app with access_denied", func() {
+				service.EXPECT().HandleMobileCallback(gomock.Any(), "code-1").Return("", usecases.ErrEmailNotAllowed)
+
+				rec := mobileCallback(url.Values{"state": {"s"}, "code": {"code-1"}}, "mobile", "s")
+
+				gomega.Expect(rec.Header().Get("Location")).To(gomega.Equal("zensor://auth/callback?error=access_denied"))
+			})
+		})
+
+		ginkgo.When("the mobile callback state does not match", func() {
+			ginkgo.It("should redirect to the app with invalid_state", func() {
+				rec := mobileCallback(url.Values{"state": {"evil"}, "code": {"code-1"}}, "mobile", "s")
+
+				gomega.Expect(rec.Header().Get("Location")).To(gomega.Equal("zensor://auth/callback?error=invalid_state"))
+			})
+		})
+
+		ginkgo.When("the person refuses consent on a mobile login", func() {
+			ginkgo.It("should redirect to the app with cancelled", func() {
+				rec := mobileCallback(url.Values{"state": {"s"}, "error": {"access_denied"}}, "mobile", "s")
+
+				gomega.Expect(rec.Header().Get("Location")).To(gomega.Equal("zensor://auth/callback?error=cancelled"))
+			})
+		})
+
+		exchange := func(body string) *httptest.ResponseRecorder {
+			req := httptest.NewRequest(http.MethodPost, "/auth/mobile/exchange", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			return rec
+		}
+
+		ginkgo.When("exchanging a valid handoff code", func() {
+			ginkgo.It("should return the bearer token, its expiry and the user", func() {
+				expiresAt := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+				service.EXPECT().ExchangeMobileCode(gomock.Any(), "handoff-1").Return(domain.Session{
+					ID:        "session-id",
+					UserID:    "user-1",
+					Email:     "user@example.com",
+					Name:      "User",
+					ExpiresAt: expiresAt,
+				}, nil)
+
+				rec := exchange(`{"code":"handoff-1"}`)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+				var body map[string]any
+				gomega.Expect(json.Unmarshal(rec.Body.Bytes(), &body)).To(gomega.Succeed())
+				gomega.Expect(body["token"]).To(gomega.Equal("session-id"))
+				gomega.Expect(body["expires_at"]).To(gomega.Equal(expiresAt.Format(time.RFC3339)))
+				gomega.Expect(body["user"]).To(gomega.HaveKeyWithValue("email", "user@example.com"))
+			})
+		})
+
+		ginkgo.When("exchanging an unknown or used code", func() {
+			ginkgo.It("should return 401", func() {
+				service.EXPECT().ExchangeMobileCode(gomock.Any(), "used").Return(domain.Session{}, usecases.ErrAuthHandoffNotFound)
+
+				gomega.Expect(exchange(`{"code":"used"}`).Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+		})
+
+		ginkgo.When("the body is malformed", func() {
+			ginkgo.It("should return 400", func() {
+				gomega.Expect(exchange(`not json`).Code).To(gomega.Equal(http.StatusBadRequest))
+			})
+		})
+	})
+
+	ginkgo.Context("Bearer session", func() {
+		ginkgo.When("reading /v1/me with a bearer session token", func() {
+			ginkgo.It("should return the current user", func() {
+				service.EXPECT().GetSession(gomock.Any(), "session-id").Return(domain.Session{
+					ID: "session-id", UserID: "user-1", Email: "user@example.com",
+				}, nil)
+
+				req := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+				req.Header.Set("Authorization", "Bearer session-id")
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+			})
+		})
+
+		ginkgo.When("logging out with a bearer session token", func() {
+			ginkgo.It("should delete that session", func() {
+				service.EXPECT().Logout(gomock.Any(), "session-id").Return(nil)
+
+				req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+				req.Header.Set("Authorization", "Bearer session-id")
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, req)
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusNoContent))
 			})
 		})
 	})

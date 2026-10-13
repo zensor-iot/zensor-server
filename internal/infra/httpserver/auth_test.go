@@ -177,6 +177,34 @@ var _ = ginkgo.Describe("AuthMiddleware", func() {
 		})
 	})
 
+	ginkgo.Context("bearer session tokens", func() {
+		ginkgo.When("a valid session ID is sent as a bearer token", func() {
+			ginkgo.It("should authenticate as that session's user", func() {
+				rec := bearerRequest("/v1/tenants", "Bearer valid-session")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+				gomega.Expect(seenID).To(gomega.Equal("user-1"))
+				gomega.Expect(seenMail).To(gomega.Equal("user@example.com"))
+			})
+		})
+
+		ginkgo.When("an admin session is sent as a bearer token", func() {
+			ginkgo.It("should pass the admin gate", func() {
+				rec := bearerRequest("/v1/admin/allowed-users", "Bearer admin-session")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusOK))
+			})
+		})
+
+		ginkgo.When("the bearer token is neither a session nor an API key", func() {
+			ginkgo.It("should return 401", func() {
+				rec := bearerRequest("/v1/tenants", "Bearer unknown-session")
+
+				gomega.Expect(rec.Code).To(gomega.Equal(http.StatusUnauthorized))
+			})
+		})
+	})
+
 	ginkgo.Context("public paths", func() {
 		ginkgo.When("requesting public routes without a session", func() {
 			ginkgo.It("should allow /healthz", func() {

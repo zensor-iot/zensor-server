@@ -39,7 +39,7 @@ var publicExactPaths = map[string]struct{}{
 const adminPathPrefix = "/v1/admin/"
 
 // NewAuthMiddleware enforces authentication on /v1/* and /ws/* routes, first
-// via session cookie and otherwise via bearer API key. It always strips
+// via session (cookie or bearer session token) and otherwise via bearer API key. It always strips
 // client-provided X-User-* headers and re-populates them from the resolved
 // identity so downstream controllers keep working unchanged.
 func NewAuthMiddleware(sessions SessionResolver, apiKeys APIKeyResolver) func(http.Handler) http.Handler {
@@ -128,13 +128,35 @@ func resolveAPIKey(resolver APIKeyResolver, r *http.Request) (domain.APIKey, boo
 	return key, true
 }
 
+// SessionTokenFrom returns the session ID a request carries: the session cookie
+// for the web UI, or an `Authorization: Bearer` token for the mobile app, which
+// has no cookie jar. Bearer API keys (zsk_…) are not sessions and are skipped.
+func SessionTokenFrom(r *http.Request) string {
+	if cookie, err := r.Cookie(SessionCookieName); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+
+	const bearerPrefix = "Bearer "
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(header, bearerPrefix) {
+		return ""
+	}
+
+	token := strings.TrimSpace(strings.TrimPrefix(header, bearerPrefix))
+	if strings.HasPrefix(token, domain.APIKeyPlaintextPrefix) {
+		return ""
+	}
+
+	return token
+}
+
 func resolveSession(resolver SessionResolver, r *http.Request) (domain.Session, bool) {
-	cookie, err := r.Cookie(SessionCookieName)
-	if err != nil || cookie.Value == "" {
+	token := SessionTokenFrom(r)
+	if token == "" {
 		return domain.Session{}, false
 	}
 
-	session, err := resolver.GetSession(r.Context(), cookie.Value)
+	session, err := resolver.GetSession(r.Context(), token)
 	if err != nil {
 		return domain.Session{}, false
 	}

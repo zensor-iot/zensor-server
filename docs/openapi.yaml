@@ -57,10 +57,19 @@ paths:
   /auth/login:
     get:
       summary: Start OAuth login
-      description: Sets a short-lived CSRF state cookie and redirects the browser to the OAuth provider's consent page
+      description: Sets a short-lived CSRF state cookie and redirects the browser to the OAuth provider's consent page. The mobile app opens this URL in the system browser with `client=mobile`; the callback then sends it back to the configured mobile redirect URI with a single-use code instead of setting a session cookie.
       tags:
         - Authentication
       security: []
+      parameters:
+        - name: client
+          in: query
+          required: false
+          description: Which client starts the login. `mobile` makes the callback redirect to the app (`auth.mobile_redirect_uri`, default `zensor://auth/callback`) with `?code=<handoff code>` or `?error=<reason>`.
+          schema:
+            type: string
+            enum: [web, mobile]
+            default: web
       responses:
         "302":
           description: Redirect to the OAuth provider authorization URL
@@ -111,10 +120,47 @@ paths:
         "500":
           description: Login failed
 
+  /auth/mobile/exchange:
+    post:
+      summary: Exchange a mobile login code
+      description: "Trades the single-use code the mobile app received in the login redirect for a bearer session token. The code expires two minutes after the login and works only once. Send the token as `Authorization: Bearer <token>` on every request."
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: Session opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileSessionResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unknown, used or expired code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /auth/logout:
     post:
       summary: Logout
-      description: Invalidates the current session and clears the session cookie
+      description: Invalidates the current session (cookie or bearer session token) and clears the session cookie
       tags:
         - Authentication
       security: []
@@ -125,7 +171,7 @@ paths:
   /v1/me:
     get:
       summary: Get current user
-      description: Returns the authenticated user derived from the session cookie
+      description: Returns the authenticated user derived from the session cookie or bearer session token
       tags:
         - Authentication
       responses:
@@ -3068,6 +3114,19 @@ components:
           description: Whether the user is an administrator
           example: false
 
+    MobileSessionResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: "Bearer session token, sent as `Authorization: Bearer <token>`"
+        expires_at:
+          type: string
+          format: date-time
+          description: When the session expires
+        user:
+          $ref: "#/components/schemas/CurrentUserResponse"
+
     AllowedUserResponse:
       type: object
       properties:
@@ -3736,9 +3795,17 @@ components:
         HttpOnly session cookie issued by the OAuth callback. Required for
         `/v1/admin/*` routes, which additionally require the session to be
         flagged as admin.
+    sessionBearer:
+      type: http
+      scheme: bearer
+      description: >-
+        Session token obtained by the mobile app from POST /auth/mobile/exchange,
+        presented as `Authorization: Bearer <token>`. Equivalent to the session
+        cookie, including admin access for admin sessions.
 
 security:
   - sessionCookie: []
+  - sessionBearer: []
   - apiKeyBearer: []
 
 tags:

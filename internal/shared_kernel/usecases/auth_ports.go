@@ -6,7 +6,7 @@ import (
 	"zensor-server/internal/shared_kernel/domain"
 )
 
-//go:generate mockgen -source=auth_ports.go -destination=../../../test/unit/doubles/shared_kernel/usecases/auth_ports_mock.go -package=usecases -mock_names=AllowedUserRepository=MockAllowedUserRepository,SessionStore=MockSessionStore,OAuthProvider=MockOAuthProvider,AuthService=MockAuthService
+//go:generate mockgen -source=auth_ports.go -destination=../../../test/unit/doubles/shared_kernel/usecases/auth_ports_mock.go -package=usecases -mock_names=AllowedUserRepository=MockAllowedUserRepository,SessionStore=MockSessionStore,AuthHandoffStore=MockAuthHandoffStore,OAuthProvider=MockOAuthProvider,AuthService=MockAuthService
 
 var (
 	ErrAllowedUserNotFound   = errors.New("allowed user not found")
@@ -15,6 +15,7 @@ var (
 	ErrEmailNotVerified      = errors.New("email is not verified")
 	ErrSessionNotFound       = errors.New("session not found")
 	ErrInvalidCredentials    = errors.New("invalid credentials")
+	ErrAuthHandoffNotFound   = errors.New("auth handoff not found")
 )
 
 // OAuthIdentity is the identity obtained from the OAuth provider after code exchange.
@@ -38,6 +39,14 @@ type SessionStore interface {
 	DeleteByUser(ctx context.Context, userID domain.ID) error
 }
 
+// AuthHandoffStore keeps the handoffs mobile logins leave for the app, keyed by
+// the hash of their single-use code.
+type AuthHandoffStore interface {
+	Save(ctx context.Context, codeHash string, handoff domain.AuthHandoff) error
+	// Consume returns the handoff and removes it, so a code works only once.
+	Consume(ctx context.Context, codeHash string) (domain.AuthHandoff, error)
+}
+
 type AllowedUserRepository interface {
 	Create(context.Context, domain.AllowedUser) error
 	GetByID(context.Context, domain.ID) (domain.AllowedUser, error)
@@ -50,6 +59,10 @@ type AllowedUserRepository interface {
 type AuthService interface {
 	AuthCodeURL(state string) string
 	HandleCallback(ctx context.Context, code string) (domain.Session, error)
+	// HandleMobileCallback authenticates like HandleCallback but, instead of a
+	// session, returns a single-use code the app trades in ExchangeMobileCode.
+	HandleMobileCallback(ctx context.Context, code string) (string, error)
+	ExchangeMobileCode(ctx context.Context, code string) (domain.Session, error)
 	GetSession(ctx context.Context, sessionID string) (domain.Session, error)
 	Logout(ctx context.Context, sessionID string) error
 	ListAllowedUsers(ctx context.Context) ([]domain.AllowedUser, error)
