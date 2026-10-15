@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getTodayWindow, computeCumulativeEnergyKWh } from './energyAccumulation'
+import {
+    getTodayWindow,
+    computeCumulativeEnergyKWh,
+    splitGridSegmentKWh,
+    computeHourlyGridEnergy,
+    computeCumulativeGridEnergy,
+} from './energyAccumulation'
 
 describe('getTodayWindow', () => {
     it('returns local midnight as start and the given instant as end', () => {
@@ -63,5 +69,98 @@ describe('computeCumulativeEnergyKWh', () => {
         const result = computeCumulativeEnergyKWh(samples)
 
         expect(result.map((p) => p.value)).toEqual([0, 1, 2])
+    })
+})
+
+describe('splitGridSegmentKWh', () => {
+    const oneHourMs = 60 * 60 * 1000
+
+    it('counts a positive segment as imported energy', () => {
+        const result = splitGridSegmentKWh({ time: 0, value: 1000 }, { time: oneHourMs, value: 1000 })
+
+        expect(result).toEqual({ importedKWh: 1, exportedKWh: 0 })
+    })
+
+    it('counts a negative segment as exported energy', () => {
+        const result = splitGridSegmentKWh({ time: 0, value: -500 }, { time: oneHourMs, value: -500 })
+
+        expect(result).toEqual({ importedKWh: 0, exportedKWh: 0.5 })
+    })
+
+    it('splits a segment that crosses zero at the interpolated crossing', () => {
+        // +1000 W to -1000 W over 1 h crosses zero at 30 min: 0.25 kWh each way
+        const result = splitGridSegmentKWh({ time: 0, value: 1000 }, { time: oneHourMs, value: -1000 })
+
+        expect(result.importedKWh).toBeCloseTo(0.25, 10)
+        expect(result.exportedKWh).toBeCloseTo(0.25, 10)
+    })
+})
+
+describe('computeHourlyGridEnergy', () => {
+    const start = new Date(2026, 9, 15, 0, 0, 0)
+    const at = (hour, minute = 0) => new Date(2026, 9, 15, hour, minute, 0).getTime()
+
+    it('creates one bucket per hour from the start hour to the end hour', () => {
+        const result = computeHourlyGridEnergy([], start, new Date(2026, 9, 15, 2, 30))
+
+        expect(result.map(b => b.time)).toEqual([at(0), at(1), at(2)])
+    })
+
+    it('leaves hours without samples empty instead of zero', () => {
+        const result = computeHourlyGridEnergy([], start, new Date(2026, 9, 15, 0, 30))
+
+        expect(result[0]).toEqual({ time: at(0), imported: null, exported: null, net: null })
+    })
+
+    it('puts imported energy above zero and exported energy below zero', () => {
+        const points = [
+            { time: at(0), value: 1200 },
+            { time: at(0, 15), value: 1200 },
+            { time: at(1), value: -600 },
+            { time: at(1, 15), value: -600 },
+        ]
+
+        const result = computeHourlyGridEnergy(points, start, new Date(2026, 9, 15, 1, 45))
+
+        expect(result[0].imported).toBeCloseTo(0.3, 10)
+        expect(result[0].exported).toBe(0)
+        expect(result[1].imported).toBe(0)
+        expect(result[1].exported).toBeCloseTo(-0.15, 10)
+        expect(result[1].net).toBeCloseTo(-0.15, 10)
+    })
+
+    it('skips segments across a gap in the data', () => {
+        const points = [
+            { time: at(0), value: 1000 },
+            { time: at(0, 50), value: 1000 },
+        ]
+
+        const result = computeHourlyGridEnergy(points, start, new Date(2026, 9, 15, 0, 55))
+
+        expect(result[0]).toEqual({ time: at(0), imported: 0, exported: 0, net: 0 })
+    })
+})
+
+describe('computeCumulativeGridEnergy', () => {
+    const tenMinutesMs = 10 * 60 * 1000
+
+    it('returns an empty array for no samples', () => {
+        expect(computeCumulativeGridEnergy([])).toEqual([])
+    })
+
+    it('accumulates imported, exported and net energy', () => {
+        // 10 min at +600 W = 0.1 kWh in, then 10 min at -1200 W = 0.2 kWh out
+        const points = [
+            { time: 0, value: 600 },
+            { time: tenMinutesMs, value: 600 },
+            { time: tenMinutesMs + 1, value: -1200 },
+            { time: 2 * tenMinutesMs + 1, value: -1200 },
+        ]
+
+        const last = computeCumulativeGridEnergy(points).at(-1)
+
+        expect(last.imported).toBeCloseTo(0.1, 3)
+        expect(last.exported).toBeCloseTo(-0.2, 3)
+        expect(last.net).toBeCloseTo(-0.1, 3)
     })
 })
