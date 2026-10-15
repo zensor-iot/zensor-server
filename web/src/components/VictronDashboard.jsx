@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react'
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  Area,
+  AreaChart,
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import useWebSocket from '../hooks/useWebSocket'
 import useMetricHistory from '../hooks/useMetricHistory'
 import useCumulativeEnergyToday from '../hooks/useCumulativeEnergyToday'
+import useGridEnergyToday from '../hooks/useGridEnergyToday'
 import { getWebSocketUrl } from '../config/api'
 import { connectionState } from '../utils/connectionState'
 import {
@@ -25,6 +38,13 @@ import { cx, formatDateTime, formatNumber, formatRelative, formatTime, formatUni
 const SOC_METRIC_NAME = 'zensor_server_victron_battery_soc'
 const LOAD_METRIC_NAME = 'zensor_server_victron_system_load_power'
 const SOLAR_POWER_METRIC_NAME = 'zensor_server_victron_solar_power'
+const GRID_POWER_METRIC_NAME = 'zensor_server_victron_grid_power'
+
+const GRID_SERIES = {
+  imported: { label: 'Sacado de la red', color: 'var(--zs-status-attention-fill)' },
+  exported: { label: 'Inyectado a la red', color: 'var(--zs-status-ok-fill)' },
+  net: { label: 'Balance', color: 'var(--zs-brand-ink)' },
+}
 
 const LOW_SOC = 20
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -58,6 +78,11 @@ const isNumber = value => typeof value === 'number' && Number.isFinite(value)
 const unitOrEmpty = (value, unit, digits = 0) => (isNumber(value) ? formatUnit(value, unit, digits) : undefined)
 
 const shortDay = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' })
+
+const CHART_CLASS =
+  'h-[240px] w-full [&_.recharts-cartesian-axis-tick-value]:fill-muted [&_.recharts-cartesian-axis-tick-value]:font-mono [&_.recharts-cartesian-axis-tick-value]:text-xs'
+
+const HOUR_MS = 60 * 60 * 1000
 
 function vebusState(state) {
   if (!isNumber(state)) return undefined
@@ -93,58 +118,13 @@ function ChartTooltip({ active, payload, label, unit, digits, seriesLabel }) {
   )
 }
 
-function MetricChart({ title, history, loading, error, unit, digits, spanMs, domain, reference, emptyText, headline }) {
-  const tickTime = ts => (spanMs > DAY_MS ? shortDay.format(new Date(ts)) : formatTime(ts))
-  const description = `${title}: ${summarize(history, unit, digits)}`
-
+function ChartCard({ title, headline, description, hasData, loading, error, emptyText, footer, children }) {
   let body
-  if (history.length > 0) {
+  if (hasData) {
     body = (
-      <div
-        role="img"
-        aria-label={description}
-        className="h-[240px] w-full [&_.recharts-cartesian-axis-tick-value]:fill-muted [&_.recharts-cartesian-axis-tick-value]:font-mono [&_.recharts-cartesian-axis-tick-value]:text-xs"
-      >
+      <div role="img" aria-label={description} className={CHART_CLASS}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={history} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
-            <CartesianGrid vertical={false} stroke="var(--zs-border-default)" />
-            <XAxis
-              dataKey="time"
-              type="number"
-              scale="time"
-              domain={['dataMin', 'dataMax']}
-              tickFormatter={tickTime}
-              axisLine={false}
-              tickLine={false}
-              minTickGap={32}
-            />
-            <YAxis
-              domain={domain}
-              tickFormatter={value => formatUnit(value, unit, digits > 1 ? 1 : 0)}
-              axisLine={false}
-              tickLine={false}
-              width={72}
-            />
-            <Tooltip
-              cursor={{ stroke: 'var(--zs-border-strong)', strokeWidth: 1 }}
-              content={<ChartTooltip unit={unit} digits={digits} seriesLabel={title} />}
-            />
-            {reference && (
-              <ReferenceLine y={reference.y} stroke="var(--zs-status-attention-fill)" strokeDasharray="4 4" />
-            )}
-            <Area
-              type="monotone"
-              dataKey="value"
-              name={title}
-              stroke="var(--zs-brand-ink)"
-              strokeWidth={2}
-              fill="var(--zs-brand-ink)"
-              fillOpacity={0.12}
-              dot={false}
-              activeDot={{ r: 4, stroke: 'var(--zs-bg-surface)', strokeWidth: 2, fill: 'var(--zs-brand-ink)' }}
-              isAnimationActive={!prefersReducedMotion()}
-            />
-          </AreaChart>
+          {children}
         </ResponsiveContainer>
       </div>
     )
@@ -167,10 +147,247 @@ function MetricChart({ title, history, loading, error, unit, digits, spanMs, dom
         {headline}
       </figcaption>
       {body}
-      {reference && history.length > 0 && (
-        <p className="m-0 text-caption text-muted">La línea punteada marca {reference.label}.</p>
-      )}
+      {hasData && footer}
     </Card>
+  )
+}
+
+function MetricChart({ title, history, loading, error, unit, digits, spanMs, domain, reference, emptyText, headline }) {
+  const tickTime = ts => (spanMs > DAY_MS ? shortDay.format(new Date(ts)) : formatTime(ts))
+
+  return (
+    <ChartCard
+      title={title}
+      headline={headline}
+      description={`${title}: ${summarize(history, unit, digits)}`}
+      hasData={history.length > 0}
+      loading={loading}
+      error={error}
+      emptyText={emptyText}
+      footer={reference && <p className="m-0 text-caption text-muted">La línea punteada marca {reference.label}.</p>}
+    >
+      <AreaChart data={history} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+        <CartesianGrid vertical={false} stroke="var(--zs-border-default)" />
+        <XAxis
+          dataKey="time"
+          type="number"
+          scale="time"
+          domain={['dataMin', 'dataMax']}
+          tickFormatter={tickTime}
+          axisLine={false}
+          tickLine={false}
+          minTickGap={32}
+        />
+        <YAxis
+          domain={domain}
+          tickFormatter={value => formatUnit(value, unit, digits > 1 ? 1 : 0)}
+          axisLine={false}
+          tickLine={false}
+          width={72}
+        />
+        <Tooltip
+          cursor={{ stroke: 'var(--zs-border-strong)', strokeWidth: 1 }}
+          content={<ChartTooltip unit={unit} digits={digits} seriesLabel={title} />}
+        />
+        {reference && <ReferenceLine y={reference.y} stroke="var(--zs-status-attention-fill)" strokeDasharray="4 4" />}
+        <Area
+          type="monotone"
+          dataKey="value"
+          name={title}
+          stroke="var(--zs-brand-ink)"
+          strokeWidth={2}
+          fill="var(--zs-brand-ink)"
+          fillOpacity={0.12}
+          dot={false}
+          activeDot={{ r: 4, stroke: 'var(--zs-bg-surface)', strokeWidth: 2, fill: 'var(--zs-brand-ink)' }}
+          isAnimationActive={!prefersReducedMotion()}
+        />
+      </AreaChart>
+    </ChartCard>
+  )
+}
+
+function symmetricScale(rows) {
+  const largest = Math.max(
+    0,
+    ...rows.flatMap(row => [row.imported, row.exported, row.net]).filter(isNumber).map(Math.abs),
+  )
+  const magnitude = largest > 0 ? 10 ** Math.floor(Math.log10(largest)) : 1
+  const bound = magnitude * ([1, 2, 4, 6, 8, 10].find(step => step * magnitude >= largest) ?? 10)
+  const half = bound / 2
+  return {
+    domain: [-bound, bound],
+    ticks: [-bound, -half, 0, half, bound],
+    digits: Math.max(0, -Math.floor(Math.log10(half))),
+  }
+}
+
+const signedKWh = value => `${value > 0 ? '+' : ''}${formatUnit(value, 'kWh', 2)}`
+
+function GridTooltip({ active, payload, title }) {
+  const row = payload?.[0]?.payload
+  if (!active || !row || row.net === null) return null
+  return (
+    <div className="flex flex-col gap-1 rounded-md border border-line bg-surface px-3 py-2 text-ink shadow-overlay">
+      <span className="text-caption text-muted">{title(row)}</span>
+      <span className="text-body-sm">
+        {GRID_SERIES.imported.label}{' '}
+        <span className="font-mono font-medium">{formatUnit(row.imported, 'kWh', 2)}</span>
+      </span>
+      <span className="text-body-sm">
+        {GRID_SERIES.exported.label}{' '}
+        <span className="font-mono font-medium">{formatUnit(Math.abs(row.exported), 'kWh', 2)}</span>
+      </span>
+      <span className="text-body-sm">
+        {GRID_SERIES.net.label} <span className="font-mono font-medium">{signedKWh(row.net)}</span>{' '}
+        <span className="text-muted">{row.net > 0 ? '(sacas más de lo que inyectas)' : row.net < 0 ? '(inyectas más de lo que sacas)' : ''}</span>
+      </span>
+    </div>
+  )
+}
+
+function GridLegend() {
+  return (
+    <ul className="m-0 flex list-none flex-wrap gap-4 p-0 text-caption text-muted">
+      {Object.entries(GRID_SERIES).map(([key, series]) => (
+        <li key={key} className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className={cx('inline-block', key === 'net' ? 'h-1 w-4' : 'h-3 w-3 rounded-sm')}
+            style={{ background: series.color }}
+          />
+          {series.label}
+        </li>
+      ))}
+      <li>Sobre 0 sacas de la red; bajo 0 inyectas.</li>
+    </ul>
+  )
+}
+
+function GridAxes({ rows, xAxis }) {
+  const scale = symmetricScale(rows)
+  return [
+    <CartesianGrid key="grid" vertical={false} stroke="var(--zs-border-default)" />,
+    xAxis,
+    <YAxis
+      key="y"
+      domain={scale.domain}
+      ticks={scale.ticks}
+      tickFormatter={value => formatUnit(value, 'kWh', scale.digits)}
+      axisLine={false}
+      tickLine={false}
+      width={72}
+    />,
+    <ReferenceLine key="zero" y={0} stroke="var(--zs-border-strong)" strokeWidth={1.5} />,
+  ]
+}
+
+function hourTicks(rows, everyHours = 3) {
+  if (rows.length === 0) return []
+  const first = new Date(rows[0].time)
+  first.setMinutes(0, 0, 0)
+  const ticks = []
+  for (let t = first.getTime(); t <= rows[rows.length - 1].time; t += everyHours * HOUR_MS) {
+    if (t >= rows[0].time) ticks.push(t)
+  }
+  return ticks
+}
+
+const hourRange = row => `${formatTime(row.time)}–${formatTime(row.time + HOUR_MS)}`
+
+function GridHourlyChart({ grid }) {
+  const { hourly, totals, hasData, loading, error } = grid
+  const description = totals
+    ? `Energía con la red por hora hoy: sacado ${formatUnit(totals.imported, 'kWh', 2)}, inyectado ${formatUnit(Math.abs(totals.exported), 'kWh', 2)}, balance ${signedKWh(totals.net)}`
+    : 'Energía con la red por hora hoy'
+  const animate = !prefersReducedMotion()
+
+  return (
+    <ChartCard
+      title="Red por hora"
+      description={description}
+      hasData={hasData}
+      loading={loading}
+      error={error}
+      emptyText="Sin datos de la red hoy."
+      footer={<GridLegend />}
+    >
+      <ComposedChart data={hourly} stackOffset="sign" margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+        {GridAxes({
+          rows: hourly,
+          xAxis: (
+            <XAxis
+              key="x"
+              dataKey="time"
+              tickFormatter={formatTime}
+              axisLine={false}
+              tickLine={false}
+              minTickGap={16}
+            />
+          ),
+        })}
+        <Tooltip cursor={{ fill: 'var(--zs-border-default)', fillOpacity: 0.4 }} content={<GridTooltip title={hourRange} />} />
+        <Bar dataKey="imported" stackId="grid" fill={GRID_SERIES.imported.color} isAnimationActive={animate} />
+        <Bar dataKey="exported" stackId="grid" fill={GRID_SERIES.exported.color} isAnimationActive={animate} />
+        <Line
+          type="monotone"
+          dataKey="net"
+          stroke={GRID_SERIES.net.color}
+          strokeWidth={2}
+          dot={{ r: 3, stroke: 'var(--zs-bg-surface)', strokeWidth: 1, fill: GRID_SERIES.net.color }}
+          isAnimationActive={animate}
+        />
+      </ComposedChart>
+    </ChartCard>
+  )
+}
+
+function GridCumulativeChart({ grid }) {
+  const { cumulative, totals, hasData, loading, error } = grid
+  const description = totals
+    ? `Energía acumulada con la red hoy: sacado ${formatUnit(totals.imported, 'kWh', 2)}, inyectado ${formatUnit(Math.abs(totals.exported), 'kWh', 2)}, balance ${signedKWh(totals.net)}`
+    : 'Energía acumulada con la red hoy'
+  const animate = !prefersReducedMotion()
+  const areaProps = { type: 'monotone', strokeWidth: 2, fillOpacity: 0.12, dot: false, isAnimationActive: animate }
+
+  return (
+    <ChartCard
+      title="Red acumulada"
+      headline={totals && <span className="font-mono text-data-sm whitespace-nowrap">{signedKWh(totals.net)}</span>}
+      description={description}
+      hasData={hasData}
+      loading={loading}
+      error={error}
+      emptyText="Sin datos de la red hoy."
+      footer={<GridLegend />}
+    >
+      <ComposedChart data={cumulative} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+        {GridAxes({
+          rows: cumulative,
+          xAxis: (
+            <XAxis
+              key="x"
+              dataKey="time"
+              type="number"
+              scale="time"
+              domain={['dataMin', 'dataMax']}
+              ticks={hourTicks(cumulative)}
+              tickFormatter={formatTime}
+              axisLine={false}
+              tickLine={false}
+              minTickGap={32}
+            />
+          ),
+        })}
+        <Tooltip
+          cursor={{ stroke: 'var(--zs-border-strong)', strokeWidth: 1 }}
+          content={<GridTooltip title={row => formatDateTime(row.time)} />}
+        />
+        <Area {...areaProps} dataKey="imported" stroke={GRID_SERIES.imported.color} fill={GRID_SERIES.imported.color} />
+        <Area {...areaProps} dataKey="exported" stroke={GRID_SERIES.exported.color} fill={GRID_SERIES.exported.color} />
+        <Line type="monotone" dataKey="net" stroke={GRID_SERIES.net.color} strokeWidth={2} dot={false} isAnimationActive={animate} />
+      </ComposedChart>
+    </ChartCard>
   )
 }
 
@@ -265,6 +482,7 @@ const VictronDashboard = () => {
   const load = useMetricHistory(LOAD_METRIC_NAME, rangeConfig)
   const solarToday = useCumulativeEnergyToday(SOLAR_POWER_METRIC_NAME)
   const loadToday = useCumulativeEnergyToday(LOAD_METRIC_NAME)
+  const gridToday = useGridEnergyToday(GRID_POWER_METRIC_NAME)
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'victron_status') {
@@ -393,6 +611,13 @@ const VictronDashboard = () => {
             emptyText="Sin datos recientes hoy."
             headline={todayHeadline(loadToday.history, loadToday.totalKWh)}
           />
+        </CardGrid>
+      </Section>
+
+      <Section title="Red de hoy" description="Lo que sacas de la red y lo que inyectas, desde la medianoche.">
+        <CardGrid>
+          <GridHourlyChart grid={gridToday} />
+          <GridCumulativeChart grid={gridToday} />
         </CardGrid>
       </Section>
 
