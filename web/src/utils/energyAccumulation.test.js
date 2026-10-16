@@ -3,7 +3,7 @@ import {
     getTodayWindow,
     computeCumulativeEnergyKWh,
     splitGridSegmentKWh,
-    computeHourlyGridEnergy,
+    computeGridEnergyBuckets,
     computeCumulativeGridEnergy,
 } from './energyAccumulation'
 
@@ -96,20 +96,20 @@ describe('splitGridSegmentKWh', () => {
     })
 })
 
-describe('computeHourlyGridEnergy', () => {
+describe('computeGridEnergyBuckets', () => {
     const start = new Date(2026, 9, 15, 0, 0, 0)
     const at = (hour, minute = 0) => new Date(2026, 9, 15, hour, minute, 0).getTime()
 
     it('creates one bucket per hour from the start hour to the end hour', () => {
-        const result = computeHourlyGridEnergy([], start, new Date(2026, 9, 15, 2, 30))
+        const result = computeGridEnergyBuckets([], start, new Date(2026, 9, 15, 2, 30))
 
         expect(result.map(b => b.time)).toEqual([at(0), at(1), at(2)])
     })
 
     it('leaves hours without samples empty instead of zero', () => {
-        const result = computeHourlyGridEnergy([], start, new Date(2026, 9, 15, 0, 30))
+        const result = computeGridEnergyBuckets([], start, new Date(2026, 9, 15, 0, 30))
 
-        expect(result[0]).toEqual({ time: at(0), imported: null, exported: null, net: null })
+        expect(result[0]).toEqual({ time: at(0), end: at(1), imported: null, exported: null, net: null })
     })
 
     it('puts imported energy above zero and exported energy below zero', () => {
@@ -120,7 +120,7 @@ describe('computeHourlyGridEnergy', () => {
             { time: at(1, 15), value: -600 },
         ]
 
-        const result = computeHourlyGridEnergy(points, start, new Date(2026, 9, 15, 1, 45))
+        const result = computeGridEnergyBuckets(points, start, new Date(2026, 9, 15, 1, 45), 'hour')
 
         expect(result[0].imported).toBeCloseTo(0.3, 10)
         expect(result[0].exported).toBe(0)
@@ -135,9 +135,32 @@ describe('computeHourlyGridEnergy', () => {
             { time: at(0, 50), value: 1000 },
         ]
 
-        const result = computeHourlyGridEnergy(points, start, new Date(2026, 9, 15, 0, 55))
+        const result = computeGridEnergyBuckets(points, start, new Date(2026, 9, 15, 0, 55))
 
-        expect(result[0]).toEqual({ time: at(0), imported: 0, exported: 0, net: 0 })
+        expect(result[0]).toEqual({ time: at(0), end: at(1), imported: 0, exported: 0, net: 0 })
+    })
+
+    it('creates quarter-hour buckets aligned to the quarter', () => {
+        const result = computeGridEnergyBuckets([], new Date(2026, 9, 15, 0, 7), new Date(2026, 9, 15, 0, 40), 'quarterHour')
+
+        expect(result.map(b => b.time)).toEqual([at(0), at(0, 15), at(0, 30)])
+    })
+
+    it('creates day buckets from local midnight and adds each segment to its day', () => {
+        const day = (date, hour = 0) => new Date(2026, 9, date, hour, 0, 0).getTime()
+        const points = [
+            { time: day(14, 12), value: 1200 },
+            { time: day(14, 12) + 10 * 60 * 1000, value: 1200 },
+            { time: day(15, 9), value: -600 },
+            { time: day(15, 9) + 10 * 60 * 1000, value: -600 },
+        ]
+
+        const result = computeGridEnergyBuckets(points, new Date(2026, 9, 14, 8, 30), new Date(2026, 9, 15, 18, 0), 'day')
+
+        expect(result.map(b => b.time)).toEqual([day(14), day(15)])
+        expect(result[0].end).toBe(day(15))
+        expect(result[0].imported).toBeCloseTo(0.2, 10)
+        expect(result[1].exported).toBeCloseTo(-0.1, 10)
     })
 })
 

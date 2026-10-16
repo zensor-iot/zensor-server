@@ -15,7 +15,7 @@ import {
 import useWebSocket from '../hooks/useWebSocket'
 import useMetricHistory from '../hooks/useMetricHistory'
 import useCumulativeEnergyToday from '../hooks/useCumulativeEnergyToday'
-import useGridEnergyToday from '../hooks/useGridEnergyToday'
+import useGridEnergy from '../hooks/useGridEnergy'
 import { getWebSocketUrl } from '../config/api'
 import { connectionState } from '../utils/connectionState'
 import {
@@ -50,10 +50,46 @@ const LOW_SOC = 20
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const TIME_RANGES = [
-  { value: '1h', label: '1 h', ms: 60 * 60 * 1000, step: '30s' },
-  { value: '6h', label: '6 h', ms: 6 * 60 * 60 * 1000, step: '60s' },
-  { value: '24h', label: '24 h', ms: DAY_MS, step: '300s' },
-  { value: '7d', label: '7 d', ms: 7 * DAY_MS, step: '3600s' },
+  {
+    value: '1h',
+    label: '1 h',
+    span: 'la última hora',
+    ms: 60 * 60 * 1000,
+    step: '30s',
+    grid: { bucket: 'quarterHour', title: 'Red cada 15 minutos', step: '1m', tickEvery: { minutes: 15 } },
+  },
+  {
+    value: '6h',
+    label: '6 h',
+    span: 'las últimas 6 horas',
+    ms: 6 * 60 * 60 * 1000,
+    step: '60s',
+    grid: { bucket: 'hour', title: 'Red por hora', step: '5m', tickEvery: { minutes: 60 } },
+  },
+  {
+    value: '24h',
+    label: '24 h',
+    span: 'las últimas 24 horas',
+    ms: DAY_MS,
+    step: '300s',
+    grid: { bucket: 'hour', title: 'Red por hora', step: '5m', tickEvery: { minutes: 180 } },
+  },
+  {
+    value: '7d',
+    label: '7 d',
+    span: 'los últimos 7 días',
+    ms: 7 * DAY_MS,
+    step: '3600s',
+    grid: { bucket: 'day', title: 'Red por día', step: '5m', tickEvery: { days: 1 } },
+  },
+  {
+    value: '4w',
+    label: '4 sem',
+    span: 'las últimas 4 semanas',
+    ms: 28 * DAY_MS,
+    step: '3600s',
+    grid: { bucket: 'day', title: 'Red por día', step: '5m', tickEvery: { days: 7 } },
+  },
 ]
 
 const VEBUS_STATES = {
@@ -81,8 +117,6 @@ const shortDay = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'shor
 
 const CHART_CLASS =
   'h-[240px] w-full [&_.recharts-cartesian-axis-tick-value]:fill-muted [&_.recharts-cartesian-axis-tick-value]:font-mono [&_.recharts-cartesian-axis-tick-value]:text-xs'
-
-const HOUR_MS = 60 * 60 * 1000
 
 function vebusState(state) {
   if (!isNumber(state)) return undefined
@@ -282,51 +316,62 @@ function GridAxes({ rows, xAxis }) {
   ]
 }
 
-function hourTicks(rows, everyHours = 3) {
+function timeTicks(rows, { minutes, days }) {
   if (rows.length === 0) return []
-  const first = new Date(rows[0].time)
-  first.setMinutes(0, 0, 0)
+  const firstTime = rows[0].time
+  const lastTime = rows[rows.length - 1].time
+  const cursor = new Date(firstTime)
+  cursor.setHours(0, 0, 0, 0)
   const ticks = []
-  for (let t = first.getTime(); t <= rows[rows.length - 1].time; t += everyHours * HOUR_MS) {
-    if (t >= rows[0].time) ticks.push(t)
+  while (cursor.getTime() <= lastTime) {
+    if (cursor.getTime() >= firstTime) ticks.push(cursor.getTime())
+    if (days) cursor.setDate(cursor.getDate() + days)
+    else cursor.setTime(cursor.getTime() + minutes * 60 * 1000)
   }
   return ticks
 }
 
-const hourRange = row => `${formatTime(row.time)}–${formatTime(row.time + HOUR_MS)}`
+const isDaily = range => range.grid.bucket === 'day'
+const gridTickLabel = range => (isDaily(range) ? ts => shortDay.format(new Date(ts)) : formatTime)
+const bucketLabel = range => row =>
+  isDaily(range) ? shortDay.format(new Date(row.time)) : `${formatTime(row.time)}–${formatTime(row.end)}`
 
-function GridHourlyChart({ grid }) {
-  const { hourly, totals, hasData, loading, error } = grid
+const gridTotalsText = totals =>
+  `sacado ${formatUnit(totals.imported, 'kWh', 2)}, inyectado ${formatUnit(Math.abs(totals.exported), 'kWh', 2)}, balance ${signedKWh(totals.net)}`
+
+function GridBucketChart({ grid, range }) {
+  const { buckets, totals, hasData, loading, error } = grid
+  const title = range.grid.title
   const description = totals
-    ? `Energía con la red por hora hoy: sacado ${formatUnit(totals.imported, 'kWh', 2)}, inyectado ${formatUnit(Math.abs(totals.exported), 'kWh', 2)}, balance ${signedKWh(totals.net)}`
-    : 'Energía con la red por hora hoy'
+    ? `${title} en ${range.span}: ${gridTotalsText(totals)}`
+    : `${title} en ${range.span}`
   const animate = !prefersReducedMotion()
 
   return (
     <ChartCard
-      title="Red por hora"
+      title={title}
       description={description}
       hasData={hasData}
       loading={loading}
       error={error}
-      emptyText="Sin datos de la red hoy."
+      emptyText="Sin datos de la red en este rango."
       footer={<GridLegend />}
     >
-      <ComposedChart data={hourly} stackOffset="sign" margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
+      <ComposedChart data={buckets} stackOffset="sign" margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
         {GridAxes({
-          rows: hourly,
+          rows: buckets,
           xAxis: (
             <XAxis
               key="x"
               dataKey="time"
-              tickFormatter={formatTime}
+              tickFormatter={gridTickLabel(range)}
               axisLine={false}
               tickLine={false}
               minTickGap={16}
             />
           ),
         })}
-        <Tooltip cursor={{ fill: 'var(--zs-border-default)', fillOpacity: 0.4 }} content={<GridTooltip title={hourRange} />} />
+        <Tooltip cursor={{ fill: 'var(--zs-border-default)', fillOpacity: 0.4 }} content={<GridTooltip title={bucketLabel(range)} />} />
         <Bar dataKey="imported" stackId="grid" fill={GRID_SERIES.imported.color} isAnimationActive={animate} />
         <Bar dataKey="exported" stackId="grid" fill={GRID_SERIES.exported.color} isAnimationActive={animate} />
         <Line
@@ -342,11 +387,11 @@ function GridHourlyChart({ grid }) {
   )
 }
 
-function GridCumulativeChart({ grid }) {
+function GridCumulativeChart({ grid, range }) {
   const { cumulative, totals, hasData, loading, error } = grid
   const description = totals
-    ? `Energía acumulada con la red hoy: sacado ${formatUnit(totals.imported, 'kWh', 2)}, inyectado ${formatUnit(Math.abs(totals.exported), 'kWh', 2)}, balance ${signedKWh(totals.net)}`
-    : 'Energía acumulada con la red hoy'
+    ? `Energía acumulada con la red en ${range.span}: ${gridTotalsText(totals)}`
+    : `Energía acumulada con la red en ${range.span}`
   const animate = !prefersReducedMotion()
   const areaProps = { type: 'monotone', strokeWidth: 2, fillOpacity: 0.12, dot: false, isAnimationActive: animate }
 
@@ -358,7 +403,7 @@ function GridCumulativeChart({ grid }) {
       hasData={hasData}
       loading={loading}
       error={error}
-      emptyText="Sin datos de la red hoy."
+      emptyText="Sin datos de la red en este rango."
       footer={<GridLegend />}
     >
       <ComposedChart data={cumulative} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
@@ -371,8 +416,8 @@ function GridCumulativeChart({ grid }) {
               type="number"
               scale="time"
               domain={['dataMin', 'dataMax']}
-              ticks={hourTicks(cumulative)}
-              tickFormatter={formatTime}
+              ticks={timeTicks(cumulative, range.grid.tickEvery)}
+              tickFormatter={gridTickLabel(range)}
               axisLine={false}
               tickLine={false}
               minTickGap={32}
@@ -482,7 +527,7 @@ const VictronDashboard = () => {
   const load = useMetricHistory(LOAD_METRIC_NAME, rangeConfig)
   const solarToday = useCumulativeEnergyToday(SOLAR_POWER_METRIC_NAME)
   const loadToday = useCumulativeEnergyToday(LOAD_METRIC_NAME)
-  const gridToday = useGridEnergyToday(GRID_POWER_METRIC_NAME)
+  const grid = useGridEnergy(GRID_POWER_METRIC_NAME, rangeConfig)
 
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'victron_status') {
@@ -585,6 +630,13 @@ const VictronDashboard = () => {
         </CardGrid>
       </Section>
 
+      <Section title="Red" description={`Lo que sacas de la red y lo que inyectas en ${rangeConfig.span}.`}>
+        <CardGrid>
+          <GridBucketChart grid={grid} range={rangeConfig} />
+          <GridCumulativeChart grid={grid} range={rangeConfig} />
+        </CardGrid>
+      </Section>
+
       <Section title="Energía de hoy" description="Acumulada desde la medianoche.">
         <CardGrid>
           <MetricChart
@@ -611,13 +663,6 @@ const VictronDashboard = () => {
             emptyText="Sin datos recientes hoy."
             headline={todayHeadline(loadToday.history, loadToday.totalKWh)}
           />
-        </CardGrid>
-      </Section>
-
-      <Section title="Red de hoy" description="Lo que sacas de la red y lo que inyectas, desde la medianoche.">
-        <CardGrid>
-          <GridHourlyChart grid={gridToday} />
-          <GridCumulativeChart grid={gridToday} />
         </CardGrid>
       </Section>
 
