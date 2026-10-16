@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { metricsApi } from '../config/api';
-import { getTodayWindow, computeHourlyGridEnergy, computeCumulativeGridEnergy } from '../utils/energyAccumulation';
+import { computeGridEnergyBuckets, computeCumulativeGridEnergy } from '../utils/energyAccumulation';
 
-const STEP = '5m';
-
-// Tracks energy imported from and exported to the grid since local midnight,
-// both grouped by hour and as running totals, from a signed grid power (W)
-// metric. Refetches every 30s so the current hour keeps filling in.
-const useGridEnergyToday = (metricName) => {
-  const [hourly, setHourly] = useState([]);
+// Tracks energy imported from and exported to the grid over the selected
+// range (ending now), both grouped into the range's bucket size and as running
+// totals, from a signed grid power (W) metric. Refetches every 30s so the
+// latest bucket keeps filling in.
+const useGridEnergy = (metricName, range) => {
+  const [buckets, setBuckets] = useState([]);
   const [cumulative, setCumulative] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,14 +18,15 @@ const useGridEnergyToday = (metricName) => {
       setLoading(true);
       setError(null);
       try {
-        const { start, end } = getTodayWindow();
+        const end = new Date();
+        const start = new Date(end.getTime() - range.ms);
         const points = await metricsApi.queryRange(metricName, {
           start: start.getTime(),
           end: end.getTime(),
-          step: STEP,
+          step: range.grid.step,
         });
         if (!cancelled) {
-          setHourly(computeHourlyGridEnergy(points, start, end));
+          setBuckets(computeGridEnergyBuckets(points, start, end, range.grid.bucket));
           setCumulative(computeCumulativeGridEnergy(points));
         }
       } catch (err) {
@@ -38,12 +38,12 @@ const useGridEnergyToday = (metricName) => {
     fetchHistory();
     const interval = setInterval(fetchHistory, 30000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [metricName]);
+  }, [metricName, range]);
 
   const totals = cumulative.length > 0 ? cumulative[cumulative.length - 1] : null;
-  const hasData = hourly.some(bucket => bucket.net !== null);
+  const hasData = buckets.some(bucket => bucket.net !== null);
 
-  return { hourly, cumulative, totals, hasData, loading, error };
+  return { buckets, cumulative, totals, hasData, loading, error };
 };
 
-export default useGridEnergyToday;
+export default useGridEnergy;

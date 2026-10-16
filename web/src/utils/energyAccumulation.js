@@ -54,20 +54,57 @@ export function splitGridSegmentKWh(previous, current) {
         : { importedKWh: second, exportedKWh: -first }
 }
 
-// Groups signed grid power samples (watts) into hourly energy buckets from
-// the hour of `start` up to the hour of `end`. Imported energy is positive
-// and exported energy negative, so the chart can draw them on either side of
-// zero; hours without any sample keep null values instead of a fake zero.
-export function computeHourlyGridEnergy(points, start, end) {
+const QUARTER_HOUR_MS = 15 * 60 * 1000
+
+// Bucket sizes for grouping grid energy. Sub-day buckets step in absolute
+// time so daylight-saving changes cannot repeat or skip a bucket; day buckets
+// follow local midnights so each bar matches a calendar day.
+export const GRID_BUCKETS = {
+    quarterHour: {
+        floor: date => date.setMinutes(date.getMinutes() - (date.getMinutes() % 15), 0, 0),
+        next: time => time + QUARTER_HOUR_MS,
+    },
+    hour: {
+        floor: date => date.setMinutes(0, 0, 0),
+        next: time => time + HOUR_MS,
+    },
+    day: {
+        floor: date => date.setHours(0, 0, 0, 0),
+        next: time => {
+            const date = new Date(time)
+            date.setDate(date.getDate() + 1)
+            return date.getTime()
+        },
+    },
+}
+
+// Groups signed grid power samples (watts) into energy buckets of the given
+// size, from the bucket holding `start` up to the bucket holding `end`. Each
+// bucket carries its own `end` so callers can label partial or uneven days.
+// Imported energy is positive and exported energy negative, so the chart can
+// draw them on either side of zero; buckets without any sample keep null
+// values instead of a fake zero.
+export function computeGridEnergyBuckets(points, start, end, bucketSize = 'hour') {
+    const { floor, next } = GRID_BUCKETS[bucketSize]
     const first = new Date(start)
-    first.setMinutes(0, 0, 0)
+    floor(first)
     const buckets = []
-    for (let t = first.getTime(); t <= end.getTime(); t += HOUR_MS) {
-        buckets.push({ time: t, imported: null, exported: null, net: null })
+    for (let t = first.getTime(); t <= end.getTime(); t = next(t)) {
+        buckets.push({ time: t, end: next(t), imported: null, exported: null, net: null })
     }
     if (buckets.length === 0) return buckets
 
-    const bucketFor = time => buckets[Math.floor((time - buckets[0].time) / HOUR_MS)]
+    const bucketFor = time => {
+        let low = 0
+        let high = buckets.length - 1
+        while (low < high) {
+            const middle = Math.ceil((low + high) / 2)
+            if (buckets[middle].time <= time) low = middle
+            else high = middle - 1
+        }
+        const bucket = buckets[low]
+        return time >= bucket.time && time < bucket.end ? bucket : undefined
+    }
     const add = (bucket, importedKWh, exportedKWh) => {
         bucket.imported = (bucket.imported ?? 0) + importedKWh
         bucket.exported = (bucket.exported ?? 0) - exportedKWh
